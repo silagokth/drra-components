@@ -50,12 +50,12 @@ jobs:
         ls
     - run: tar czf testcases.tar.gz testcases/
     - name: Upload testcases
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: testcases
         path: testcases.tar.gz
     - name: Upload library
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: library
         path: library.tar.gz
