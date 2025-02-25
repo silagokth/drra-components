@@ -16,7 +16,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
+    # outputs:
     steps:
     - run: sudo apt install libfuse2
     - uses: actions/checkout@v4
