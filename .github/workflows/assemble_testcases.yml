@@ -1,4 +1,4 @@
-name: Build testcases
+name: Assemble testcases
 
 on:
   workflow_call:

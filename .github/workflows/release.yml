@@ -2,7 +2,7 @@
 # and then the assemble_testcases job to assemble the testcases. The testcases are then uploaded as an artifact.
 # Then they are added to the release as a downloadable asset.
 
-name: Release
+name: Create release
 
 on:
   # release:
@@ -10,7 +10,6 @@ on:
   push:
     tags:
       - 'v*'
-name: Create release
 
 jobs:
   build_testcases:

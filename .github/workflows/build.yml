@@ -1,8 +1,6 @@
-name: Build
+name: Build testcases and library
 
 on: push
-
-name: Build testcases and library
 
 jobs:
   build_testcases:
