@@ -53,6 +53,8 @@ package {{fingerprint}}_pkg;
     {% endif %}
     {% endfor %}
 
+    parameter AGU_BITWIDTH = 16;
+
 endpackage
 
 module {{fingerprint}}
@@ -77,6 +79,12 @@ import {{fingerprint}}_pkg::*;
     logic bulk_w_en, bulk_r_en, word_w_en, word_r_en;
     logic [BULK_ADDR_WIDTH-1:0] bulk_w_addr, bulk_r_addr;
     logic [WORD_ADDR_WIDTH-1:0] word_w_addr, word_r_addr;
+    logic [AGU_BITWIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
+
+    assign bulk_w_addr = bulk_w_agu[BULK_ADDR_WIDTH-1:0];
+    assign bulk_r_addr = bulk_r_agu[BULK_ADDR_WIDTH-1:0];
+    assign word_w_addr = word_w_agu[WORD_ADDR_WIDTH-1:0];
+    assign word_r_addr = word_r_agu[WORD_ADDR_WIDTH-1:0];
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -143,35 +151,35 @@ import {{fingerprint}}_pkg::*;
     assign rep = rep_valid ? unpack_rep(payload) : '{default: 0};
     assign repx = repx_valid ? unpack_repx(payload) : '{default: 0};
 
-    logic [WORD_ADDR_WIDTH-1:0] step_0_0, step_0_1;
-    logic [WORD_ADDR_WIDTH-1:0] delay_0_0, delay_0_1;
-    logic [WORD_ADDR_WIDTH-1:0] iter_0_0, iter_0_1;
-    logic [WORD_ADDR_WIDTH-1:0] init_addr_0_0, init_addr_0_1;
+    logic [AGU_BITWIDTH-1:0] step_0_0, step_0_1;
+    logic [AGU_BITWIDTH-1:0] delay_0_0, delay_0_1;
+    logic [AGU_BITWIDTH-1:0] iter_0_0, iter_0_1;
+    logic [AGU_BITWIDTH-1:0] init_addr_0_0, init_addr_0_1;
 
-    logic [BULK_ADDR_WIDTH-1:0] step_0_2, step_0_3;
-    logic [BULK_ADDR_WIDTH-1:0] delay_0_2, delay_0_3;
-    logic [BULK_ADDR_WIDTH-1:0] iter_0_2, iter_0_3;
-    logic [BULK_ADDR_WIDTH-1:0] init_addr_0_2, init_addr_0_3;
+    logic [AGU_BITWIDTH-1:0] step_0_2, step_0_3;
+    logic [AGU_BITWIDTH-1:0] delay_0_2, delay_0_3;
+    logic [AGU_BITWIDTH-1:0] iter_0_2, iter_0_3;
+    logic [AGU_BITWIDTH-1:0] init_addr_0_2, init_addr_0_3;
 
-    assign step_0_0 = rep._step[WORD_ADDR_WIDTH-1:0];
-    assign delay_0_0 = rep._delay[WORD_ADDR_WIDTH-1:0];
-    assign iter_0_0 = rep._iter[WORD_ADDR_WIDTH-1:0];
-    assign init_addr_0_0 = dsu._init_addr[WORD_ADDR_WIDTH-1:0];
-    assign step_0_1 = rep._step[WORD_ADDR_WIDTH-1:0];
-    assign delay_0_1 = rep._delay[WORD_ADDR_WIDTH-1:0];
-    assign iter_0_1 = rep._iter[WORD_ADDR_WIDTH-1:0];
-    assign init_addr_0_1 = dsu._init_addr[WORD_ADDR_WIDTH-1:0];
-    assign step_0_2 = rep._step[BULK_ADDR_WIDTH-1:0];
-    assign delay_0_2 = rep._delay[BULK_ADDR_WIDTH-1:0];
-    assign iter_0_2 = rep._iter[BULK_ADDR_WIDTH-1:0];
-    assign init_addr_0_2 = dsu._init_addr[BULK_ADDR_WIDTH-1:0];
-    assign step_0_3 = rep._step[BULK_ADDR_WIDTH-1:0];
-    assign delay_0_3 = rep._delay[BULK_ADDR_WIDTH-1:0];
-    assign iter_0_3 = rep._iter[BULK_ADDR_WIDTH-1:0];
-    assign init_addr_0_3 = dsu._init_addr[BULK_ADDR_WIDTH-1:0];
+    assign step_0_0 = rep._step;
+    assign delay_0_0 = rep._delay;
+    assign iter_0_0 = rep._iter;
+    assign init_addr_0_0 = dsu._init_addr;
+    assign step_0_1 = rep._step;
+    assign delay_0_1 = rep._delay;
+    assign iter_0_1 = rep._iter;
+    assign init_addr_0_1 = dsu._init_addr;
+    assign step_0_2 = rep._step;
+    assign delay_0_2 = rep._delay;
+    assign iter_0_2 = rep._iter;
+    assign init_addr_0_2 = dsu._init_addr;
+    assign step_0_3 = rep._step;
+    assign delay_0_3 = rep._delay;
+    assign iter_0_3 = rep._iter;
+    assign init_addr_0_3 = dsu._init_addr;
     
     agu #(
-      .ADDRESS_WIDTH(WORD_ADDR_WIDTH),
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
     ) aug_0_0 (
       .clk(clk),
@@ -186,11 +194,11 @@ import {{fingerprint}}_pkg::*;
       .iterations(iter_0_0),
       .initial_address(init_addr_0_0),
       .address_valid(word_w_en),
-      .address(word_w_addr)
+      .address(word_w_agu)
     );
 
     agu #(
-      .ADDRESS_WIDTH(WORD_ADDR_WIDTH),
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
     ) aug_0_1 (
       .clk(clk),
@@ -205,11 +213,11 @@ import {{fingerprint}}_pkg::*;
       .iterations(iter_0_1),
       .initial_address(init_addr_0_1),
       .address_valid(word_r_en),
-      .address(word_r_addr)
+      .address(word_r_agu)
   );
 
   agu #(
-      .ADDRESS_WIDTH(BULK_ADDR_WIDTH),
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
   ) agu_0_2 (
       .clk(clk),
@@ -224,11 +232,11 @@ import {{fingerprint}}_pkg::*;
       .iterations(iter_0_2),
       .initial_address(init_addr_0_2),
       .address_valid(bulk_w_en),
-      .address(bulk_w_addr)
+      .address(bulk_w_agu)
   );
 
   agu #(
-      .ADDRESS_WIDTH(BULK_ADDR_WIDTH),
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
   ) agu_0_3 (
       .clk(clk),
@@ -243,7 +251,7 @@ import {{fingerprint}}_pkg::*;
       .iterations(iter_0_3),
       .initial_address(init_addr_0_3),
       .address_valid(bulk_r_en),
-      .address(bulk_r_addr)
+      .address(bulk_r_agu)
   );
 
 endmodule
