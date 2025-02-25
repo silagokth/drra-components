@@ -36,12 +36,12 @@
       "segments": [
         {
           "name": "ports",
-          "comment": "1-hot encoded slots that need to be activated.",
+          "comment": "1-hot encoded ports that need to be activated.",
           "bitwidth": 16
         },
         {
           "name": "mode",
-          "comment": "Filter mode: [0]: Continues ports start from slot X; [1] All port X in each slot; [2]: the predefined 64-bit activation code in internal activation memory location X.",
+          "comment": "Filter mode: [0]: Continues ports start from slot X; [1] All port X in each slot; [2]: the predefined 64-bit activation code in internal activation memory location X. (X is the filter parameter)",
           "bitwidth": 4
         },
         {
