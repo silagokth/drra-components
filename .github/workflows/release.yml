@@ -8,15 +8,20 @@ on:
   # release:
   #   types: [published]
   push:
-    tags:
-      - 'v*'
+    # tags:
+    #   - 'v*'
 
 jobs:
   build_testcases:
+    uses: ./.github/workflows/assemble_testcases.yml
+  create_release:
+    needs: build_testcases
     runs-on: ubuntu-latest
     steps:
-      - uses: silagokth/drra-component-lib/.github/workflowsassemble_testcases.yml@main
-      # fetch the artifacts from the build job and upload to the release
-      - name: Download testcases
-        uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
+          name: testcases
+      - uses: actions/download-artifact@v4
+        with:
+          name: library
+      - run: ls
