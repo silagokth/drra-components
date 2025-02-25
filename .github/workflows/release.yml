@@ -1,0 +1,23 @@
+# This workflow gets triggered when a release is published. It calls the build job to build the testcases and library
+# and then the assemble_testcases job to assemble the testcases. The testcases are then uploaded as an artifact.
+# Then they are added to the release as a downloadable asset.
+
+name: Release
+
+on:
+  # release:
+  #   types: [published]
+  push:
+    tags:
+      - 'v*'
+name: Create release
+
+jobs:
+  build_testcases:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: silagokth/drra-component-lib/.github/workflowsassemble_testcases.yml@main
+      # fetch the artifacts from the build job and upload to the release
+      - name: Download testcases
+        uses: actions/download-artifact@v2
+        with:

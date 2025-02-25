@@ -1,0 +1,11 @@
+name: Build
+
+on: push
+
+name: Build testcases and library
+
+jobs:
+  build_testcases:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: silagokth/drra-component-lib/.github/workflows/assemble_testcases.yml@master
