@@ -4,7 +4,7 @@ on: push
 
 jobs:
   build_testcases:
-    uses: ./.github/workflows/assemble_testcases.yml
+    uses: silagokth/drra-component-lib/.github/workflows/assemble_testcases.yml@5-release-package
   download_testcases:
     runs-on: ubuntu-latest
     steps:
