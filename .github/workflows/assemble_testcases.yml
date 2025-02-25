@@ -1,23 +1,22 @@
-name: Build testcases
+name: Assemble testcases
 
 on:
   workflow_call:
-    inputs:
-      config-path:
-        required: true
-        type: string
-    secrets:
-      personal_access_token:
-        required: true
+    # inputs:
+    #   config-path:
+    #     required: true
+    #     type: string
+    # secrets:
+    #   personal_access_token:
+    #     required: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
+    # outputs:
     steps:
     - run: sudo apt install libfuse2
     - uses: actions/checkout@v4
@@ -50,8 +49,16 @@ jobs:
         ls
     - run: tar czf testcases.tar.gz testcases/
     - name: Upload testcases
-      uses: actions/upload-artifact@v2
+      id: upload-testcases
+      uses: actions/upload-artifact@v4
       with:
         name: testcases
         path: testcases.tar.gz
+    - run: tar czf library.tar.gz build/library/
+    - name: Upload library
+      id: upload-library
+      uses: actions/upload-artifact@v4
+      with:
+        name: library
+        path: library.tar.gz
 

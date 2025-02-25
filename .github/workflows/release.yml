@@ -1,0 +1,33 @@
+# This workflow gets triggered when a release is published. It calls the build job to build the testcases and library
+# and then the assemble_testcases job to assemble the testcases. The testcases are then uploaded as an artifact.
+# Then they are added to the release as a downloadable asset.
+
+name: Create release
+
+on:
+  # release:
+  #   types: [published]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_testcases:
+    uses: ./.github/workflows/assemble_testcases.yml
+  create_release:
+    needs: build_testcases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: testcases
+      - uses: actions/download-artifact@v4
+        with:
+          name: library
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            testcases.tar.gz
+            library.tar.gz
+
