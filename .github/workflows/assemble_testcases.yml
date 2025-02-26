@@ -54,11 +54,10 @@ jobs:
       with:
         name: testcases
         path: testcases.tar.gz
-    - run: tar czf library.tar.gz build/library/
+    - run: tar czf library.tar.gz -C build library
     - name: Upload library
       id: upload-library
       uses: actions/upload-artifact@v4
       with:
         name: library
         path: library.tar.gz
-
