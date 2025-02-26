@@ -282,32 +282,22 @@ import {{fingerprint}}_pkg::*;
     // IO
     assign io_en_out = port_enable_0_1;
     assign io_addr_out = port_addr_0_1;
-
-    //`ifndef USE_SRAM_MODEL
-  if (DEPTH == 64 && WIDTH == 256) begin : sram_64x256
-    // Use the sram macro if USE_SRAM_MODEL is not defined
-    sram_model sram_inst (
-        .RTSEL(2'b0),
-        .WTSEL(2'b0),
-        .PTSEL(2'b0),
-        .AA(sram_in_addr),
-        .DA(sram_in_data),
-        .BWEBA(1'b0),
-        .WEBA(~sram_in_en),
-        .CEBA(~sram_in_en),
-        .CLK(clk),
-        .AB(sram_out_addr),
-        .DB(256'b0),
-        .BWEBB(1'b0),
-        .WEBB(~sram_out_en),
-        .CEBB(~sram_out_en),
-        .AWT(1'b0),
-        .QB(sram_out_data)
+    
+    sram #(
+        .DEPTH(DEPTH),
+        .WIDTH(WIDTH)
+    ) sram_inst (
+        .clk(clk),
+        .enable_a_n(~sram_in_en),
+        .enable_b_n(~sram_out_en),
+        .write_enable_a_n(~sram_in_en),
+        .write_enable_b_n(1'b1),
+        .address_a(sram_in_addr),
+        .address_b(sram_out_addr),
+        .data_a(sram_in_data),
+        .data_b(0),
+        .q_b(sram_out_data)
     );
-    // Use the sram_model if USE_SRAM_MODEL is defined
-  end else begin
-    $error("Unsupported DEPTH and WIDTH combination %0d x %0d", DEPTH, WIDTH);
-  end
 
 endmodule
 

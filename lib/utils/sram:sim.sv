@@ -1,4 +1,5 @@
-module sram_model #(
+// Simulation model for the dual port SRAM
+module sram #(
     parameter ADDR_WIDTH = 6,
     parameter DATA_WIDTH = 256
 )
