@@ -1,4 +1,3 @@
-// Wrapper for TSMC 28nm SRAM macros
 module sram #(
     parameter WIDTH = 8,
     parameter DEPTH = 256
@@ -36,7 +35,7 @@ if (WIDTH == 256 && DEPTH == 64) begin : sram_256x64
       .AWT(0),
       .CLK(clk)
       );
-    TS28HPCUHDB64X128M4MWB sram_macro_1 (
+    TSDN28HPCPUHDB64X128M4MWA sram_macro_1 (
       .RTSEL(2'b00),
       .WTSEL(2'b00),
       .PTSEL(2'b00),
