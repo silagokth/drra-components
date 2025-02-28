@@ -2,3 +2,7 @@ build
 workspace.code-workspace
 .vscode/
 work
+.cache/
+.venv/
+sst_test_outputs/
+__pycache__/
