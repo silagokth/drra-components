@@ -6,3 +6,4 @@ work
 .venv/
 sst_test_outputs/
 __pycache__/
+.clang-format
