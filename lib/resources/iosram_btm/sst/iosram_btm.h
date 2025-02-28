@@ -1,5 +1,5 @@
-#ifndef _IOSRAM_H
-#define _IOSRAM_H
+#ifndef _IOSRAM_BTM_H
+#define _IOSRAM_BTM_H
 
 #include "drra.h"
 
@@ -14,12 +14,13 @@
 
 class ScratchBackendConvertor;
 
-class IOSRAM : public DRRAResource {
+class IOSRAMBottom : public DRRAResource {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(IOSRAM, "drra", "IOSRAM",
-                             SST_ELI_ELEMENT_VERSION(1, 0, 0),
-                             "IOSRAM component", COMPONENT_CATEGORY_MEMORY)
+  SST_ELI_REGISTER_COMPONENT(
+      IOSRAMBottom, "drra", "IOSRAMBottom", SST_ELI_ELEMENT_VERSION(1, 0, 0),
+      "IOSRAM component with only the bottom IO connections",
+      COMPONENT_CATEGORY_MEMORY)
 
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
@@ -46,10 +47,10 @@ public:
   SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
 
   /* Constructor */
-  IOSRAM(SST::ComponentId_t id, SST::Params &params);
+  IOSRAMBottom(SST::ComponentId_t id, SST::Params &params);
 
   /* Destructor */
-  ~IOSRAM() {
+  ~IOSRAMBottom() {
     if (backend)
       delete backend;
   };
@@ -115,4 +116,4 @@ private:
   uint32_t current_event_number = 0;
 };
 
-#endif // _IOSRAM_H
+#endif // _IOSRAM_BTM_H

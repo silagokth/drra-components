@@ -1,4 +1,4 @@
-#include "io_sram.h"
+#include "iosram_top.h"
 
 #include "dataEvent.h"
 #include "ioEvents.h"
@@ -7,7 +7,7 @@
 
 using namespace SST;
 
-IOSRAM::IOSRAM(SST::ComponentId_t id, SST::Params &params)
+IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   access_time = params.find<std::string>("access_time", "0ns");
 
@@ -58,22 +58,22 @@ IOSRAM::IOSRAM(SST::ComponentId_t id, SST::Params &params)
   io_link = configureLink("io_port", access_time);
 }
 
-void IOSRAM::init(unsigned int phase) {
+void IOSRAMTop::init(unsigned int phase) {
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }
 
-void IOSRAM::setup() {}
+void IOSRAMTop::setup() {}
 
-void IOSRAM::complete(unsigned int phase) {}
+void IOSRAMTop::complete(unsigned int phase) {}
 
-void IOSRAM::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
+void IOSRAMTop::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
 
-bool IOSRAM::clockTick(SST::Cycle_t currentCycle) {
+bool IOSRAMTop::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
   return false;
 }
 
-void IOSRAM::decodeInstr(uint32_t instr) {
+void IOSRAMTop::decodeInstr(uint32_t instr) {
   uint32_t instrType = getInstrType(instr);
   uint32_t instrOpcode = getInstrOpcode(instr);
   uint32_t instrSlot = getInstrSlot(instr);
@@ -98,7 +98,7 @@ void IOSRAM::decodeInstr(uint32_t instr) {
   }
 }
 
-void IOSRAM::handleRep(uint32_t instr) {
+void IOSRAMTop::handleRep(uint32_t instr) {
   // Instruction fields
   uint32_t slot = getInstrSlot(instr);
   uint32_t port = getInstrField(instr, 2, 22);
@@ -143,9 +143,9 @@ void IOSRAM::handleRep(uint32_t instr) {
   }
 }
 
-void IOSRAM::handleRepx(uint32_t instr) { handleRep(instr); }
+void IOSRAMTop::handleRepx(uint32_t instr) { handleRep(instr); }
 
-void IOSRAM::handleDSU(uint32_t instr) {
+void IOSRAMTop::handleDSU(uint32_t instr) {
   // Instruction fields
   uint32_t slot = getInstrSlot(instr);
   bool init_addr_sd = getInstrField(instr, 1, 23) == 1;
@@ -166,8 +166,10 @@ void IOSRAM::handleDSU(uint32_t instr) {
     readFromIO();
     break;
   case PortMap::SRAMWriteToIO:
-    sram_write_to_io_initial_addr = init_addr;
-    writeToIO();
+    out.fatal(CALL_INFO, -1,
+              "Invalid DSU mode IOSRAM Top should not write to IO\n");
+    // sram_write_to_io_initial_addr = init_addr;
+    // writeToIO();
     break;
   case PortMap::IOWriteToSRAM:
     io_write_to_sram_initial_addr = init_addr;
@@ -194,7 +196,7 @@ void IOSRAM::handleDSU(uint32_t instr) {
   current_event_number++;
 }
 
-void IOSRAM::readFromIO() {
+void IOSRAMTop::readFromIO() {
   // Reading data from the IO to the buffer
   next_timing_states[PortMap::SRAMReadFromIO].addEvent(
       "dsu_read_from_io_" + std::to_string(current_event_number), 1, [this] {
@@ -216,7 +218,7 @@ void IOSRAM::readFromIO() {
       });
 }
 
-void IOSRAM::writeToIO() {
+void IOSRAMTop::writeToIO() {
   // Writing buffer data to the IO
   next_timing_states[PortMap::SRAMWriteToIO].addEvent(
       "dsu_write_to_io_" + std::to_string(current_event_number), 9, [this] {
@@ -238,7 +240,7 @@ void IOSRAM::writeToIO() {
       });
 }
 
-void IOSRAM::writeToSRAM() {
+void IOSRAMTop::writeToSRAM() {
   // Writing buffer data to the backend
   next_timing_states[PortMap::IOWriteToSRAM].addEvent(
       "dsu_write_to_sram_" + std::to_string(current_event_number), 8, [this] {
@@ -278,7 +280,7 @@ void IOSRAM::writeToSRAM() {
       });
 }
 
-void IOSRAM::readFromSRAM() {
+void IOSRAMTop::readFromSRAM() {
   // Reading data from the backend to the buffer
   next_timing_states[PortMap::IOReadFromSRAM].addEvent(
       "dsu_read_from_sram_" + std::to_string(current_event_number), 2, [this] {
@@ -302,7 +304,7 @@ void IOSRAM::readFromSRAM() {
       });
 }
 
-void IOSRAM::readBulk() {
+void IOSRAMTop::readBulk() {
   out.output("Add event read bulk (port %d prio %d)\n", PortMap::ReadBulk, 1);
   next_timing_states[PortMap::ReadBulk].addEvent(
       "dsu_send_" + std::to_string(current_event_number), 1, [this] {
@@ -324,7 +326,7 @@ void IOSRAM::readBulk() {
       });
 }
 
-void IOSRAM::writeBulk() {
+void IOSRAMTop::writeBulk() {
   next_timing_states[PortMap::WriteBulk].addEvent(
       "dsu_receive_" + std::to_string(current_event_number), 9, [this] {
         write_bulk_address_buffer =

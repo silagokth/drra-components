@@ -76,8 +76,8 @@ swb_0_0_params = {
 swb_0_0.addParams(swb_0_0_params)
 
 # Slot 1: IOSRAM
-print("[SST SIM] - Initializing IOSRAM")
-iosram_0_0 = sst.Component("iosram_0_0", "drra.IOSRAM")
+print("[SST SIM] - Initializing IOSRAM Top")
+iosram_0_0 = sst.Component("iosram_0_0", "drra.IOSRAMTop")
 iosram_0_0_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -223,8 +223,8 @@ swb_0_2_params = {
 swb_0_2.addParams(swb_0_2_params)
 
 # Slot 1: IOSRAM
-print("[SST SIM] - Initializing IOSRAM")
-iosram_0_2 = sst.Component("iosram_0_2", "drra.IOSRAM")
+print("[SST SIM] - Initializing IOSRAM Bottom")
+iosram_0_2 = sst.Component("iosram_0_2", "drra.IOSRAMBottom")
 iosram_0_2_params = {
     "clock": global_clock,
     "printFrequency": 1,
