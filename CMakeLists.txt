@@ -28,7 +28,7 @@ set(COMMON_INCLUDE_DIRS
 target_include_directories(drra PUBLIC ${COMMON_INCLUDE_DIRS})
 target_link_libraries(drra PRIVATE timingModel)
 
-add_subdirectory(testcases)
+add_subdirectory(sst_tests)
 
 # The project version number.
 set(VERSION_MAJOR 1 CACHE STRING "Project major version number.")
@@ -46,5 +46,5 @@ add_custom_command(TARGET drra POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/lib
   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra> ${CMAKE_CURRENT_BINARY_DIR}/lib
   COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/lib
-  COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/testcases/sst
+  COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
 )

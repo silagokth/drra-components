@@ -89,7 +89,7 @@ class testcase_drra(SSTTestCase):
     def test_drra_timingModel(self):
         test_path = self.get_testsuite_dir()
         test_script = os.path.join(
-            os.path.dirname(test_path), "../build/testcases/sst/test_timingModel"
+            os.path.dirname(test_path), "build/sst_tests/test_timingModel"
         )
         test_value = os.system(test_script)
         self.assertEqual(test_value, 0)
