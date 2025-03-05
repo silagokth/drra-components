@@ -147,7 +147,7 @@
       },
       {
         "name": "COLS",
-        "value": 1
+        "value": 3
       },
       {
         "name": "INSTR_DATA_WIDTH",
