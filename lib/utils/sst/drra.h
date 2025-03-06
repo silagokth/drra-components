@@ -1,6 +1,7 @@
 #ifndef _DRRA_H
 #define _DRRA_H
 
+#include <cmath>
 #include <sst/core/component.h>
 #include <sst/core/link.h>
 #include <sst/core/output.h>
@@ -440,19 +441,43 @@ protected:
     return result;
   }
 
-  std::vector<uint8_t> uint64ToVector(uint64_t data) {
+  std::vector<uint8_t> uint64ToVector(uint64_t data, bool saturate = true) {
     std::vector<uint8_t> result;
+    if (saturate) {
+      if (data > pow(2, word_bitwidth) - 1) {
+        data = pow(2, word_bitwidth) - 1;
+      }
+    }
     for (size_t i = 0; i < 8; i++) {
       result.push_back((data >> (i * 8)) & 0xFF);
+      if (i == word_bitwidth / 8 - 1) {
+        break;
+      }
     }
+    assert(result.size() == word_bitwidth / 8);
     return result;
   }
 
-  std::vector<uint8_t> int64ToVector(int64_t data) {
+  std::vector<uint8_t> int64ToVector(int64_t data, bool saturate = true) {
     std::vector<uint8_t> result;
+    if (saturate) {
+      if (data < 0) {
+        if (data < -pow(2, word_bitwidth - 1)) {
+          data = -pow(2, word_bitwidth - 1);
+        }
+      } else {
+        if (data > pow(2, word_bitwidth - 1) - 1) {
+          data = pow(2, word_bitwidth - 1) - 1;
+        }
+      }
+    }
     for (size_t i = 0; i < 8; i++) {
       result.push_back((data >> (i * 8)) & 0xFF);
+      if (i == word_bitwidth / 8 - 1) {
+        break;
+      }
     }
+    assert(result.size() == word_bitwidth / 8);
     return result;
   }
 

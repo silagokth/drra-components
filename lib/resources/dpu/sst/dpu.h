@@ -2,6 +2,7 @@
 #define _DPU_H
 
 #include "drra.h"
+#include <climits>
 #include <sst/core/component.h>
 #include <sst/core/event.h>
 #include <sst/core/link.h>
@@ -96,35 +97,82 @@ private:
     MODE_31
   };
 
+  const int64_t add_sat(int64_t a, int64_t b) {
+    if (a > 0) {
+      if (b > INT64_MAX - a) {
+        return INT64_MAX;
+      }
+    } else if (b < INT64_MIN - a) {
+      return INT64_MIN;
+    }
+    return a + b;
+  }
+
+  const int64_t mul_sat(int64_t a, int64_t b) {
+    if (a == 0 || b == 0) {
+      return 0;
+    }
+
+    if (a > 0) {
+      if (b > 0) {
+        if (a > INT64_MAX / b) {
+          return INT64_MAX;
+        }
+      } else {
+        if (b < INT64_MIN / a) {
+          return INT64_MIN;
+        }
+      }
+    } else {
+      if (b > 0) {
+        if (a < INT64_MIN / b) {
+          return INT64_MIN;
+        }
+      } else {
+        if (a != INT64_MIN && b < INT64_MAX / a) {
+          return INT64_MAX;
+        }
+      }
+    }
+
+    return a * b;
+  }
+
   // Map of DSU modes to handlers
   std::map<DPU_MODE, std::function<void()>> dsuHandlers = {
       {IDLE, [this] { out.output("IDLE\n"); }},
       {ADD,
        [this] {
-         handleOperation("ADD", [](int64_t a, int64_t b) { return a + b; });
+         handleOperation(
+             "ADD", [this](int64_t a, int64_t b) { return add_sat(a, b); });
        }},
       {ADD_CONST,
        [this] {
-         handleOperation("ADD_CONST",
-                         [](int64_t a, int64_t b) { return a + b; });
+         handleOperation("ADD_CONST", [this](int64_t a, int64_t b) {
+           return add_sat(a, b);
+         });
        }},
       {SUBT,
        [this] {
-         handleOperation("SUBT", [](int64_t a, int64_t b) { return a - b; });
+         handleOperation(
+             "SUBT", [this](int64_t a, int64_t b) { return add_sat(a, -b); });
        }},
       {SUBT_ABS,
        [this] {
-         handleOperation("SUBT_ABS",
-                         [](int64_t a, int64_t b) { return a - b; });
+         handleOperation("SUBT_ABS", [this](int64_t a, int64_t b) {
+           return add_sat(a, -b);
+         });
        }},
       {MULT,
        [this] {
-         handleOperation("MULT", [](int64_t a, int64_t b) { return a * b; });
+         handleOperation(
+             "MULT", [this](int64_t a, int64_t b) { return mul_sat(a, b); });
        }},
       {MULT_CONST,
        [this] {
-         handleOperation("MULT_CONST",
-                         [](int64_t a, int64_t b) { return a * b; });
+         handleOperation("MULT_CONST", [this](int64_t a, int64_t b) {
+           return mul_sat(a, b);
+         });
        }},
       {LD_IR,
        [this] {
