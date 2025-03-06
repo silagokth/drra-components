@@ -58,7 +58,7 @@ private:
   void handleFSM(uint32_t instr);
   void handleDPU(uint32_t instr);
   void handleOperation(std::string name,
-                       std::function<uint64_t(uint64_t, uint64_t)> operation);
+                       std::function<int64_t(int64_t, int64_t)> operation);
 
   // DPU modes
   enum DPU_MODE {
@@ -101,34 +101,34 @@ private:
       {IDLE, [this] { out.output("IDLE\n"); }},
       {ADD,
        [this] {
-         handleOperation("ADD", [](uint64_t a, uint64_t b) { return a + b; });
+         handleOperation("ADD", [](int64_t a, int64_t b) { return a + b; });
        }},
       {ADD_CONST,
        [this] {
          handleOperation("ADD_CONST",
-                         [](uint64_t a, uint64_t b) { return a + b; });
+                         [](int64_t a, int64_t b) { return a + b; });
        }},
       {SUBT,
        [this] {
-         handleOperation("SUBT", [](uint64_t a, uint64_t b) { return a - b; });
+         handleOperation("SUBT", [](int64_t a, int64_t b) { return a - b; });
        }},
       {SUBT_ABS,
        [this] {
          handleOperation("SUBT_ABS",
-                         [](uint64_t a, uint64_t b) { return a - b; });
+                         [](int64_t a, int64_t b) { return a - b; });
        }},
       {MULT,
        [this] {
-         handleOperation("MULT", [](uint64_t a, uint64_t b) { return a * b; });
+         handleOperation("MULT", [](int64_t a, int64_t b) { return a * b; });
        }},
       {MULT_CONST,
        [this] {
          handleOperation("MULT_CONST",
-                         [](uint64_t a, uint64_t b) { return a * b; });
+                         [](int64_t a, int64_t b) { return a * b; });
        }},
       {LD_IR,
        [this] {
-         handleOperation("LD_IR", [](uint64_t a, uint64_t b) { return b; });
+         handleOperation("LD_IR", [](int64_t a, int64_t b) { return b; });
        }},
   };
 

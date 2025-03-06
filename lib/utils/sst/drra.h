@@ -432,7 +432,23 @@ protected:
     return result;
   }
 
+  int64_t vectorToInt64(std::vector<uint8_t> data) {
+    int64_t result = 0;
+    for (size_t i = 0; i < data.size(); i++) {
+      result |= data[i] << (i * 8);
+    }
+    return result;
+  }
+
   std::vector<uint8_t> uint64ToVector(uint64_t data) {
+    std::vector<uint8_t> result;
+    for (size_t i = 0; i < 8; i++) {
+      result.push_back((data >> (i * 8)) & 0xFF);
+    }
+    return result;
+  }
+
+  std::vector<uint8_t> int64ToVector(int64_t data) {
     std::vector<uint8_t> result;
     for (size_t i = 0; i < 8; i++) {
       result.push_back((data >> (i * 8)) & 0xFF);

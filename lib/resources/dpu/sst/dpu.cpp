@@ -159,21 +159,21 @@ void DPU::handleDPU(uint32_t instr) {
   fsmHandlers[current_fsm] = getDSUHandler(mode);
 }
 
-void DPU::handleOperation(
-    std::string name, std::function<uint64_t(uint64_t, uint64_t)> operation) {
+void DPU::handleOperation(std::string name,
+                          std::function<int64_t(int64_t, int64_t)> operation) {
   // Ensure both buffers exist
   if (data_buffers[0].size() == 0 || data_buffers[1].size() == 0) {
     out.fatal(CALL_INFO, -1, "Data buffers not found (data0=%lu, data1=%lu)\n",
               data_buffers[0].size(), data_buffers[1].size());
   }
 
-  uint64_t data0 = vectorToUint64(data_buffers[0]);
-  uint64_t data1 = vectorToUint64(data_buffers[1]);
-  uint64_t result = operation(data0, data1);
+  int64_t data0 = vectorToInt64(data_buffers[0]);
+  int64_t data1 = vectorToInt64(data_buffers[1]);
+  int64_t result = operation(data0, data1);
 
   DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
   dataEvent->size = word_bitwidth;
-  dataEvent->payload = uint64ToVector(result);
+  dataEvent->payload = int64ToVector(result);
   data_links[0]->send(dataEvent);
 
   out.output("DPU %s operation (in0=%lu, in1=%lu, out=%lu)\n", name.c_str(),
