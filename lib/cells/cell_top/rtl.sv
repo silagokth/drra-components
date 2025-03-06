@@ -49,7 +49,6 @@ import {{fingerprint}}_pkg::*;
   logic [NUM_SLOTS-1:0] resource_clk;
   logic [NUM_SLOTS-1:0] resource_rst_n;
   logic [NUM_SLOTS-1:0] instr_valid;
-  logic [NUM_SLOTS-1:0] instr_en;
   logic [NUM_SLOTS-1:0][RESOURCE_INSTR_WIDTH-1:0] instr;
   logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
 
@@ -134,7 +133,7 @@ import {{fingerprint}}_pkg::*;
         {% for i in range(res.size) %}
         .clk_{{i}}(clk),
         .rst_n_{{i}}(rst_n),
-        .instr_en_{{i}}(instr_en[{{ res.slot+i }}]),
+        .instr_en_{{i}}(instr_valid[{{ res.slot+i }}]),
         .instr_{{i}}(instr),
         .activate_{{i}}(activate[{{ res.slot+i }}]),
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
