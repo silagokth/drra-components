@@ -115,7 +115,7 @@ seq_obj_0_1_params = {
     "instr_slot_width": instr_slot_width,
     "io_data_width": io_data_width,
     "word_bitwidth": word_bitwidth,
-    "cell_coordinates": [0, 1],
+    "cell_coordinates": [1, 0],
     "num_slots": 16,
 }
 seq_obj_0_1.addParams(seq_obj_0_1_params)
@@ -132,7 +132,7 @@ swb_0_1_params = {
     "instr_slot_width": instr_slot_width,
     "io_data_width": io_data_width,
     "word_bitwidth": word_bitwidth,
-    "cell_coordinates": [0, 1],
+    "cell_coordinates": [1, 0],
     "slot_id": 0,
     "number_of_fsms": 4,
     "num_slots": 16,
@@ -155,7 +155,7 @@ for i in range(3):
             "instr_slot_width": instr_slot_width,
             "io_data_width": io_data_width,
             "word_bitwidth": word_bitwidth,
-            "cell_coordinates": [0, 1],
+            "cell_coordinates": [1, 0],
             "slot_id": i + 1,
             "register_file_size": 256,
         }
@@ -174,7 +174,7 @@ dpu_0_1_params = {
     "instr_slot_width": instr_slot_width,
     "io_data_width": io_data_width,
     "word_bitwidth": word_bitwidth,
-    "cell_coordinates": [0, 1],
+    "cell_coordinates": [1, 0],
     "slot_id": 4,
     "resource_size": 2,
 }
@@ -198,7 +198,7 @@ seq_obj_0_2_params = {
     "instr_slot_width": instr_slot_width,
     "io_data_width": io_data_width,
     "word_bitwidth": word_bitwidth,
-    "cell_coordinates": [0, 2],
+    "cell_coordinates": [2, 0],
     "num_slots": 16,
 }
 seq_obj_0_2.addParams(seq_obj_0_2_params)
@@ -215,7 +215,7 @@ swb_0_2_params = {
     "instr_slot_width": instr_slot_width,
     "io_data_width": io_data_width,
     "word_bitwidth": word_bitwidth,
-    "cell_coordinates": [0, 2],
+    "cell_coordinates": [2, 0],
     "slot_id": 0,
     "number_of_fsms": 4,
     "num_slots": 16,
@@ -234,7 +234,7 @@ iosram_0_2_params = {
     "instr_slot_width": instr_slot_width,
     "io_data_width": io_data_width,
     "word_bitwidth": word_bitwidth,
-    "cell_coordinates": [0, 2],
+    "cell_coordinates": [2, 0],
     "slot_id": 1,
     "resource_size": 2,
     "has_io_input_connection": 1,
