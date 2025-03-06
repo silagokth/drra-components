@@ -178,6 +178,14 @@ private:
        [this] {
          handleOperation("LD_IR", [](int64_t a, int64_t b) { return b; });
        }},
+      {MAC,
+       [this] {
+         handleOperation("MAC", [this](int64_t a, int64_t b) {
+           int64_t result = add_sat(accumulate_register[0], mul_sat(a, b));
+           accumulate_register[0] = result;
+           return result;
+         });
+       }},
   };
 
   std::function<void()> getDSUHandler(DPU_MODE mode) {
