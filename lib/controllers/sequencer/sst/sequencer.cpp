@@ -76,8 +76,8 @@ void Sequencer::load_assembly_program(std::string assemblyProgramPath) {
     // out.output("Read line: %s\n", line.c_str());
     if (line.find("cell") != std::string::npos) {
       out.output("Found cell section in line: %s\n", line.c_str());
-      if (line.find("cell " + std::to_string(cell_coordinates[1]) + " " +
-                    std::to_string(cell_coordinates[0])) != std::string::npos) {
+      if (line.find("cell " + std::to_string(cell_coordinates[0]) + " " +
+                    std::to_string(cell_coordinates[1])) != std::string::npos) {
         isSelfCell = true;
       } else {
         isSelfCell = false;

@@ -18,7 +18,7 @@ class IOSRAMTop : public DRRAResource {
 public:
   /* Element Library Info */
   SST_ELI_REGISTER_COMPONENT(
-      IOSRAMTop, "drra", "IOSRAMTop", SST_ELI_ELEMENT_VERSION(1, 0, 0),
+      IOSRAMTop, "drra", "iosram_top", SST_ELI_ELEMENT_VERSION(1, 0, 0),
       "IOSRAM component with only the top IO connections",
       COMPONENT_CATEGORY_MEMORY)
 

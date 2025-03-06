@@ -9,9 +9,9 @@ using namespace SST;
 class RegisterFile : public DRRAResource {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(RegisterFile,   // Class name
-                             "drra",         // Name of library
-                             "RegisterFile", // Lookup name for component
+  SST_ELI_REGISTER_COMPONENT(RegisterFile, // Class name
+                             "drra",       // Name of library
+                             "rf",         // Lookup name for component
                              SST_ELI_ELEMENT_VERSION(1, 0,
                                                      0), // Component version
                              "RegisterFile component",   // Description

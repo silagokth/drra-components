@@ -19,7 +19,7 @@ public:
   /* Element Library Info */
   SST_ELI_REGISTER_COMPONENT(IOBuffer,   // Class name
                              "drra",     // Name of library
-                             "IOBuffer", // Lookup name for component
+                             "iobuffer", // Lookup name for component
                              SST_ELI_ELEMENT_VERSION(1, 0,
                                                      0), // Component version
                              "IOBuffer component",       // Description

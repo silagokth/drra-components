@@ -16,8 +16,8 @@ instr_slot_width = 4
 
 # Initialize input and output buffers
 print("[SST SIM] - Initializing input and output buffers")
-input_buffer = sst.Component("input_buffer", "drra.IOBuffer")
-output_buffer = sst.Component("output_buffer", "drra.IOBuffer")
+input_buffer = sst.Component("input_buffer", "drra.iobuffer")
+output_buffer = sst.Component("output_buffer", "drra.iobuffer")
 buffer_params = {
     "clock": global_clock,
     "io_data_width": io_data_width,
@@ -40,7 +40,7 @@ output_buffer.addParams(output_buffer_params)
 
 # Controller: Sequencer
 print("[SST SIM] - Initializing sequencer")
-seq_obj_0_0 = sst.Component("seq_0_0", "drra.Sequencer")
+seq_obj_0_0 = sst.Component("seq_0_0", "drra.sequencer")
 seq_obj_0_0_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -58,7 +58,7 @@ seq_obj_0_0.addParams(seq_obj_0_0_params)
 
 # Slot 0: SWB
 print("[SST SIM] - Initializing SWB")
-swb_0_0 = sst.Component("swb_0_0", "drra.Switchbox")
+swb_0_0 = sst.Component("swb_0_0", "drra.swb")
 swb_0_0_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -77,7 +77,7 @@ swb_0_0.addParams(swb_0_0_params)
 
 # Slot 1: IOSRAM
 print("[SST SIM] - Initializing IOSRAM Top")
-iosram_0_0 = sst.Component("iosram_0_0", "drra.IOSRAMTop")
+iosram_0_0 = sst.Component("iosram_0_0", "drra.iosram_top")
 iosram_0_0_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -104,7 +104,7 @@ cell_0_0_slots_params = [swb_0_0_params, iosram_0_0_params]
 
 # Controller: Sequencer
 print("[SST SIM] - Initializing sequencer")
-seq_obj_0_1 = sst.Component("seq_0_1", "drra.Sequencer")
+seq_obj_0_1 = sst.Component("seq_0_1", "drra.sequencer")
 seq_obj_0_1_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -122,7 +122,7 @@ seq_obj_0_1.addParams(seq_obj_0_1_params)
 
 # Slot 0: SWB
 print("[SST SIM] - Initializing SWB")
-swb_0_1 = sst.Component("swb_0_1", "drra.Switchbox")
+swb_0_1 = sst.Component("swb_0_1", "drra.swb")
 swb_0_1_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -144,7 +144,7 @@ print("[SST SIM] - Initializing Register Files")
 rfs_0_1 = []
 rfs_0_1_params = []
 for i in range(3):
-    rfs_0_1.append(sst.Component("rf_0_1_" + str(i), "drra.RegisterFile"))
+    rfs_0_1.append(sst.Component("rf_0_1_" + str(i), "drra.rf"))
     rfs_0_1_params.append(
         {
             "clock": global_clock,
@@ -164,7 +164,7 @@ for i in range(3):
 
 # Slot 4: DPU
 print("[SST SIM] - Initializing DPU")
-dpu_0_1 = sst.Component("dpu_0_1", "drra.DPU")
+dpu_0_1 = sst.Component("dpu_0_1", "drra.dpu")
 dpu_0_1_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -187,7 +187,7 @@ cell_0_1_slots_params = [swb_0_1_params, *rfs_0_1_params, dpu_0_1_params]
 
 # Controller: Sequencer
 print("[SST SIM] - Initializing sequencer")
-seq_obj_0_2 = sst.Component("seq_0_2", "drra.Sequencer")
+seq_obj_0_2 = sst.Component("seq_0_2", "drra.sequencer")
 seq_obj_0_2_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -205,7 +205,7 @@ seq_obj_0_2.addParams(seq_obj_0_2_params)
 
 # Slot 0: SWB
 print("[SST SIM] - Initializing SWB")
-swb_0_2 = sst.Component("swb_0_2", "drra.Switchbox")
+swb_0_2 = sst.Component("swb_0_2", "drra.swb")
 swb_0_2_params = {
     "clock": global_clock,
     "printFrequency": 1,
@@ -224,7 +224,7 @@ swb_0_2.addParams(swb_0_2_params)
 
 # Slot 1: IOSRAM
 print("[SST SIM] - Initializing IOSRAM Bottom")
-iosram_0_2 = sst.Component("iosram_0_2", "drra.IOSRAMBottom")
+iosram_0_2 = sst.Component("iosram_0_2", "drra.iosram_btm")
 iosram_0_2_params = {
     "clock": global_clock,
     "printFrequency": 1,

@@ -12,7 +12,7 @@
 class DPU : public DRRAResource {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(DPU, "drra", "DPU",
+  SST_ELI_REGISTER_COMPONENT(DPU, "drra", "dpu",
                              SST_ELI_ELEMENT_VERSION(1, 0, 0), "DPU component",
                              COMPONENT_CATEGORY_PROCESSOR)
 

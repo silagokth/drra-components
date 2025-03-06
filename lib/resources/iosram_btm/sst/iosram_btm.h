@@ -18,7 +18,7 @@ class IOSRAMBottom : public DRRAResource {
 public:
   /* Element Library Info */
   SST_ELI_REGISTER_COMPONENT(
-      IOSRAMBottom, "drra", "IOSRAMBottom", SST_ELI_ELEMENT_VERSION(1, 0, 0),
+      IOSRAMBottom, "drra", "iosram_btm", SST_ELI_ELEMENT_VERSION(1, 0, 0),
       "IOSRAM component with only the bottom IO connections",
       COMPONENT_CATEGORY_MEMORY)
 
