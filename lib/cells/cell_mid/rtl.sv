@@ -50,7 +50,7 @@ import {{fingerprint}}_pkg::*;
   logic [NUM_SLOTS-1:0] resource_rst_n;
   logic [NUM_SLOTS-1:0] instr_valid;
   logic [NUM_SLOTS-1:0] instr_en;
-  logic [RESOURCE_INSTR_WIDTH-1:0] instr;
+  logic [NUM_SLOTS-1:0][RESOURCE_INSTR_WIDTH-1:0] instr;
   logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
 
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_in;
