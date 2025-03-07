@@ -335,6 +335,7 @@ protected:
     active_ports[port] = true;
     current_timing_states[port] = next_timing_states[port];
     next_timing_states[port] = TimingState();
+    next_timing_states[port].addEvent("event_0", [this] {});
     current_timing_states[port].build();
     // out.output("port %d timing: %s\n", port,
     //            current_timing_states[port].toString().c_str());
