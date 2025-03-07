@@ -15,7 +15,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # outputs:
     steps:
     - run: sudo apt install libfuse2
