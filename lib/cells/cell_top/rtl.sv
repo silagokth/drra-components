@@ -134,7 +134,7 @@ import {{fingerprint}}_pkg::*;
         {% for i in range(res.size) %}
         .clk_{{i}}(clk),
         .rst_n_{{i}}(rst_n),
-        .instr_en_{{i}}(instr_en[{{ res.slot+i }}]),
+        .instr_en_{{i}}(instr_valid[{{ res.slot+i }}]),
         .instr_{{i}}(instr),
         .activate_{{i}}(activate[{{ res.slot+i }}]),
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
