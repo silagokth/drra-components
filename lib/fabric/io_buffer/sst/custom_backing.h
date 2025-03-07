@@ -71,7 +71,7 @@ public:
 
   void set(Addr addr, size_t size, std::vector<uint8_t> &data) {
     string raw_data;
-    for (size_t i = 0; i < size; i++) {
+    for (int i = size-1; i >= 0; i--) {
       raw_data += std::bitset<8>(data[i]).to_string();
     }
     // Pad 0s if size is not multiple of width
