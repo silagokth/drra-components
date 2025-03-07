@@ -2,6 +2,18 @@
 
 This repository contains the DRRA component library. The library is a collection of components that can be used to build a DRRA application.
 
+## Prerequisites
+
+This library has the following dependencies:
+
+- cmake
+- make
+- [rust](https://www.rust-lang.org/learn/get-started)
+- [SST framework](https://sst-simulator.org)
+  - [Detailed Build and Installation Instructions](https://sst-simulator.org/SSTPages/SSTBuildAndInstall_14dot1dot0_SeriesDetailedBuildInstructions/)
+  - **Make sure that `SST_CORE_HOME` and `SST_ELEMENTS_HOME` are correctly set in your ENV**
+- gtest (`sudo apt-get install libgtest-dev`)
+
 ## Compilation and Installation
 
 To compile the library, run the following commands:
@@ -10,10 +22,18 @@ To compile the library, run the following commands:
 mkdir build
 cd build
 cmake ..
-make
+cmake --build .
 ```
 
 The complete library will be compiled in the `build/library` directory. You can copy the folder to wherever you want to use the library.
+
+## Running the Tests
+
+To make sure that the simulation components are working correctly, you can run the tests by running the following command:
+
+```bash
+sst-test-elements -w "drra*"
+```
 
 ## Usage
 
