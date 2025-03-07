@@ -1,0 +1,14 @@
+name: SST test
+
+on: [push]
+
+jobs:
+  test1:
+    runs-on: [self-hosted, sst]
+    steps:
+      - run: echo "Hello, world!"
+      - run: which sst
+      - run: sst --version
+      - run: sst-info
+      - run: sst-test-core
+      - run: sst-test-elements -w "*simple*"
