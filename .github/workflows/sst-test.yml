@@ -11,4 +11,11 @@ jobs:
       - run: sst --version
       - run: sst-info
       - run: sst-test-core
-      - run: sst-test-elements -w "*simple*"
+  test2:
+    runs-on: [self-hosted, sst]
+    steps:
+      - run: echo "Hello, world!"
+      - run: which sst
+      - run: sst --version
+      - run: sst-info
+      - run: sst-test-core
