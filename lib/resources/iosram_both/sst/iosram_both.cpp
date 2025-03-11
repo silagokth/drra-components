@@ -308,11 +308,6 @@ void IOSRAMBoth::readFromSRAM() {
                 .getRepIncrementForCycle(
                     getPortActiveCycle(PortMap::IOReadFromSRAM));
 
-        to_io_data_buffer.resize(io_data_width / 8);
-        for (int i = 0; i < io_data_width / 8; i++) {
-          to_io_data_buffer[i] = 0;
-        }
-
         backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
                      to_io_data_buffer);
 
@@ -333,7 +328,6 @@ void IOSRAMBoth::readBulk() {
 
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
-        data.resize(io_data_width / 8);
         backend->get(read_bulk_address_buffer, io_data_width / 8, data);
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,
