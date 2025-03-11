@@ -92,8 +92,8 @@ iosram_0_0_params = {
     "resource_size": 2,
     "has_io_input_connection": 1,
     "access_time": "0ns",
-    "backing": "malloc",
-    "backing_size_unit": "1MiB",
+    "backing": "mfile",
+    "memory_file": "",
 }
 iosram_0_0.addParams(iosram_0_0_params)
 
@@ -239,8 +239,8 @@ iosram_0_2_params = {
     "resource_size": 2,
     "has_io_input_connection": 1,
     "access_time": "0ns",
-    "backing": "malloc",
-    "backing_size_unit": "1MiB",
+    "backing": "mfile",
+    "memory_file": "",
 }
 iosram_0_2.addParams(iosram_0_2_params)
 

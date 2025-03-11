@@ -89,6 +89,9 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
 
   // Column ports
   column_links.reserve(num_columns);
+  for (uint32_t i = 0; i < num_columns; i++) {
+    column_links.push_back(nullptr);
+  }
   std::vector<uint32_t> connected_links;
   for (uint32_t i = 0; i < num_columns; i++) {
     SST::Link *link = configureLink(

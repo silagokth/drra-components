@@ -74,6 +74,8 @@ private:
   // Decode instruction
   void decodeInstr(uint32_t instr) override;
 
+  void handleActivation(uint32_t slot_id, uint32_t ports) override;
+
   void switchToFSM(uint32_t fsmPort) {
     currentFsmPort = fsmPort;
     out.output("Switching to FSM port %u\n", currentFsmPort);
@@ -96,8 +98,11 @@ private:
 
   // Map input ports to output ports ([source] = target)
   vector<map<uint32_t, uint32_t>> connection_maps;
+  vector<map<uint32_t, uint32_t>> next_connection_maps;
   vector<map<uint32_t, vector<uint32_t>>> sending_routes_maps;
+  vector<map<uint32_t, vector<uint32_t>>> next_sending_routes_maps;
   vector<map<uint32_t, vector<uint32_t>>> receiving_routes_maps;
+  vector<map<uint32_t, vector<uint32_t>>> next_receiving_routes_maps;
 
   // Slot links
   uint32_t num_slots;
