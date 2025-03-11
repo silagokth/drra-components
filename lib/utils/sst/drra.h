@@ -11,6 +11,9 @@
 #include "instructionEvent.h"
 #include "timingModel.h"
 
+#include <fstream>
+#include <iostream>
+
 using namespace SST;
 
 class DRRAOutput : public Output {
@@ -76,6 +79,30 @@ public:
     clock = params.find<std::string>("clock", "100MHz");
     printFrequency = params.find<Cycle_t>("printFrequency", 1);
     word_bitwidth = params.find<size_t>("word_bitwidth", 16);
+
+    // Set statistics
+    // number_of_instructions = registerStatistic
+
+    // Output JSON
+    trace_name = params.find<std::string>("trace_name", "trace.json");
+    std::fstream trace_file_exists(trace_name);
+    if (trace_file_exists.good()) {
+      trace_file.open(trace_name, std::ios::out | std::ios::app);
+      if (!trace_file.is_open()) {
+        out.fatal(CALL_INFO, -1, "Failed to open trace file %s\n",
+                  trace_name.c_str());
+      }
+    } else {
+      trace_file.open(trace_name, std::ios::out | std::ios::trunc);
+      if (!trace_file.is_open()) {
+        out.fatal(CALL_INFO, -1, "Failed to open trace file %s\n",
+                  trace_name.c_str());
+      }
+      trace_file << "{ \"traceEvents\": [" << std::endl;
+      trace_file << "{\"name\": \"process_name\", \"ph\": \"M\", \"pid\": "
+                    "0, \"args\": {\"name\": \"drra\"}},\n";
+    }
+    trace_file.close();
 
     tc = registerClock(clock, new Clock::Handler<DRRAComponent>(
                                   this, &DRRAComponent::clockTickBase));
@@ -143,6 +170,9 @@ protected:
   DRRAOutput out;
   std::string clock;
   Cycle_t printFrequency;
+
+  std::string trace_name = "";
+  std::ofstream trace_file;
 
   // Local buffers
   uint32_t instrBuffer;
@@ -270,6 +300,16 @@ public:
                "Controller links size mismatch");
     sst_assert(data_links.size() == resource_size, CALL_INFO, -1,
                "Data links size mismatch");
+
+    // Write to trace file
+    trace_file.open(trace_name, std::ios::app);
+    trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
+                  "\"tid\": 1"
+               << std::setw(3) << std::setfill('0') << cell_coordinates[0]
+               << std::setw(3) << std::setfill('0') << cell_coordinates[1]
+               << std::setw(3) << std::setfill('0') << slot_id
+               << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
+    trace_file.close();
   }
 
   virtual ~DRRAResource() {}
@@ -411,6 +451,18 @@ protected:
         // out.output("Executing event port %d prio %d\n", port,
         //            event->getPriority());
         event->execute();
+        if (trace_name != "") {
+          trace_file.open(trace_name, std::ios::app);
+          trace_file << "{\"name\": \"" << getType()
+                     << "\", \"cat\": \"event\", \"ph\": \"X\", \"ts\": "
+                     << currentSSTCycle << ", \"dur\": 1, \"tid\": 1"
+                     << std::setw(3) << std::setfill('0') << cell_coordinates[0]
+                     << std::setw(3) << std::setfill('0') << cell_coordinates[1]
+                     << std::setw(3) << std::setfill('0') << slot_id
+                     << ", \"pid\": 0, \"args\": {\"port\": " << port
+                     << ", \"event\": \"" << event->getName() << "\"}},\n";
+          trace_file.close();
+        }
         current_timing_states[port].incrementLevels();
         // out.output("port %d incremented levels\n", port);
       }
@@ -543,6 +595,32 @@ public:
         }
       }
       out.print(")\n");
+    }
+  }
+
+  virtual ~DRRAController() {
+    // Open trace file to modify the last line
+    if (cell_coordinates[0] == 0 && cell_coordinates[1] == 0) {
+      trace_file.open(trace_name, std::ios::app);
+      // Find the last comma and remove it
+      std::ifstream trace_file_read(trace_name);
+      std::string line;
+      std::string last_line;
+      while (std::getline(trace_file_read, line)) {
+        last_line = line;
+      }
+      trace_file_read.close();
+      size_t last_comma = last_line.find_last_of(',');
+      if (last_comma != std::string::npos) {
+        last_line = last_line.substr(0, last_comma);
+      }
+      trace_file << last_line << std::endl;
+      // Add the closing bracket
+      trace_file << "], \"displayTimeUnit\": \"ns\"}" << std::endl;
+      trace_file.close();
+      // Move the trace file to the output directory
+      std::string command = "mv " + trace_name + " trace_complete.json";
+      system(command.c_str());
     }
   }
 
