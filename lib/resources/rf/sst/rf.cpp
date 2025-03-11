@@ -88,9 +88,13 @@ void RegisterFile::handleRepx(uint32_t instr) { handleRep(instr); }
 
 void RegisterFile::handleDSU(uint32_t instr) {
   // Instruction fields
+  uint32_t slot = getInstrSlot(instr);
   bool init_addr_sd = getInstrField(instr, 1, 23) == 1;
   uint16_t init_addr = getInstrField(instr, 16, 7);
   uint32_t port = getInstrField(instr, 2, 5);
+
+  out.output("dsu (slot: %d, init_addr_sd: %d, init_addr: %d, port: %d)\n",
+             slot, init_addr_sd, init_addr, port);
 
   port_agus_init[port] = init_addr;
 
@@ -189,7 +193,7 @@ void RegisterFile::writeWide() {
   if (data_event == nullptr)
     out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
   if (data_event->portType != DataEvent::PortType::WriteWide)
-    out.fatal(CALL_INFO, -1, "Invalid port type\n");
+    out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
 
   // Calculate starting address
   uint32_t addr =

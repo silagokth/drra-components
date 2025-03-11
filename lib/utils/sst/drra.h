@@ -243,7 +243,6 @@ public:
     }
 
     // Annotate slot IDs
-    slot_ids.reserve(resource_size);
     for (uint8_t i = 0; i < resource_size; i++) {
       slot_ids.push_back(slot_id + i);
     }
@@ -283,12 +282,15 @@ public:
 
   virtual void decodeInstr(uint32_t instr) = 0;
 
+  virtual void handleActivation(uint32_t slot_id, uint32_t ports) {};
+
   void handleEventBase(Event *event) {
     if (event) {
       // Check if the event is an ActEvent
       ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
       if (actEvent) {
         activatePortsForSlot(actEvent->slot_id, actEvent->ports);
+        handleActivation(actEvent->slot_id, actEvent->ports);
         return;
       }
 
@@ -335,10 +337,12 @@ protected:
     active_ports[port] = true;
     current_timing_states[port] = next_timing_states[port];
     next_timing_states[port] = TimingState();
+    next_timing_states[port].addEvent("event_0", [this] {});
     current_timing_states[port].build();
     // out.output("port %d timing: %s\n", port,
     //            current_timing_states[port].toString().c_str());
     port_last_rep_level[port] = -1;
+    active_ports_cycles[port] = 0;
   }
 
   void activatePortsForSlot(uint32_t slot_id, uint32_t ports) {
@@ -520,7 +524,6 @@ public:
     num_slots = params.find<uint32_t>("num_slots", 16);
 
     // Configure slot links
-    slot_links.reserve(num_slots);
     uint8_t num_connected_links = 0;
     for (uint32_t i = 0; i < num_slots; i++) {
       if (isPortConnected("slot_port" + std::to_string(i))) {

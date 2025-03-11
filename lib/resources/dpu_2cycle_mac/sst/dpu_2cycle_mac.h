@@ -10,11 +10,12 @@
 #include <sst/core/sst_types.h>
 #include <sst/core/timeConverter.h>
 
-class DPU : public DRRAResource {
+class DPU2CycleMac : public DRRAResource {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(DPU, "drra", "dpu",
-                             SST_ELI_ELEMENT_VERSION(1, 0, 0), "DPU component",
+  SST_ELI_REGISTER_COMPONENT(DPU2CycleMac, "drra", "dpu_2cycle_mac",
+                             SST_ELI_ELEMENT_VERSION(1, 0, 0),
+                             "DPU component 2cycle MAC",
                              COMPONENT_CATEGORY_PROCESSOR)
 
   /* Element Library Params */
@@ -34,8 +35,8 @@ public:
   SST_ELI_DOCUMENT_STATISTICS()
   SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
 
-  DPU(SST::ComponentId_t id, SST::Params &params);
-  ~DPU() {};
+  DPU2CycleMac(SST::ComponentId_t id, SST::Params &params);
+  ~DPU2CycleMac() {};
 
   // SST lifecycle methods
   virtual void init(unsigned int phase) override;
@@ -47,6 +48,8 @@ public:
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 
 private:
+  int MAC_phase;
+
   // buffers
   std::map<uint32_t, std::vector<uint8_t>> data_buffers;
   std::vector<uint8_t> accumulate_register;
@@ -181,14 +184,24 @@ private:
       {MAC,
        [this] {
          handleOperation("MAC", [this](int64_t a, int64_t b) {
-           int64_t result = add_sat(accumulate_register[0], mul_sat(a, b));
-           accumulate_register[0] = result;
+           int64_t result = 0;
+           if (MAC_phase == 0) {
+             MAC_phase = 1;
+             result =
+                 add_sat(vectorToInt64(accumulate_register), mul_sat(a, b));
+             accumulate_register = int64ToVector(result);
+             result = 0;
+           } else {
+             MAC_phase = 0;
+             result = vectorToInt64(accumulate_register);
+           }
            return result;
          });
        }},
   };
 
   std::function<void()> getDSUHandler(DPU_MODE mode) {
+    out.output("DSU mode: %d\n", mode);
     if (dsuHandlers.find(mode) == dsuHandlers.end())
       out.fatal(CALL_INFO, -1, "DSU mode %d not implemented\n", mode);
 
