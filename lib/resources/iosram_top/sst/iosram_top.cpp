@@ -312,6 +312,7 @@ void IOSRAMTop::readFromSRAM() {
                 .getRepIncrementForCycle(
                     getPortActiveCycle(PortMap::IOReadFromSRAM));
 
+        to_io_data_buffer.clear();
         backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
                      to_io_data_buffer);
 
@@ -356,12 +357,12 @@ void IOSRAMTop::writeBulk() {
         if (dataEvent == nullptr)
           out.fatal(CALL_INFO, -1, "No data received\n");
 
+        // Write data to the backend
+        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
+                     dataEvent->payload);
+
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
                    write_bulk_address_buffer, dataEvent->size,
                    formatRawDataToWords(dataEvent->payload).c_str());
-
-        // Write data to the backend
-        backend->set(write_bulk_address_buffer, dataEvent->size,
-                     dataEvent->payload);
       });
 }

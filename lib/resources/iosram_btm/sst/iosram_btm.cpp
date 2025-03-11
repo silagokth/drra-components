@@ -312,6 +312,7 @@ void IOSRAMBottom::readFromSRAM() {
                 .getRepIncrementForCycle(
                     getPortActiveCycle(PortMap::IOReadFromSRAM));
 
+        to_io_data_buffer.clear();
         backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
                      to_io_data_buffer);
 
@@ -361,7 +362,7 @@ void IOSRAMBottom::writeBulk() {
                    formatRawDataToWords(dataEvent->payload).c_str());
 
         // Write data to the backend
-        backend->set(write_bulk_address_buffer, dataEvent->size,
+        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
                      dataEvent->payload);
       });
 }
