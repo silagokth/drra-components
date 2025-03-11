@@ -138,8 +138,8 @@ private:
     return a * b;
   }
 
-  // Map of DSU modes to handlers
-  std::map<DPU_MODE, std::function<void()>> dsuHandlers = {
+  // Map of DPU modes to handlers
+  std::map<DPU_MODE, std::function<void()>> dpuHandlers = {
       {IDLE, [this] { out.output("IDLE\n"); }},
       {ADD,
        [this] {
@@ -188,11 +188,11 @@ private:
        }},
   };
 
-  std::function<void()> getDSUHandler(DPU_MODE mode) {
-    if (dsuHandlers.find(mode) == dsuHandlers.end())
-      out.fatal(CALL_INFO, -1, "DSU mode %d not implemented\n", mode);
+  std::function<void()> getDPUHandler(DPU_MODE mode) {
+    if (dpuHandlers.find(mode) == dpuHandlers.end())
+      out.fatal(CALL_INFO, -1, "DPU mode %d not implemented\n", mode);
 
-    return dsuHandlers[mode];
+    return dpuHandlers[mode];
   }
 
   // Events handlers list

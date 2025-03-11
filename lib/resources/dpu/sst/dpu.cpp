@@ -34,7 +34,7 @@ bool DPU::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
-  // Execute DSU operation (priotity 5 - default)
+  // Execute DPU operation (priotity 5 - default)
   if (currentCycle % 10 == 9) {
     for (const auto &port : active_ports) {
       if (isPortActive(port.first)) {
@@ -156,7 +156,7 @@ void DPU::handleDPU(uint32_t instr) {
   }
 
   // Add the event handler
-  fsmHandlers[current_fsm] = getDSUHandler(mode);
+  fsmHandlers[current_fsm] = getDPUHandler(mode);
 }
 
 void DPU::handleOperation(std::string name,
