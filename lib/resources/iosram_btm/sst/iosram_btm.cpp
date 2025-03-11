@@ -1,5 +1,6 @@
 #include "iosram_btm.h"
 
+#include "custom_backing.h"
 #include "dataEvent.h"
 #include "ioEvents.h"
 #include "sst/core/event.h"
@@ -10,6 +11,8 @@ using namespace SST;
 IOSRAMBottom::IOSRAMBottom(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   access_time = params.find<std::string>("access_time", "0ns");
+  iosram_depth = params.find<uint32_t>("iosram_depth", 65536);
+  read_only = params.find<bool>("read_only", false);
 
   // Backing store
   bool found = false;
@@ -32,7 +35,24 @@ IOSRAMBottom::IOSRAMBottom(SST::ComponentId_t id, SST::Params &params)
   }
   size_t sizeBytes = size.getRoundedValue();
 
-  if (backingType == "mmap") {
+  if (backingType == "mfile") {
+    std::string memoryFile = params.find<std::string>("memory_file", "");
+    if (0 == memoryFile.compare("")) {
+      memoryFile.clear();
+    }
+    try {
+      backend = new SST::MemHierarchy::Backend::BackingIO(
+          memoryFile, io_data_width, iosram_depth, read_only);
+    } catch (int e) {
+      if (e == 1) {
+        out.fatal(CALL_INFO, -1, "Failed to open memory file: %s\n",
+                  memoryFile.c_str());
+      } else {
+        out.fatal(CALL_INFO, -1, "Failed to map memory file: %s\n",
+                  memoryFile.c_str());
+      }
+    }
+  } else if (backingType == "mmap") {
     std::string memoryFile = params.find<std::string>("memory_file", "");
     if (0 == memoryFile.compare("")) {
       memoryFile.clear();

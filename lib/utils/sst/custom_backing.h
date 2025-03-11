@@ -35,6 +35,9 @@ public:
     }
     io_ = new Array<MAX_DEPTH, MAX_WIDTH>();
 
+    if (memory_file.empty()) {
+      return;
+    }
     // Load memory file
     ifstream ifs(memory_file);
     if (!ifs.is_open()) {
@@ -58,9 +61,10 @@ public:
 
   ~BackingIO() {
     // Dump memory to file
-    if (!read_only_)
+    if ((!read_only_) && (!memory_file_.empty())) {
       dump(nullptr);
-    delete io_;
+      delete io_;
+    }
   }
 
   void set(Addr addr, uint8_t value) {
@@ -71,7 +75,7 @@ public:
 
   void set(Addr addr, size_t size, std::vector<uint8_t> &data) {
     string raw_data;
-    for (int i = size-1; i >= 0; i--) {
+    for (int i = size - 1; i >= 0; i--) {
       raw_data += std::bitset<8>(data[i]).to_string();
     }
     // Pad 0s if size is not multiple of width
@@ -86,7 +90,6 @@ public:
 
   void get(Addr addr, size_t size, std::vector<uint8_t> &data) {
     string raw_data = io_->read(addr, size);
-    // printf("raw_data: %s\n", raw_data.c_str());
     for (size_t i = 0; i < width_ / 8; i++) {
       data.push_back(
           std::bitset<8>(raw_data.substr(width_ - 8 * (i + 1), 8)).to_ulong());
