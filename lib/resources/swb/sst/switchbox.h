@@ -125,7 +125,6 @@ private:
 
   uint32_t numFSMs = 4;
   uint32_t currentFsmPort = 0;
-  int32_t lastRepLevel = -1;
   uint32_t currentEventNumber = 0;
   uint32_t pendingFSMInstr = 0;
   uint64_t activeCycle = 0;

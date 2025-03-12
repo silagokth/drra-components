@@ -252,11 +252,11 @@ void Switchbox::handleRep(uint32_t instr) {
   uint32_t delay = getInstrField(instr, 6, 0);
 
   // For now, we only support increasing repetition levels (and no skipping)
-  if (level != lastRepLevel + 1) {
+  if (level != port_last_rep_level[port] + 1) {
     out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              lastRepLevel, level);
+              port_last_rep_level[port], level);
   } else {
-    lastRepLevel = level;
+    port_last_rep_level[port] = level;
   }
 
   // add repetition to the timing model
