@@ -10,6 +10,7 @@ class TimingEvent;
 class TransitionOperator;
 class RepetitionOperator;
 class TimingState;
+class TimingOperator;
 
 class TimingExpression {
 public:
@@ -29,6 +30,16 @@ private:
   std::vector<uint64_t> levels_current_iteration;
   std::vector<uint64_t> levels_total_iterations;
   std::vector<uint64_t> levels_step;
+
+  std::vector<std::shared_ptr<TimingOperator>> operator_queue;
+
+  TimingState &buildRepetition(uint64_t iterations, uint64_t delay);
+  TimingState &buildRepetition(uint64_t iterations, uint64_t delay,
+                               uint64_t level, uint64_t step);
+  TimingState &buildTransition(uint64_t delay, const std::string &nextEventName,
+                               std::function<void()> handler);
+  TimingState &buildTransition(uint64_t delay, const std::string &nextEventName,
+                               uint8_t priority, std::function<void()> handler);
 
 public:
   TimingState();
@@ -89,15 +100,31 @@ public:
   uint8_t getPriority() const;
 };
 
-class TransitionOperator : public TimingExpression {
+class TimingOperator : public TimingExpression {
+public:
+  virtual ~TimingOperator() {}
+};
+
+class TransitionOperator : public TimingOperator {
 private:
   uint64_t delay;
+  std::string nextEventName;
+  std::function<void()> handler;
   std::shared_ptr<TimingExpression> from;
   std::shared_ptr<TimingExpression> to;
 
 public:
-  TransitionOperator(uint64_t delay, std::shared_ptr<TimingExpression> from,
+  TransitionOperator(uint64_t delay, std::string nextEventName,
+                     std::function<void()> handler,
+                     std::shared_ptr<TimingExpression> from,
                      std::shared_ptr<TimingExpression> to);
+
+  uint64_t getDelay() const;
+  std::string getNextEventName() const;
+  std::function<void()> getHandler() const;
+  std::shared_ptr<TimingExpression> getFrom() const;
+  std::shared_ptr<TimingExpression> getTo() const;
+
   uint64_t scheduleEvents(TimingState &state,
                           uint64_t startCycle) const override;
   std::string toString() const override;
@@ -105,15 +132,25 @@ public:
   std::string lastEventName() const override;
 };
 
-class RepetitionOperator : public TimingExpression {
+class RepetitionOperator : public TimingOperator {
 private:
   uint64_t iterations;
   uint64_t delay;
+  uint64_t level;
+  uint64_t step;
   std::shared_ptr<TimingExpression> expression;
 
 public:
-  RepetitionOperator(uint64_t iterations, uint64_t delay,
+  RepetitionOperator(uint64_t iterations, uint64_t delay, uint64_t level,
+                     uint64_t step,
                      std::shared_ptr<TimingExpression> expression);
+
+  uint64_t getIterations() const;
+  uint64_t getDelay() const;
+  uint64_t getLevel() const;
+  uint64_t getStep() const;
+  std::shared_ptr<TimingExpression> getExpression() const;
+
   uint64_t scheduleEvents(TimingState &state,
                           uint64_t startCycle) const override;
   std::string toString() const override;
