@@ -143,6 +143,15 @@ TEST(TimingModelTest, RepetitionTesting) {
   EXPECT_EQ(state.toString(), "R<2,2>(R<2,4>(T<2>(e0,e1)))");
 }
 
+TEST(TimingModelTest, AdjustRepetition) {
+  TimingState state = TimingState::createFromEvent("e0");
+  state.addRepetition(1, 1, 0, 0);
+  state.adjustRepetition(2, 2, 0, 0);
+  state.build();
+
+  EXPECT_EQ(state.toString(), "R<3,3>(e0)");
+}
+
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
