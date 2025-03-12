@@ -75,6 +75,8 @@ public:
   bool findEventByName(const std::string &name);
   void addEventName(const std::string &name);
   std::string toString() const;
+
+  RepetitionOperator getRepetitionOperatorFromLevel(uint64_t level) const;
 };
 
 class TimingEvent : public TimingExpression,

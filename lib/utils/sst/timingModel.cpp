@@ -274,6 +274,20 @@ void TimingState::addEventName(const std::string &name) {
 
 std::string TimingState::toString() const { return expression->toString(); }
 
+RepetitionOperator
+TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
+  // Find repetition operator with the same level in the operator queue
+  for (auto &op : operator_queue) {
+    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+      if (repetition->getLevel() == level) {
+        return *repetition;
+      }
+    }
+  }
+  throw std::runtime_error("Repetition operator with level " +
+                           std::to_string(level) + " not found");
+}
+
 // TimingEvent implementations
 TimingEvent::TimingEvent(const std::string &name, uint64_t eventNumber)
     : name(name), eventNumber(eventNumber) {}
