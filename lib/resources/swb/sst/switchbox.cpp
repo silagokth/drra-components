@@ -23,7 +23,7 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
 
   // Slot ports
   num_slots = params.find<uint32_t>("num_slots", 16);
-  for (auto i = 0; i < num_slots; i++) {
+  for (uint32_t i = 0; i < num_slots; i++) {
     slot_links.push_back(nullptr);
   }
   std::string linkName;
@@ -56,8 +56,7 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
 
   // Cell ports
   std::vector<uint32_t> totalConnections;
-  // 9 different directions
-  for (auto i = 0; i < 9; i++) {
+  for (uint8_t i = 0; i < 9; i++) {
     cell_links.push_back(nullptr);
   }
   for (uint8_t dir = CellDirection::NW; dir <= CellDirection::SE; dir++) {
@@ -81,9 +80,6 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
     // out.print("%u,", link);
   }
   out.print(")\n");
-
-  // registerClock(
-  //   clock, new SST::Clock::Handler<Switchbox>(this, &Switchbox::clockTick));
 }
 
 Switchbox::~Switchbox() {}
@@ -271,7 +267,25 @@ void Switchbox::handleRep(uint32_t instr) {
   }
 }
 
-void Switchbox::handleRepx(uint32_t instr) { handleRep(instr); }
+void Switchbox::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void Switchbox::handleFsm(uint32_t instr) {
   // Instruction fields

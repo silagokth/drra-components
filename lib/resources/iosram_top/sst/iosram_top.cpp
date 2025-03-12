@@ -165,7 +165,25 @@ void IOSRAMTop::handleRep(uint32_t instr) {
   }
 }
 
-void IOSRAMTop::handleRepx(uint32_t instr) { handleRep(instr); }
+void IOSRAMTop::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void IOSRAMTop::handleDSU(uint32_t instr) {
   // Instruction fields
@@ -333,7 +351,6 @@ void IOSRAMTop::readBulk() {
 
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
-        data.clear();
         backend->get(read_bulk_address_buffer, io_data_width / 8, data);
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,
@@ -364,5 +381,9 @@ void IOSRAMTop::writeBulk() {
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
                    write_bulk_address_buffer, dataEvent->size,
                    formatRawDataToWords(dataEvent->payload).c_str());
+
+        // Write data to the backend
+        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
+                     dataEvent->payload);
       });
 }

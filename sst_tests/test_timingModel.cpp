@@ -54,8 +54,8 @@ TEST(TimingModelTest, FindEventByNameTest) {
 
 TEST(TimingModelTest, TransitionOperator) {
   TimingState state = TimingState::createFromEvent("Event1");
-  state.addTransition(5, "Event2", [] {});
-  state.build(); // Schedule events
+  state.addTransition(4, "Event2", [] {}); // delay is 5 cycles (4 + 1)
+  state.build();                           // Schedule events
 
   // Check Event1 at cycle 0
   auto events0 = state.getEventsForCycle(0);
@@ -70,11 +70,11 @@ TEST(TimingModelTest, TransitionOperator) {
 
 TEST(TimingModelTest, RepetitionOperator) {
   TimingState state = TimingState::createFromEvent("RepeatedEvent");
-  state.addRepetition(3, 2); // Repeat 3 times with step of 2 cycles
+  state.addRepetition(2, 1); // Repeat 3 times with step of 2 cycles
   state.build();             // Schedule events
 
   // Check events at cycles 0, 2, and 4
-  for (uint64_t cycle = 0; cycle < 12; cycle++) {
+  for (uint64_t cycle = 0; cycle < 24; cycle++) {
     auto events = state.getEventsForCycle(cycle);
     if (cycle > 4) {
       ASSERT_EQ(events.size(), 0) << "at cycle " << cycle;
@@ -88,11 +88,12 @@ TEST(TimingModelTest, RepetitionOperator) {
 }
 
 TEST(TimingModelTest, ComplexPattern) {
-  TimingState state = TimingState::createFromEvent("Start");
-  state.addTransition(2, "Middle", [] { printf("Middle\n"); })
-      .addTransition(3, "End", [] { printf("End\n"); })
-      .addRepetition(2, 10)
-      .build();
+  TimingState state = TimingState();
+  state.addEvent("Start", [] { printf("Start\n"); });
+  state.addTransition(1, "Middle", [] { printf("Middle\n"); });
+  state.addTransition(2, "End", [] { printf("End\n"); });
+  state.addRepetition(1, 9);
+  state.build();
 
   // First iteration
   EXPECT_EQ(state.getEventsForCycle(0).size(), 1); // Start
@@ -116,30 +117,39 @@ TEST(TimingModelTest, EventToString) {
 TEST(TimingModelTest, TransitionToString) {
   auto from = std::make_shared<TimingEvent>("From", 1);
   auto to = std::make_shared<TimingEvent>("To", 2);
-  TransitionOperator trans(5, from, to);
+  TransitionOperator trans(5, "NextEvent", [] {}, from, to);
   EXPECT_EQ(trans.toString(), "T<5>(e1,e2)");
 }
 
 TEST(TimingModelTest, ComplexPatternToString) {
   TimingState state = TimingState();
   state.addEvent("Start", [] {});
-  state.addTransition(2, "Middle", [] {});
-  state.addRepetition(2, 10);
-  state.addTransition(3, "End", [] {});
-  state.addRepetition(2, 10);
+  state.addTransition(1, "Middle", [] {});
+  state.addRepetition(1, 9);
+  state.addTransition(2, "End", [] {});
+  state.addRepetition(1, 9, 1, 0);
   state.build();
 
-  EXPECT_EQ(state.toString(), "R<2,10>(T<3>(R<2,10>(T<2>(e0,e1)),e2))");
+  EXPECT_EQ(state.toString(), "R<2,10>(R<2,10>(T<3>(T<2>(e0,e1),e2)))");
 }
 
 TEST(TimingModelTest, RepetitionTesting) {
   TimingState state = TimingState::createFromEvent("e0");
-  state.addTransition(2, "e1", [] {});
-  state.addRepetition(2, 4);
-  state.addRepetition(2, 2);
+  state.addTransition(1, "e1", [] {});
+  state.addRepetition(1, 3);
+  state.addRepetition(1, 1, 1, 0);
   state.build();
 
   EXPECT_EQ(state.toString(), "R<2,2>(R<2,4>(T<2>(e0,e1)))");
+}
+
+TEST(TimingModelTest, AdjustRepetition) {
+  TimingState state = TimingState::createFromEvent("e0");
+  state.addRepetition(1, 1, 0, 0);
+  state.adjustRepetition(2, 2, 0, 0);
+  state.build();
+
+  EXPECT_EQ(state.toString(), "R<3,3>(e0)");
 }
 
 int main(int argc, char **argv) {

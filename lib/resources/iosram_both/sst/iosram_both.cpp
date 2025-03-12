@@ -163,7 +163,25 @@ void IOSRAMBoth::handleRep(uint32_t instr) {
   }
 }
 
-void IOSRAMBoth::handleRepx(uint32_t instr) { handleRep(instr); }
+void IOSRAMBoth::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void IOSRAMBoth::handleDSU(uint32_t instr) {
   // Instruction fields
@@ -357,7 +375,7 @@ void IOSRAMBoth::writeBulk() {
                    formatRawDataToWords(dataEvent->payload).c_str());
 
         // Write data to the backend
-        backend->set(write_bulk_address_buffer, dataEvent->size,
+        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
                      dataEvent->payload);
       });
 }
