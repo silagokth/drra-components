@@ -197,7 +197,6 @@ private:
 
   // Events handlers list
   std::vector<std::function<void()>> eventsHandlers;
-  int32_t lastRepLevel = -1;
   uint32_t current_event_number = 0;
 
   // FSMs
