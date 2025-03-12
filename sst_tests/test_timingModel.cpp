@@ -127,7 +127,7 @@ TEST(TimingModelTest, ComplexPatternToString) {
   state.addTransition(1, "Middle", [] {});
   state.addRepetition(1, 9);
   state.addTransition(2, "End", [] {});
-  state.addRepetition(1, 9);
+  state.addRepetition(1, 9, 1, 0);
   state.build();
 
   EXPECT_EQ(state.toString(), "R<2,10>(R<2,10>(T<3>(T<2>(e0,e1),e2)))");
@@ -137,7 +137,7 @@ TEST(TimingModelTest, RepetitionTesting) {
   TimingState state = TimingState::createFromEvent("e0");
   state.addTransition(1, "e1", [] {});
   state.addRepetition(1, 3);
-  state.addRepetition(1, 1);
+  state.addRepetition(1, 1, 1, 0);
   state.build();
 
   EXPECT_EQ(state.toString(), "R<2,2>(R<2,4>(T<2>(e0,e1)))");

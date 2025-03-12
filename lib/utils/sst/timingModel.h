@@ -63,6 +63,8 @@ public:
   TimingState &addRepetition(uint64_t iterations, uint64_t delay);
   TimingState &addRepetition(uint64_t iterations, uint64_t delay,
                              uint64_t level, uint64_t step);
+  TimingState &adjustRepetition(uint64_t iterations, uint64_t delay,
+                                uint64_t level, uint64_t step);
   uint64_t getRepIncrementForCycle(uint64_t cycle);
   void incrementLevels(void);
   TimingState &build();
@@ -149,6 +151,9 @@ public:
   uint64_t getDelay() const;
   uint64_t getLevel() const;
   uint64_t getStep() const;
+  void setIterations(uint64_t iterations) { this->iterations = iterations; }
+  void setDelay(uint64_t delay) { this->delay = delay; }
+  void setStep(uint64_t step) { this->step = step; }
   std::shared_ptr<TimingExpression> getExpression() const;
 
   uint64_t scheduleEvents(TimingState &state,

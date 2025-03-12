@@ -128,9 +128,37 @@ TimingState &TimingState::addRepetition(uint64_t iterations, uint64_t delay,
   if (!expression) {
     throw std::runtime_error("Cannot add repetition without an event");
   }
+
+  // Check that no other repetition operator with the same level exists
+  for (auto &op : operator_queue) {
+    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+      if (repetition->getLevel() == level) {
+        throw std::runtime_error("Repetition operator with level " +
+                                 std::to_string(level) + " already exists");
+      }
+    }
+  }
+
   this->operator_queue.push_back(std::make_shared<RepetitionOperator>(
       iterations, delay, level, step, expression));
   return *this;
+}
+
+TimingState &TimingState::adjustRepetition(uint64_t iterations, uint64_t delay,
+                                           uint64_t level, uint64_t step) {
+  // Find repetition operator with the same level
+  for (auto &op : operator_queue) {
+    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+      if (repetition->getLevel() == level) {
+        repetition->setIterations(iterations);
+        repetition->setDelay(delay);
+        repetition->setStep(step);
+        return *this;
+      }
+    }
+  }
+  throw std::runtime_error("Repetition operator with level " +
+                           std::to_string(level) + " not found");
 }
 
 uint64_t TimingState::getRepIncrementForCycle(uint64_t cycle) {
