@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <fstream>
 #include <sst/core/component.h>
 #include <sst/core/link.h>
@@ -195,6 +196,9 @@ void Sequencer::activate(uint32_t instr) {
   uint32_t mode = getInstrField(instr, mode_segment_length, 8);
   uint32_t param = getInstrField(instr, param_segment_length, 0);
 
+  out.output("act (mode=%d, param=%d, ports=%s)\n", mode, param,
+             std::bitset<16>(ports).to_string().c_str());
+
   uint32_t target_ports_for_slot = 0;
   uint32_t temp_ports = ports;
   uint32_t current_slot = 0;
@@ -220,22 +224,35 @@ void Sequencer::activate(uint32_t instr) {
       event->ports = target_ports_for_slot;
       slot_links[current_slot]->send(event);
 
-      // Print debug info
-      out.output("act instr: %s (ports=%d, mode=%d, param=%d)\n",
-                 std::bitset<32>(instr).to_string().c_str(), ports, mode,
-                 param);
-      out.output("act (slot=%u, mode=%d, param=%d, ports=%s)\n", current_slot,
-                 mode, param,
-                 std::bitset<4>(target_ports_for_slot).to_string().c_str());
-
       // Next slot
       target_ports_for_slot = 0;
       current_slot++;
     }
     break;
 
+  case 1: // All port X (param) in each slot
+    if (param >= 4) {
+      out.fatal(CALL_INFO, -1,
+                "Invalid port number, activation mode 1 requires a value "
+                "between 0 and 3.\n");
+    }
+    target_ports_for_slot = param;
+    for (uint32_t i = 0; i < ports_segment_length; i++) {
+      if (ports & (1 << i)) {
+        ActEvent *event = new ActEvent();
+        event->slot_id = i;
+        event->ports = (1 << target_ports_for_slot);
+        slot_links[i]->send(event);
+      }
+    }
+    break;
+
+  case 2:
+    out.fatal(CALL_INFO, -1, "ACT mode 2 not implemented\n");
+    break;
+
   default:
-    out.fatal(CALL_INFO, -1, "ACT mode not implemented\n");
+    out.fatal(CALL_INFO, -1, "ACT mode %d not implemented\n", mode);
     break;
   }
 }
