@@ -14,13 +14,18 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
     connection_maps.push_back(map<uint32_t, uint32_t>());
     sending_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
     receiving_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
+    next_connection_maps.push_back(map<uint32_t, uint32_t>());
+    next_sending_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
+    next_receiving_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
   }
   // Set FSM 0 as the default FSM
   switchToFSM(0);
 
   // Slot ports
   num_slots = params.find<uint32_t>("num_slots", 16);
-  slot_links.reserve(num_slots);
+  for (uint32_t i = 0; i < num_slots; i++) {
+    slot_links.push_back(nullptr);
+  }
   std::string linkName;
   std::vector<uint32_t> connected_links;
   for (uint32_t swb_slot_conn_id = 0; swb_slot_conn_id < num_slots;
@@ -51,7 +56,9 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
 
   // Cell ports
   std::vector<uint32_t> totalConnections;
-  cell_links.reserve(9); // 9 cell ports
+  for (uint8_t i = 0; i < 9; i++) {
+    cell_links.push_back(nullptr);
+  }
   for (uint8_t dir = CellDirection::NW; dir <= CellDirection::SE; dir++) {
     linkName = "cell_port" + std::to_string(dir);
     if (isPortConnected(linkName)) {
@@ -73,9 +80,6 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
     // out.print("%u,", link);
   }
   out.print(")\n");
-
-  registerClock(
-      clock, new SST::Clock::Handler<Switchbox>(this, &Switchbox::clockTick));
 }
 
 Switchbox::~Switchbox() {}
@@ -217,6 +221,28 @@ void Switchbox::decodeInstr(uint32_t instr) {
   }
 }
 
+void Switchbox::handleActivation(uint32_t slot_id, uint32_t ports) {
+  uint32_t relative_ports = ports << (slot_id * 4);
+  if (ports & 0b1) {
+    connection_maps = next_connection_maps;
+    next_connection_maps.clear();
+    for (uint32_t i = 0; i < numFSMs; i++) {
+      next_connection_maps.push_back(map<uint32_t, uint32_t>());
+    }
+  }
+  if (ports & 0b100) {
+    sending_routes_maps = next_sending_routes_maps;
+    receiving_routes_maps = next_receiving_routes_maps;
+
+    next_sending_routes_maps.clear();
+    next_receiving_routes_maps.clear();
+    for (uint32_t i = 0; i < numFSMs; i++) {
+      next_sending_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
+      next_receiving_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
+    }
+  }
+}
+
 void Switchbox::handleRep(uint32_t instr) {
   // Instruction fields
   uint32_t port = getInstrField(instr, 2, 22);
@@ -226,11 +252,11 @@ void Switchbox::handleRep(uint32_t instr) {
   uint32_t delay = getInstrField(instr, 6, 0);
 
   // For now, we only support increasing repetition levels (and no skipping)
-  if (level != lastRepLevel + 1) {
+  if (level != port_last_rep_level[port] + 1) {
     out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              lastRepLevel, level);
+              port_last_rep_level[port], level);
   } else {
-    lastRepLevel = level;
+    port_last_rep_level[port] = level;
   }
 
   // add repetition to the timing model
@@ -241,7 +267,25 @@ void Switchbox::handleRep(uint32_t instr) {
   }
 }
 
-void Switchbox::handleRepx(uint32_t instr) { handleRep(instr); }
+void Switchbox::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void Switchbox::handleFsm(uint32_t instr) {
   // Instruction fields
@@ -276,7 +320,7 @@ void Switchbox::handleSwb(uint32_t instr) {
   }
 
   // Add the connection to the SWB map
-  connection_maps[option][source] = target;
+  next_connection_maps[option][source] = target;
 
   out.output("Adding connection from slot %u to slot %u "
              "in FSM %u\n",
@@ -304,7 +348,7 @@ void Switchbox::handleRoute(uint32_t instr) {
     for (uint32_t i = 0; i < 16; i++) {
       if (target & (1 << i)) {
         targets.push_back(i);
-        receiving_routes_maps[option][source].push_back(i);
+        next_receiving_routes_maps[option][source].push_back(i);
       }
     }
   } else {
@@ -316,7 +360,7 @@ void Switchbox::handleRoute(uint32_t instr) {
     for (uint32_t i = 0; i < 16; i++) {
       if (target & (1 << i)) {
         targets.push_back(i);
-        sending_routes_maps[option][source].push_back(i);
+        next_sending_routes_maps[option][source].push_back(i);
       }
     }
   }

@@ -69,6 +69,10 @@ private:
   SST::MemHierarchy::Backend::Backing *backend = nullptr;
   ScratchBackendConvertor *backendConvertor = nullptr;
 
+  // Backing store parameters
+  uint64_t iosram_depth;
+  bool read_only;
+
   // Map ports to links
   enum PortMap {
     SRAMReadFromIO = 0,

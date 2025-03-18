@@ -1,6 +1,7 @@
 #include "rf.h"
 
 #include "dataEvent.h"
+#include <cstdint>
 
 RegisterFile::RegisterFile(ComponentId_t id, Params &params)
     : DRRAResource(id, params) {
@@ -84,13 +85,35 @@ void RegisterFile::handleRep(uint32_t instr) {
   }
 }
 
-void RegisterFile::handleRepx(uint32_t instr) { handleRep(instr); }
+void RegisterFile::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void RegisterFile::handleDSU(uint32_t instr) {
   // Instruction fields
+  uint32_t slot = getInstrSlot(instr);
   bool init_addr_sd = getInstrField(instr, 1, 23) == 1;
   uint16_t init_addr = getInstrField(instr, 16, 7);
   uint32_t port = getInstrField(instr, 2, 5);
+
+  out.output("dsu (slot=%d, init_addr_sd=%d, init_addr=%d, port=%d)\n", slot,
+             init_addr_sd, init_addr, port);
 
   port_agus_init[port] = init_addr;
 

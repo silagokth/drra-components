@@ -1,5 +1,6 @@
 #include "iosram_top.h"
 
+#include "custom_backing.h"
 #include "dataEvent.h"
 #include "ioEvents.h"
 #include "sst/core/event.h"
@@ -10,6 +11,8 @@ using namespace SST;
 IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   access_time = params.find<std::string>("access_time", "0ns");
+  iosram_depth = params.find<uint32_t>("iosram_depth", 65536);
+  read_only = params.find<bool>("read_only", false);
 
   // Backing store
   bool found = false;
@@ -32,7 +35,24 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
   }
   size_t sizeBytes = size.getRoundedValue();
 
-  if (backingType == "mmap") {
+  if (backingType == "mfile") {
+    std::string memoryFile = params.find<std::string>("memory_file", "");
+    if (0 == memoryFile.compare("")) {
+      memoryFile.clear();
+    }
+    try {
+      backend = new SST::MemHierarchy::Backend::BackingIO(
+          memoryFile, io_data_width, iosram_depth, read_only);
+    } catch (int e) {
+      if (e == 1) {
+        out.fatal(CALL_INFO, -1, "Failed to open memory file: %s\n",
+                  memoryFile.c_str());
+      } else {
+        out.fatal(CALL_INFO, -1, "Failed to map memory file: %s\n",
+                  memoryFile.c_str());
+      }
+    }
+  } else if (backingType == "mmap") {
     std::string memoryFile = params.find<std::string>("memory_file", "");
     if (0 == memoryFile.compare("")) {
       memoryFile.clear();
@@ -143,7 +163,25 @@ void IOSRAMTop::handleRep(uint32_t instr) {
   }
 }
 
-void IOSRAMTop::handleRepx(uint32_t instr) { handleRep(instr); }
+void IOSRAMTop::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void IOSRAMTop::handleDSU(uint32_t instr) {
   // Instruction fields
@@ -290,11 +328,7 @@ void IOSRAMTop::readFromSRAM() {
                 .getRepIncrementForCycle(
                     getPortActiveCycle(PortMap::IOReadFromSRAM));
 
-        to_io_data_buffer.resize(io_data_width / 8);
-        for (int i = 0; i < io_data_width / 8; i++) {
-          to_io_data_buffer[i] = 0;
-        }
-
+        to_io_data_buffer.clear();
         backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
                      to_io_data_buffer);
 
@@ -315,7 +349,6 @@ void IOSRAMTop::readBulk() {
 
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
-        data.resize(io_data_width / 8);
         backend->get(read_bulk_address_buffer, io_data_width / 8, data);
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,
@@ -344,7 +377,7 @@ void IOSRAMTop::writeBulk() {
                    formatRawDataToWords(dataEvent->payload).c_str());
 
         // Write data to the backend
-        backend->set(write_bulk_address_buffer, dataEvent->size,
+        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
                      dataEvent->payload);
       });
 }
