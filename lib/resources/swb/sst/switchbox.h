@@ -76,14 +76,22 @@ private:
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
-  void switchToNextOption() {
-    currentFsmOption++;
-    if (currentFsmOption >= numFSMs) {
-      currentFsmOption = 0;
-    }
-    out.output("Switching to FSM port %u\n", currentFsmOption);
+  void switchToNextOption_swb() {
+    currentFsmOption_swb++;
+    out.output("Switching to FSM port %u\n", currentFsmOption_swb);
   }
-
+  void resetOption_swb() {
+    currentFsmOption_swb = 0;
+    out.output("Reset FSM to 0 %u\n");
+  }
+  void switchToNextOption_route() {
+    currentFsmOption_route++;
+    out.output("Switching to FSM port %u\n", currentFsmOption_route);
+  }
+  void resetOption_route() {
+    currentFsmOption_route = 0;
+    out.output("Reset FSM to 0 %u\n");
+  }
   // Different supported opcodes
   enum Opcode {
     REP,
@@ -127,7 +135,8 @@ private:
   vector<function<void()>> eventsHandlers;
 
   uint32_t numFSMs = 4;
-  uint32_t currentFsmOption = 0;
+  uint32_t currentFsmOption_swb = 0;
+  uint32_t currentFsmOption_route = 0;
   uint32_t currentEventNumber = 0;
   uint32_t pendingFSMInstr = 0;
   uint64_t activeCycle = 0;

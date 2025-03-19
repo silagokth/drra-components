@@ -213,15 +213,14 @@ void RegisterFile::readNarrow() {
 }
 
 void RegisterFile::writeWide() {
-  Event *temp_event;
-  DataEvent *data_event;
+  Event *temp_event = nullptr;
+  DataEvent *data_event = nullptr;
   do {
     temp_event = data_links[0]->recv();
     if (temp_event != nullptr) {
       data_event = dynamic_cast<DataEvent *>(temp_event);
     }
   } while (temp_event != nullptr);
-  delete temp_event;
 
   if (data_event == nullptr)
     out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
@@ -250,14 +249,14 @@ void RegisterFile::writeWide() {
 }
 
 void RegisterFile::writeNarrow() {
-  Event *temp_event;
-  DataEvent *data_event;
+  Event *temp_event = nullptr;
+  DataEvent *data_event = nullptr;
   do {
     temp_event = data_links[0]->recv();
-    if (temp_event != nullptr)
+    if (temp_event != nullptr) {
       data_event = dynamic_cast<DataEvent *>(temp_event);
+    }
   } while (temp_event != nullptr);
-  delete temp_event;
 
   if (data_event == nullptr)
     out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
