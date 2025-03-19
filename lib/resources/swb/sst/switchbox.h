@@ -76,12 +76,12 @@ private:
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
-  void switchToFSM() {
-    currentFsmPort++;
-    if (currentFsmPort >= numFSMs) {
-      currentFsmPort = 0;
+  void switchToNextOption() {
+    currentFsmOption++;
+    if (currentFsmOption >= numFSMs) {
+      currentFsmOption = 0;
     }
-    out.output("Switching to FSM port %u\n", currentFsmPort);
+    out.output("Switching to FSM port %u\n", currentFsmOption);
   }
 
   // Different supported opcodes
@@ -127,7 +127,7 @@ private:
   vector<function<void()>> eventsHandlers;
 
   uint32_t numFSMs = 4;
-  uint32_t currentFsmPort = 0;
+  uint32_t currentFsmOption = 0;
   uint32_t currentEventNumber = 0;
   uint32_t pendingFSMInstr = 0;
   uint64_t activeCycle = 0;
