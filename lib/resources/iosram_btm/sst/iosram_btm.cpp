@@ -23,6 +23,8 @@ IOSRAMBottom::IOSRAMBottom(SST::ComponentId_t id, SST::Params &params)
     bool oldBackVal = params.find<bool>("do-not-back", false, found);
     if (oldBackVal)
       backingType = "none";
+  } else {
+    out.output("backing: %s\n", backingType.c_str());
   }
 
   // Backend
@@ -202,8 +204,8 @@ void IOSRAMBottom::handleDSU(uint32_t instr) {
   case PortMap::SRAMReadFromIO:
     out.fatal(CALL_INFO, -1,
               "Invalid DSU mode IOSRAM Bottom should not read from IO\n");
-    // sram_read_from_io_initial_addr = init_addr;
-    // readFromIO();
+    sram_read_from_io_initial_addr = init_addr;
+    readFromIO();
     break;
   case PortMap::SRAMWriteToIO:
     sram_write_to_io_initial_addr = init_addr;
@@ -349,6 +351,7 @@ void IOSRAMBottom::readBulk() {
 
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
+        data.clear();
         backend->get(read_bulk_address_buffer, io_data_width / 8, data);
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,

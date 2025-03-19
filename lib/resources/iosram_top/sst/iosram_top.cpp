@@ -23,6 +23,8 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
     bool oldBackVal = params.find<bool>("do-not-back", false, found);
     if (oldBackVal)
       backingType = "none";
+  } else {
+    out.output("backing: %s\n", backingType.c_str());
   }
 
   // Backend
@@ -206,8 +208,8 @@ void IOSRAMTop::handleDSU(uint32_t instr) {
   case PortMap::SRAMWriteToIO:
     out.fatal(CALL_INFO, -1,
               "Invalid DSU mode IOSRAM Top should not write to IO\n");
-    // sram_write_to_io_initial_addr = init_addr;
-    // writeToIO();
+    sram_write_to_io_initial_addr = init_addr;
+    writeToIO();
     break;
   case PortMap::IOWriteToSRAM:
     io_write_to_sram_initial_addr = init_addr;
@@ -349,6 +351,7 @@ void IOSRAMTop::readBulk() {
 
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
+        data.clear();
         backend->get(read_bulk_address_buffer, io_data_width / 8, data);
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,
@@ -372,12 +375,12 @@ void IOSRAMTop::writeBulk() {
         if (dataEvent == nullptr)
           out.fatal(CALL_INFO, -1, "No data received\n");
 
-        out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
-                   write_bulk_address_buffer, dataEvent->size,
-                   formatRawDataToWords(dataEvent->payload).c_str());
-
         // Write data to the backend
         backend->set(write_bulk_address_buffer, dataEvent->size / 8,
                      dataEvent->payload);
+
+        out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
+                   write_bulk_address_buffer, dataEvent->size,
+                   formatRawDataToWords(dataEvent->payload).c_str());
       });
 }

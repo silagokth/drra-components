@@ -212,7 +212,7 @@ void RegisterFile::writeWide() {
   if (data_event == nullptr)
     out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
   if (data_event->portType != DataEvent::PortType::WriteWide)
-    out.fatal(CALL_INFO, -1, "Invalid port type\n");
+    out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
 
   // Calculate starting address
   uint32_t addr =

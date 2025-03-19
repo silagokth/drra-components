@@ -180,7 +180,7 @@ void Switchbox::handleCellEventWithID(Event *event, uint32_t id) {
       if (i < receiving_routes_maps[currentFsmOption][id].size() - 1) {
         out.print(", ");
       }
-      slot_links[target]->send(event);
+      slot_links[target]->send(dataEvent);
     }
     out.print("\n");
   } else {

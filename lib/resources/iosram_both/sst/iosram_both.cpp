@@ -371,7 +371,7 @@ void IOSRAMBoth::writeBulk() {
           out.fatal(CALL_INFO, -1, "No data received\n");
 
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
-                   write_bulk_address_buffer, dataEvent->size,
+                   write_bulk_address_buffer, dataEvent->size / 8,
                    formatRawDataToWords(dataEvent->payload).c_str());
 
         // Write data to the backend
