@@ -122,37 +122,38 @@ void Switchbox::handleSlotEventWithID(Event *event, uint32_t id) {
         cell_links[target]->send(event);
       }
     } else {
-      for (uint32_t fsm_id = 0; fsm_id < numFSMs; fsm_id++) {
-        out.output("Current FSM: %u\n", currentFsmOption);
-        out.output("FSM %u connections: %lu\n", fsm_id,
-                   connection_maps[fsm_id].size());
-        for (const auto &conn : connection_maps[fsm_id]) {
-          out.output("FSM %u connection from slot %u to slot %u\n", fsm_id,
-                     conn.first, conn.second);
-        }
-        out.output("FSM %u receiving routes: %lu\n", fsm_id,
-                   receiving_routes_maps[fsm_id].size());
-        for (const auto &route : receiving_routes_maps[fsm_id]) {
-          out.output("FSM %u receiving route from cell %u to slots ", fsm_id,
-                     route.first);
-          for (const auto &slot : route.second) {
-            out.print("%u,", slot);
-          }
-          out.print("\n");
-        }
-        out.output("FSM %u sending routes: %lu\n", fsm_id,
-                   sending_routes_maps[fsm_id].size());
-        for (const auto &route : sending_routes_maps[fsm_id]) {
-          out.output("FSM %u sending route from slot %u to cells ", fsm_id,
-                     route.first);
-          for (const auto &cell : route.second) {
-            out.print("%s,", cell_directions_str[cell].c_str());
-          }
-          out.print("\n");
-        }
-      }
+      out.output("Slot %u is not linked. Ignoring sent data.\n", id);
+      // for (uint32_t fsm_id = 0; fsm_id < numFSMs; fsm_id++) {
+      //   out.output("Current FSM: %u\n", currentFsmOption);
+      //   out.output("FSM %u connections: %lu\n", fsm_id,
+      //              connection_maps[fsm_id].size());
+      //   for (const auto &conn : connection_maps[fsm_id]) {
+      //     out.output("FSM %u connection from slot %u to slot %u\n", fsm_id,
+      //                conn.first, conn.second);
+      //   }
+      //   out.output("FSM %u receiving routes: %lu\n", fsm_id,
+      //              receiving_routes_maps[fsm_id].size());
+      //   for (const auto &route : receiving_routes_maps[fsm_id]) {
+      //     out.output("FSM %u receiving route from cell %u to slots ", fsm_id,
+      //                route.first);
+      //     for (const auto &slot : route.second) {
+      //       out.print("%u,", slot);
+      //     }
+      //     out.print("\n");
+      //   }
+      //   out.output("FSM %u sending routes: %lu\n", fsm_id,
+      //              sending_routes_maps[fsm_id].size());
+      //   for (const auto &route : sending_routes_maps[fsm_id]) {
+      //     out.output("FSM %u sending route from slot %u to cells ", fsm_id,
+      //                route.first);
+      //     for (const auto &cell : route.second) {
+      //       out.print("%s,", cell_directions_str[cell].c_str());
+      //     }
+      //     out.print("\n");
+      //   }
+      // }
 
-      out.fatal(CALL_INFO, -1, "Slot %u is not linked\n", id);
+      // out.fatal(CALL_INFO, -1, "Slot %u is not linked\n", id);
     }
   }
 }
@@ -319,6 +320,7 @@ void Switchbox::handleFsm(uint32_t instr) {
           delays[i - 1], "event_" + std::to_string(currentEventNumber),
           [this] { switchToNextOption(); });
       currentEventNumber++;
+      out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
     }
   } else
     out.fatal(CALL_INFO, -1, "Invalid SWB port (can only be 0 or 2)\n");
