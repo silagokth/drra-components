@@ -167,8 +167,8 @@ void Switchbox::handleCellEventWithID(Event *event, uint32_t id) {
                cell_directions_str[id].c_str());
 
   // Verify if the slot is mapped to another slot
-  if (receiving_routes_maps[currentFsmOption_swb].count(id)) {
-    if (receiving_routes_maps[currentFsmOption_swb][id].size() > 1) {
+  if (receiving_routes_maps[currentFsmOption_route].count(id)) {
+    if (receiving_routes_maps[currentFsmOption_route][id].size() > 1) {
       out.output("Broadcasting data from cell %s to slots ",
                  cell_directions_str[id].c_str());
     } else {
