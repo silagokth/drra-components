@@ -167,19 +167,33 @@ void IOSRAMBottom::handleRep(uint32_t instr) {
 
 void IOSRAMBottom::handleRepx(uint32_t instr) {
   // Instruction fields
+  uint32_t slot = getInstrSlot(instr);
   uint32_t port = getInstrField(instr, 2, 22);
   uint32_t level = getInstrField(instr, 4, 18);
   uint32_t iter_msb = getInstrField(instr, 6, 12);
   uint32_t step_msb = getInstrField(instr, 6, 6);
   uint32_t delay_msb = getInstrField(instr, 6, 0);
 
+  out.output("repx (slot=%d, port=%d, level=%d, iter_msb=%d, step_msb=%d, "
+             "delay_msb=%d)\n",
+             slot, port, level, iter_msb, step_msb, delay_msb);
+
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + port;
+
   auto repetition_op =
-      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+      next_timing_states[port_num].getRepetitionOperatorFromLevel(level);
   uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
   uint32_t step = step_msb << 6 | repetition_op.getStep();
   uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
   try {
-    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+    next_timing_states[port_num].adjustRepetition(iter, delay, level, step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
   }

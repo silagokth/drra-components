@@ -76,8 +76,11 @@ private:
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
-  void switchToFSM(uint32_t fsmPort) {
-    currentFsmPort = fsmPort;
+  void switchToFSM() {
+    currentFsmPort++;
+    if (currentFsmPort >= numFSMs) {
+      currentFsmPort = 0;
+    }
     out.output("Switching to FSM port %u\n", currentFsmPort);
   }
 

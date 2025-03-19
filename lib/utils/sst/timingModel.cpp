@@ -284,6 +284,13 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
       }
     }
   }
+  // print the queue
+  printf("Operator queue:\n");
+  for (auto &op : operator_queue) {
+    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+      printf(" - Repetition operator with level %lu\n", repetition->getLevel());
+    }
+  }
   throw std::runtime_error("Repetition operator with level " +
                            std::to_string(level) + " not found");
 }
