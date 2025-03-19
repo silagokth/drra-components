@@ -35,9 +35,11 @@ public:
     }
     io_ = new Array<MAX_DEPTH, MAX_WIDTH>();
 
+    // if no name is provided, do not init the array
     if (memory_file.empty()) {
       return;
     }
+
     // Load memory file
     ifstream ifs(memory_file);
     if (!ifs.is_open()) {

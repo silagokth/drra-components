@@ -20,7 +20,8 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
   }
 
   // Set FSM 0 as the default FSM
-  currentFsmOption = 0;
+  currentFsmOption_swb = 0;
+  currentFsmOption_route = 0;
 
   // Slot ports
   num_slots = params.find<uint32_t>("num_slots", 16);
@@ -108,18 +109,19 @@ void Switchbox::handleSlotEventWithID(Event *event, uint32_t id) {
     // }
 
     // Verify if the slot is mapped to another slot
-    if (connection_maps[currentFsmOption].count(id)) {
-      uint32_t target = connection_maps[currentFsmOption][id];
+    if (connection_maps[currentFsmOption_swb].count(id)) {
+      uint32_t target = connection_maps[currentFsmOption_swb][id];
       out.output("Forwarding data from slot %u to slot %u\n", id, target);
-      slot_links[target]->send(event);
-    } else if (sending_routes_maps[currentFsmOption].count(id)) {
-      for (auto target : sending_routes_maps[currentFsmOption][id]) {
+      slot_links[target]->send(dataEvent);
+    } else if (sending_routes_maps[currentFsmOption_route].count(id)) {
+      for (auto target : sending_routes_maps[currentFsmOption_route][id]) {
         if (cell_links[target] == nullptr) {
           out.fatal(CALL_INFO, -1, "Cell link %u is not linked\n", id);
         }
         out.output("Forwarding data to adjacent cell (direction: %s)\n",
                    cell_directions_str[target].c_str());
-        cell_links[target]->send(event);
+        DataEvent *dataEventCopy = dataEvent->clone();
+        cell_links[target]->send(dataEventCopy);
       }
     } else {
       out.output("Slot %u is not linked. Ignoring sent data.\n", id);
@@ -165,22 +167,23 @@ void Switchbox::handleCellEventWithID(Event *event, uint32_t id) {
                cell_directions_str[id].c_str());
 
   // Verify if the slot is mapped to another slot
-  if (receiving_routes_maps[currentFsmOption].count(id)) {
-    if (receiving_routes_maps[currentFsmOption][id].size() > 1) {
+  if (receiving_routes_maps[currentFsmOption_route].count(id)) {
+    if (receiving_routes_maps[currentFsmOption_route][id].size() > 1) {
       out.output("Broadcasting data from cell %s to slots ",
                  cell_directions_str[id].c_str());
     } else {
       out.output("Forwarding from cell %s data to slot ",
                  cell_directions_str[id].c_str());
     }
-    for (int i = 0; i < receiving_routes_maps[currentFsmOption][id].size();
-         i++) {
-      uint32_t target = receiving_routes_maps[currentFsmOption][id][i];
+    for (int i = 0;
+         i < receiving_routes_maps[currentFsmOption_route][id].size(); i++) {
+      uint32_t target = receiving_routes_maps[currentFsmOption_route][id][i];
       out.print("%u", target);
-      if (i < receiving_routes_maps[currentFsmOption][id].size() - 1) {
+      if (i < receiving_routes_maps[currentFsmOption_route][id].size() - 1) {
         out.print(", ");
       }
-      slot_links[target]->send(dataEvent);
+      DataEvent *dataEventCopy = dataEvent->clone();
+      slot_links[target]->send(dataEventCopy);
     }
     out.print("\n");
   } else {
@@ -272,19 +275,33 @@ void Switchbox::handleRep(uint32_t instr) {
 
 void Switchbox::handleRepx(uint32_t instr) {
   // Instruction fields
+  uint32_t slot = getInstrSlot(instr);
   uint32_t port = getInstrField(instr, 2, 22);
   uint32_t level = getInstrField(instr, 4, 18);
   uint32_t iter_msb = getInstrField(instr, 6, 12);
   uint32_t step_msb = getInstrField(instr, 6, 6);
   uint32_t delay_msb = getInstrField(instr, 6, 0);
 
+  out.output("repx (slot=%d, port=%d, level=%d, iter_msb=%d, step_msb=%d, "
+             "delay_msb=%d)\n",
+             slot, port, level, iter_msb, step_msb, delay_msb);
+
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + port;
+
   auto repetition_op =
-      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+      next_timing_states[port_num].getRepetitionOperatorFromLevel(level);
   uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
   uint32_t step = step_msb << 6 | repetition_op.getStep();
   uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
   try {
-    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+    next_timing_states[port_num].adjustRepetition(iter, delay, level, step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
   }
@@ -292,33 +309,61 @@ void Switchbox::handleRepx(uint32_t instr) {
 
 void Switchbox::handleFsm(uint32_t instr) {
   // Instruction fields
-  uint32_t port = getInstrField(instr, 3, 21);
-  uint32_t delay_0 = getInstrField(instr, 7, 14);
-  uint32_t delay_1 = getInstrField(instr, 7, 7);
-  uint32_t delay_2 = getInstrField(instr, 7, 0);
+  uint32_t slot = getInstrSlot(instr);
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t delay_0 = getInstrField(instr, 7, 15);
+  uint32_t delay_1 = getInstrField(instr, 7, 8);
+  uint32_t delay_2 = getInstrField(instr, 7, 1);
   // TODO: what are the use cases for delay_1 and delay_2?
+
+  out.output("fsm (slot %u, port %u, delay_0 %u, delay_1 %u, delay_2 %u)\n",
+             slot, port, delay_0, delay_1, delay_2);
 
   vector<uint32_t> delays = {delay_0, delay_1, delay_2};
   if (port == 0) { // inner cell communication
+    if (next_connection_maps[0].size() == 0) {
+      out.fatal(CALL_INFO, -1, "No connections in FSM 0\n");
+    }
+    next_timing_states[port].addEvent("fsm_option_slot_reset_" +
+                                          std::to_string(currentEventNumber),
+                                      5, [this] { resetOption_swb(); });
+    currentEventNumber++;
+    out.output("Adding FSM reset event\n");
+
     for (uint32_t i = 1; i < numFSMs; i++) {
-      if (connection_maps[i].size() == 0) {
+      out.output("Size of connection_maps[%u]: %lu\n", i,
+                 next_connection_maps[i].size());
+      if (next_connection_maps[i].size() == 0) {
         break;
       }
       next_timing_states[port].addTransition(
-          delays[i - 1], "event_" + std::to_string(currentEventNumber),
-          [this] { switchToNextOption(); });
+          delays[i - 1],
+          "fsm_option_slot_switch_" + std::to_string(currentEventNumber), 5,
+          [this] { switchToNextOption_swb(); });
       currentEventNumber++;
+      out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
     }
   } else if (port == 2) // outer cell communication
   {
+    if (next_receiving_routes_maps[0].size() == 0 &&
+        (next_sending_routes_maps[0].size() == 0)) {
+      out.fatal(CALL_INFO, -1, "No connections in FSM 0\n");
+    }
+    next_timing_states[port].addEvent("fsm_option_slot_reset_" +
+                                          std::to_string(currentEventNumber),
+                                      5, [this] { resetOption_route(); });
+    currentEventNumber++;
+    out.output("Adding FSM reset event\n");
+
     for (uint32_t i = 1; i < numFSMs; i++) {
-      if ((receiving_routes_maps[i].size() == 0) &&
-          (sending_routes_maps[i].size() == 0)) {
+      if ((next_receiving_routes_maps[i].size() == 0) &&
+          (next_sending_routes_maps[i].size() == 0)) {
         break;
       }
       next_timing_states[port].addTransition(
-          delays[i - 1], "event_" + std::to_string(currentEventNumber),
-          [this] { switchToNextOption(); });
+          delays[i - 1],
+          "fsm_option_route_switch_" + std::to_string(currentEventNumber), 5,
+          [this] { switchToNextOption_route(); });
       currentEventNumber++;
       out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
     }

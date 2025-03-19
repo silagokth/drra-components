@@ -103,11 +103,11 @@ void DPU2CycleMac::handleRep(uint32_t instr) {
              getInstrSlot(instr), port, level, iter, step, delay);
 
   // For now, we only support increasing repetition levels (and no skipping)
-  if (level != lastRepLevel + 1) {
+  if (level != port_last_rep_level[port] + 1) {
     out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              lastRepLevel, level);
+              port_last_rep_level[port], level);
   } else {
-    lastRepLevel = level;
+    port_last_rep_level[port] = level;
   }
 
   // add repetition to the timing model
@@ -118,7 +118,25 @@ void DPU2CycleMac::handleRep(uint32_t instr) {
   }
 }
 
-void DPU2CycleMac::handleRepx(uint32_t instr) { handleRep(instr); }
+void DPU2CycleMac::handleRepx(uint32_t instr) {
+  // Instruction fields
+  uint32_t port = getInstrField(instr, 2, 22);
+  uint32_t level = getInstrField(instr, 4, 18);
+  uint32_t iter_msb = getInstrField(instr, 6, 12);
+  uint32_t step_msb = getInstrField(instr, 6, 6);
+  uint32_t delay_msb = getInstrField(instr, 6, 0);
+
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
 
 void DPU2CycleMac::handleFSM(uint32_t instr) {
   // Instruction fields
