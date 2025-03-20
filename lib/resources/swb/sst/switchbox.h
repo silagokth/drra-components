@@ -80,14 +80,17 @@ private:
     currentFsmOption_swb++;
     out.output("Switching to FSM port %u\n", currentFsmOption_swb);
   }
+
   void resetOption_swb() {
     currentFsmOption_swb = 0;
     out.output("Reset FSM to 0 %u\n");
   }
+
   void switchToNextOption_route() {
     currentFsmOption_route++;
     out.output("Switching to FSM port %u\n", currentFsmOption_route);
   }
+
   void resetOption_route() {
     currentFsmOption_route = 0;
     out.output("Reset FSM to 0 %u\n");

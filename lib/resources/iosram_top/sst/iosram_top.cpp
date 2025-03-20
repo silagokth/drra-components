@@ -395,9 +395,5 @@ void IOSRAMTop::writeBulk() {
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
                    write_bulk_address_buffer, dataEvent->size,
                    formatRawDataToWords(dataEvent->payload).c_str());
-
-        // Write data to the backend
-        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
-                     dataEvent->payload);
       });
 }

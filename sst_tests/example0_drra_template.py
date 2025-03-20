@@ -28,11 +28,13 @@ buffer_params = {
 input_buffer.addParams(buffer_params)
 input_buffer_params = {
     "memory_file": script_path + "/refFiles/example0_drra_template_inputBuffer.bin",
+    "read_only": True,
 }
 input_buffer.addParams(input_buffer_params)
 output_buffer.addParams(buffer_params)
 output_buffer_params = {
     "memory_file": script_path + "/refFiles/example0_drra_template_outputBuffer.bin",
+    "read_only": False,
 }
 output_buffer.addParams(output_buffer_params)
 
