@@ -1,3 +1,26 @@
+function(copy_component_files DEST_DIR)
+  file(GLOB JSON_FILES "*.json")
+  file(COPY ${JSON_FILES} DESTINATION ${DEST_DIR})
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rtl")
+    file(GLOB RTL_FILES ${CMAKE_CURRENT_SOURCE_DIR}/rtl/*.sv*)
+    file(COPY ${RTL_FILES} DESTINATION ${DEST_DIR})
+  endif()
+endfunction()
+
+function(compile_timing_model COMPONENT_TYPE COMPONENT_NAME CMAKE_COMPONENTS_OUTPUT_DIRECTORY)
+  set(CURRENT_SUBPROJECT_NAME "${COMPONENT_TYPE}-${COMPONENT_NAME}")
+  file(GLOB TIMING_MODEL_SRC "timing_model/src/*.rs")
+  add_custom_command(
+    OUTPUT ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/timing_model
+    DEPENDS ${TIMING_MODEL_SRC}
+    COMMAND mkdir -p ${CMAKE_BINARY_DIR}/cargo/${CURRENT_SUBPROJECT_NAME} &&
+    cargo build --release --target-dir=${CMAKE_BINARY_DIR}/cargo/${CURRENT_SUBPROJECT_NAME} &&
+    cp -p ${CMAKE_BINARY_DIR}/cargo/${CURRENT_SUBPROJECT_NAME}/release/timing_model ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/timing_model
+  )
+  add_custom_target(gen-${CURRENT_SUBPROJECT_NAME} ALL DEPENDS ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/timing_model)
+endfunction()
+
 function(add_component COMPONENT_TYPE COMPONENT_NAME)
 
   set(CURRENT_SUBPROJECT_NAME "${COMPONENT_TYPE}-${COMPONENT_NAME}")
@@ -10,31 +33,26 @@ function(add_component COMPONENT_TYPE COMPONENT_NAME)
 
   if(${COMPONENT_TYPE} STREQUAL "resources")
 
-    set(FILE_LIST arch.json isa.json rtl.sv)
-    file(COPY ${FILE_LIST} DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+    copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+    compile_timing_model(${COMPONENT_TYPE} ${COMPONENT_NAME} ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
 
-    # timing_model
-    file(GLOB TIMING_MODEL_SRC "timing_model/src/*.rs")
-    add_custom_command(
-      OUTPUT ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/timing_model
-      DEPENDS ${TIMING_MODEL_SRC}
-      COMMAND mkdir -p ${CMAKE_BINARY_DIR}/cargo/${CURRENT_SUBPROJECT_NAME} &&
-      cargo build --release --target-dir=${CMAKE_BINARY_DIR}/cargo/${CURRENT_SUBPROJECT_NAME} &&
-      cp -p ${CMAKE_BINARY_DIR}/cargo/${CURRENT_SUBPROJECT_NAME}/release/timing_model ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/timing_model
-    )
-    add_custom_target(gen-${CURRENT_SUBPROJECT_NAME} ALL DEPENDS ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/timing_model)
+  elseif(${COMPONENT_TYPE} STREQUAL "common")
 
-  elseif(${COMPONENT_TYPE} STREQUAL "controllers")
+    subdirlist(SUBDIRS ${CMAKE_CURRENT_SOURCE_DIR})
+    foreach(subdir ${SUBDIRS})
+      set(subdir_path ${CMAKE_CURRENT_SOURCE_DIR}/${subdir})
+      if(IS_DIRECTORY ${subdir_path})
+      copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/${subdir})
+      endif()
+    endforeach()
 
-    set(FILE_LIST arch.json isa.json rtl.sv)
-    file(COPY ${FILE_LIST} DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+  elseif(${COMPONENT_TYPE} STREQUAL "fabric")
 
+    copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
 
-  elseif(${COMPONENT_TYPE} STREQUAL "cells")
+  else()
 
-    set(FILE_LIST arch.json isa.json rtl.sv)
-    file(COPY ${FILE_LIST} DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+    copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
 
   endif()
 
