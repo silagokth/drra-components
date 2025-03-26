@@ -1,0 +1,8 @@
+package:
+  name: iosram_top
+
+dependencies:
+  sram: {path: ../../common/sram}
+
+sources:
+  - ./rtl/iosram_top.sv

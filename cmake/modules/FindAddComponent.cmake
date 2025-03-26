@@ -1,10 +1,14 @@
 function(copy_component_files DEST_DIR)
+  # Copy JSON files
   file(GLOB JSON_FILES "*.json")
   file(COPY ${JSON_FILES} DESTINATION ${DEST_DIR})
 
+  # Copy Bender file
+  file(GLOB BENDER_FILE "Bender.yml")
+  file(COPY ${BENDER_FILE} DESTINATION ${DEST_DIR})
+
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rtl")
-    file(GLOB RTL_FILES ${CMAKE_CURRENT_SOURCE_DIR}/rtl/*.sv*)
-    file(COPY ${RTL_FILES} DESTINATION ${DEST_DIR})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/rtl DESTINATION ${DEST_DIR})
   endif()
 endfunction()
 
@@ -78,9 +82,8 @@ function(add_component COMPONENT_TYPE COMPONENT_NAME)
       endif()
     endforeach()
 
-  elseif(${COMPONENT_TYPE} STREQUAL "fabric")
-    copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
-
+  # elseif(${COMPONENT_TYPE} STREQUAL "fabric")
+  # copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
   else()
     copy_component_files(${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
   endif()

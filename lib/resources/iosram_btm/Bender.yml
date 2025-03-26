@@ -1,0 +1,8 @@
+package:
+  name: iosram_btm
+
+dependencies:
+  sram: {path: ../../common/sram}
+
+sources:
+  - ./rtl/iosram_btm.sv

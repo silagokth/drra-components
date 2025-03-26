@@ -1,0 +1,7 @@
+package:
+  name: swb
+
+dependencies:
+
+sources:
+  - ./rtl/swb.sv

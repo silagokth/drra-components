@@ -1,0 +1,11 @@
+package:
+  name: fabric
+
+dependencies:
+
+sources:
+  - ./rtl/fabric.sv
+
+  - target: sim
+    files:
+     - ./sim/fabric_tb:sim.sv
