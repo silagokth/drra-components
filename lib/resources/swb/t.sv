@@ -4,37 +4,37 @@
 // vesyla_template_end fingerprint
 
 // vesyla_template_start package
-{%- if not already_defined %}
+{% if not already_defined %}
 package {{fingerprint}}_pkg;
-    {%- for p in parameters %}
+    {% for p in parameters %}
     parameter {{p}} = {{parameters[p]}};
-    {%- endfor %}
+    {% endfor %}
 
-    {%- set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
-    {%- for instr in isa.instructions %}
-    {%- if instr.segments is defined and instr.segments|length > 0 %}
+    {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+    {% for instr in isa.instructions %}
+    {% if instr.segments is defined and instr.segments|length > 0 %}
     typedef struct packed {
-        {%- for segment in instr.segments %}
-        {%- if segment.bitwidth == 1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth == 1 %}
         logic _{{segment.name}};
-        {%- else %}
+        {% else %}
         logic [{{segment.bitwidth-1}}:0] _{{segment.name}};
-        {%- endif %}
-        {%- endfor %}
+        {% endif %}
+        {% endfor %}
     } {{instr.name}}_t;
 
     function static {{instr.name}}_t unpack_{{instr.name}};
         input logic [{{payload_bitwidth - 1}}:0] instr;
         {{instr.name}}_t _{{instr.name}};
-        {%- set index=payload_bitwidth -1 %}
-        {%- for segment in instr.segments %}
-        {%- if segment.bitwidth==1 %}
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
         _{{instr.name}}._{{segment.name}} = instr[{{index}}];
-        {%- else %}
+        {% else %}
         _{{instr.name}}._{{segment.name}}  = instr[{{index}}:{{index-segment.bitwidth+1}}];
-        {%- endif %}
-        {%- set index=index-segment.bitwidth %}
-        {%- endfor %}
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
         return _{{instr.name}};
     endfunction
 
@@ -42,19 +42,19 @@ package {{fingerprint}}_pkg;
         input {{instr.name}}_t _{{instr.name}};
         logic [{{ payload_bitwidth - 1 }}:0] instr;
 
-        {%- set index=payload_bitwidth -1 %}
-        {%- for segment in instr.segments %}
-        {%- if segment.bitwidth==1 %}
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
         instr[{{index}}] = _{{instr.name}}._{{segment.name}};
-        {%- else %}
+        {% else %}
         instr[{{index}}:{{index-segment.bitwidth+1}}] = _{{instr.name}}._{{segment.name}};
-        {%- endif %}
-        {%- set index=index-segment.bitwidth %}
-        {%- endfor %}
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
         return instr;
     endfunction
-    {%- endif %}
-    {%- endfor %}
+    {% endif %}
+    {% endfor %}
 
     parameter OPCODE_SWB = 3'b100;
     parameter OPCODE_ROUTE = 3'b101;
@@ -62,6 +62,7 @@ package {{fingerprint}}_pkg;
     parameter NUM_OPTIONS = 4;
 
 endpackage
+
 // vesyla_template_end package
 
 // vesyla_template_start module
@@ -205,6 +206,7 @@ import {{fingerprint}}_pkg::*;
       end
 
       bulk_intercell_c_out = bulk_intracell_in[curr_route_out_src_configs];
+      
       if (curr_route_out_dst_configs[1]) begin
         bulk_intercell_n_out = bulk_intercell_c_out;
       end else if (curr_route_out_dst_configs[3]) begin
@@ -235,10 +237,12 @@ import {{fingerprint}}_pkg::*;
           bulk_intracell_out[i] = bulk_intercell_c_in;
         end
       end
+
     end
 endmodule
 
 // vesyla_template_start guard
-{%- endif %}
+{% endif %}
 // vesyla_template_end guard
+
 

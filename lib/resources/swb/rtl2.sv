@@ -1,60 +1,62 @@
 // vesyla_template_start fingerprint
-`define {{name}} {{fingerprint}}
-`define {{name}}_pkg {{fingerprint}}_pkg
+`define swb a0x7b3b3b3b
+`define swb_pkg a0x7b3b3b3b_pkg
 // vesyla_template_end fingerprint
 
 // vesyla_template_start package
-{%- if not already_defined %}
-package {{fingerprint}}_pkg;
-    {%- for p in parameters %}
-    parameter {{p}} = {{parameters[p]}};
-    {%- endfor %}
-
-    {%- set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
-    {%- for instr in isa.instructions %}
-    {%- if instr.segments is defined and instr.segments|length > 0 %}
+package a0x7b3b3b3b_pkg;
     typedef struct packed {
-        {%- for segment in instr.segments %}
-        {%- if segment.bitwidth == 1 %}
-        logic _{{segment.name}};
-        {%- else %}
-        logic [{{segment.bitwidth-1}}:0] _{{segment.name}};
-        {%- endif %}
-        {%- endfor %}
-    } {{instr.name}}_t;
+        logic [1:0] _option;
+        logic [3:0] _channel;
+        logic [3:0] _source;
+        logic [3:0] _target;
+    } swb_t;
 
-    function static {{instr.name}}_t unpack_{{instr.name}};
-        input logic [{{payload_bitwidth - 1}}:0] instr;
-        {{instr.name}}_t _{{instr.name}};
-        {%- set index=payload_bitwidth -1 %}
-        {%- for segment in instr.segments %}
-        {%- if segment.bitwidth==1 %}
-        _{{instr.name}}._{{segment.name}} = instr[{{index}}];
-        {%- else %}
-        _{{instr.name}}._{{segment.name}}  = instr[{{index}}:{{index-segment.bitwidth+1}}];
-        {%- endif %}
-        {%- set index=index-segment.bitwidth %}
-        {%- endfor %}
-        return _{{instr.name}};
+    function static swb_t unpack_swb;
+        input logic [23:0] instr;
+        swb_t _swb;
+        _swb._option  = instr[23:22];
+        _swb._channel  = instr[21:18];
+        _swb._source  = instr[17:14];
+        _swb._target  = instr[13:10];
+        return _swb;
     endfunction
 
-    function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
-        input {{instr.name}}_t _{{instr.name}};
-        logic [{{ payload_bitwidth - 1 }}:0] instr;
-
-        {%- set index=payload_bitwidth -1 %}
-        {%- for segment in instr.segments %}
-        {%- if segment.bitwidth==1 %}
-        instr[{{index}}] = _{{instr.name}}._{{segment.name}};
-        {%- else %}
-        instr[{{index}}:{{index-segment.bitwidth+1}}] = _{{instr.name}}._{{segment.name}};
-        {%- endif %}
-        {%- set index=index-segment.bitwidth %}
-        {%- endfor %}
+    function static logic [23:0] pack_swb;
+        input swb_t _swb;
+        logic [23:0] instr;
+        instr[23:22] = _swb._option;
+        instr[21:18] = _swb._channel;
+        instr[17:14] = _swb._source;
+        instr[13:10] = _swb._target;
         return instr;
     endfunction
-    {%- endif %}
-    {%- endfor %}
+    typedef struct packed {
+        logic [1:0] _option;
+        logic _sr;
+        logic [3:0] _source;
+        logic [15:0] _target;
+    } route_t;
+
+    function static route_t unpack_route;
+        input logic [23:0] instr;
+        route_t _route;
+        _route._option  = instr[23:22];
+        _route._sr = instr[21];
+        _route._source  = instr[20:17];
+        _route._target  = instr[16:1];
+        return _route;
+    endfunction
+
+    function static logic [23:0] pack_route;
+        input route_t _route;
+        logic [23:0] instr;
+        instr[23:22] = _route._option;
+        instr[21] = _route._sr;
+        instr[20:17] = _route._source;
+        instr[16:1] = _route._target;
+        return instr;
+    endfunction
 
     parameter OPCODE_SWB = 3'b100;
     parameter OPCODE_ROUTE = 3'b101;
@@ -65,8 +67,8 @@ endpackage
 // vesyla_template_end package
 
 // vesyla_template_start module
-module {{fingerprint}}
-import {{fingerprint}}_pkg::*;
+module a0x7b3b3b3b
+import a0x7b3b3b3b_pkg::*;
 // vesyla_template_end module
 (
     input  logic clk_0,
@@ -239,6 +241,5 @@ import {{fingerprint}}_pkg::*;
 endmodule
 
 // vesyla_template_start guard
-{%- endif %}
 // vesyla_template_end guard
 
