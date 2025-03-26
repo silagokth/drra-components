@@ -106,20 +106,7 @@ function(add_all_subdirs)
   subdirlist(SUBDIRS ${CMAKE_CURRENT_SOURCE_DIR})
 
   foreach(subdir ${SUBDIRS})
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/CMakeLists.txt")
-      add_subdirectory(${subdir})
-    endif()
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/rtl")
-      set(CMAKE_COMPONENTS_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library/common/${subdir})
-
-      # Copy Bender file
-      file(GLOB BENDER_FILE "Bender.yml")
-      file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/${BENDER_FILE} DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
-
-      file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${subdir}/rtl DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
-    endif()
-
+    add_subdirectory(${subdir})
     set(full_path ${CMAKE_CURRENT_SOURCE_DIR}/${subdir})
 
     if(USE_SST)
