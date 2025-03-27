@@ -1,14 +1,11 @@
 package:
   name: sram
 
-dependencies:
-  agu: {path: ../agu}
-
 sources:
   - target: tsmc28
     files:
       - ./rtl/sram:tsmc28.sv
   - target: sim
     files:
-      - ./sim/sram_tb:sim.sv
+      - ./rtl/sram:sim.sv
     
