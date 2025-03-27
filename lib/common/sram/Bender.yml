@@ -8,4 +8,3 @@ sources:
   - target: sim
     files:
       - ./rtl/sram:sim.sv
-    

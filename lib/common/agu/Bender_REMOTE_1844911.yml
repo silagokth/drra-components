@@ -1,0 +1,6 @@
+package:
+  name: agu
+
+sources:
+  - ./rtl/agu.sv
+    
