@@ -1,0 +1,7 @@
+package:
+  name: sequencer
+
+dependencies:
+
+sources:
+  - ./rtl/sequencer.sv

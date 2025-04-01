@@ -1,0 +1,8 @@
+package:
+  name: iosram_both
+
+dependencies:
+  sram: {path: ../../common/sram}
+
+sources:
+  - ./rtl/iosram_both.sv

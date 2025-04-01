@@ -28,7 +28,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake -DUSE_SST=OFF ..
         make -j all
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
     - name: Download vesyla-suite-4

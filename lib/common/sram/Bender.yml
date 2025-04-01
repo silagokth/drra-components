@@ -1,0 +1,10 @@
+package:
+  name: sram
+
+sources:
+  - target: tsmc28
+    files:
+      - ./rtl/sram:tsmc28.sv
+  - target: sim
+    files:
+      - ./rtl/sram:sim.sv

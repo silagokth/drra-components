@@ -1,0 +1,9 @@
+package:
+  name: iosram_top
+
+dependencies:
+  sram: {path: ../../common/sram}
+  agu: {path: ../../common/agu}
+
+sources:
+  - ./rtl/iosram_top.sv

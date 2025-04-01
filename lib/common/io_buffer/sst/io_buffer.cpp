@@ -144,6 +144,8 @@ void IOBuffer::handleEventFromColumn(SST::Event *event, uint32_t column_id) {
     read_address_buffer = readReq->address;
     read_data_buffer = data;
 
+    out.output("raw data size: %d\n", data.size());
+
     IOReadResponse *readResp = new IOReadResponse();
     readResp->address = readReq->address;
     readResp->set_data(data);

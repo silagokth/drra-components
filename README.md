@@ -9,10 +9,14 @@ This library has the following dependencies:
 - cmake
 - make
 - [rust](https://www.rust-lang.org/learn/get-started)
+- (Optional) [sccache](https://lib.rs/crates/sccache) (to build faster)
+
+If you want to be able to run SST simulations:
 - [SST framework](https://sst-simulator.org)
   - [Detailed Build and Installation Instructions](https://sst-simulator.org/SSTPages/SSTBuildAndInstall_14dot1dot0_SeriesDetailedBuildInstructions/)
   - **Make sure that `SST_CORE_HOME` and `SST_ELEMENTS_HOME` are correctly set in your ENV**
 - gtest (`sudo apt-get install libgtest-dev`)
+
 
 ## Compilation and Installation
 
@@ -25,9 +29,18 @@ cmake ..
 cmake --build .
 ```
 
+To compile the library without SST, run the following commands:
+
+```bash
+mkdir build
+cd build
+cmake .. -DUSE_SST=OFF
+cmake --build .
+```
+
 The complete library will be compiled in the `build/library` directory. You can copy the folder to wherever you want to use the library.
 
-## Running the Tests
+## Running the SST Tests
 
 To make sure that the simulation components are working correctly, you can run the tests by running the following command:
 
@@ -49,5 +62,6 @@ You can add more custom components to the library by adding them to the `lib` di
 
 - `arch.json`: The architecture description file.
 - `isa.json`: The instruction set description file.
-- `rtl.sv`: The RTL description file. Note that, this is a template file, you should only modify the contents of the module description. If it's a resource component, you should adjust the input and output ports definition based on the size (how many slots) of the resource.
+- `tech:X.json`: The technology description file (for example `tech:tsmc28.json`).
+- `rtl/*.sv.j2`: The RTL Jinja2 templates description file. Note that, you should only modify the contents of the module description, not the Jinja calls. If the component is a resource ([./lib/resources](./lib/resources)), you should adjust the input and output ports definition based on the size (how many slots) of the resource.
 - `timing_model`: The timing behavior of the component. Used by the instruction scheduler.

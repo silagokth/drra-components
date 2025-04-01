@@ -1,0 +1,7 @@
+package:
+  name: dpu
+
+dependencies:
+
+sources:
+  - ./rtl/dpu.sv

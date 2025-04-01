@@ -1,0 +1,7 @@
+package:
+  name: cell_top
+
+dependencies:
+
+sources:
+  - ./rtl/cell_top.sv

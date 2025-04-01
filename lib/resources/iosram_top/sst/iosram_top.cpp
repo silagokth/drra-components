@@ -23,6 +23,8 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
     bool oldBackVal = params.find<bool>("do-not-back", false, found);
     if (oldBackVal)
       backingType = "none";
+  } else {
+    out.output("backing: %s\n", backingType.c_str());
   }
 
   // Backend
@@ -165,19 +167,33 @@ void IOSRAMTop::handleRep(uint32_t instr) {
 
 void IOSRAMTop::handleRepx(uint32_t instr) {
   // Instruction fields
+  uint32_t slot = getInstrSlot(instr);
   uint32_t port = getInstrField(instr, 2, 22);
   uint32_t level = getInstrField(instr, 4, 18);
   uint32_t iter_msb = getInstrField(instr, 6, 12);
   uint32_t step_msb = getInstrField(instr, 6, 6);
   uint32_t delay_msb = getInstrField(instr, 6, 0);
 
+  out.output("repx (slot=%d, port=%d, level=%d, iter_msb=%d, step_msb=%d, "
+             "delay_msb=%d)\n",
+             slot, port, level, iter_msb, step_msb, delay_msb);
+
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + port;
+
   auto repetition_op =
-      next_timing_states[0].getRepetitionOperatorFromLevel(level);
+      next_timing_states[port_num].getRepetitionOperatorFromLevel(level);
   uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
   uint32_t step = step_msb << 6 | repetition_op.getStep();
   uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
   try {
-    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+    next_timing_states[port_num].adjustRepetition(iter, delay, level, step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
   }
@@ -206,8 +222,8 @@ void IOSRAMTop::handleDSU(uint32_t instr) {
   case PortMap::SRAMWriteToIO:
     out.fatal(CALL_INFO, -1,
               "Invalid DSU mode IOSRAM Top should not write to IO\n");
-    // sram_write_to_io_initial_addr = init_addr;
-    // writeToIO();
+    sram_write_to_io_initial_addr = init_addr;
+    writeToIO();
     break;
   case PortMap::IOWriteToSRAM:
     io_write_to_sram_initial_addr = init_addr;
@@ -372,12 +388,12 @@ void IOSRAMTop::writeBulk() {
         if (dataEvent == nullptr)
           out.fatal(CALL_INFO, -1, "No data received\n");
 
-        out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
-                   write_bulk_address_buffer, dataEvent->size,
-                   formatRawDataToWords(dataEvent->payload).c_str());
-
         // Write data to the backend
         backend->set(write_bulk_address_buffer, dataEvent->size / 8,
                      dataEvent->payload);
+
+        out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
+                   write_bulk_address_buffer, dataEvent->size,
+                   formatRawDataToWords(dataEvent->payload).c_str());
       });
 }
