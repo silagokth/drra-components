@@ -200,7 +200,7 @@ void DPU::handleOperation(std::string name,
   dataEvent->payload = int64ToVector(result);
   data_links[0]->send(dataEvent);
 
-  out.output("DPU %s operation (in0=%lu, in1=%lu, out=%lu, acc=%lu)\n",
+  out.output("DPU %s operation (in0=%ld, in1=%ld, out=%ld, acc=%ld)\n",
              name.c_str(), data0, data1, result,
              accumulate_register.size() > 0 ? vectorToInt64(accumulate_register)
                                             : 0);
