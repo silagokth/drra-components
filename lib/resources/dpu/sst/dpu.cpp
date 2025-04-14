@@ -34,11 +34,16 @@ bool DPU::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
-  // Execute DPU operation (priotity 5 - default)
+  // Execute DPU operation (priotity 9)
   if (currentCycle % 10 == 9) {
     for (const auto &port : active_ports) {
+      out.output("cycle=%lu Checking port %d\n", currentCycle, port.first);
       if (isPortActive(port.first)) {
+        out.output("cycle=%lu Port %d is active1111\n", currentCycle,
+                   port.first);
         fsmHandlers[current_fsm]();
+        out.output("cycle=%lu Port %d is active2222\n", currentCycle,
+                   port.first);
         break;
       }
     }
@@ -173,6 +178,11 @@ void DPU::handleDPU(uint32_t instr) {
     data_buffers[1] = uint64ToVector(immediate);
   }
 
+  // Add the reset event
+  next_timing_states[current_fsm].addEvent(
+      "dpu_reset_" + std::to_string(current_event_number), 5,
+      [this] { accumulate_register.clear(); });
+
   // Add the event handler
   fsmHandlers[current_fsm] = getDPUHandler(mode);
 }
@@ -194,6 +204,8 @@ void DPU::handleOperation(std::string name,
   dataEvent->payload = int64ToVector(result);
   data_links[0]->send(dataEvent);
 
-  out.output("DPU %s operation (in0=%lu, in1=%lu, out=%lu)\n", name.c_str(),
-             data0, data1, result);
+  out.output("DPU %s operation (in0=%lu, in1=%lu, out=%lu, acc=%lu)\n",
+             name.c_str(), data0, data1, result,
+             accumulate_register.size() > 0 ? vectorToInt64(accumulate_register)
+                                            : 0);
 }
