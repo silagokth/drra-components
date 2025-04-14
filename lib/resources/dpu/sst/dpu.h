@@ -181,8 +181,11 @@ private:
       {MAC,
        [this] {
          handleOperation("MAC", [this](int64_t a, int64_t b) {
-           int64_t result = add_sat(accumulate_register[0], mul_sat(a, b));
-           accumulate_register[0] = result;
+           out.output("MAC\n");
+           int64_t result =
+               add_sat(vectorToInt64(accumulate_register), mul_sat(a, b));
+           accumulate_register = int64ToVector(result);
+           out.output("accumulate_register[0] = %ld\n", result);
            return result;
          });
        }},
