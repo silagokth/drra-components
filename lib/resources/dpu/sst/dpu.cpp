@@ -39,11 +39,7 @@ bool DPU::clockTick(SST::Cycle_t currentCycle) {
     for (const auto &port : active_ports) {
       out.output("cycle=%lu Checking port %d\n", currentCycle, port.first);
       if (isPortActive(port.first)) {
-        out.output("cycle=%lu Port %d is active1111\n", currentCycle,
-                   port.first);
         fsmHandlers[current_fsm]();
-        out.output("cycle=%lu Port %d is active2222\n", currentCycle,
-                   port.first);
         break;
       }
     }
