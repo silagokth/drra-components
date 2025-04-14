@@ -31,9 +31,13 @@ jobs:
         cmake -DUSE_SST=OFF ..
         make -j all
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
-    - name: Download and install bender
+    - name: Download bender
       run: |
         gh release download v0.28.1 --repo pulp-platform/bender --pattern "bender-0.28.1-x86_64-linux-gnu.tar.gz"
+      env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Install bender
+      run: |
         tar -xzf bender-0.28.1-x86_64-linux-gnu.tar.gz
         chmod +x bender
         mkdir -p /home/runner/.local/bin
