@@ -71,7 +71,7 @@ jobs:
     needs: sst-install
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - run: echo $(ls) && echo $(pwd)
+    # - uses: actions/checkout@v4
+    - run: echo $(ls -al) && echo $(pwd)
     - name: Build library
       uses: ./.github/actions/build_library.yml
