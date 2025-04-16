@@ -1,7 +1,9 @@
 name: Install and cache SST
 
 on:
-  workflow_dispatch
+  push:
+    branches:
+      - sst-workflow
 
 env:
   SST_CORE_HOME: ~/.sst

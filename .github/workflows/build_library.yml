@@ -1,7 +1,9 @@
 name: Build library
 
 on:
-  workflow_dispatch
+  push:
+    branches:
+      - sst-workflow
 
 jobs:
   build:
