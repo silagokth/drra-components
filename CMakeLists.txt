@@ -46,8 +46,7 @@ if(USE_SST)
     elseif(DEFINED SST_DIR)
       get_filename_component(SST_PREFIX "${SST_DIR}" DIRECTORY DIRECTORY)
       message(STATUS "Derived SST_PREFIX from SST_DIR: ${SST_PREFIX}")
-    else
-
+    else()
       execute_process(
         COMMAND which sst
         OUTPUT_VARIABLE SST_BIN
