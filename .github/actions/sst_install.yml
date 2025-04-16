@@ -10,7 +10,7 @@ env:
   SST_ELEMENTS_HOME: ${{ github.workspace }}/sstelements
 
 jobs:
-  build:
+  sst-install:
     runs-on: ubuntu-latest
     steps:
     - uses: jwlawson/actions-setup-cmake@v2
@@ -66,8 +66,11 @@ jobs:
     #   if: ${{ steps.cache-sst.outputs.cache-hit != 'true' }}
     #   run: |
     #     rm -rf sstcore-14.1.0.tar.gz sst-core sstelements-14.1.0.tar.gz sst-elements
+
+  build-library:
+    needs: sst-install
+    runs-on: ubuntu-latest
+    steps:
     - uses: actions/checkout@v4
     - name: Build library
-      uses: ./.github/workflows/build_library.yml
-    - name: Build testcases
-      uses: ./.github/workflows/build_testcases.yml
+      uses: ./.github/actions/build_library.yml
