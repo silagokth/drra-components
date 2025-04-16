@@ -36,7 +36,7 @@ jobs:
       run: |
         wget https://github.com/sstsimulator/sst-core/releases/download/v14.1.0_Final/sstcore-14.1.0.tar.gz -O sstcore-14.1.0.tar.gz
         tar -xzf sstcore-14.1.0.tar.gz
-        cd sstcore-14.1.0
+        cd sst-core
         ./configure --prefix=$SST_CORE_HOME && make && make install
         export PATH=$SST_CORE_HOME/bin:$PATH
         cd ..
@@ -45,7 +45,7 @@ jobs:
       run: |
         wget https://github.com/sstsimulator/sst-elements/releases/download/v14.1.0_Final/sstelements-14.1.0.tar.gz -O sstelements-14.1.0.tar.gz
         tar -xzf sstelements-14.1.0.tar.gz
-        cd sstelements-14.1.0
+        cd sst-elements
         for folder in `ls -d ./src/sst/elements/*/`; do touch $folder/.ignore; done && rm -rf src/sst/elements/memHierarchy/.ignore
         ./autogen.sh
         ./configure --prefix=$SST_ELEMENTS_HOME && make && make install
@@ -54,7 +54,7 @@ jobs:
     - name: Clean temp files
       if: ${{ steps.cache-sst.outputs.cache-hit != 'true' }}
       run: |
-        rm -rf sstcore-14.1.0.tar.gz sstcore-14.1.0 sstelements-14.1.0.tar.gz sstelements-14.1.0
+        rm -rf sstcore-14.1.0.tar.gz sst-core sstelements-14.1.0.tar.gz sst-elements
     - name: Build library
       uses: ./.github/workflows/build_library.yml
     - name: Build testcases
