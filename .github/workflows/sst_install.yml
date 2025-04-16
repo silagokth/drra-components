@@ -40,7 +40,7 @@ jobs:
         wget https://github.com/sstsimulator/sst-core/releases/download/v14.1.0_Final/sstcore-14.1.0.tar.gz -O sstcore-14.1.0.tar.gz
         tar -xzf sstcore-14.1.0.tar.gz
         cd sst-core
-        ./configure --prefix=$SST_CORE_HOME --disable-mpi && make -j && make install
+        ./configure --prefix=$SST_CORE_HOME --disable-mpi && make -j4 && make install
         cd ..
     - name: Add SST Core to PATH
       if: ${{ steps.cache-sst.outputs.cache-hit != 'true' }}
@@ -55,7 +55,7 @@ jobs:
         cd sst-elements
         for folder in `ls -d ./src/sst/elements/*/`; do touch $folder/.ignore; done && rm -rf src/sst/elements/memHierarchy/.ignore
         ./autogen.sh
-        ./configure --prefix=$SST_ELEMENTS_HOME && make -j && make install
+        ./configure --prefix=$SST_ELEMENTS_HOME && make -j4 && make install
         cd ..
     - name: Add SST Elements to PATH
       if: ${{ steps.cache-sst.outputs.cache-hit != 'true' }}
