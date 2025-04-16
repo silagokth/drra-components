@@ -27,3 +27,11 @@ runs:
           echo "No SST installation found, will install"
           echo "sst_installed=false" >> $GITHUB_OUTPUT
         fi
+    - name: Debug check
+      shell: bash
+      run: |
+        echo "SST Core Home: ${{ inputs.sst-core-home }}"
+        echo "SST Elements Home: ${{ inputs.sst-elements-home }}"
+        echo "SST Installed: ${{ steps.check-sst.outputs.sst_installed }}"
+        ls -l ${{ inputs.sst-core-home }}
+        ls -l ${{ inputs.sst-elements-home }}
