@@ -47,6 +47,8 @@ jobs:
       run: |
         export PATH=$SST_CORE_HOME/bin:$PATH
         echo ${SST_CORE_HOME}/bin >> $GITHUB_PATH
+        export SST_DIR=$SST_CORE_HOME/lib/cmake/SST
+        echo "SST_DIR=${SST_DIR}" >> $GITHUB_ENV
     - name: Install SST Elements
       if: ${{ steps.cache-sst.outputs.cache-hit != 'true' }}
       run: |
