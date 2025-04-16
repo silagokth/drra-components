@@ -66,9 +66,8 @@ jobs:
     #   if: ${{ steps.cache-sst.outputs.cache-hit != 'true' }}
     #   run: |
     #     rm -rf sstcore-14.1.0.tar.gz sst-core sstelements-14.1.0.tar.gz sst-elements
+    - uses: actions/checkout@v4
     - name: Build library
-      uses: |
-        actions/checkout@v4
-        ./.github/workflows/build_library.yml
+      uses: ./.github/workflows/build_library.yml
     - name: Build testcases
       uses: ./.github/workflows/build_testcases.yml
