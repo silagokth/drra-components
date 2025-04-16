@@ -38,6 +38,29 @@ add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 if(USE_SST)
   find_package(SST REQUIRED)
 
+  if(SST_FOUND AND NOT SST_PREFIX)
+    # Try common locations
+    if(DEFINED ENV{SST_CORE_HOME})
+      set(SST_PREFIX $ENV{SST_CORE_HOME})
+      message(STATUS "Using SST_PREFIX from SST_CORE_HOME: ${SST_PREFIX}")
+    elseif(DEFINED SST_DIR)
+      get_filename_component(SST_PREFIX "${SST_DIR}" DIRECTORY DIRECTORY)
+      message(STATUS "Derived SST_PREFIX from SST_DIR: ${SST_PREFIX}")
+    else
+
+      execute_process(
+        COMMAND which sst
+        OUTPUT_VARIABLE SST_BIN
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+
+      if(SST_BIN)
+        get_filename_component(SST_PREFIX "${SST_BIN}" DIRECTORY DIRECTORY)
+        message(STATUS "Derived SST_PREFIX from sst binary: ${SST_PREFIX}")
+      endif()
+    endif()
+  endif()
+
   # Set SST include directories
   execute_process(
     COMMAND sst-config --includedir
