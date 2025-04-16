@@ -38,15 +38,25 @@ jobs:
     - name: Debug cache hit
       run: echo "Cache hit value is '${{ steps.cache-sst.outputs.cache-hit }}'"
     
-    - if: steps.cache-sst.outputs.cache-hit != 'true'
+    # Check if SST is actually available after potential cache restoration
+    - name: Check if SST is already installed
+      id: check-sst
       run: |
-        echo "Cache not found, installing SST"
+        if [[ -d "$SST_CORE_HOME/bin" && -d "$SST_ELEMENTS_HOME/bin" ]]; then
+          echo "SST installation found in cache"
+          echo "sst_installed=true" >> $GITHUB_OUTPUT
+        else
+          echo "No SST installation found, will install"
+          echo "sst_installed=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential libltdl-dev  libtool libtool-bin autoconf automake
+
     - name: Install SST Core
-      if: steps.cache-sst.outputs.cache-hit != 'true'
+      if: steps.cache-sst.outputs.sst_installed == 'false'
       run: |
         wget https://github.com/sstsimulator/sst-core/releases/download/v14.1.0_Final/sstcore-14.1.0.tar.gz -O sstcore-14.1.0.tar.gz
         tar -xzf sstcore-14.1.0.tar.gz
@@ -54,14 +64,14 @@ jobs:
         ./configure --prefix=$SST_CORE_HOME --disable-mpi && make -j4 && make install
         cd ..
     - name: Add SST Core to PATH
-      if: steps.cache-sst.outputs.cache-hit != 'true'
+      if: steps.cache-sst.outputs.sst_installed == 'false'
       run: |
         export PATH=$SST_CORE_HOME/bin:$PATH
         echo ${SST_CORE_HOME}/bin >> $GITHUB_PATH
         export SST_DIR=$SST_CORE_HOME/lib/cmake/SST
         echo "SST_DIR=${SST_DIR}" >> $GITHUB_ENV
     - name: Install SST Elements
-      if: steps.cache-sst.outputs.cache-hit != 'true'
+      if: steps.cache-sst.outputs.sst_installed == 'false'
       run: |
         wget https://github.com/sstsimulator/sst-elements/releases/download/v14.1.0_Final/sstelements-14.1.0.tar.gz -O sstelements-14.1.0.tar.gz
         tar -xzf sstelements-14.1.0.tar.gz
@@ -71,12 +81,12 @@ jobs:
         ./configure --prefix=$SST_ELEMENTS_HOME && make -j4 && make install
         cd ..
     - name: Add SST Elements to PATH
-      if: steps.cache-sst.outputs.cache-hit != 'true'
+      if: steps.cache-sst.outputs.sst_installed == 'false'
       run: |
         export PATH=$SST_ELEMENTS_HOME/bin:$PATH
         echo ${SST_ELEMENTS_HOME}/bin >> $GITHUB_PATH
     - name: Clean temp files
-      if: steps.cache-sst.outputs.cache-hit != 'true'
+      if: steps.cache-sst.outputs.sst_installed == 'false'
       run: |
         rm -rf sstcore-14.1.0.tar.gz sst-core sstelements-14.1.0.tar.gz sst-elements
 
