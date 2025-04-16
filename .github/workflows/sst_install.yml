@@ -20,9 +20,6 @@ jobs:
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v2
 
-    - name: Install dependencies
-      run: sudo apt install libfuse2 libgtest-dev
-
     - name: Restore SST Cache if available
       id: cache-sst
       uses: actions/cache@v4
@@ -109,7 +106,8 @@ jobs:
           ${{ runner.os }}-build-${{ github.sha }}
           ${{ runner.os }}-build-
           ${{ runner.os }}-
-
+    - name: Install dependencies
+      run: sudo apt install libfuse2 libgtest-dev
     - name: Check if SST is already installed
       id: check-sst
       uses: ./.github/actions/check-sst-install
