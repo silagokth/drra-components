@@ -1,4 +1,4 @@
-name: Install and cache SST
+name: Build testcases and library with SST
 
 on:
   push:
@@ -138,3 +138,56 @@ jobs:
         cmake -DUSE_SST=ON ..
         cmake --build .
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
+
+    - name: Download bender
+      run: |
+        gh release download v0.28.1 --repo pulp-platform/bender --pattern "bender-0.28.1-x86_64-linux-gnu.tar.gz"
+      env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install bender
+      run: |
+        tar -xzf bender-0.28.1-x86_64-linux-gnu.tar.gz
+        chmod +x bender
+        mkdir -p /home/runner/.local/bin
+        mv bender /home/runner/.local/bin
+
+    - name: Download vesyla-suite-4
+      run: gh release download --repo silagokth/vesyla-suite-4 --pattern "vesyla-suite"
+      env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install vesyla-suite
+      run: |
+        chmod +x vesyla-suite
+        mkdir -p /home/runner/.local/bin
+        mv vesyla-suite /home/runner/.local/bin
+
+    - name: Assemble and check testcases
+      run: |
+        cd testcases
+        for testcase in $(ls *.json); do
+          echo "Processing testcase: $testcase"
+          vesyla-suite component assemble -a $testcase -o ${testcase%.*}
+          touch ${testcase%.*}/sst/io_input_buffer.bin
+          touch ${testcase%.*}/sst/io_output_buffer.bin
+          cd ${testcase%.*}/sst/
+          sst --run-mode=init sst_sim_conf.py
+          cd ../..
+        done
+
+    - run: tar czf testcases.tar.gz testcases/
+
+    - name: Upload testcases
+      id: upload-testcases
+      uses: actions/upload-artifact@v4
+      with:
+        name: testcases
+        path: testcases.tar.gz
+    - run: tar czf library.tar.gz -C build library
+    - name: Upload library
+      id: upload-library
+      uses: actions/upload-artifact@v4
+      with:
+        name: library
+        path: library.tar.gz
