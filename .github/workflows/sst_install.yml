@@ -119,6 +119,9 @@ jobs:
       uses: ./.github/actions/build-library
       with:
         use_sst: 'ON'
+        sst-core-home: ${{ env.SST_CORE_HOME }}
+        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
+
     - name: Set environment variables
       if: steps.check-sst.outputs.sst_installed == 'true'
       run: |

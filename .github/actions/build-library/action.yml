@@ -5,6 +5,12 @@ inputs:
     description: 'Enable USE_SST flag'
     required: false
     default: 'ON'
+  sst-core-home:
+    description: 'Path to SST Core installation'
+    required: true
+  sst-elements-home:
+    description: 'Path to SST Elements installation'
+    required: true
 runs:
   using: composite
   steps:
@@ -14,6 +20,13 @@ runs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
+    - name: Set environment variables
+      run: |
+        echo "SST_CORE_HOME=${{ inputs.sst-core-home }}" >> $GITHUB_ENV
+        echo "SST_ELEMENTS_HOME=${{ inputs.sst-elements-home }}" >> $GITHUB_ENV
+        echo "SST_DIR=${{ inputs.sst-core-home }}/lib/cmake/SST" >> $GITHUB_ENV
+        echo "PATH=${{ inputs.sst-core-home }}/bin:$PATH" >> $GITHUB_ENV
+
     # - name: Debug SST environment
     #   shell: bash
     #   run: |
