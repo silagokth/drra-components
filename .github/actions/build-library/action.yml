@@ -15,6 +15,7 @@ runs:
       with:
         toolchain: stable
     - name: Debug SST environment
+      shell: bash
       run: |
         echo "SST_CORE_HOME: $SST_CORE_HOME"
         echo "SST_ELEMENTS_HOME: $SST_ELEMENTS_HOME"
@@ -25,6 +26,7 @@ runs:
         ls -la $SST_CORE_HOME/lib/cmake/SST || echo "SST cmake dir not found"
         env | grep SST
     - name: Debug CMake SST variables
+      shell: bash
       run: |
         # Create a minimal CMakeLists.txt to debug
         echo 'cmake_minimum_required(VERSION 3.5)
@@ -47,6 +49,7 @@ runs:
         cmake -P debug.cmake
 
     - name: Find and inspect FindSST.cmake
+      shell: bash
       run: |
         # Look for FindSST.cmake in standard paths
         find /usr -name FindSST.cmake 2>/dev/null || echo "Not found in /usr"
