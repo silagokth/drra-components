@@ -11,83 +11,34 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
-# Add Corrosion to build Rust components
-# include(FetchContent)
-# FetchContent_Declare(
-# Corrosion
-# GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
-# GIT_TAG v0.4 # Use a specific version
-# )
-# FetchContent_MakeAvailable(Corrosion)
-
-# # Add cargo sccache if installed
-# find_program(SCCACHE sccache)
-
-# if(SCCACHE)
-# message(STATUS "Using sccache: ${SCCACHE}")
-# set(ENV{RUSTC_WRAPPER} "${SCCACHE}")
-# set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE}")
-# set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE}")
-# set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
-# cmake_policy(SET CMP0141 NEW)
-# else()
-# message(STATUS "sccache not found, using default compiler")
-# endif()
-
 # SST
 if(USE_SST)
+  # Make sure module path is set (already done in your file)
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+
+  # Find SST package
   find_package(SST REQUIRED)
-
-  if(SST_FOUND AND NOT SST_PREFIX)
-    # Try common locations
-    if(DEFINED ENV{SST_CORE_HOME})
-      set(SST_PREFIX $ENV{SST_CORE_HOME})
-      message(STATUS "Using SST_PREFIX from SST_CORE_HOME: ${SST_PREFIX}")
-    elseif(DEFINED SST_DIR)
-      get_filename_component(SST_PREFIX "${SST_DIR}" DIRECTORY DIRECTORY)
-      message(STATUS "Derived SST_PREFIX from SST_DIR: ${SST_PREFIX}")
-    else()
-      execute_process(
-        COMMAND which sst
-        OUTPUT_VARIABLE SST_BIN
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-      )
-
-      if(SST_BIN)
-        get_filename_component(SST_PREFIX "${SST_BIN}" DIRECTORY DIRECTORY)
-        message(STATUS "Derived SST_PREFIX from sst binary: ${SST_PREFIX}")
-      endif()
-    endif()
-  endif()
-
-  # Set SST include directories
-  execute_process(
-    COMMAND sst-config --includedir
-    OUTPUT_VARIABLE SST_INCLUDE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
 
   # Add DRRA SST shared library
   add_library(drra SHARED)
+
   set(COMMON_INCLUDE_DIRS
-    ${SST_INCLUDE_DIR}
+    ${SST_INCLUDE_DIRS}
     $ENV{SST_ELEMENTS_HOME}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/common/sst
   )
+
   target_include_directories(drra PUBLIC ${COMMON_INCLUDE_DIRS})
   target_link_libraries(drra PRIVATE timingModel)
 
+  # If you're using the modern CMake approach with SST::SST target:
+  # target_link_libraries(drra PRIVATE timingModel SST::SST)
   add_subdirectory(sst_tests)
 
   # Register DRRA library and its components
   add_custom_command(TARGET drra POST_BUILD
     COMMAND echo "Registering SST library: drra"
-
-    # COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/lib
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra> ${CMAKE_CURRENT_BINARY_DIR}/library
-
-    # COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
-    # COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
   )
 endif()
 
