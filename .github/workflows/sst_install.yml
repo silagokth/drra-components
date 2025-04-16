@@ -130,14 +130,10 @@ jobs:
         echo "SST installation found in cache"
 
     - name: Build library
-      if: steps.check-sst.outputs.sst_installed == 'true'
-      uses: ./.github/actions/build-library
-      with:
-        use_sst: 'ON'
-        sst-core-home: ${{ env.SST_CORE_HOME }}
-        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
-
-    - name: Set environment variables
-      if: steps.check-sst.outputs.sst_installed == 'true'
+      shell: bash
       run: |
+        mkdir build
+        cd build
+        cmake -DUSE_SST=ON ..
+        cmake --build .
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
