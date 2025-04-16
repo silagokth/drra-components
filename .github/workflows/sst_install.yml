@@ -50,7 +50,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential libltdl-dev  libtool libtool-bin autoconf automake
+        sudo apt-get install -y build-essential libltdl-dev  libtool libtool-bin autoconf automake libgtest-dev
 
     - name: Install SST Core
       if: steps.cache-sst.outputs.sst_installed == 'false'
