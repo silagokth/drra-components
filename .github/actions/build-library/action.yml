@@ -1,5 +1,7 @@
 name: Build library
-description: Builds a library with cmake
+
+description: Builds DRRA library
+
 inputs:
   use_sst:
     description: 'Enable USE_SST flag'
@@ -11,13 +13,17 @@ inputs:
   sst-elements-home:
     description: 'Path to SST Elements installation'
     required: true
+
 runs:
   using: composite
   steps:
-    - run: sudo apt install libfuse2
+    - name: Install dependencies
+      run: sudo apt install libfuse2
       shell: bash
-    - uses: actions/checkout@v4
-    - uses: actions-rs/toolchain@v1
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
     - name: Set environment variables
@@ -28,55 +34,12 @@ runs:
         echo "SST_DIR=${{ inputs.sst-core-home }}/lib/cmake/SST" >> $GITHUB_ENV
         echo "PATH=${{ inputs.sst-core-home }}/bin:$PATH" >> $GITHUB_ENV
 
-    # - name: Debug SST environment
-    #   shell: bash
-    #   run: |
-    #     echo "SST_CORE_HOME: $SST_CORE_HOME"
-    #     echo "SST_ELEMENTS_HOME: $SST_ELEMENTS_HOME"
-    #     echo "SST_DIR: $SST_DIR"
-    #     which sst || echo "sst not in PATH"
-    #     sst --version || echo "sst command failed"
-    #     ls -la $SST_CORE_HOME/bin || echo "SST core bin dir not found"
-    #     ls -la $SST_CORE_HOME/lib/cmake/SST || echo "SST cmake dir not found"
-    #     env | grep SST
-    # - name: Debug CMake SST variables
-    #   shell: bash
-    #   run: |
-    #     # Create a minimal CMakeLists.txt to debug
-    #     echo 'cmake_minimum_required(VERSION 3.5)
-        
-    #     find_package(SST)
-        
-    #     message("SST_FOUND: ${SST_FOUND}")
-    #     message("SST_PREFIX: ${SST_PREFIX}")
-    #     message("SST_DIR: ${SST_DIR}")
-        
-    #     get_cmake_property(_variableNames VARIABLES)
-    #     foreach(_variableName ${_variableNames})
-    #       if(_variableName MATCHES "^SST_")
-    #         message("${_variableName}=${${_variableName}}")
-    #       endif()
-    #     endforeach()' > debug.cmake
-    
-    #     # Run CMake in script mode
-    #     cmake -P debug.cmake
-
-    # - name: Find and inspect FindSST.cmake
-    #   shell: bash
-    #   run: |
-    #     # Look for FindSST.cmake in standard paths
-    #     find /usr -name FindSST.cmake 2>/dev/null || echo "Not found in /usr"
-    #     find $CMAKE_ROOT -name FindSST.cmake 2>/dev/null || echo "Not found in CMAKE_ROOT"
-        
-    #     # Check if it's in your project
-    #     find . -name FindSST.cmake
-        
-    #     # If found, examine it
-    #     FINDSST=$(find . -name FindSST.cmake | head -1)
-    #     if [ -n "$FINDSST" ]; then
-    #       echo "Found: $FINDSST"
-    #       cat "$FINDSST"
-    #     fi
+    - name: Check SST installation
+      shell: bash
+      run: |
+        ls $SST_CORE_HOME/bin
+        sst --version
+        echo "SST installation found in cache"
 
     - name: Build library
       shell: bash
