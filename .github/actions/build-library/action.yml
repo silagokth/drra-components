@@ -30,7 +30,6 @@ runs:
       run: |
         # Create a minimal CMakeLists.txt to debug
         echo 'cmake_minimum_required(VERSION 3.5)
-        project(sst-debug)
         
         find_package(SST)
         
