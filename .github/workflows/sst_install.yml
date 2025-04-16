@@ -74,7 +74,9 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     - name: Build library
-      uses: $GITHUB_WORKSPACE/.github/actions/build_library
+      uses: ./.github/actions/build-library
       with:
-        sstcore: ${{ env.SST_CORE_HOME }}
-        sstelements: ${{ env.SST_ELEMENTS_HOME }}
+        use_sst: 'ON'
+    - name: Set environment variables
+      run: |
+        echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV

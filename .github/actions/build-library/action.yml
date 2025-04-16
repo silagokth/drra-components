@@ -1,21 +1,24 @@
 name: Build library
-
-on:
-  workflow_dispatch 
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
+description: Builds a library with cmake
+inputs:
+  use_sst:
+    description: 'Enable USE_SST flag'
+    required: false
+    default: 'ON'
+runs:
+  using: composite
+  steps:
     - run: sudo apt install libfuse2
+      shell: bash
     - uses: actions/checkout@v4
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
     - name: Build library
+      shell: bash
       run: |
         mkdir build
         cd build
-        cmake -DUSE_SST=ON ..
+        cmake -DUSE_SST=${{ inputs.use_sst }} ..
         make -j all
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
