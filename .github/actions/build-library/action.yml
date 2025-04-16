@@ -21,6 +21,7 @@ runs:
       with:
         toolchain: stable
     - name: Set environment variables
+      shell: bash
       run: |
         echo "SST_CORE_HOME=${{ inputs.sst-core-home }}" >> $GITHUB_ENV
         echo "SST_ELEMENTS_HOME=${{ inputs.sst-elements-home }}" >> $GITHUB_ENV
