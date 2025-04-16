@@ -1,15 +1,24 @@
 # FindSST.cmake - Find SST package
 
-# Define search paths based on environment variables
-if(DEFINED ENV{SST_CORE_HOME})
-    set(SST_PREFIX $ENV{SST_CORE_HOME})
-endif()
+set(SST_PREFIX $ENV{SST_CORE_HOME})
 
 # Find the SST executable
 find_program(SST_EXECUTABLE sst
     PATHS ${SST_PREFIX}/bin
     DOC "SST executable"
 )
+
+if(NOT SST_EXECUTABLE)
+    message(STATUS "SST_PREFIX: ${SST_PREFIX}")
+    file(GLOB SST_BIN_FILES ${SST_PREFIX}/bin/*)
+    message(STATUS "Contents of ${SST_PREFIX}/bin:")
+
+    foreach(FILE ${SST_BIN_FILES})
+        message(STATUS "  ${FILE}")
+    endforeach()
+
+    message(FATAL_ERROR "SST executable not found. Please set the SST_CORE_HOME environment variable.")
+endif()
 
 # Get SST include directory
 if(SST_EXECUTABLE)
