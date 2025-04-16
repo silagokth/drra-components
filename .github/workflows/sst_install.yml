@@ -20,6 +20,9 @@ jobs:
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v2
 
+    - name: Install dependencies
+      run: sudo apt install libfuse2 libgtest-dev
+
     - name: Restore SST Cache if available
       id: cache-sst
       uses: actions/cache@v4
