@@ -71,7 +71,10 @@ jobs:
     needs: sst-install
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - run: echo $(ls -al) && echo $(pwd) && echo $(ls -al .github)
+    - name: Checkout repository
+      uses: actions/checkout@v4
     - name: Build library
-      uses: ./.github/actions/build_library.yml
+      uses: $GITHUB_WORKSPACE/.github/actions/build_library
+      with:
+        sstcore: ${{ env.SST_CORE_HOME }}
+        sstelements: ${{ env.SST_ELEMENTS_HOME }}
