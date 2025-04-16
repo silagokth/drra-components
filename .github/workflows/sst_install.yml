@@ -8,6 +8,7 @@ on:
 env:
   SST_CORE_HOME: ${{ github.workspace }}/sstcore
   SST_ELEMENTS_HOME: ${{ github.workspace }}/sstelements
+  SST_DIR: ${{ github.workspace }}/sstcore/lib/cmake/SST
 
 jobs:
   sst-install:
@@ -19,7 +20,8 @@ jobs:
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v2
 
-    - id: cache-sst
+    - name: Restore SST Cache if available
+      id: cache-sst
       uses: actions/cache@v4
       env:
         cache-name: cache-sst
@@ -38,17 +40,12 @@ jobs:
     - name: Debug cache hit
       run: echo "Cache hit value is '${{ steps.cache-sst.outputs.cache-hit }}'"
     
-    # Check if SST is actually available after potential cache restoration
     - name: Check if SST is already installed
       id: check-sst
-      run: |
-        if [[ -d "$SST_CORE_HOME/bin" && -d "$SST_ELEMENTS_HOME/bin" ]]; then
-          echo "SST installation found in cache"
-          echo "sst_installed=true" >> $GITHUB_OUTPUT
-        else
-          echo "No SST installation found, will install"
-          echo "sst_installed=false" >> $GITHUB_OUTPUT
-        fi
+      uses: ./.github/actions/check-sst-install
+      with:
+        sst-core-home: ${{ env.SST_CORE_HOME }}
+        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
 
     - name: Install dependencies
       run: |
@@ -110,10 +107,19 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
+    - name: Check if SST is already installed
+      id: check-sst
+      uses: ./.github/actions/check-sst-install
+      with:
+        sst-core-home: ${{ env.SST_CORE_HOME }}
+        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
+
     - name: Build library
+      if: steps.check-sst.outputs.sst_installed == 'true'
       uses: ./.github/actions/build-library
       with:
         use_sst: 'ON'
     - name: Set environment variables
+      if: steps.check-sst.outputs.sst_installed == 'true'
       run: |
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
