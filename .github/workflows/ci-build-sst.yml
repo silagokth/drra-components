@@ -1,0 +1,193 @@
+name: Build testcases and library with SST
+
+on:
+  pull_request: 
+    branches:
+      - master
+
+env:
+  SST_CORE_HOME: ${{ github.workspace }}/sstcore
+  SST_ELEMENTS_HOME: ${{ github.workspace }}/sstelements
+  SST_DIR: ${{ github.workspace }}/sstcore/lib/cmake/SST
+
+jobs:
+  sst-install:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v2
+
+    - name: Restore SST Cache if available
+      id: cache-sst
+      uses: actions/cache@v4
+      env:
+        cache-name: cache-sst
+      with: 
+        path: |
+          ${{ github.workspace }}/build
+          ${{ github.workspace }}/sstcore
+          ${{ github.workspace }}/sstelements
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    # Debug step to see the actual output value
+    - name: Debug cache hit
+      run: echo "Cache hit value is '${{ steps.cache-sst.outputs.cache-hit }}'"
+    
+    - name: Check if SST is already installed
+      id: check-sst
+      uses: ./.github/actions/check-sst-install
+      with:
+        sst-core-home: ${{ env.SST_CORE_HOME }}
+        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libltdl-dev  libtool libtool-bin autoconf automake libgtest-dev
+
+    - name: Install SST Core
+      if: steps.check-sst.outputs.sst_installed == 'false'
+      run: |
+        wget https://github.com/sstsimulator/sst-core/releases/download/v14.1.0_Final/sstcore-14.1.0.tar.gz -O sstcore-14.1.0.tar.gz
+        tar -xzf sstcore-14.1.0.tar.gz
+        cd sst-core
+        ./configure --prefix=$SST_CORE_HOME --disable-mpi && make -j4 && make install
+        cd ..
+    - name: Add SST Core to PATH
+      if: steps.check-sst.outputs.sst_installed == 'false'
+      run: |
+        export PATH=$SST_CORE_HOME/bin:$PATH
+        echo ${SST_CORE_HOME}/bin >> $GITHUB_PATH
+        export SST_DIR=$SST_CORE_HOME/lib/cmake/SST
+        echo "SST_DIR=${SST_DIR}" >> $GITHUB_ENV
+    - name: Install SST Elements
+      if: steps.check-sst.outputs.sst_installed == 'false'
+      run: |
+        wget https://github.com/sstsimulator/sst-elements/releases/download/v14.1.0_Final/sstelements-14.1.0.tar.gz -O sstelements-14.1.0.tar.gz
+        tar -xzf sstelements-14.1.0.tar.gz
+        cd sst-elements
+        for folder in $(ls -d ./src/sst/elements/*/); do touch $folder/.ignore; done && rm -rf src/sst/elements/memHierarchy/.ignore
+        ./autogen.sh
+        ./configure --prefix=$SST_ELEMENTS_HOME && make -j4 && make install
+        cd ..
+    - name: Add SST Elements to PATH
+      if: steps.check-sst.outputs.sst_installed == 'false'
+      run: |
+        export PATH=$SST_ELEMENTS_HOME/bin:$PATH
+        echo ${SST_ELEMENTS_HOME}/bin >> $GITHUB_PATH
+    - name: Clean temp files
+      if: steps.check-sst.outputs.sst_installed == 'false'
+      run: |
+        rm -rf sstcore-14.1.0.tar.gz sst-core sstelements-14.1.0.tar.gz sst-elements
+
+  build-library:
+    needs: sst-install
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Restore SST Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ github.workspace }}/build
+          ${{ github.workspace }}/sstcore
+          ${{ github.workspace }}/sstelements
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ github.sha }}
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+    - name: Install dependencies
+      run: sudo apt install libfuse2 libgtest-dev
+    - name: Check if SST is already installed
+      id: check-sst
+      uses: ./.github/actions/check-sst-install
+      with:
+        sst-core-home: ${{ env.SST_CORE_HOME }}
+        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
+
+    - name: Set environment variables
+      shell: bash
+      run: |
+        echo "SST_CORE_HOME=${{ env.SST_CORE_HOME }}" >> $GITHUB_ENV
+        echo "SST_ELEMENTS_HOME=${{  env.SST_ELEMENTS_HOME }}" >> $GITHUB_ENV
+        echo "SST_DIR=${{ env.SST_CORE_HOME }}/lib/cmake/SST" >> $GITHUB_ENV
+        echo "PATH=${{ env.SST_CORE_HOME }}/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Check SST installation
+      shell: bash
+      run: |
+        ls $SST_CORE_HOME/bin
+        sst --version
+        echo "SST installation found in cache"
+
+    - name: Build library
+      shell: bash
+      run: |
+        mkdir build
+        cd build
+        cmake -DUSE_SST=ON ..
+        cmake --build .
+        echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
+
+    - name: Download bender
+      run: |
+        gh release download v0.28.1 --repo pulp-platform/bender --pattern "bender-0.28.1-x86_64-linux-gnu.tar.gz"
+      env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install bender
+      run: |
+        tar -xzf bender-0.28.1-x86_64-linux-gnu.tar.gz
+        chmod +x bender
+        mkdir -p /home/runner/.local/bin
+        mv bender /home/runner/.local/bin
+
+    - name: Download vesyla-suite-4
+      run: gh release download --repo silagokth/vesyla-suite-4 --pattern "vesyla-suite"
+      env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install vesyla-suite
+      run: |
+        chmod +x vesyla-suite
+        mkdir -p /home/runner/.local/bin
+        mv vesyla-suite /home/runner/.local/bin
+
+    - name: Assemble and check testcases
+      run: |
+        cd testcases
+        for testcase in $(ls *.json); do
+          echo "Processing testcase: $testcase"
+          vesyla-suite component assemble -a $testcase -o ${testcase%.*}
+          touch ${testcase%.*}/sst/io_input_buffer.bin
+          touch ${testcase%.*}/sst/io_output_buffer.bin
+          cd ${testcase%.*}/sst/
+          sst --run-mode=init sst_sim_conf.py
+          cd ../..
+        done
+
+    - run: tar czf testcases.tar.gz testcases/
+
+    - name: Upload testcases
+      id: upload-testcases
+      uses: actions/upload-artifact@v4
+      with:
+        name: testcases
+        path: testcases.tar.gz
+    - run: tar czf library.tar.gz -C build library
+    - name: Upload library
+      id: upload-library
+      uses: actions/upload-artifact@v4
+      with:
+        name: library
+        path: library.tar.gz

@@ -1,4 +1,4 @@
-name: Assemble testcases
+name: Build testcases and library without SST
 
 on:
   workflow_call:
