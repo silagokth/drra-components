@@ -31,9 +31,9 @@ jobs:
           ${{ github.workspace }}/build
           ${{ github.workspace }}/sstcore
           ${{ github.workspace }}/sstelements
-        key: ${{ runner.os }}-build-${{ github.sha }}
+        key: ${{ runner.os }}-build-sst-14.1.0
         restore-keys: |
-          ${{ runner.os }}-build-${{ github.sha }}
+          ${{ runner.os }}-build-sst-14.1.0
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
@@ -102,9 +102,9 @@ jobs:
           ${{ github.workspace }}/build
           ${{ github.workspace }}/sstcore
           ${{ github.workspace }}/sstelements
-        key: ${{ runner.os }}-build-${{ github.sha }}
+        key: ${{ runner.os }}-build-sst-14.1.0
         restore-keys: |
-          ${{ runner.os }}-build-${{ github.sha }}
+          ${{ runner.os }}-build-sst-14.1.0
           ${{ runner.os }}-build-
           ${{ runner.os }}-
     - name: Install dependencies
