@@ -8,14 +8,16 @@ on:
   # release:
   #   types: [published]
   push:
+    branches:
+      - master
     tags:
       - 'v*'
 
 jobs:
-  build_testcases:
-    uses: ./.github/workflows/assemble_testcases.yml
+  ci-build-sst:
+    uses: ./.github/workflows/ci-build-sst.yml
   create_release:
-    needs: build_testcases
+    needs: ci-build-sst
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
