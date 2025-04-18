@@ -13,7 +13,7 @@ env:
 
 jobs:
   sst-install:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -90,7 +90,7 @@ jobs:
 
   build-library:
     needs: sst-install
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
