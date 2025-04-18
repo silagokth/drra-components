@@ -8,10 +8,10 @@ on:
   # release:
   #   types: [published]
   push:
-    branches:
-      - master
-    tags:
-      - 'v*'
+    # branches:
+    #   - master
+    # tags:
+    #   - 'v*'
 
 jobs:
   ci-build-sst:
