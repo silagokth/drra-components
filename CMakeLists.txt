@@ -3,6 +3,15 @@ project(drra-component-lib)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC OFF)
 
+# Add RPATH settings for better portability
+set(CMAKE_INSTALL_PATH "$ORIGIN")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Add static linking flags
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+
 # Create a USE_SST option (default ON)
 option(USE_SST "Compile SST components, needed for SST simulation" ON)
 

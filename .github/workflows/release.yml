@@ -8,17 +8,17 @@ on:
   # release:
   #   types: [published]
   push:
-    branches:
-      - master
-    tags:
-      - 'v*'
+    # branches:
+    #   - master
+    # tags:
+    #   - 'v*'
 
 jobs:
   ci-build-sst:
     uses: ./.github/workflows/ci-build-sst.yml
   create_release:
     needs: ci-build-sst
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/download-artifact@v4
         with:
