@@ -48,6 +48,8 @@ if(USE_SST)
   add_custom_command(TARGET drra POST_BUILD
     COMMAND echo "Registering SST library: drra"
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra> ${CMAKE_CURRENT_BINARY_DIR}/library
+    COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
+    COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
   )
 endif()
 
