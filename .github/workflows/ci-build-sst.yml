@@ -153,23 +153,23 @@ jobs:
         mkdir -p /home/runner/.local/bin
         mv bender /home/runner/.local/bin
 
-    - name: Download vesyla-suite-4
-      run: gh release download --repo silagokth/vesyla-suite-4 --pattern "vesyla-suite"
+    - name: Download vesyla
+      run: gh release download --repo silagokth/vesyla --pattern "vesyla"
       env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Install vesyla-suite
+    - name: Install vesyla
       run: |
-        chmod +x vesyla-suite
+        chmod +x vesyla
         mkdir -p /home/runner/.local/bin
-        mv vesyla-suite /home/runner/.local/bin
+        mv vesyla /home/runner/.local/bin
 
     - name: Assemble and check testcases
       run: |
         cd testcases
         for testcase in $(ls *.json); do
           echo "Processing testcase: $testcase"
-          vesyla-suite component assemble -a $testcase -o ${testcase%.*}
+          vesyla component assemble -a $testcase -o ${testcase%.*}
           touch ${testcase%.*}/sst/io_input_buffer.bin
           touch ${testcase%.*}/sst/io_output_buffer.bin
           cd ${testcase%.*}/sst/

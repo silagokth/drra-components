@@ -68,7 +68,7 @@ sst-test-elements -w "drra*"
 
 ## Usage
 
-This library should be used by the [`vesyla`](https://github.com/silagokth/vesyla-suite-4) program. To let the program know where the library is located, you need to set the `VESYLA_SUITE_PATH_COMPONENTS` environment variable to the path of the library folder. For example, if you have copied the library to `/usr/local/lib/drra-component-library`, you can set the environment variable by running the following command:
+This library should be used by [`vesyla`](https://github.com/silagokth/vesyla). To let the program know where the library is located, you need to set the `VESYLA_SUITE_PATH_COMPONENTS` environment variable to the path of the library folder. For example, if you have copied the library to `/usr/local/lib/drra-component-library`, you can set the environment variable by running the following command
 
 ```bash
 export VESYLA_SUITE_PATH_COMPONENTS=/usr/local/lib/drra-component-library
