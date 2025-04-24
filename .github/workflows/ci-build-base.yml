@@ -2,13 +2,6 @@ name: Build testcases and library without SST
 
 on:
   workflow_call:
-    # inputs:
-    #   config-path:
-    #     required: true
-    #     type: string
-    # secrets:
-    #   personal_access_token:
-    #     required: true
 
 env:
   CARGO_TERM_COLOR: always
