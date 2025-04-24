@@ -22,6 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Unecessary comments in ci-build-base workflow ([836ff8b](https://github.com/silagokth/drra-components/commit/836ff8be44d7c68102e439a0608539c987649977))
+- Unnecessary comments in ci-build-base workflow ([836ff8b](https://github.com/silagokth/drra-components/commit/836ff8be44d7c68102e439a0608539c987649977))
 
 ## [2.1.4] - 2025-04-22
