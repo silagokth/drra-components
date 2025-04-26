@@ -2,13 +2,6 @@ name: Build testcases and library without SST
 
 on:
   workflow_call:
-    # inputs:
-    #   config-path:
-    #     required: true
-    #     type: string
-    # secrets:
-    #   personal_access_token:
-    #     required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -42,20 +35,20 @@ jobs:
         chmod +x bender
         mkdir -p /home/runner/.local/bin
         mv bender /home/runner/.local/bin
-    - name: Download vesyla-suite-4
-      run: gh release download --repo silagokth/vesyla-suite-4 --pattern "vesyla-suite"
+    - name: Download vesyla
+      run: gh release download --repo silagokth/vesyla --pattern "vesyla"
       env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Install vesyla-suite
+    - name: Install vesyla
       run: |
-        chmod +x vesyla-suite
+        chmod +x vesyla
         mkdir -p /home/runner/.local/bin
-        mv vesyla-suite /home/runner/.local/bin
+        mv vesyla /home/runner/.local/bin
     - name: Assemble testcases
       run: |
         cd testcases
         for testcase in $(ls *.json); do
-          vesyla-suite component assemble -a $testcase -o ${testcase%.*}
+          vesyla component assemble -a $testcase -o ${testcase%.*}
         done
         ls
     - run: tar czf testcases.tar.gz testcases/
