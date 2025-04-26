@@ -1,6 +1,9 @@
+// vesyla_template_start defines
 `define {{name}} {{fingerprint}}
 `define {{name}}_pkg {{fingerprint}}_pkg
+// vesyla_template_end defines
 
+// vesyla_template_start package
 {% if not already_defined %}
 package {{fingerprint}}_pkg;
     {% for p in parameters %}
@@ -69,9 +72,12 @@ package {{fingerprint}}_pkg;
   parameter DPU_MODE_MAC = 10;
 
 endpackage
+// vesyla_template_end package
 
+// vesyla_template_start module_head
 module {{fingerprint}}
 import {{fingerprint}}_pkg::*;
+// vesyla_template_end module
 (
     input  logic clk_0,
     input  logic rst_n_0,
@@ -131,7 +137,15 @@ import {{fingerprint}}_pkg::*;
   dpu_t dpu;
   fsm_t fsm;
 
-  fsm u_dpu_fsm (
+  fsm u_dpu_fsm #(
+      .INSTRUCTION_PAYLOAD_WIDTH(INSTRUCTION_PAYLOAD_WIDTH),
+      .OPCODE_WIDTH(OPCODE_WIDTH),
+      .OPCODE_H(OPCODE_H),
+      .OPCODE_L(OPCODE_L),
+      .FSM_MAX_STATES(FSM_MAX_STATES),
+      .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH),
+      .FSM_T(fsm_t)
+  ) fsm_inst (
       .clk(clk),
       .rst_n(rst_n),
       .activate(|activate),
@@ -222,14 +236,18 @@ import {{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such 
-  {{fingerprint}}_adder adder_inst (
+  adder  #(
+      .BITWIDTH(BITWIDTH)
+  ) adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
       .out(adder_out)
   );
 
-  {{fingerprint}}_multiplier mult_inst (
+  multiplier #(
+      .BITWIDTH(BITWIDTH)
+  ) mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),
@@ -240,162 +258,6 @@ import {{fingerprint}}_pkg::*;
 
 endmodule
 
-module {{fingerprint}}_adder
-import {{fingerprint}}_pkg::*;
-(
-    input logic signed [BITWIDTH-1:0] in1,
-    input logic signed [BITWIDTH-1:0] in2,
-    output logic signed [BITWIDTH-1:0] out,
-    output logic overflow,
-    output logic underflow,
-    input logic saturate
-);
-
-  localparam logic signed [BITWIDTH-1:0] MAX_RESULT = (1 << (BITWIDTH - 1)) - 1;
-  localparam logic signed [BITWIDTH-1:0] MIN_RESULT = -MAX_RESULT - 1;
-  logic signed [BITWIDTH:0] temp_add;
-
-  always_comb begin
-    overflow = 0;
-    underflow = 0;
-    out = 0;
-    temp_add = in1 + in2;
-    // saturation logic
-    if (saturate) begin
-      if (temp_add > MAX_RESULT) begin
-        out = MAX_RESULT;
-        overflow = 1;
-      end else if (temp_add < MIN_RESULT) begin
-        out = MIN_RESULT;
-        underflow = 1;
-      end else begin
-        out = temp_add[BITWIDTH-1:0];
-      end
-    end else begin
-      out = temp_add[BITWIDTH-1:0];
-    end
-  end
-endmodule
-
-module {{fingerprint}}_multiplier
-import {{fingerprint}}_pkg::*;
-(
-    input logic signed [BITWIDTH-1:0] in1,
-    input logic signed [BITWIDTH-1:0] in2,
-    output logic signed [BITWIDTH-1:0] out,
-    output logic overflow,
-    output logic underflow,
-    input logic saturate
-);
-
-  localparam logic signed [BITWIDTH-1:0] MAX_RESULT = (1 << (BITWIDTH - 1)) - 1;
-  localparam logic signed [BITWIDTH-1:0] MIN_RESULT = -MAX_RESULT - 1;
-  logic signed [BITWIDTH*2-1:0] temp_mult;
-
-  always_comb begin
-    out = 0;
-    overflow = 0;
-    underflow = 0;
-    temp_mult = in1 * in2;
-    // saturation logic
-    if (saturate) begin
-      if (temp_mult > MAX_RESULT) begin
-        out = MAX_RESULT;
-        overflow = 1;
-      end else if (temp_mult < MIN_RESULT) begin
-        out = MIN_RESULT;
-        underflow = 1;
-      end else begin
-        out = temp_mult[BITWIDTH-1:0];
-      end
-    end else begin
-      out = temp_mult[BITWIDTH-1:0];
-    end
-  end
-endmodule
-
-module fsm
-import {{fingerprint}}_pkg::*;
-(
-    input logic clk,
-    input logic rst_n,
-    input logic activate,
-    input logic instruction_valid,
-    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
-    output logic [$clog2(FSM_MAX_STATES)-1:0] state
-);
-
-  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_reg;
-  logic [OPCODE_WIDTH-1:0] opcode;
-  logic fsm_valid;
-  logic [$clog2(FSM_MAX_STATES)-1:0] next_state;
-  logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
-  logic [FSM_DELAY_WIDTH-1:0] delay_counter;
-  logic [FSM_DELAY_WIDTH-1:0] delay_counter_next;
-
-  fsm_t fsm;
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      instruction_reg <= '0;
-    end else begin
-      if (instruction_valid) begin
-        instruction_reg <= instruction;
-      end
-    end
-  end
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      delay_counter <= fsm_delays[0];
-    end else begin
-      delay_counter <= delay_counter_next;
-    end
-  end
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      fsm_delays = '0;
-    end else begin
-      fsm_delays[0] = fsm._delay_0;
-      fsm_delays[1] = fsm._delay_1;
-      fsm_delays[2] = fsm._delay_2;
-
-    end
-  end
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      state <= 0;
-    end else begin
-      state <= next_state;
-    end
-  end
-
-  always_comb begin
-    next_state = 0;
-    delay_counter_next = 0;
-    if (delay_counter == 0) begin
-      if (state == FSM_MAX_STATES - 1) begin
-        next_state = 0;
-      end else begin
-        next_state = state + 1;
-        delay_counter_next = fsm_delays[state];
-      end
-    end else begin
-      delay_counter_next = delay_counter - 1;
-    end
-  end
-
-  assign opcode = instruction_reg[OPCODE_H:OPCODE_L];
-  assign fsm_valid = instruction_valid && (opcode == OPCODE_FSM);
-  assign fsm = fsm_valid ?
-      '{default: 0}
-      : unpack_fsm(
-          instruction_reg[INSTRUCTION_PAYLOAD_WIDTH-1:0]
-      );
-
-
-endmodule
-
+// vesyla_template_start module_tail
 {% endif %}
+// vesyla_template_end module

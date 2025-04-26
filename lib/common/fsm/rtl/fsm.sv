@@ -1,0 +1,90 @@
+module fsm #(
+    parameter INSTRUCTION_PAYLOAD_WIDTH = 32,
+    parameter OPCODE_WIDTH = 4,
+    parameter OPCODE_H = 31,
+    parameter OPCODE_L = 28,
+    parameter FSM_MAX_STATES = 8,
+    parameter FSM_DELAY_WIDTH = 8,
+    parameter type FSM_T
+) (
+    input logic clk,
+    input logic rst_n,
+    input logic activate,
+    input logic instruction_valid,
+    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+    output logic [$clog2(FSM_MAX_STATES)-1:0] state
+);
+
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_reg;
+  logic [OPCODE_WIDTH-1:0] opcode;
+  logic fsm_valid;
+  logic [$clog2(FSM_MAX_STATES)-1:0] next_state;
+  logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
+  logic [FSM_DELAY_WIDTH-1:0] delay_counter;
+  logic [FSM_DELAY_WIDTH-1:0] delay_counter_next;
+
+  FSM_T fsm;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      instruction_reg <= '0;
+    end else begin
+      if (instruction_valid) begin
+        instruction_reg <= instruction;
+      end
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      delay_counter <= fsm_delays[0];
+    end else begin
+      delay_counter <= delay_counter_next;
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      fsm_delays = '0;
+    end else begin
+      fsm_delays[0] = fsm._delay_0;
+      fsm_delays[1] = fsm._delay_1;
+      fsm_delays[2] = fsm._delay_2;
+
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      state <= 0;
+    end else begin
+      state <= next_state;
+    end
+  end
+
+  always_comb begin
+    next_state = 0;
+    delay_counter_next = 0;
+    if (delay_counter == 0) begin
+      if (state == FSM_MAX_STATES - 1) begin
+        next_state = 0;
+      end else begin
+        next_state = state + 1;
+        delay_counter_next = fsm_delays[state];
+      end
+    end else begin
+      delay_counter_next = delay_counter - 1;
+    end
+  end
+
+  assign opcode = instruction_reg[OPCODE_H:OPCODE_L];
+  assign fsm_valid = instruction_valid && (opcode == OPCODE_FSM);
+  assign fsm = fsm_valid ?
+      '{default: 0}
+      : unpack_fsm(
+          instruction_reg[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      );
+
+
+endmodule
+
