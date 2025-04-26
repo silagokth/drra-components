@@ -1,0 +1,13 @@
+[package]
+name = "template_merger"
+version = "0.1.0"
+edition = "2021"
+authors = ["ChatGPT"]
+description = "A tool to merge outside-of-block changes from an expanded file back into the original template."
+license = "MIT"
+
+[[bin]]
+name = "template_merger"
+path = "src/main.rs"
+
+[dependencies]
