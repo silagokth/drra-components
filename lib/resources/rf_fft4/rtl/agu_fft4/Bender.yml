@@ -1,0 +1,5 @@
+package:
+  name: agu_fft4
+
+sources:
+  - ./rtl/agu_fft4.sv

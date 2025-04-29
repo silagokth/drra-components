@@ -1,0 +1,7 @@
+package:
+  name: radix2_bu
+
+dependencies:
+
+sources:
+  - ./rtl/radix2_bu.sv

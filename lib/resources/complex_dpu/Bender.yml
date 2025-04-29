@@ -1,0 +1,7 @@
+package:
+  name: complex_dpu
+
+dependencies:
+
+sources:
+  - ./rtl/complex_dpu.sv

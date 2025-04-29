@@ -1,0 +1,12 @@
+{
+  "kind": "complex_dpu",
+  "size": 2,
+  "io_input": false,
+  "io_output": false,
+  "custom_properties": [],
+  "required_parameters": [
+    "RESOURCE_INSTR_WIDTH",
+    "BULK_BITWIDTH",
+    "WORD_BITWIDTH"
+  ]
+}
