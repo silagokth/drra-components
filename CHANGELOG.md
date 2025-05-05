@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## Changed
+### Changed
 
 - Updated [CODEOWNERS](./.github/CODEOWNERS) ([2d1d7c8](https://github.com/silagokth/drra-components/commit/2d1d7c84397d7efc6f28b3f6d66486bc3c031c6a))
 
