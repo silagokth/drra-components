@@ -1,6 +1,11 @@
-*sv.j2 @jagjordi @NosratiNooshin @SabaYs
-*sv @jagjordi @NosratiNooshin @SabaYs
-*v @jagjordi @NosratiNooshin @SabaYs
-*vhd.j2 @jagjordi @NosratiNooshin @SabaYs
-*vhd @jagjordi @NosratiNooshin @SabaYs
+*.sv.j2 @jagjordi @NosratiNooshin @SabaYs
+*.sv @jagjordi @NosratiNooshin @SabaYs
+*.v @jagjordi @NosratiNooshin @SabaYs
+*.vhd.j2 @jagjordi @NosratiNooshin @SabaYs
+*.vhd @jagjordi @NosratiNooshin @SabaYs
 Bender.yml @jagjordi @NosratiNooshin @SabaYs
+*.h @PaulDelestrac @herenvarno
+*.hpp @PaulDelestrac @herenvarno
+*.c @PaulDelestrac @herenvarno
+*.cpp @PaulDelestrac @herenvarno 
+*.rs @PaulDelestrac @herenvarno
