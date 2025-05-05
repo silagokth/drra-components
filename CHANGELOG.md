@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- Updated [CODEOWNERS](./.github/CODEOWNERS) ([2d1d7c8](https://github.com/silagokth/drra-components/commit/2d1d7c84397d7efc6f28b3f6d66486bc3c031c6a))
+
 ## [2.2.0] - 2025-04-25
 
 ### Added
