@@ -58,11 +58,11 @@ if (WIDTH == 256 && DEPTH == 64) begin : sram_256x64
     .MA_SAWL({2{1'b0}}),
     .MA_WL({2{1'b0}}),
     .MA_WRAS({2{1'b0}}),
-    .MA_WRASD(1),
+    .MA_WRASD(1'b0),
     .Q_A(q_a[63:0]),
     .Q_B(q_b[63:0]),
-    .OBSV_CTL_A(1'b0),
-    .OBSV_CTL_B(1'b0)
+    .OBSV_CTL_A(),
+    .OBSV_CTL_B()
   );
 
   IN22FDX_SDPV_NFVG_W00064B064M04C064 sram_macro_1 (
@@ -107,11 +107,11 @@ if (WIDTH == 256 && DEPTH == 64) begin : sram_256x64
     .MA_SAWL({2{1'b0}}),
     .MA_WL({2{1'b0}}),
     .MA_WRAS({2{1'b0}}),
-    .MA_WRASD(1),
+    .MA_WRASD(1'b0),
     .Q_A(q_a[127:64]),
     .Q_B(q_b[127:64]),
-    .OBSV_CTL_A(1'b0),
-    .OBSV_CTL_B(1'b0)
+    .OBSV_CTL_A(),
+    .OBSV_CTL_B()
   );
 
   IN22FDX_SDPV_NFVG_W00064B064M04C064 sram_macro_2 (
@@ -156,11 +156,11 @@ if (WIDTH == 256 && DEPTH == 64) begin : sram_256x64
     .MA_SAWL({2{1'b0}}),
     .MA_WL({2{1'b0}}),
     .MA_WRAS({2{1'b0}}),
-    .MA_WRASD(1),
+    .MA_WRASD(1'b0),
     .Q_A(q_a[191:128]),
     .Q_B(q_b[191:128]),
-    .OBSV_CTL_A(1'b0),
-    .OBSV_CTL_B(1'b0)
+    .OBSV_CTL_A(),
+    .OBSV_CTL_B()
   );
 
   IN22FDX_SDPV_NFVG_W00064B064M04C064 sram_macro_3 (
@@ -205,11 +205,11 @@ if (WIDTH == 256 && DEPTH == 64) begin : sram_256x64
     .MA_SAWL({2{1'b0}}),
     .MA_WL({2{1'b0}}),
     .MA_WRAS({2{1'b0}}),
-    .MA_WRASD(1),
+    .MA_WRASD(1'b0),
     .Q_A(q_a[255:192]),
     .Q_B(q_b[255:192]),
-    .OBSV_CTL_A(1'b0),
-    .OBSV_CTL_B(1'b0)
+    .OBSV_CTL_A(),
+    .OBSV_CTL_B()
   );
 
 end else begin

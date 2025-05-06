@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added [sram:gf22.sv](lib/common/sram/rtl) & [sram_tb.sv](lib/common/sram/tb) ([5c1b9e0](https://github.com/silagokth/drra-components/pull/55/commits/5c1b9e041b5ec04037388d17495b7b0cf25679f1))
+
 ### Changed
 
 - Updated [CODEOWNERS](./.github/CODEOWNERS) ([2d1d7c8](https://github.com/silagokth/drra-components/commit/2d1d7c84397d7efc6f28b3f6d66486bc3c031c6a))
