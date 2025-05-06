@@ -14,12 +14,20 @@
       "kind": "iosram_btm"
     },
     {
-      "name": "rf_fft_v3_impl",
-      "kind": "rf_fft_v3"
+      "name": "rf_impl",
+      "kind": "rf"
     },
     {
-      "name": "bu_impl",
-      "kind": "bu"
+      "name": "rf_fft_impl",
+      "kind": "rf_fft"
+    },
+    {
+      "name": "radix2_bu_impl",
+      "kind": "radix2_bu"
+    },
+    {
+      "name": "complex_dpu_impl",
+      "kind": "complex_dpu"
     }
   ],
   "controllers": [
@@ -42,7 +50,7 @@
     {
       "name": "cell_mid_impl",
       "kind": "cell_mid",
-      "resource_list": ["swb_impl", "rf_fft_v3_impl", "bu_impl", "rf_fft_v3_impl"],
+      "resource_list": ["swb_impl", "rf_fft_impl", "rf_fft_impl", "complex_dpu_impl", "radix2_bu_impl"],
       "custom_properties": [
         {
           "name": "WORD_BITWIDTH",

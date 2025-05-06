@@ -3,7 +3,7 @@ package:
 
 dependencies:
   agu: {path: ../../common/agu}
-  agu_fft4: {path: ../../common/agu_fft4}
+  agu_fft: {path: ../../common/agu_fft}
 
 sources:
   - ./rtl/rf_fft.sv

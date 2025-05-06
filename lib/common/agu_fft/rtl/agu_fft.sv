@@ -1,4 +1,4 @@
-module agu_fft4 #(
+module agu_fft #(
     parameter AGU_BITWIDTH = 16,
     parameter DELAY_WIDTH = 5,
     parameter STAGE_WIDTH = 4
@@ -78,6 +78,8 @@ module agu_fft4 #(
     assign twid_counter_1 = address_counter + n_points_reg/(2*n_bu_reg);
 
     always_comb begin
+        address_in_twid = 0;
+        address_in_rot = 0;
         if (n_bu_reg == 1) begin
             address_in_twid = twid_counter_0;
             if (!even_odd) begin
@@ -127,9 +129,21 @@ module agu_fft4 #(
     assign next_address = mode_reg ? next_address_rot : next_address_twid; // mode 1: fft data, mode 0: twiddle
 
     logic stage_finish, computation_finish;
+    logic [STAGE_WIDTH-1:0] stages;
+
+    int j;
+    always_comb begin
+        stages = 0;
+        for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
+            if (n_points_reg[j]) begin
+                stages = j;
+                break;
+            end
+        end
+    end
     
     assign stage_finish = (address_counter >= n_points_reg/(2*n_bu_reg)-1);
-    assign computation_finish = (stage_counter == $clog2(n_points_reg)-1);   
+    assign computation_finish = (stage_counter == stages-1);   
 
     // FSM
     always_ff @(posedge clk or negedge rst_n) begin
@@ -156,6 +170,23 @@ module agu_fft4 #(
         end
     end
 
+    always_ff @(posedge clk or negedge rst_n) begin
+        case (state)
+            IDLE: begin
+                next_valid <= 0;
+            end
+            ADDR: begin
+                next_valid <= 1;
+            end
+            DELAY: begin
+                next_valid <= 1;
+            end
+            default: begin
+                next_valid <= 0;
+            end
+        endcase
+    end
+
     always_comb begin
         next_state = state;
         delay_counter_next = delay_counter;
@@ -164,7 +195,6 @@ module agu_fft4 #(
 
         case (state)
             IDLE: begin
-                next_valid <= 0;
                 stage_counter_next = 0;
                 delay_counter_next = 0;
                 address_counter_next = 0;
@@ -176,7 +206,6 @@ module agu_fft4 #(
             end
 
             ADDR: begin
-                next_valid <= 1;
                 if (stage_finish) begin
                     if (computation_finish) begin
                         if (delay_reg > 0) begin
@@ -237,90 +266,5 @@ module agu_fft4 #(
             end
         endcase
     end
-
-endmodule
-
-module mux_rotator #(
-    parameter AGU_BITWIDTH = 8, // 256 FFT
-    parameter STAGE_WIDTH = 4
-) (
-    input  logic [AGU_BITWIDTH-1:0] n_points,
-    input  logic [AGU_BITWIDTH-1:0] addr_in,
-    input  logic [STAGE_WIDTH-1:0] curr_stage,
-    output logic [AGU_BITWIDTH-1:0] addr_out
-);
-
-    logic [AGU_BITWIDTH-2:0] select1;
-    logic [AGU_BITWIDTH-2:0] select2;
-    logic [AGU_BITWIDTH-1:0] mux_signal;
-    logic [STAGE_WIDTH-1:0] stages;
-
-    int j;
-    always @(n_points) begin
-        for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
-            if (n_points[j]) begin
-                stages = j;
-                break;
-            end
-        end
-    end
-
-    always_comb begin
-        select1 = {AGU_BITWIDTH-1{1'b1}} >> (AGU_BITWIDTH - stages) + curr_stage;
-        select2 = {1'b1, {AGU_BITWIDTH-2{1'b0}}} >> (AGU_BITWIDTH - stages) + curr_stage;
-    end
-
-    genvar i;
-    generate
-        for (i = 0; i < AGU_BITWIDTH-1; i++) begin : mux1_gen
-            assign mux_signal[i] = select1[i] ? addr_in[i+1] : addr_in[i];
-        end
-        assign mux_signal[AGU_BITWIDTH-1] = addr_in[AGU_BITWIDTH-1];
-
-        assign addr_out[0] = mux_signal[0];
-        for (i = 1; i < AGU_BITWIDTH; i++) begin : mux2_gen
-            assign addr_out[i] = select2[i-1] ? addr_in[0] : mux_signal[i];
-        end
-    endgenerate
-    
-endmodule
-
-module twiddle_addr #(
-    parameter AGU_BITWIDTH = 8, // 256 FFT
-    parameter STAGE_WIDTH = 4
-) (
-    input  logic [AGU_BITWIDTH-1:0] n_points,
-    input  logic [AGU_BITWIDTH-1:0] addr_in,
-    input  logic [STAGE_WIDTH-1:0] curr_stage,
-    output logic [AGU_BITWIDTH-1:0] addr_out
-);
-
-    logic [AGU_BITWIDTH*2-1:0] temp_addr;
-    logic [STAGE_WIDTH-1:0] stages;
-
-    int j;
-    always @(n_points) begin
-        for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
-            if (n_points[j]) begin
-                stages = j;
-                break;
-            end
-        end
-    end
-
-    always_comb begin
-        if (curr_stage == 0) begin
-            temp_addr = 0;
-        end else begin
-            temp_addr = (addr_in >> (stages - 1 - curr_stage)) << AGU_BITWIDTH;
-        end
-    end
-
-    genvar i;
-    generate
-        for (i = 0; i < AGU_BITWIDTH; i++) begin : bitrev_gen
-            assign addr_out[i] = temp_addr[stages - 2 - i + AGU_BITWIDTH];
-        end
-    endgenerate
 
 endmodule

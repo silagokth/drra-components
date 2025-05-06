@@ -262,7 +262,7 @@ import {{fingerprint}}_pkg::*;
     assign n_bu_1_1 = fft._n_bu;
     assign delay_1_1 = fft._delay;
 
-    agu_fft4 #(
+    agu_fft #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .DELAY_WIDTH(DELAY_WIDTH)
     ) agu_0_0 (
@@ -281,7 +281,7 @@ import {{fingerprint}}_pkg::*;
         .address(word_w_agu_0)
     );
 
-    agu_fft4 #(
+    agu_fft #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .DELAY_WIDTH(DELAY_WIDTH)
     ) agu_0_1 (
@@ -338,7 +338,7 @@ import {{fingerprint}}_pkg::*;
         .address(bulk_r_agu)
     );
 
-    agu_fft4 #(
+    agu_fft #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .DELAY_WIDTH(DELAY_WIDTH)
     ) agu_1_0 (
@@ -357,7 +357,7 @@ import {{fingerprint}}_pkg::*;
         .address(word_w_agu_1)
     );
 
-    agu_fft4 #(
+    agu_fft #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .DELAY_WIDTH(DELAY_WIDTH)
     ) agu_1_1 (
