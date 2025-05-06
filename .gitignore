@@ -1,7 +1,8 @@
 build
 workspace.code-workspace
 .vscode/
-work
+work/
+exe/
 .cache/
 .venv/
 sst_test_outputs/
