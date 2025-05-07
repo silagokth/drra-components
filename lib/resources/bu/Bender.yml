@@ -4,6 +4,7 @@ package:
 dependencies:
 
 sources:
+  - ./rtl/bu_pkg.sv
   - ./rtl/radix2_bu.sv
   - ./rtl/radix4_bu.sv
   - ./rtl/multiplier.sv
