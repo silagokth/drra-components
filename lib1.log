@@ -1,0 +1,157 @@
+build/library
+├── cells
+│   ├── cell_btm
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── cell_btm.sv.j2
+│   │   └── tech:tsmc28.json
+│   ├── cell_mid
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── cell_mid.sv.j2
+│   │   └── tech:tsmc28.json
+│   ├── cell_single_row
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── cell_single_row.sv.j2
+│   │   └── tech:tsmc28.json
+│   └── cell_top
+│       ├── arch.json
+│       ├── Bender.yml
+│       ├── isa.json
+│       ├── rtl
+│       │   └── cell_top.sv.j2
+│       └── tech:tsmc28.json
+├── common
+│   ├── agu
+│   │   ├── Bender.yml
+│   │   ├── CMakeLists.txt
+│   │   └── rtl
+│   │       └── agu.sv
+│   └── sram
+│       ├── Bender.yml
+│       └── rtl
+│           ├── sram:sim.sv
+│           └── sram:tsmc28.sv
+├── controllers
+│   └── sequencer
+│       ├── arch.json
+│       ├── Bender.yml
+│       ├── isa.json
+│       ├── rtl
+│       │   └── sequencer.sv.j2
+│       └── tech:tsmc28.json
+├── fabric
+│   ├── Bender.yml
+│   └── rtl
+│       └── fabric.sv.j2
+├── libdrra.so
+├── resources
+│   ├── dpu
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── dpu.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── dpu_2cycle_mac
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── dpu_2cycle_mac.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── dpu_3d
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── dpu_3d.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── dpu_fft
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── dpu_fft.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── dummy
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── dummy.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── iosram_both
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── iosram_both.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── iosram_btm
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── iosram_btm.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── iosram_top
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── iosram_top.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── rf
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── rf.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── rf_3d
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── rf_3d.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   ├── swb
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── swb.sv.j2
+│   │   ├── tech:tsmc28.json
+│   │   └── timing_model
+│   └── vec_add
+│       ├── arch.json
+│       ├── Bender.yml
+│       ├── isa.json
+│       ├── rtl
+│       │   └── vec_add.sv.j2
+│       ├── tech:tsmc28.json
+│       └── timing_model
+└── tb
+    ├── Bender.yml
+    └── rtl
+        └── tb.sv
+
+47 directories, 108 files

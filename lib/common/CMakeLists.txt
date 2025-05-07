@@ -7,9 +7,11 @@ foreach(SUBDIR ${SUBDIRS})
         if(SUBDIR STREQUAL "sst" AND USE_SST)
             add_subdirectory(sst)
         endif()
-        if (SUBDIR STREQUAL "io_buffer" AND USE_SST)
+
+        if(SUBDIR STREQUAL "io_buffer" AND USE_SST)
             add_subdirectory(io_buffer)
         endif()
+
         if(NOT SUBDIR STREQUAL "sst" AND NOT SUBDIR STREQUAL "io_buffer")
             # Add subdirectory if it has a CMakeLists.txt
             if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/CMakeLists.txt")

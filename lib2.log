@@ -1,0 +1,58 @@
+build/library
+├── cells
+│   ├── cell_btm
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── cell_btm.sv.j2
+│   │   └── tech:tsmc28.json
+│   ├── cell_mid
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── cell_mid.sv.j2
+│   │   └── tech:tsmc28.json
+│   ├── cell_single_row
+│   │   ├── arch.json
+│   │   ├── Bender.yml
+│   │   ├── isa.json
+│   │   ├── rtl
+│   │   │   └── cell_single_row.sv.j2
+│   │   └── tech:tsmc28.json
+│   └── cell_top
+│       ├── arch.json
+│       ├── Bender.yml
+│       ├── isa.json
+│       ├── rtl
+│       │   └── cell_top.sv.j2
+│       └── tech:tsmc28.json
+├── common
+│   ├── agu
+│   │   ├── Bender.yml
+│   │   └── rtl
+│   │       └── agu.sv
+│   └── sram
+│       ├── Bender.yml
+│       └── rtl
+│           ├── sram:sim.sv
+│           └── sram:tsmc28.sv
+├── controllers
+│   └── sequencer
+│       ├── arch.json
+│       ├── Bender.yml
+│       ├── isa.json
+│       ├── rtl
+│       │   └── sequencer.sv.j2
+│       └── tech:tsmc28.json
+├── fabric
+│   ├── Bender.yml
+│   └── rtl
+│       └── fabric.sv.j2
+└── tb
+    ├── Bender.yml
+    └── rtl
+        └── tb.sv
+
+22 directories, 34 files
