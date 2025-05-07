@@ -184,14 +184,12 @@ import {{fingerprint}}_pkg::*;
 
     int i;
     always_comb begin
-        if (fft_valid) begin
-            n_points = n_points_0_0;
-            stages = '0;
-            for (i = AGU_BITWIDTH-1; i >= 0; i--) begin
-                if (n_points[i]) begin
-                    stages = i;
-                    break;
-                end
+        n_points = n_points_0_0;
+        stages = 0;
+        for (i = AGU_BITWIDTH-1; i >= 0; i--) begin
+            if (n_points[i]) begin
+                stages = i;
+                break;
             end
         end
     end
