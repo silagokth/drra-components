@@ -185,16 +185,17 @@ import {{fingerprint}}_pkg::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             stages <= '0;
+            n_points <= '0;
         end else begin
             if (fft_valid) begin
                 stages <= stages_next;
+                n_points <= n_points_0_0;
             end
         end
     end
 
     int i;
     always_comb begin
-        n_points = n_points_0_0;
         stages_next = '0;
         for (i = AGU_BITWIDTH-1; i >= 0; i--) begin
             if (n_points[i]) begin

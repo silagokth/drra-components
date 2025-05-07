@@ -1,0 +1,11 @@
+package:
+  name: cell_top_impl__gh3m7x647ap
+dependencies:
+  sequencer_impl__bofiw7zs7vj:
+    path: '../../controllers/sequencer_impl__bofiw7zs7vj'
+  swb_impl__dixk93xtnmt:
+    path: '../../resources/swb_impl__dixk93xtnmt'
+  iosram_top_impl__xbvdm4fjuts:
+    path: '../../resources/iosram_top_impl__xbvdm4fjuts'
+sources:
+- './rtl/cell_top.sv'

@@ -1,0 +1,7 @@
+package:
+  name: agu_fft_v3
+
+sources:
+  - ./rtl/mux_rotator_v3.sv
+  - ./rtl/twiddle_addr_v3.sv
+  - ./rtl/agu_fft_v3.sv

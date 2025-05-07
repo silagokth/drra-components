@@ -1,0 +1,7 @@
+package:
+  name: bu
+
+dependencies:
+
+sources:
+  - ./rtl/bu.sv

@@ -1,0 +1,9 @@
+package:
+  name: rf_fft_v3
+
+dependencies:
+  agu: {path: ../../common/agu}
+  agu_fft_v3: {path: ../../common/agu_fft_v3}
+
+sources:
+  - ./rtl/rf_fft_v3.sv

@@ -1,0 +1,637 @@
+`define {{name}} {{fingerprint}}
+`define {{name}}_pkg {{fingerprint}}_pkg
+
+{% if not already_defined %}
+package {{fingerprint}}_pkg;
+    {% for p in parameters %}
+    parameter {{p}} = {{parameters[p]}};
+    {% endfor %}
+
+    {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+    {% for instr in isa.instructions %}
+    {% if instr.segments is defined and instr.segments|length > 0 %}
+    typedef struct packed {
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth == 1 %}
+        logic _{{segment.name}};
+        {% else %}
+        logic [{{segment.bitwidth-1}}:0] _{{segment.name}};
+        {% endif %}
+        {% endfor %}
+    } {{instr.name}}_t;
+
+    function static {{instr.name}}_t unpack_{{instr.name}};
+        input logic [{{payload_bitwidth - 1}}:0] instr;
+        {{instr.name}}_t _{{instr.name}};
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
+        _{{instr.name}}._{{segment.name}} = instr[{{index}}];
+        {% else %}
+        _{{instr.name}}._{{segment.name}}  = instr[{{index}}:{{index-segment.bitwidth+1}}];
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
+        return _{{instr.name}};
+    endfunction
+
+    function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
+        input {{instr.name}}_t _{{instr.name}};
+        logic [{{ payload_bitwidth - 1 }}:0] instr;
+
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
+        instr[{{index}}] = _{{instr.name}}._{{segment.name}};
+        {% else %}
+        instr[{{index}}:{{index-segment.bitwidth+1}}] = _{{instr.name}}._{{segment.name}};
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
+        return instr;
+    endfunction
+    {% endif %}
+    {% endfor %}
+
+    parameter FSM_MAX_STATES = 4;
+    parameter FSM_DELAY_WIDTH = 3;
+    parameter BU_RADIX_WIDTH = 2;
+    parameter BU_DEC_WIDTH = 1;
+    parameter OPCODE_WIDTH = 4;
+    parameter BITWIDTH = 16;
+    parameter INSTRUCTION_PAYLOAD_WIDTH = 27;
+    parameter OPCODE_H = 26;
+    parameter OPCODE_L = 24;
+    parameter OPCODE_BU = 3;
+    parameter OPCODE_FSM = 2;
+    parameter BU_RADIX_2 = 0;
+    parameter BU_RADIX_4 = 1;
+
+endpackage
+
+module {{fingerprint}}
+import {{fingerprint}}_pkg::*;
+(
+    // fft data
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
+    input  logic clk_1,
+    input  logic rst_n_1,
+    input  logic instr_en_1,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
+    input  logic [3:0] activate_1,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_1,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_1,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_1,
+    input  logic clk_2,
+    input  logic rst_n_2,
+    input  logic instr_en_2,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_2,
+    input  logic [3:0] activate_2,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_2,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_2,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_2,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_2,
+    input  logic clk_3,
+    input  logic rst_n_3,
+    input  logic instr_en_3,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_3,
+    input  logic [3:0] activate_3,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_3,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_3,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_3,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_3,
+    // twiddle factors
+    input  logic clk_4,
+    input  logic rst_n_4,
+    input  logic instr_en_4,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_4,
+    input  logic [3:0] activate_4,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_4,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_4,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_4,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_4,
+    input  logic clk_5,
+    input  logic rst_n_5,
+    input  logic instr_en_5,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_5,
+    input  logic [3:0] activate_5,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_5,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_5,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_5,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_5,
+    input  logic clk_6,
+    input  logic rst_n_6,
+    input  logic instr_en_6,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_6,
+    input  logic [3:0] activate_6,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_6,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_6,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_6,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_6
+);
+
+    logic clk, rst_n, instruction_valid, activate;
+    logic [RESOURCE_INSTR_WIDTH-1:0] instruction;
+    assign clk = clk_0;
+    assign rst_n = rst_n_0;
+    assign instruction_valid = instr_en_0;
+    assign activate = activate_0[0];
+    assign instruction = instr_0;
+
+    // useless output
+    assign bulk_data_out_0 = 0;
+    assign bulk_data_out_1 = 0;
+    assign bulk_data_out_2 = 0;
+    assign bulk_data_out_3 = 0;
+    assign bulk_data_out_4 = 0;
+    assign bulk_data_out_5 = 0;
+    assign bulk_data_out_6 = 0;
+    assign word_data_out_4 = 0;
+    assign word_data_out_5 = 0;
+    assign word_data_out_6 = 0;
+
+    // register inputs
+    logic [WORD_BITWIDTH-1:0] in0, in1, in2, in3, in4, in5, in6;
+    logic [WORD_BITWIDTH-1:0] out0, out1, out2, out3;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            in0 <= 0;
+            in1 <= 0;
+            in2 <= 0;
+            in3 <= 0;
+            in4 <= 0;
+            in5 <= 0;
+            in6 <= 0;
+        end else begin
+            in0 <= word_data_in_0;
+            in1 <= word_data_in_1;
+            in2 <= word_data_in_2;
+            in3 <= word_data_in_3;
+            in4 <= word_data_in_4;
+            in5 <= word_data_in_5;
+            in6 <= word_data_in_6;
+        end
+    end
+
+    logic [$clog2(FSM_MAX_STATES)-1:0][BU_RADIX_WIDTH-1:0] radix_memory;
+    logic [$clog2(FSM_MAX_STATES)-1:0][BU_DEC_WIDTH-1:0] decimation_memory;
+    logic [$clog2(FSM_MAX_STATES)-1:0] fsm_option;
+    logic [BU_RADIX_WIDTH-1:0] radix;
+    logic [BU_DEC_WIDTH-1:0] decimation;
+    logic [OPCODE_WIDTH-1:0] opcode;
+    logic bu_valid;
+    logic fsm_valid;
+
+    bu_t bu;
+    fsm_t fsm;
+
+    fsm u_bu_fsm (
+        .clk(clk),
+        .rst_n(rst_n),
+        .activate(|activate),
+        .instruction_valid(instruction_valid),
+        .instruction(instruction),
+        .state(fsm_option)
+    );
+
+    assign opcode = instruction[OPCODE_H:OPCODE_L];
+    assign bu_valid = instruction_valid && (opcode == OPCODE_BU);
+    assign fsm_valid = instruction_valid && (opcode == OPCODE_FSM);
+    assign bu = bu_valid ? unpack_bu(
+            instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+        ) :
+        '{default: 0};
+    assign fsm = fsm_valid ? unpack_fsm(
+            instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+        ) :
+        '{default: 0};
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (rst_n) begin
+            if (bu_valid) begin
+                radix_memory[bu._option] <= bu._radix;
+                decimation_memory[bu._option] <= bu._decimation;
+            end
+        end
+    end
+
+    assign radix = radix_memory[fsm_option];
+    assign decimation = decimation_memory[fsm_option];
+
+    logic signed [WORD_BITWIDTH-1:0] r2_0_in0, r2_0_in1, r2_1_in0, r2_1_in1;
+    logic signed [WORD_BITWIDTH-1:0] r4_in0, r4_in1, r4_in2, r4_in3;
+
+    logic signed [WORD_BITWIDTH-1:0] r2_0_out0, r2_0_out1, r2_1_out0, r2_1_out1;
+    logic signed [WORD_BITWIDTH-1:0] r4_out0, r4_out1, r4_out2, r4_out3;
+
+    logic signed [WORD_BITWIDTH-1:0] mul_0_in, mul_1_in, mul_2_in, mul_3_in;
+    logic signed [WORD_BITWIDTH-1:0] mul_0_out, mul_1_out, mul_2_out, mul_3_out;
+
+    logic signed [WORD_BITWIDTH-1:0] bu_reg0, bu_reg1, bu_reg2, bu_reg3;
+    logic signed [WORD_BITWIDTH-1:0] bu_val0, bu_val1, bu_val2, bu_val3;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            bu_reg0 <= '0;
+            bu_reg1 <= '0;
+            bu_reg2 <= '0;
+            bu_reg3 <= '0;
+        end else begin
+            bu_reg0 <= bu_val0;
+            bu_reg1 <= bu_val1;
+            bu_reg2 <= bu_val2;
+            bu_reg3 <= bu_val3;
+        end
+    end
+
+    always_comb begin
+        case (radix)
+            BU_RADIX_2: begin
+                if (decimation) begin // DIF
+                    r2_0_in0 = in0;
+                    r2_0_in1 = in1;
+                    r2_1_in0 = in2;
+                    r2_1_in1 = in3;
+
+                    bu_val0 = r2_0_out0;
+                    bu_val1 = r2_0_out1;
+                    bu_val2 = r2_1_out0;
+                    bu_val3 = r2_1_out1;
+
+                    mul_0_in = bu_reg1;
+                    mul_1_in = bu_reg3;
+
+                    out0 = bu_reg0;
+                    out1 = mul_0_out;
+                    out2 = bu_reg2;
+                    out3 = mul_1_out;
+                end else begin      // DIT
+                    mul_0_in = in1;
+                    mul_1_in = in3;
+
+                    bu_val0 = in0;
+                    bu_val1 = mul_0_out;
+                    bu_val2 = in2;
+                    bu_val3 = mul_1_out;
+
+                    r2_0_in0 = bu_reg0;
+                    r2_0_in1 = bu_reg1;
+                    r2_1_in0 = bu_reg2;
+                    r2_1_in1 = bu_reg3;
+
+                    out0 = r2_0_out0;
+                    out1 = r2_0_out1;
+                    out2 = r2_1_out0;
+                    out3 = r2_1_out1;
+                end
+            end
+            BU_RADIX_4: begin
+                if (decimation) begin // DIF
+                    r4_in0 = in0;
+                    r4_in1 = in1;
+                    r4_in2 = in2;
+                    r4_in3 = in3;
+
+                    bu_val0 = r4_out0;
+                    bu_val1 = r4_out1;
+                    bu_val2 = r4_out2;
+                    bu_val3 = r4_out3;
+
+                    mul_0_in = bu_reg1;
+                    mul_1_in = bu_reg2;
+                    mul_2_in = bu_reg3;
+
+                    out0 = bu_reg0;
+                    out1 = mul_0_out;
+                    out2 = mul_1_out;
+                    out3 = mul_2_out;
+                end else begin      // DIT
+                    bu_val0 = in0;
+                    bu_val1 = mul_0_out;
+                    bu_val2 = mul_1_out;
+                    bu_val3 = mul_2_out;
+
+                    mul_0_in = in1;
+                    mul_1_in = in2;
+                    mul_2_in = in3;
+
+                    r4_in0 = bu_reg0;
+                    r4_in1 = bu_reg1;
+                    r4_in2 = bu_reg2;
+                    r4_in3 = bu_reg3;
+
+                    out0 = r4_out0;
+                    out1 = r4_out1;
+                    out2 = r4_out2;
+                    out3 = r4_out3;
+                end
+            end
+        endcase
+    end
+
+    multiplier mul_0_inst (
+        .data_in0(mul_0_in),
+        .data_in1(in4),
+        .data_out(mul_0_out)
+    );
+
+    multiplier mul_1_inst (
+        .data_in0(mul_1_in),
+        .data_in1(in5),
+        .data_out(mul_1_out)
+    );
+
+    multiplier mul_2_inst (
+        .data_in0(mul_2_in),
+        .data_in1(in6),
+        .data_out(mul_2_out)
+    );
+
+    radix2_bu radix2_bu_0_inst (
+        .data_in0(r2_0_in0),
+        .data_in1(r2_0_in1),
+        .data_out0(r2_0_out0),
+        .data_out1(r2_0_out1)
+    );
+
+    radix2_bu radix2_bu_1_inst (
+        .data_in0(r2_1_in0),
+        .data_in1(r2_1_in1),
+        .data_out0(r2_1_out0),
+        .data_out1(r2_1_out1)
+    );
+
+    radix4_bu radix4_bu_inst (
+        .data_in0(r4_in0),
+        .data_in1(r4_in1),
+        .data_in2(r4_in2),
+        .data_in3(r4_in3),
+        .data_out0(r4_out0),
+        .data_out1(r4_out1),
+        .data_out2(r4_out2),
+        .data_out3(r4_out3)
+    );
+
+    assign word_data_out_0 = out0;
+    assign word_data_out_1 = out1;
+    assign word_data_out_2 = out2;
+    assign word_data_out_3 = out3;
+
+endmodule
+
+module radix2_bu
+import {{fingerprint}}_pkg::*;
+(
+    input  logic signed [WORD_BITWIDTH-1:0] data_in0,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in1,
+    output logic signed [WORD_BITWIDTH-1:0] data_out0,
+    output logic signed [WORD_BITWIDTH-1:0] data_out1    
+);
+
+    parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
+
+    // data for butterfly
+    logic [COMPLEX_BITWIDTH-1:0] data0_r;
+    logic [COMPLEX_BITWIDTH-1:0] data0_i;
+    logic [COMPLEX_BITWIDTH-1:0] data1_r;
+    logic [COMPLEX_BITWIDTH-1:0] data1_i;
+    logic [COMPLEX_BITWIDTH-1:0] out0_r;
+    logic [COMPLEX_BITWIDTH-1:0] out0_i;
+    logic [COMPLEX_BITWIDTH-1:0] out1_r;
+    logic [COMPLEX_BITWIDTH-1:0] out1_i;
+
+    // register input data
+    always_comb begin
+        data0_r <= data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data0_i <= data_in0[WORD_BITWIDTH/2-1:0];
+        data1_r <= data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data1_i <= data_in1[WORD_BITWIDTH/2-1:0];
+    end
+
+    always_comb begin
+        out0_r = COMPLEX_BITWIDTH'(data0_r + data1_r);
+        out0_i = COMPLEX_BITWIDTH'(data0_i + data1_i);
+        out1_r = COMPLEX_BITWIDTH'(data0_r - data1_r);
+        out1_i = COMPLEX_BITWIDTH'(data0_i - data1_i);
+    end
+
+    assign data_out0 = {out0_r, out0_i};
+    assign data_out1 = {out1_r, out1_i};
+
+endmodule
+
+module radix4_bu
+import {{fingerprint}}_pkg::*;
+(
+    input  logic signed [WORD_BITWIDTH-1:0] data_in0,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in1,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in2,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in3,
+    output logic signed [WORD_BITWIDTH-1:0] data_out0,
+    output logic signed [WORD_BITWIDTH-1:0] data_out1,
+    output logic signed [WORD_BITWIDTH-1:0] data_out2,
+    output logic signed [WORD_BITWIDTH-1:0] data_out3    
+);
+
+    parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
+
+    // data for butterfly
+    logic [COMPLEX_BITWIDTH-1:0] data0_r;
+    logic [COMPLEX_BITWIDTH-1:0] data0_i;
+    logic [COMPLEX_BITWIDTH-1:0] data1_r;
+    logic [COMPLEX_BITWIDTH-1:0] data1_i;
+    logic [COMPLEX_BITWIDTH-1:0] data2_r;
+    logic [COMPLEX_BITWIDTH-1:0] data2_i;
+    logic [COMPLEX_BITWIDTH-1:0] data3_r;
+    logic [COMPLEX_BITWIDTH-1:0] data3_i;
+    logic [COMPLEX_BITWIDTH-1:0] out0_r;
+    logic [COMPLEX_BITWIDTH-1:0] out0_i;
+    logic [COMPLEX_BITWIDTH-1:0] out1_r;
+    logic [COMPLEX_BITWIDTH-1:0] out1_i;
+    logic [COMPLEX_BITWIDTH-1:0] out2_r;
+    logic [COMPLEX_BITWIDTH-1:0] out2_i;
+    logic [COMPLEX_BITWIDTH-1:0] out3_r;
+    logic [COMPLEX_BITWIDTH-1:0] out3_i;
+
+    // register input data
+    always_comb begin
+        data0_r <= data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data0_i <= data_in0[WORD_BITWIDTH/2-1:0];
+        data1_r <= data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data1_i <= data_in1[WORD_BITWIDTH/2-1:0];
+        data2_r <= data_in2[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data2_i <= data_in2[WORD_BITWIDTH/2-1:0];
+        data3_r <= data_in3[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data3_i <= data_in3[WORD_BITWIDTH/2-1:0];
+    end
+
+    always_comb begin
+        // out0 = 1, 1, 1, 1
+        out0_r = COMPLEX_BITWIDTH'(data0_r + data1_r + data2_r + data3_r);
+        out0_i = COMPLEX_BITWIDTH'(data0_i + data1_i + data2_i + data3_i);
+        // out1 = 1, -j, -1, j
+        out1_r = COMPLEX_BITWIDTH'(data0_r + data1_i - data2_r - data3_i);
+        out1_i = COMPLEX_BITWIDTH'(data0_i - data1_r - data2_i + data3_r);
+        // out2 = 1, -1, 1, -1
+        out2_r = COMPLEX_BITWIDTH'(data0_r - data1_r + data2_r - data3_r);
+        out2_i = COMPLEX_BITWIDTH'(data0_i - data1_i + data2_i - data3_i);
+        // out3 = 1, j, -1, -j
+        out3_r = COMPLEX_BITWIDTH'(data0_r - data1_i - data2_r + data3_i);
+        out3_i = COMPLEX_BITWIDTH'(data0_i + data1_r - data2_i - data3_r);
+    end
+
+    assign data_out0 = {out0_r, out0_i};
+    assign data_out1 = {out1_r, out1_i};
+    assign data_out2 = {out2_r, out2_i};
+    assign data_out3 = {out3_r, out3_i};
+
+endmodule
+
+module multiplier
+import {{fingerprint}}_pkg::*;
+(
+    input  logic signed [WORD_BITWIDTH-1:0] data_in0,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in1,
+    output logic signed [WORD_BITWIDTH-1:0] data_out
+);
+
+    parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
+    parameter FRAC_BITWIDTH = WORD_BITWIDTH/4;
+
+    // real and imag signals
+    logic signed [COMPLEX_BITWIDTH-1:0] data0_r;
+    logic signed [COMPLEX_BITWIDTH-1:0] data0_i;
+    logic signed [COMPLEX_BITWIDTH-1:0] data1_r;
+    logic signed [COMPLEX_BITWIDTH-1:0] data1_i;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out1;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out2;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out2_neg;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out3;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out4;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out_r;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out_i;
+
+    logic signed [COMPLEX_BITWIDTH*2-1:0] temp1, temp2, temp3, temp4;
+
+    always_comb begin
+        data0_r <= data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data0_i <= data_in0[WORD_BITWIDTH/2-1:0];
+        data1_r <= data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+        data1_i <= data_in1[WORD_BITWIDTH/2-1:0];
+    end
+
+    always_comb begin
+        temp1 = data0_r * data1_r;       // ac
+        temp2 = data0_i * data1_i;       // bd
+        temp3 = data0_r * data1_i;       // ad
+        temp4 = data0_i * data1_r;       // bc
+        // truncation and rounding
+        mul_out1 = temp1[FRAC_BITWIDTH-1] ? (temp1 >>> FRAC_BITWIDTH) + 1 : temp1 >>> FRAC_BITWIDTH;    
+        mul_out2 = temp2[FRAC_BITWIDTH-1] ? (temp2 >>> FRAC_BITWIDTH) + 1 : temp2 >>> FRAC_BITWIDTH;    
+        mul_out3 = temp3[FRAC_BITWIDTH-1] ? (temp3 >>> FRAC_BITWIDTH) + 1 : temp3 >>> FRAC_BITWIDTH;
+        mul_out4 = temp4[FRAC_BITWIDTH-1] ? (temp4 >>> FRAC_BITWIDTH) + 1 : temp4 >>> FRAC_BITWIDTH;    
+        // bd sign conversion (2's complement)
+        mul_out2_neg = (~mul_out2) + 1;
+    end
+
+    assign mul_out_r = COMPLEX_BITWIDTH'(mul_out1 + mul_out2_neg);  // ac - bd
+    assign mul_out_i = COMPLEX_BITWIDTH'(mul_out3 + mul_out4);  // (ad + bc) i
+
+    assign data_out = {mul_out_r, mul_out_i};
+
+endmodule
+
+module fsm
+import {{fingerprint}}_pkg::*;
+(
+    input logic clk,
+    input logic rst_n,
+    input logic activate,
+    input logic instruction_valid,
+    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+    output logic [$clog2(FSM_MAX_STATES)-1:0] state
+);
+
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_reg;
+  logic [OPCODE_WIDTH-1:0] opcode;
+  logic fsm_valid;
+  logic [$clog2(FSM_MAX_STATES)-1:0] next_state;
+  logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
+  logic [FSM_DELAY_WIDTH-1:0] delay_counter;
+  logic [FSM_DELAY_WIDTH-1:0] delay_counter_next;
+
+  fsm_t fsm;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      instruction_reg <= '0;
+    end else begin
+      if (instruction_valid) begin
+        instruction_reg <= instruction;
+      end
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      delay_counter <= fsm_delays[0];
+    end else begin
+      delay_counter <= delay_counter_next;
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      fsm_delays = '0;
+    end else begin
+      fsm_delays[0] = fsm._delay_0;
+      fsm_delays[1] = fsm._delay_1;
+      fsm_delays[2] = fsm._delay_2;
+
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      state <= 0;
+    end else begin
+      state <= next_state;
+    end
+  end
+
+  always_comb begin
+    next_state = 0;
+    delay_counter_next = 0;
+    if (delay_counter == 0) begin
+      if (state == FSM_MAX_STATES - 1) begin
+        next_state = 0;
+      end else begin
+        next_state = state + 1;
+        delay_counter_next = fsm_delays[state];
+      end
+    end else begin
+      delay_counter_next = delay_counter - 1;
+    end
+  end
+
+  assign opcode = instruction_reg[OPCODE_H:OPCODE_L];
+  assign fsm_valid = instruction_valid && (opcode == OPCODE_FSM);
+  assign fsm = fsm_valid ?
+      '{default: 0}
+      : unpack_fsm(
+          instruction_reg[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      );
+
+endmodule
+
+{% endif %}
