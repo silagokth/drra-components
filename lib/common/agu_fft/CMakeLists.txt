@@ -1,4 +1,4 @@
-set(CMAKE_COMPONENTS_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library/common/agu_fft4)
+set(CMAKE_COMPONENTS_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library/common/agu_fft)
 
 # Copy Bender file
 file(GLOB BENDER_FILE "Bender.yml")
