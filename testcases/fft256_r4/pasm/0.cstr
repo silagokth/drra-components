@@ -1,0 +1,32 @@
+epoch <fft256_r4> {
+    linear ( input_r == input_w )
+    linear ( route0r < read_val )
+    linear ( route1wr < write_val )
+    linear ( read_val.e0[0] == write_val.e0[0] )
+    linear ( read_val.e0[32] == write_twid.e0[0] )
+
+    linear ( write_twid.e0[31] < read_d1 )
+    linear ( swb < read_d1 )
+    linear ( bu < read_d1 )
+
+    linear ( read_d2 == read_d1 )
+    linear ( read_d3 == read_d1 )
+    linear ( read_d4 == read_d1 )
+
+    linear ( read_twid1 == read_d1 + 1 )
+    linear ( read_twid2 == read_twid1 )
+    linear ( read_twid3 == read_twid1 )
+
+    linear ( write_d1 == read_d1 + 2 )
+    linear ( write_d2 == read_d2 + 2 )
+    linear ( write_d3 == read_d3 + 2 )
+    linear ( write_d4 == read_d4 + 2 )
+    
+    linear ( bu != route1wr )
+    linear ( bu != swb )
+
+    linear ( read_res > write_d1 + 256 )
+    linear ( write_res == read_res )
+    linear ( output_r > write_res )
+    linear ( output_r == output_w )
+}
