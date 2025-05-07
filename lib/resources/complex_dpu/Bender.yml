@@ -4,4 +4,7 @@ package:
 dependencies:
 
 sources:
+  - ./rtl/adder.sv
+  - ./rtl/multiplier.sv
+  - ./rtl/fsm.sv
   - ./rtl/complex_dpu.sv

@@ -1,0 +1,155 @@
+`define {{name}} {{fingerprint}}
+`define {{name}}_pkg {{fingerprint}}_pkg
+
+{% if not already_defined %}
+package {{fingerprint}}_pkg;
+    {% for p in parameters %}
+    parameter {{p}} = {{parameters[p]}};
+    {% endfor %}
+
+    {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+    {% for instr in isa.instructions %}
+    {% if instr.segments is defined and instr.segments|length > 0 %}
+    typedef struct packed {
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth == 1 %}
+        logic _{{segment.name}};
+        {% else %}
+        logic [{{segment.bitwidth-1}}:0] _{{segment.name}};
+        {% endif %}
+        {% endfor %}
+    } {{instr.name}}_t;
+
+    function static {{instr.name}}_t unpack_{{instr.name}};
+        input logic [{{payload_bitwidth - 1}}:0] instr;
+        {{instr.name}}_t _{{instr.name}};
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
+        _{{instr.name}}._{{segment.name}} = instr[{{index}}];
+        {% else %}
+        _{{instr.name}}._{{segment.name}}  = instr[{{index}}:{{index-segment.bitwidth+1}}];
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
+        return _{{instr.name}};
+    endfunction
+
+    function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
+        input {{instr.name}}_t _{{instr.name}};
+        logic [{{ payload_bitwidth - 1 }}:0] instr;
+
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
+        instr[{{index}}] = _{{instr.name}}._{{segment.name}};
+        {% else %}
+        instr[{{index}}:{{index-segment.bitwidth+1}}] = _{{instr.name}}._{{segment.name}};
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
+        return instr;
+    endfunction
+    {% endif %}
+    {% endfor %}
+
+    parameter FSM_MAX_STATES = 4;
+    parameter FSM_DELAY_WIDTH = 3;
+    parameter BU_RADIX_WIDTH = 2;
+    parameter BU_DEC_WIDTH = 1;
+    parameter OPCODE_WIDTH = 4;
+    parameter BITWIDTH = 16;
+    parameter INSTRUCTION_PAYLOAD_WIDTH = 27;
+    parameter OPCODE_H = 26;
+    parameter OPCODE_L = 24;
+    parameter OPCODE_BU = 3;
+    parameter OPCODE_FSM = 2;
+    parameter BU_RADIX_2 = 0;
+    parameter BU_RADIX_4 = 1;
+
+endpackage
+
+module fsm
+import {{fingerprint}}_pkg::*;
+(
+    input logic clk,
+    input logic rst_n,
+    input logic activate,
+    input logic instruction_valid,
+    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+    output logic [$clog2(FSM_MAX_STATES)-1:0] state
+);
+
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_reg;
+  logic [OPCODE_WIDTH-1:0] opcode;
+  logic fsm_valid;
+  logic [$clog2(FSM_MAX_STATES)-1:0] next_state;
+  logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
+  logic [FSM_DELAY_WIDTH-1:0] delay_counter;
+  logic [FSM_DELAY_WIDTH-1:0] delay_counter_next;
+
+  fsm_t fsm;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      instruction_reg <= '0;
+    end else begin
+      if (instruction_valid) begin
+        instruction_reg <= instruction;
+      end
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      delay_counter <= fsm_delays[0];
+    end else begin
+      delay_counter <= delay_counter_next;
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      fsm_delays = '0;
+    end else begin
+      fsm_delays[0] = fsm._delay_0;
+      fsm_delays[1] = fsm._delay_1;
+      fsm_delays[2] = fsm._delay_2;
+
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      state <= 0;
+    end else begin
+      state <= next_state;
+    end
+  end
+
+  always_comb begin
+    next_state = 0;
+    delay_counter_next = 0;
+    if (delay_counter == 0) begin
+      if (state == FSM_MAX_STATES - 1) begin
+        next_state = 0;
+      end else begin
+        next_state = state + 1;
+        delay_counter_next = fsm_delays[state];
+      end
+    end else begin
+      delay_counter_next = delay_counter - 1;
+    end
+  end
+
+  assign opcode = instruction_reg[OPCODE_H:OPCODE_L];
+  assign fsm_valid = instruction_valid && (opcode == OPCODE_FSM);
+  assign fsm = fsm_valid ?
+      '{default: 0}
+      : unpack_fsm(
+          instruction_reg[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      );
+
+endmodule
+
+{% endif %}
