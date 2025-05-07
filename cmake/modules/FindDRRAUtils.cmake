@@ -18,7 +18,7 @@ function(cargo_build FOLDER)
 
     # Generate a unique hash for this package
     execute_process(
-        COMMAND bash -c "echo -n ${FOLDER} | sha256sum | awk '{print $1}'"
+        COMMAND bash -c "echo -n \"${FOLDER}\" | sha256sum | awk '{print $1}'"
         OUTPUT_VARIABLE CRATE_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
