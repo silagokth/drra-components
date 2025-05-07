@@ -1,4 +1,4 @@
-find_package(AddComponent REQUIRED)
+find_package(DRRAUtils REQUIRED)
 
 add_subdirectory(cells)
 add_subdirectory(common)

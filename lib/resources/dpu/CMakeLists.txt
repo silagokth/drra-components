@@ -1,12 +1,6 @@
-# get_filename_component(last_name ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-# get_filename_component(last_path ${CMAKE_CURRENT_SOURCE_DIR} PATH)
-# get_filename_component(second_last_name ${last_path} NAME)
-# set(COMPONENT_TYPE ${second_last_name})
-# set(COMPONENT_NAME ${last_name})
+find_package(DRRAUtils REQUIRED)
 
-# find_package(AddComponent REQUIRED)
+add_subdirectory(sst)
 
-# add_component(${COMPONENT_TYPE} ${COMPONENT_NAME})
-
-# # copy_component_files(${CMAKE_CURRENT_SOURCE_DIR})
-# # compile_timing_model(${COMPONENT_TYPE} ${COMPONENT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
+# Build timing model using Cargo
+cargo_build(${CMAKE_CURRENT_SOURCE_DIR}/timing_model)
