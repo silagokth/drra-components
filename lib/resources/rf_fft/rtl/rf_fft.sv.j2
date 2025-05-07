@@ -137,16 +137,26 @@ import {{fingerprint}}_pkg::*;
 
     parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
 
-    logic [AGU_BITWIDTH-1:0] stages;
+    logic [AGU_BITWIDTH-1:0] stages, stages_next;
     logic [AGU_BITWIDTH-1:0] n_points;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stages <= '0;
+        end else begin
+            if (fft_valid) begin
+                stages <= stages_next;
+            end
+        end
+    end
 
     int i;
     always_comb begin
         n_points = n_points_0_0;
-        stages = 0;
+        stages_next = '0;
         for (i = AGU_BITWIDTH-1; i >= 0; i--) begin
             if (n_points[i]) begin
-                stages = i;
+                stages_next = i;
                 break;
             end
         end
