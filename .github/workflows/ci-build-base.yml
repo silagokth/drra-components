@@ -13,6 +13,7 @@ jobs:
     steps:
     - run: sudo apt install libfuse2
     - uses: actions/checkout@v4
+    - run: tree
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
