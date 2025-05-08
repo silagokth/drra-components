@@ -1,0 +1,25 @@
+// vesyla_template_start package_head
+package {{fingerprint}}_pkg;
+// vesyla_template_end package_head
+
+  // vesyla_template_start package_macro
+  {%- include "../../../common/jinja/package.j2" %}
+  // vesyla_template_end package_macro
+
+  parameter FSM_MAX_STATES = 4;
+  parameter FSM_DELAY_WIDTH = 3;
+  parameter DPU_MODE_WIDTH = 6;
+  parameter DPU_IMMEDIATE_WIDTH = 8;
+  parameter OPCODE_WIDTH = 4;
+  parameter BITWIDTH = 16;
+  parameter INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter OPCODE_H = 26;
+  parameter OPCODE_L = 24;
+  parameter OPCODE_DPU = 3;
+  parameter OPCODE_FSM = 2;
+  parameter DPU_MODE_ADD = 1;
+  parameter DPU_MODE_MUL = 7;
+  parameter DPU_MODE_MAC = 10;
+
+endpackage
+
