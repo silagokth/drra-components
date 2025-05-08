@@ -9,4 +9,3 @@ sources:
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
   - ./rtl/dpu_2cycle_mac.sv
-
