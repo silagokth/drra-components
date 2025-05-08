@@ -17,21 +17,19 @@ function(cargo_build FOLDER)
     file(COPY "${FOLDER}" DESTINATION "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp")
 
     # Generate a unique hash for this package
-    execute_process(
-        COMMAND bash -c "echo -n \"${FOLDER}\" | sha256sum | awk '{print $1}'"
-        OUTPUT_VARIABLE CRATE_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    string(SHA256 CRATE_HASH "${FOLDER}")
 
     # Modify the Cargo.toml file DURING CMAKE CONFIGURATION
-    execute_process(
-        COMMAND sed -i "s/^name = \".*\"/name = \"sha256_${CRATE_HASH}\"/" "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml"
-        RESULT_VARIABLE SED_RESULT
+    file(
+        READ "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml"
+        CARGO_TOML_CONTENT
     )
 
-    if(NOT SED_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to update package name in Cargo.toml")
-    endif()
+    # Replace the package name in Cargo.toml
+    string(REGEX REPLACE "(^|\n)name = \"[^\"]*\"" "\\1name = \"sha256_${CRATE_HASH}\"" UPDATED_CARGO_TOML_CONTENT "${CARGO_TOML_CONTENT}")
+
+    # Write the updated content back to Cargo.toml
+    file(WRITE "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml" "${UPDATED_CARGO_TOML_CONTENT}")
 
     corrosion_import_crate(
         MANIFEST_PATH ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml
