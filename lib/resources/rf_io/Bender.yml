@@ -1,0 +1,8 @@
+package:
+  name: rf_io
+
+dependencies:
+  agu: {path: ../../common/agu}
+
+sources:
+  - ./rtl/rf_io.sv
