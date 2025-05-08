@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [2.3.0] - 2025-05-08
 
 ### Added
 
-- Added [sram:gf22.sv](lib/common/sram/rtl) & [sram_tb.sv](lib/common/sram/tb) ([5c1b9e0](https://github.com/silagokth/drra-components/pull/55/commits/5c1b9e041b5ec04037388d17495b7b0cf25679f1))
+- Added [sram:gf22.sv](lib/common/sram/rtl) & [sram_tb.sv](lib/common/sram/tb) ([5c1b9e0](https://github.com/silagokth/drra-components/commit/5c1b9e041b5ec04037388d17495b7b0cf25679f1))
+- Added a CMake function to [FindSST.cmake](./cmake/modules/FindSST.cmake) to build SST folders ([6cbd79e](https://github.com/silagokth/drra-components/commit/6cbd79e30243f91138e8ee983bc33a4dfa796a0b))
 
 ### Changed
 
