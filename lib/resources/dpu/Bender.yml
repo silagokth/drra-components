@@ -2,6 +2,9 @@ package:
   name: dpu
 
 dependencies:
+  fsm: {path: ../../common/fsm}
 
 sources:
+  - ./rtl/adder.sv
+  - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
