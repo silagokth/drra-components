@@ -5,4 +5,5 @@ dependencies:
   sram: {path: ../../common/sram}
 
 sources:
+  - ./rtl/iosram_both_pkg.sv
   - ./rtl/iosram_both.sv
