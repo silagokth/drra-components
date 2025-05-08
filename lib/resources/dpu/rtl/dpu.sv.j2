@@ -3,6 +3,7 @@
 `define {{name}}_pkg {{fingerprint}}_pkg
 // vesyla_template_end defines
 
+
 // vesyla_template_start module_head
 {%- if not already_defined %}
 module {{fingerprint}}
@@ -166,18 +167,14 @@ import {{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such 
-  adder  #(
-      .BITWIDTH(BITWIDTH)
-  ) adder_inst (
+  {{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
       .out(adder_out)
   );
 
-  multiplier #(
-      .BITWIDTH(BITWIDTH)
-  ) mult_inst (
+  {{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),
