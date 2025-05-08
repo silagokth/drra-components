@@ -1,7 +1,10 @@
-// vesyla_template_start package
+// vesyla_template_start package_head
 package {{fingerprint}}_pkg;
+// vesyla_template_end package_head
 
-  {%- include ../../../common/jinja/package.j2 %}
+  // vesyla_template_start package_macro
+  {%- include "../../../common/jinja/package.j2" %}
+  // vesyla_template_end package_macro
 
   parameter FSM_MAX_STATES = 4;
   parameter FSM_DELAY_WIDTH = 3;
@@ -19,5 +22,4 @@ package {{fingerprint}}_pkg;
   parameter DPU_MODE_MAC = 10;
 
 endpackage
-// vesyla_template_end package
 
