@@ -6,4 +6,5 @@ dependencies:
   agu: {path: ../../common/agu}
 
 sources:
+  - ./rtl/iosram_btm_pkg.sv
   - ./rtl/iosram_btm.sv
