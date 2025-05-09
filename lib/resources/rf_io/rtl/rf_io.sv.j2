@@ -88,7 +88,6 @@ import {{fingerprint}}_pkg::*;
 
     // Useless outputs:
     assign word_data_out_0 = 0;
-    assign word_data_out_1 = 0;
     assign bulk_data_out_0 = 0;
 
     logic clk, rst_n;
@@ -125,21 +124,21 @@ import {{fingerprint}}_pkg::*;
     repx_t repx_0_1, repx_0_3, repx_1_0, repx_1_2;
 
     logic [IO_ADDR_WIDTH-1:0] addr_0_0;
-    logic [SRAM_ADDR_WIDTH-1:0] addr_0_2, addr_1_1, addr_1_3;
+    logic [WORD_ADDR_WIDTH-1:0] addr_0_2, addr_1_1, addr_1_3;
     logic dsu_valid_0_0, dsu_valid_0_2, dsu_valid_1_1, dsu_valid_1_3;
     logic rep_valid_0_0, rep_valid_0_2, rep_valid_1_1, rep_valid_1_3;
     logic repx_valid_0_0, repx_valid_0_2, repx_valid_1_1, repx_valid_1_3;
     logic port_enable_0_0, port_enable_0_2, port_enable_1_1, port_enable_1_3;
     logic [IO_ADDR_WIDTH-1:0] port_addr_0_0;
-    logic [SRAM_ADDR_WIDTH-1:0] port_addr_0_2, port_addr_1_1, port_addr_1_3;
+    logic [WORD_ADDR_WIDTH-1:0] port_addr_0_2, port_addr_1_1, port_addr_1_3;
     logic [IO_ADDR_WIDTH-1:0] addr_0_1;
-    logic [SRAM_ADDR_WIDTH-1:0] addr_0_3, addr_1_0, addr_1_2;
+    logic [WORD_ADDR_WIDTH-1:0] addr_0_3, addr_1_0, addr_1_2;
     logic dsu_valid_0_1, dsu_valid_0_3, dsu_valid_1_0, dsu_valid_1_2;
     logic rep_valid_0_1, rep_valid_0_3, rep_valid_1_0, rep_valid_1_2;
     logic repx_valid_0_1, repx_valid_0_3, repx_valid_1_0, repx_valid_1_2;
     logic port_enable_0_1, port_enable_0_3, port_enable_1_0, port_enable_1_2;
     logic [IO_ADDR_WIDTH-1:0] port_addr_0_1;
-    logic [SRAM_ADDR_WIDTH-1:0] port_addr_0_3, port_addr_1_0, port_addr_1_2;
+    logic [WORD_ADDR_WIDTH-1:0] port_addr_0_3, port_addr_1_0, port_addr_1_2;
 
     assign dsu_valid_0_0 = instr_en_0 && (opcode_0_0 == 6);
     assign rep_valid_0_0 = instr_en_0 && (opcode_0_0 == 0);
@@ -199,48 +198,47 @@ import {{fingerprint}}_pkg::*;
     logic [IO_ADDR_WIDTH-1:0] iter_0_1;
     logic [IO_ADDR_WIDTH-1:0] init_addr_0_1;
 
-    logic [SRAM_ADDR_WIDTH-1:0] step_0_2, step_1_1, step_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] delay_0_2, delay_1_1, delay_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] iter_0_2, iter_1_1, iter_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] init_addr_0_2, init_addr_1_1, init_addr_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] step_0_3, step_1_0, step_1_2;
-    logic [SRAM_ADDR_WIDTH-1:0] delay_0_3, delay_1_0, delay_1_2;
-    logic [SRAM_ADDR_WIDTH-1:0] iter_0_3, iter_1_0, iter_1_2;
-    logic [SRAM_ADDR_WIDTH-1:0] init_addr_0_3, init_addr_1_0, init_addr_1_2;
+    logic [AGU_BITWIDTH-1:0] step_0_2, step_1_1, step_1_3;
+    logic [AGU_BITWIDTH-1:0] delay_0_2, delay_1_1, delay_1_3;
+    logic [AGU_BITWIDTH-1:0] iter_0_2, iter_1_1, iter_1_3;
+    logic [AGU_BITWIDTH-1:0] init_addr_0_2, init_addr_1_1, init_addr_1_3;
+    logic [AGU_BITWIDTH-1:0] step_0_3, step_1_0, step_1_2;
+    logic [AGU_BITWIDTH-1:0] delay_0_3, delay_1_0, delay_1_2;
+    logic [AGU_BITWIDTH-1:0] iter_0_3, iter_1_0, iter_1_2;
+    logic [AGU_BITWIDTH-1:0] init_addr_0_3, init_addr_1_0, init_addr_1_2;
     
-
-    assign step_0_0 = {10'b0, rep_0_0._step};
-    assign delay_0_0 = {10'b0, rep_0_0._delay};
-    assign iter_0_0 = {10'b0, rep_0_0._iter};
+    assign step_0_0 = rep_0_0._step;
+    assign delay_0_0 = rep_0_0._delay;
+    assign iter_0_0 = rep_0_0._iter;
     assign init_addr_0_0 = dsu_0_0._init_addr;
-    assign step_0_2 = rep_0_2._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_0_2 = rep_0_2._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_0_2 = rep_0_2._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_0_2 = dsu_0_2._init_addr[SRAM_ADDR_WIDTH-1:0];
-    assign step_1_1 = rep_1_1._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_1_1 = rep_1_1._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_1_1 = rep_1_1._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_1_1 = dsu_1_1._init_addr[SRAM_ADDR_WIDTH-1:0];
-    assign step_1_3 = rep_1_3._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_1_3 = rep_1_3._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_1_3 = rep_1_3._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_1_3 = dsu_1_3._init_addr[SRAM_ADDR_WIDTH-1:0];
-    assign step_0_1 = {10'b0, rep_0_1._step};
-    assign delay_0_1 = {10'b0, rep_0_1._delay};
-    assign iter_0_1 = {10'b0, rep_0_1._iter};
+    assign step_0_2 = rep_0_2._step;
+    assign delay_0_2 = rep_0_2._delay;
+    assign iter_0_2 = rep_0_2._iter;
+    assign init_addr_0_2 = dsu_0_2._init_addr;
+    assign step_1_1 = rep_1_1._step;
+    assign delay_1_1 = rep_1_1._delay;
+    assign iter_1_1 = rep_1_1._iter;
+    assign init_addr_1_1 = dsu_1_1._init_addr;
+    assign step_1_3 = rep_1_3._step;
+    assign delay_1_3 = rep_1_3._delay;
+    assign iter_1_3 = rep_1_3._iter;
+    assign init_addr_1_3 = dsu_1_3._init_addr;
+    assign step_0_1 = rep_0_1._step;
+    assign delay_0_1 = rep_0_1._delay;
+    assign iter_0_1 = rep_0_1._iter;
     assign init_addr_0_1 = dsu_0_1._init_addr;
-    assign step_0_3 = rep_0_3._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_0_3 = rep_0_3._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_0_3 = rep_0_3._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_0_3 = dsu_0_3._init_addr[SRAM_ADDR_WIDTH-1:0];
-    assign step_1_0 = rep_1_0._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_1_0 = rep_1_0._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_1_0 = rep_1_0._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_1_0 = dsu_1_0._init_addr[SRAM_ADDR_WIDTH-1:0];
-    assign step_1_2 = rep_1_2._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_1_2 = rep_1_2._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_1_2 = rep_1_2._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_1_2 = dsu_1_2._init_addr[SRAM_ADDR_WIDTH-1:0];
+    assign step_0_3 = rep_0_3._step;
+    assign delay_0_3 = rep_0_3._delay;
+    assign iter_0_3 = rep_0_3._iter;
+    assign init_addr_0_3 = dsu_0_3._init_addr;
+    assign step_1_0 = rep_1_0._step;
+    assign delay_1_0 = rep_1_0._delay;
+    assign iter_1_0 = rep_1_0._iter;
+    assign init_addr_1_0 = dsu_1_0._init_addr;
+    assign step_1_2 = rep_1_2._step;
+    assign delay_1_2 = rep_1_2._delay;
+    assign iter_1_2 = rep_1_2._iter;
+    assign init_addr_1_2 = dsu_1_2._init_addr;
     
     agu #(
         .ADDRESS_WIDTH(IO_ADDR_WIDTH),
@@ -281,7 +279,7 @@ import {{fingerprint}}_pkg::*;
     );
 
     agu #(
-        .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
+        .ADDRESS_WIDTH(AGU_BITWIDTH),
         .NUMBER_OF_LEVELS(4)
     ) agu_0_2 (
         .clk(clk),
@@ -300,7 +298,7 @@ import {{fingerprint}}_pkg::*;
     );
 
     agu #(
-        .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
+        .ADDRESS_WIDTH(AGU_BITWIDTH),
         .NUMBER_OF_LEVELS(4)
     ) agu_0_3 (
         .clk(clk),
@@ -319,7 +317,7 @@ import {{fingerprint}}_pkg::*;
     );
 
     agu #(
-        .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
+        .ADDRESS_WIDTH(AGU_BITWIDTH),
         .NUMBER_OF_LEVELS(4)
     ) agu_1_0 (
         .clk(clk),
@@ -338,7 +336,7 @@ import {{fingerprint}}_pkg::*;
     );
 
     agu #(
-        .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
+        .ADDRESS_WIDTH(AGU_BITWIDTH),
         .NUMBER_OF_LEVELS(4)
     ) agu_1_1 (
         .clk(clk),
@@ -357,7 +355,7 @@ import {{fingerprint}}_pkg::*;
     );
 
     agu #(
-        .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
+        .ADDRESS_WIDTH(AGU_BITWIDTH),
         .NUMBER_OF_LEVELS(4)
     ) agu_1_2 (
         .clk(clk),
@@ -376,7 +374,7 @@ import {{fingerprint}}_pkg::*;
     );
 
     agu #(
-        .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
+        .ADDRESS_WIDTH(AGU_BITWIDTH),
         .NUMBER_OF_LEVELS(4)
     ) agu_1_3 (
         .clk(clk),
