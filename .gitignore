@@ -1,10 +1,15 @@
 build
 workspace.code-workspace
 .vscode/
-work/
-exe/
+work
+exe
 .cache/
 .venv/
 sst_test_outputs/
 __pycache__/
-.clang-format
+
+# SST
+sst_test_outputs/
+
+# Rust and Cargo
+target/
