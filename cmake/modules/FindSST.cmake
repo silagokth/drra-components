@@ -64,29 +64,31 @@ endif()
 mark_as_advanced(SST_EXECUTABLE SST_INCLUDE_DIR SST_CXX_FLAGS)
 
 function(sst_build)
-    set(options)
-    set(oneValueArgs OVERRIDE_SOURCE_NAME)
-    set(multiValueArgs)
+    if(USE_SST)
+        set(options)
+        set(oneValueArgs OVERRIDE_SOURCE_NAME)
+        set(multiValueArgs)
 
-    cmake_parse_arguments(
-        SST_BUILD
-        "${options}"
-        "${oneValueArgs}"
-        "${multiValueArgs}"
-        ${ARGN}
-    )
+        cmake_parse_arguments(
+            SST_BUILD
+            "${options}"
+            "${oneValueArgs}"
+            "${multiValueArgs}"
+            ${ARGN}
+        )
 
-    if(SST_BUILD_OVERRIDE_SOURCE_NAME)
-        set(component_name ${SST_BUILD_OVERRIDE_SOURCE_NAME})
-    else()
-        cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH last_path)
-        get_filename_component(component_name "${last_path}" NAME)
+        if(SST_BUILD_OVERRIDE_SOURCE_NAME)
+            set(component_name ${SST_BUILD_OVERRIDE_SOURCE_NAME})
+        else()
+            cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH last_path)
+            get_filename_component(component_name "${last_path}" NAME)
+        endif()
+
+        add_library(${component_name} OBJECT ${component_name}.cpp)
+        set_property(TARGET ${component_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+        target_include_directories(${component_name} PRIVATE . ${COMMON_INCLUDE_DIRS})
+
+        target_sources(drra PRIVATE $<TARGET_OBJECTS:${component_name}>)
     endif()
-
-    add_library(${component_name} OBJECT ${component_name}.cpp)
-    set_property(TARGET ${component_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-    target_include_directories(${component_name} PRIVATE . ${COMMON_INCLUDE_DIRS})
-
-    target_sources(drra PRIVATE $<TARGET_OBJECTS:${component_name}>)
 endfunction(sst_build)
