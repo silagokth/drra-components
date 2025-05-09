@@ -5,15 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [2.3.0] - 2025-05-08
 
 ### Added
 
-- Added [sram:gf22.sv](lib/common/sram/rtl) & [sram_tb.sv](lib/common/sram/tb) ([5c1b9e0](https://github.com/silagokth/drra-components/pull/55/commits/5c1b9e041b5ec04037388d17495b7b0cf25679f1))
+- Added [sram:gf22.sv](lib/common/sram/rtl) & [sram_tb.sv](lib/common/sram/tb) ([5c1b9e0](https://github.com/silagokth/drra-components/commit/5c1b9e041b5ec04037388d17495b7b0cf25679f1))
+- Added a CMake function to [FindSST.cmake](./cmake/modules/FindSST.cmake) to build SST folders ([6cbd79e](https://github.com/silagokth/drra-components/commit/6cbd79e30243f91138e8ee983bc33a4dfa796a0b))
 
 ### Changed
 
 - Updated [CODEOWNERS](./.github/CODEOWNERS) ([2d1d7c8](https://github.com/silagokth/drra-components/commit/2d1d7c84397d7efc6f28b3f6d66486bc3c031c6a))
+- Overall of the CMAKE build system ([1877b8a](https://github.com/silagokth/drra-components/commit/1877b8a97d6802ac008151dfd055b527524cd874))
+
+### Fixed
+
+- Fixed [sequencer timing_model](./lib/controllers/sequencer/timing_model/) that would not compile ([1877b8a](https://github.com/silagokth/drra-components/commit/d53b6fca0cba66748c7b305833bf35e7dfd92398))
 
 ## [2.2.0] - 2025-04-25
 
@@ -35,3 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unnecessary comments in ci-build-base workflow ([836ff8b](https://github.com/silagokth/drra-components/commit/836ff8be44d7c68102e439a0608539c987649977))
 
 ## [2.1.4] - 2025-04-22
+
+### Added
+
+### Fixed
+
+### Changed
+
+### Removed

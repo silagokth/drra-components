@@ -1,2 +1,3 @@
-find_package(AddComponent REQUIRED)
-add_all_subdirs()
+find_package(DRRAUtils REQUIRED)
+
+add_drra_folder(resources)
