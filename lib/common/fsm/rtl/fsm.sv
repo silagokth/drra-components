@@ -13,17 +13,6 @@ module fsm #(
   logic [FSM_DELAY_WIDTH-1:0] delay_counter;
   logic [FSM_DELAY_WIDTH-1:0] delay_counter_next;
 
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      instruction_reg <= '0;
-    end else begin
-      if (instruction_valid) begin
-        instruction_reg <= instruction;
-      end
-    end
-  end
-
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       delay_counter <= fsm_delays[0];
