@@ -68,7 +68,7 @@ import {{fingerprint}}_pkg::*;
   dpu_t dpu;
   fsm_t fsm;
 
-  fsm u_dpu_fsm #(
+  fsm #(
       .FSM_MAX_STATES(FSM_MAX_STATES),
       .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
   ) fsm_inst (
