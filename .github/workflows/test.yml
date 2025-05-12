@@ -15,5 +15,5 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - run: echo $GITHUB_REF
+    - run: echo ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
     - uses: actions/checkout@v4
