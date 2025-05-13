@@ -98,20 +98,38 @@ public:
     }
   }
 
+  void printToFile(std::string outfile) {
+    FILE *fp = fopen(memory_file_.c_str(), "w");
+    dump(fp);
+  }
+
   void dump(FILE *fp) {
-    ofstream ofs(memory_file_);
-    if (!ofs.is_open()) {
+    if (fp == nullptr) {
+      fp = fopen(memory_file_.c_str(), "w");
+    }
+    if (fp == nullptr) {
       cout << "Error: Can't open file: " << memory_file_ << endl;
       abort();
     }
+    // Dump memory to file
     vector<size_t> active_rows = io_->get_active_rows();
     std::string current_row;
     for (size_t idx : active_rows) {
       current_row = io_->read(idx, 1);
       current_row.resize(width_, '0');
-      ofs << idx << " " << current_row << endl;
+      fprintf(fp, "%zu %s\n", idx, current_row.c_str());
     }
-    ofs.close();
+  }
+
+  void printToScreen(Addr addr_offset, Addr addr_start,
+                     Addr addr_interleave_size, Addr addr_interleave_step) {
+    vector<size_t> active_rows = io_->get_active_rows();
+    std::string current_row;
+    for (size_t idx : active_rows) {
+      current_row = io_->read(idx, 1);
+      current_row.resize(width_, '0');
+      cout << idx << " " << current_row << endl;
+    }
   }
 
   void setReadOnly(bool ro) { read_only_ = ro; }
