@@ -10,7 +10,6 @@ env:
 
 jobs:
   build-library:
-    needs: sst-install
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout repository
