@@ -111,14 +111,14 @@
           ]
         },
         {
-            "name": "decimation",
-            "comment": "Decimation used for FFT.",
-            "bitwidth": 1,
-            "verbo_map": [
-              { "key": 0, "val": "DIT" },
-              { "key": 1, "val": "DIF" }
-            ]
-          },
+          "name": "decimation",
+          "comment": "Decimation used for FFT.",
+          "bitwidth": 1,
+          "verbo_map": [
+            { "key": 0, "val": "DIT" },
+            { "key": 1, "val": "DIF" }
+          ]
+        },
         {
           "name": "n_bu",
           "comment": "Number of BU in the cell (-1).",

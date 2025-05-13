@@ -9,6 +9,7 @@ module twiddle_addr #(
 );
 
     logic [AGU_BITWIDTH*2-1:0] temp_addr;
+    logic [AGU_BITWIDTH-1:0] addr_gen;
     logic [STAGE_WIDTH-1:0] stages;
 
     int j;
@@ -33,8 +34,10 @@ module twiddle_addr #(
     genvar i;
     generate
         for (i = 0; i < AGU_BITWIDTH; i++) begin : bitrev_gen
-            assign addr_out[i] = temp_addr[stages - 2 - i + AGU_BITWIDTH];
+            assign addr_gen[i] = temp_addr[stages - 2 - i + AGU_BITWIDTH];
         end
     endgenerate
+
+    assign addr_out = addr_gen + n_points;
 
 endmodule
