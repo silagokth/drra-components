@@ -14,14 +14,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        path: main
-
-    - name: Checkout tests
-      uses: actions/checkout@v4
-      with:
-        repository: silagokth/drra-tests
-        path: tests
 
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v2

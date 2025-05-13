@@ -22,7 +22,7 @@ jobs:
           repository: silagokth/drra-tests
           path: tests
           ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DRRA_TEST_PAT }}
       - name: Run tests
         run: |
           cd tests
