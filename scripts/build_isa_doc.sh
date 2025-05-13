@@ -12,6 +12,8 @@ DEFAULT_OUTPUT_FILE="./InstructionSet.md"
 # Get output file path from command-line argument or use default
 OUTPUT_FILE="${1:-$DEFAULT_OUTPUT_FILE}"
 
+CLONED=false
+
 # Get drra-components path from command-line argument or clone if not provided
 if [ -z "$2" ]; then
     CLONED=true
