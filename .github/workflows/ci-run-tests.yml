@@ -15,7 +15,6 @@ jobs:
         run: |
           tar -xzf library.tar.gz
           rm library.tar.gz
-          tree
       - name: Checkout testcases
         uses: actions/checkout@v4
         with:
@@ -28,7 +27,8 @@ jobs:
           cd tests
           . /usr/share/modules/init/sh
           module use /opt/modules
-          module add modelsim
+          module avail
+          module add questasim 
           module add vesyla
           module add bender
           python3 -m venv .venv
