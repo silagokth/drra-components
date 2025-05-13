@@ -99,8 +99,9 @@ public:
   }
 
   void printToFile(std::string outfile) {
-    FILE *fp = fopen(memory_file_.c_str(), "w");
+    FILE *fp = fopen(outfile.c_str(), "w");
     dump(fp);
+    fclose(fp);
   }
 
   void dump(FILE *fp) {
