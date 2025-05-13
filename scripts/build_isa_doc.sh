@@ -35,7 +35,7 @@ Instructions are 32-bit wide. The MSB indicates whether it's a control instructi
 The rest of the bits are used to encode the instruction content. For resource instructions, another 4 bits in the instruction content are used to indicate the slot number.
 The rest of the bits are used to encode the instruction content.
 
-Note that, specifically for resource instructions, if instruction opcode start with "11", the instruction contains a field that need to be replaced by scalar registers if the filed is marked "dynamic".
+Note that for resource instructions, if the instruction opcode starts with "11", the instruction contains a field that needs to be replaced by scalar registers if the field is marked as "dynamic".
 
 ## ISA Format
 
