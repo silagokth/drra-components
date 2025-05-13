@@ -5,12 +5,8 @@ on:
 
 jobs:
   run-tests:
-    runs-on: modelsim
+    runs-on: [modelsim, ubuntu-22.04]
     steps:
-      - name: Setup pyhton
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.10
       - name: Download library
         uses: actions/download-artifact@v4
         with:
@@ -28,6 +24,11 @@ jobs:
       - name: Run tests
         run: |
           cd tests
+          . /usr/share/modules/init/sh
+          module use /opt/modules
+          module add modelsim
+          module add vesyla
+          module add bender
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r requirements.txt
