@@ -12,20 +12,27 @@ DEFAULT_OUTPUT_FILE="./InstructionSet.md"
 # Get output file path from command-line argument or use default
 OUTPUT_FILE="${1:-$DEFAULT_OUTPUT_FILE}"
 
-# Define temporary directory
-TEMP_DIR=$(mktemp -d)
-
-echo "Cloning repository to $TEMP_DIR..."
-git clone git@github.com:silagokth/drra-components.git "$TEMP_DIR" --quiet
-
-# Check if clone was successful
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to clone repository"
-    rm -rf "$TEMP_DIR"
-    exit 1
+# Get drra-components path from command-line argument or clone if not provided
+if [ -z "$2" ]; then
+    CLONED=true
+    echo "No path provided for drra-components."
+    TEMP_DIR=$(mktemp -d)
+    echo "Cloning repository to $TEMP_DIR..."
+    git clone git@github.com:silagokth/drra-components.git "$TEMP_DIR" --quiet
+    # Check if clone was successful
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to clone repository"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+    echo "Repository cloned successfully. Finding and processing ISA files..."
+else
+    TEMP_DIR="$2"
+    if [ ! -d "$TEMP_DIR" ]; then
+        echo "Error: The provided path does not exist or is not a directory."
+        exit 1
+    fi
 fi
-
-echo "Repository cloned successfully. Finding and processing ISA files..."
 
 # Create header for the markdown file
 cat > "$OUTPUT_FILE" << 'EOT'
@@ -217,7 +224,10 @@ find "$TEMP_DIR" -name "isa.json" | sort | while read -r isa_file; do
 done
 
 echo "Cleaning up temporary directory..."
-rm -rf "$TEMP_DIR"
+if [ "$CLONED" = true ]; then
+    # Only remove the temporary directory if we cloned it
+    rm -rf "$TEMP_DIR"
+fi
 
 echo "ISA documentation generated successfully at $OUTPUT_FILE"
 chmod +x "$0"
