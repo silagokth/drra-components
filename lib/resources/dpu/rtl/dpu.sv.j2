@@ -57,6 +57,7 @@ import {{fingerprint}}_pkg::*;
   logic [$clog2(FSM_MAX_STATES)-1:0][DPU_MODE_WIDTH-1:0] mode_memory;
   logic [$clog2(FSM_MAX_STATES)-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
   logic [$clog2(FSM_MAX_STATES)-1:0] fsm_option;
+  logic [$clog2(FSM_MAX_STATES)-1:0] fsm_max_init_state;
   logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
   logic [DPU_MODE_WIDTH-1:0] mode;
@@ -76,6 +77,7 @@ import {{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .activate(|activate),
       .fsm_delays(fsm_delays),
+      .max_init_state(fsm_max_init_state),
       .state(fsm_option)
   );
 
@@ -94,10 +96,13 @@ import {{fingerprint}}_pkg::*;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       immediate_memory <= '0;
+      mode_memory <= '0;
+      fsm_max_init_state <= '0;
     end else begin
       if (dpu_valid) begin
         mode_memory[dpu._option] <= dpu._mode;
         immediate_memory[dpu._option] <= dpu._immediate;
+        fsm_max_init_state <= dpu._option;
       end
     end
   end

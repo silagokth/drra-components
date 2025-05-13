@@ -6,6 +6,7 @@ module fsm #(
     input logic rst_n,
     input logic activate,
     input logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays,
+    input logic [$clog2(FSM_MAX_STATES)-1:0] max_init_state,
     output logic [$clog2(FSM_MAX_STATES)-1:0] state
 );
 
@@ -33,7 +34,7 @@ module fsm #(
     next_state = 0;
     delay_counter_next = 0;
     if (delay_counter == 0) begin
-      if (state == FSM_MAX_STATES - 1) begin
+      if (state == max_init_state) begin
         next_state = 0;
       end else begin
         next_state = state + 1;
