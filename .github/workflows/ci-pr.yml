@@ -15,5 +15,5 @@ jobs:
 
   ci-run-tests:
     uses: ./.github/workflows/ci-run-tests.yml
-    needs: ci-sst-install
+    needs: ci-build-library
     secrets: inherit
