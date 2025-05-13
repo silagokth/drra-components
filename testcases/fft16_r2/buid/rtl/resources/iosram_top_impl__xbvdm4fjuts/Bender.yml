@@ -1,9 +1,0 @@
-package:
-  name: iosram_top_impl__xbvdm4fjuts
-dependencies:
-  sram:
-    path: '../../common/sram'
-  agu:
-    path: '../../common/agu'
-sources:
-- './rtl/iosram_top.sv'

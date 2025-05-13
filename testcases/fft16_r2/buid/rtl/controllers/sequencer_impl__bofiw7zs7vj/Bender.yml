@@ -1,5 +1,0 @@
-package:
-  name: sequencer_impl__bofiw7zs7vj
-dependencies: null
-sources:
-- './rtl/sequencer.sv'

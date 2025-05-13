@@ -1,5 +1,0 @@
-package:
-  name: swb_impl__dixk93xtnmt
-dependencies: null
-sources:
-- './rtl/swb.sv'
