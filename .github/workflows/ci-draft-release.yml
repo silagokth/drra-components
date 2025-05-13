@@ -68,7 +68,7 @@ jobs:
         with:
           repository: "silagokth/SilagoDoc"
           ref: "master"
-          token: ${{ secrets.SILAGO_DOC_PAT }}
+          token: ${{ secrets.SILAGO_DOC_PAT_DRRA_COMPONENTS }}
           path: "SilagoDoc"
 
       - name: Setup Git config
@@ -85,4 +85,4 @@ jobs:
           git add .
           git diff --quiet && git diff --staged --quiet || (git commit -m "[github-bot] Update ISA documentation for version ${{ steps.get_version.outputs.VERSION }}" && git push origin master)
         env:
-          GITHUB_TOKEN: ${{ secrets.SILAGO_DOC_PAT }}
+          GITHUB_TOKEN: ${{ secrets.SILAGO_DOC_PAT_DRRA_COMPONENTS }}
