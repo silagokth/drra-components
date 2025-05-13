@@ -21,6 +21,7 @@ jobs:
         with:
           repository: silagokth/drra-tests
           path: tests
+          ref: master
       - name: Run tests
         run: |
           cd tests
