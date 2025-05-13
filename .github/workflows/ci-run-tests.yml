@@ -5,7 +5,7 @@ on:
 
 jobs:
   run-tests:
-    runs-on: [modelsim, vesyla, bender]
+    runs-on: [modelsim, vesyla, bender, sst]
     steps:
       - name: Download library
         uses: actions/download-artifact@v4
@@ -31,6 +31,7 @@ jobs:
           module add questasim 
           module add vesyla
           module add bender
+          module add sst
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r requirements.txt
