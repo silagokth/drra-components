@@ -7,7 +7,7 @@ This repository contains the DRRA component library. The library is a collection
 ### For using [pre-built releases](https://github.com/silagokth/drra-components/releases)
 
 - GLIBC 2.35 or newer
-- [vesyla](https://github.com/silagokth/vesyla)
+- [vesyla](https://github.com/silagokth/vesyla) v4.2.0 or newer
   - **Option 1**: From the [pre-built releases](https://github.com/silagokth/vesyla/releases)
   - **Option 2**: Built from [source](https://github.com/silagokth/vesyla)
 - [SST framework](https://sst-simulator.org)

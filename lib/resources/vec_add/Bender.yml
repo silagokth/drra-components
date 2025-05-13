@@ -1,0 +1,9 @@
+package:
+  name: vec_add
+
+dependencies:
+
+sources:
+  - ./rtl/vec_add_pkg.sv
+  - ./rtl/vec_add.sv
+

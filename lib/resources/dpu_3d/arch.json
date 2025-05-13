@@ -1,8 +1,0 @@
-{
-  "kind": "dpu_3d",
-  "size": 6,
-  "io_input": false,
-  "io_output": false,
-  "custom_properties": [],
-  "required_parameters": []
-}

@@ -65,6 +65,7 @@ function(add_drra_folder TYPE_NAME)
     # Add all subdirectories in a loop
     foreach(SUBDIR ${SUBDIRS})
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
+            # Set output directory for components
             set(CMAKE_COMPONENTS_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library/${TYPE_NAME}/${SUBDIR})
 
             # Add subdirectory if it has a CMakeLists.txt

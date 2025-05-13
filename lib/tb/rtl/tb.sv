@@ -42,6 +42,7 @@ module fabric_tb;
       call[i] = 0;
     end
 
+    @(posedge clk);
     @(negedge clk) rst_n = 1;
 
     // load instructions

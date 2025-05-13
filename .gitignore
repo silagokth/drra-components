@@ -2,6 +2,7 @@
 build/
 work/
 .cache/
+exe/
 
 # VSCode and IDEs
 .vscode/
