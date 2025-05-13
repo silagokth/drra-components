@@ -1,0 +1,88 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  ci-build-sst:
+    uses: ./.github/workflows/ci-build-sst.yml
+
+  create_release:
+    needs: ci-build-sst
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: testcases
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: library
+
+      - name: Release
+        id: upload-release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            testcases.tar.gz
+            library.tar.gz
+
+  create_isa_doc:
+    needs: create_release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Build ISA documentation
+        run: |
+          mkdir -p build
+          bash ./scripts/build_isa_doc.sh ./build/InstructionSet.md .
+
+      - name: Checkout SilagoDoc repo
+        uses: actions/checkout@v4
+        with:
+          repository: "silagokth/SilagoDoc"
+          ref: "master"
+          token: ${{ secrets.SILAGO_DOC_PAT_DRRA_COMPONENTS }}
+          path: "SilagoDoc"
+
+      - name: Setup Git config
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "<>"
+
+      - name: Copy ISA documentation
+        run: cp ./build/InstructionSet.md ./SilagoDoc/docs/ToolChain/Vesyla/Reference/DRRAComponents/InstructionSet.md
+
+      - name: Commit and push changes
+        run: |
+          cd SilagoDoc
+          git add .
+          git diff --quiet && git diff --staged --quiet || (git commit -m "[github-bot] Update ISA documentation for version ${{ steps.get_version.outputs.VERSION }}" && git push origin master)
+        env:
+          GITHUB_TOKEN: ${{ secrets.SILAGO_DOC_PAT_DRRA_COMPONENTS }}

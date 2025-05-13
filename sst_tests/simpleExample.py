@@ -17,7 +17,7 @@ buffer_params = {
     "io_data_width": io_data_width,
     "access_time": "0ns",
     "printFrequency": 1,
-    "backing": "malloc",  # "mmap",
+    "backing": "malloc",  # "mfile",
 }
 input_buffer.addParams(buffer_params)
 input_buffer.addParams(

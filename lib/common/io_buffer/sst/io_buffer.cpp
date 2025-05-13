@@ -24,13 +24,13 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
 
   // Clock
   SST::TimeConverter *tc = registerClock(
-      clock, new SST::Clock::Handler<IOBuffer>(this, &IOBuffer::clockTick));
+      clock, new SST::Clock::Handler2<IOBuffer, &IOBuffer::clockTick>(this));
 
   // Backing store
   bool found = false;
   std::string backingType = params.find<std::string>(
-      "backing", "mfile",
-      found); /* Default to using an mmap backing store, fall back on malloc */
+      "backing", "mfile", found); /* Default to using an file backing store,
+                                     fall back on malloc */
   if (!found) {
     bool oldBackVal = params.find<bool>("do-not-back", false, found);
     if (oldBackVal)
@@ -65,23 +65,6 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
       }
     }
 
-  } else if (backingType == "mmap") {
-    std::string memoryFile = params.find<std::string>("memory_file", "");
-    if (0 == memoryFile.compare("")) {
-      memoryFile.clear();
-    }
-    try {
-      backend =
-          new SST::MemHierarchy::Backend::BackingMMAP(memoryFile, sizeBytes);
-    } catch (int e) {
-      if (e == 1) {
-        out.fatal(CALL_INFO, -1, "Failed to open memory file: %s\n",
-                  memoryFile.c_str());
-      } else {
-        out.fatal(CALL_INFO, -1, "Failed to map memory file: %s\n",
-                  memoryFile.c_str());
-      }
-    }
   } else if (backingType == "malloc") {
     backend = new SST::MemHierarchy::Backend::BackingMalloc(sizeBytes);
   }
