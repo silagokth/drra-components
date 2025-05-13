@@ -4,11 +4,16 @@ on:
   pull_request:
 
 jobs:
-  ci-build-sst:
-    uses: ./.github/workflows/ci-build-sst.yml
+  ci-sst-install:
+    uses: ./.github/workflows/ci-sst-install.yml
+    secrets: inherit
+
+  ci-build-library:
+    uses: ./.github/workflows/ci-build-library.yml
+    needs: ci-sst-install
     secrets: inherit
 
   ci-run-tests:
     uses: ./.github/workflows/ci-run-tests.yml
-    needs: ci-build-sst
+    needs: ci-sst-install
     secrets: inherit
