@@ -1,15 +1,17 @@
-build
-workspace.code-workspace
-.vscode/
-work
-exe
+# Build and cache folders
+build/
+work/
 .cache/
-.venv/
-sst_test_outputs/
-__pycache__/
+exe/
+
+# VSCode and IDEs
+.vscode/
+workspace.code-workspace
 .clang-format
 
-# SST
+# Python
+.venv/
+__pycache__/
 sst_test_outputs/
 
 # Rust and Cargo
