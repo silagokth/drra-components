@@ -35,7 +35,7 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r requirements.txt
-          export VESYLA_SUITE_PATH_COMPONENTS=../library
+          export VESYLA_SUITE_PATH_COMPONENTS=../../library
           vesyla testcase generate -d ./testcases
           ./run.sh
       - run: pwd
