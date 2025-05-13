@@ -44,9 +44,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: report
-          path: tests/report.html
+          path: tests/output/report.html
       - name: Upload logs
         uses: actions/upload-artifact@v4
         with:
           name: log
-          path:  tests/logs.html
+          path:  tests/output/log.html
+      - run: tar czf output.tar.gz tests/output
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-outputs
+          path: tests/output.tar.gz
