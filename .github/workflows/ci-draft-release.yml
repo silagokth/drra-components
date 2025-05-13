@@ -61,7 +61,7 @@ jobs:
       - name: Build ISA documentation
         run: |
           mkdir -p build
-          bash ./scripts/build_isa_doc.sh ./build/InstructionSet.md
+          bash ./scripts/build_isa_doc.sh ./build/InstructionSet.md .
 
       - name: Checkout SilagoDoc repo
         uses: actions/checkout@v4
