@@ -1,0 +1,13 @@
+name: PR tests
+
+on: 
+  pull_request:
+
+jobs:
+  ci-build-sst:
+    uses: ./.github/workflows/ci-build-sst.yml
+    secrets: inherit
+
+  ci-run-tests:
+    uses: ./.github/workflows/ci-run-tests.yml
+    secrets: inherit

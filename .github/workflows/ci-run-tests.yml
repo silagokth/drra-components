@@ -1,0 +1,40 @@
+name: Runs test
+
+on:
+  workflow_call:
+
+jobs:
+  run-tests:
+    runs-on: modelsim
+    steps:
+      - name: Setup pyhton
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+      - name: Download library
+        uses: actions/download-artifact@v4
+        with:
+          name: library
+      - name: Extract library
+        run: |
+          tar -xzf library.tar.gz
+          rm library.tar.gz
+          tree
+      - name: Checkout testcases
+        uses: actions/checkout@v4
+        with:
+          repository: silagokth/drra-tests
+          path: tests
+      - name: Run tests
+        run: |
+          cd tests
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          module add modelsim
+          export VESYLA_SUITE_PATH_COMPONENTS=../library
+          vesyla testcase generate -d ./testcases
+          ./run.sh
+
+
+
