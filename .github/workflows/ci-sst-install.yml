@@ -1,4 +1,4 @@
-name: Build testcases and library with SST
+name: Install SST
 
 on:
   workflow_call:

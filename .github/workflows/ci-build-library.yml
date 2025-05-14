@@ -27,8 +27,10 @@ jobs:
           ${{ runner.os }}-build-sst-14.1.0
           ${{ runner.os }}-build-
           ${{ runner.os }}-
+
     - name: Install dependencies
       run: sudo apt install libfuse2 libgtest-dev
+
     - name: Check if SST is already installed
       id: check-sst
       uses: ./.github/actions/check-sst-install
