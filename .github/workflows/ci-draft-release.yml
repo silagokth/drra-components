@@ -7,20 +7,24 @@ on:
 
 jobs:
   ci-sst-install:
+    name: SST Install
     uses: ./.github/workflows/ci-sst-install.yml
     secrets: inherit
 
   ci-build-library:
+    name: Build DRRA Library
     uses: ./.github/workflows/ci-build-library.yml
     needs: ci-sst-install
     secrets: inherit
 
   ci-run-tests:
+    name: Run DRRA Tests
     uses: ./.github/workflows/ci-run-tests.yml
     needs: ci-build-library
     secrets: inherit
 
   create_release:
+    name: Create Release
     needs: ci-run-tests
     runs-on: ubuntu-22.04
     steps:
@@ -47,6 +51,7 @@ jobs:
             library.tar.gz
 
   create_isa_doc:
+    name: Create ISA Documentation
     needs: create_release
     runs-on: ubuntu-22.04
     steps:
