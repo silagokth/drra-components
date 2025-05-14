@@ -26,7 +26,6 @@ module agu_fft #(
 
     // FSM
     state_t state, next_state;
-    logic next_valid;
 
     // config regs
     logic mode_reg;
@@ -150,11 +149,9 @@ module agu_fft #(
         if (!rst_n) begin
             state   <= IDLE;
             address <= 0;
-            address_valid <= 0;
         end else begin
             state   <= next_state;
             address <= next_address;
-            address_valid <= next_valid;
         end
     end
 
@@ -173,16 +170,16 @@ module agu_fft #(
     always_ff @(posedge clk or negedge rst_n) begin
         case (state)
             IDLE: begin
-                next_valid <= 0;
+                address_valid <= 0;
             end
             ADDR: begin
-                next_valid <= 1;
+                address_valid <= 1;
             end
             DELAY: begin
-                next_valid <= 1;
+                address_valid <= 1;
             end
             default: begin
-                next_valid <= 0;
+                address_valid <= 0;
             end
         endcase
     end

@@ -54,6 +54,7 @@ package {{fingerprint}}_pkg;
     {% endfor %}
 
     parameter AGU_BITWIDTH = 16;
+    parameter DELAY_WIDTH = 5;
 
 endpackage
 
@@ -122,8 +123,8 @@ import {{fingerprint}}_pkg::*;
     assign payload_0 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
     assign opcode_1 = instr_1[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
     assign payload_1 = instr_1[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_1 = instr_3[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_1 = instr_3[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_3 = instr_3[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_3 = instr_3[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
     
     dsu_t dsu_0;
     rep_t rep_0;
@@ -158,8 +159,8 @@ import {{fingerprint}}_pkg::*;
     logic [WORD_ADDR_WIDTH-1:0] addr_2_0, addr_2_1;
     logic port_enable_2_0, port_enable_2_1;
 
-    logic [WORD_ADDR_WIDTH-1:0] addr_3_0;
-    logic port_enable_3_0;
+    logic [WORD_ADDR_WIDTH-1:0] addr_3_1;
+    logic port_enable_3_1;
 
     logic [IO_ADDR_WIDTH-1:0] step_0_0;
     logic [IO_ADDR_WIDTH-1:0] delay_0_0;
@@ -190,11 +191,11 @@ import {{fingerprint}}_pkg::*;
     logic n_bu_2_0, n_bu_2_1;
     logic mode_2_0, mode_2_1;
 
-    logic [DELAY_WIDTH-1:0] delay_3_0;
-    logic [AGU_BITWIDTH-1:0] n_points_3_0;
-    logic [1:0] radix_3_0;
-    logic n_bu_3_0;
-    logic mode_3_0;
+    logic [DELAY_WIDTH-1:0] delay_3_1;
+    logic [AGU_BITWIDTH-1:0] n_points_3_1;
+    logic [1:0] radix_3_1;
+    logic n_bu_3_1;
+    logic mode_3_1;
     
     assign step_0_0 = rep_0._step;
     assign delay_0_0 = rep_0._delay;
@@ -235,23 +236,23 @@ import {{fingerprint}}_pkg::*;
     assign n_bu_2_1 = fft_1._n_bu;
     assign delay_2_1 = fft_1._delay;
 
-    assign n_points_3_0 = fft_3._n_points;
-    assign radix_3_0 = fft_3._radix;
-    assign mode_3_0 = fft_3._mode;
-    assign n_bu_3_0 = fft_3._n_bu;
-    assign delay_3_0 = fft_3._delay;
+    assign n_points_3_1 = fft_3._n_points;
+    assign radix_3_1 = fft_3._radix;
+    assign mode_3_1 = fft_3._mode;
+    assign n_bu_3_1 = fft_3._n_bu;
+    assign delay_3_1 = fft_3._delay;
     
     agu #(
         .ADDRESS_WIDTH(IO_ADDR_WIDTH),
         .NUMBER_OF_LEVELS(4)
-    ) aug_0_0 (
+    ) agu_0_0 (
         .clk(clk),
         .rst_n(rst_n),
         .activate(activate_0[0]),
         .load_initial(dsu_valid_0 & dsu_0._port == 0),
         .load_level(rep_valid_0 & rep_0._port == 0),
         .is_extended(),  // TODO: not supported yet
-        .level_to_load(rep_0_0._level[1:0]),
+        .level_to_load(rep_0._level[1:0]),
         .step(step_0_0),
         .delay(delay_0_0),
         .iterations(iter_0_0),
@@ -267,10 +268,10 @@ import {{fingerprint}}_pkg::*;
         .clk(clk),
         .rst_n(rst_n),
         .activate(activate_0[1]),
-        .load_initial(dsu_valid_0_1 & dsu_0_1._port == 1),
-        .load_level(rep_valid_0_1 & rep_0_1._port == 1),
+        .load_initial(dsu_valid_0 & dsu_0._port == 1),
+        .load_level(rep_valid_0 & rep_0._port == 1),
         .is_extended(),  // TODO: not supported yet
-        .level_to_load(rep_0_1._level[1:0]),
+        .level_to_load(rep_0._level[1:0]),
         .step(step_0_1),
         .delay(delay_0_1),
         .iterations(iter_0_1),
@@ -286,10 +287,10 @@ import {{fingerprint}}_pkg::*;
         .clk(clk),
         .rst_n(rst_n),
         .activate(activate_0[2]),
-        .load_initial(dsu_valid_0_2 & dsu_0_2._port == 2),
-        .load_level(rep_valid_0_2 & rep_0_2._port == 2),
+        .load_initial(dsu_valid_0 & dsu_0._port == 2),
+        .load_level(rep_valid_0 & rep_0._port == 2),
         .is_extended(),  // TODO: not supported yet
-        .level_to_load(rep_0_2._level[1:0]),
+        .level_to_load(rep_0._level[1:0]),
         .step(step_0_2),
         .delay(delay_0_2),
         .iterations(iter_0_2),
@@ -305,10 +306,10 @@ import {{fingerprint}}_pkg::*;
         .clk(clk),
         .rst_n(rst_n),
         .activate(activate_0[3]),
-        .load_initial(dsu_valid_0_3 & dsu_0_3._port == 3),
-        .load_level(rep_valid_0_3 & rep_0_3._port == 3),
+        .load_initial(dsu_valid_0 & dsu_0._port == 3),
+        .load_level(rep_valid_0 & rep_0._port == 3),
         .is_extended(),  // TODO: not supported yet
-        .level_to_load(rep_0_3._level[1:0]),
+        .level_to_load(rep_0._level[1:0]),
         .step(step_0_3),
         .delay(delay_0_3),
         .iterations(iter_0_3),
@@ -396,20 +397,20 @@ import {{fingerprint}}_pkg::*;
     agu_fft #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .DELAY_WIDTH(DELAY_WIDTH)
-    ) agu_3_0 (
+    ) agu_3_1 (
         .clk(clk),
         .rst_n(rst_n),
-        .activate(activate_3[0]),
-        .radix(radix_3_0),
+        .activate(activate_3[1]),
+        .radix(radix_3_1),
         .even_odd(1'b0),
-        .mode(mode_3_0),
-        .n_bu(n_bu_3_0),
+        .mode(mode_3_1),
+        .n_bu(n_bu_3_1),
         .bu_index(1'b0),
-        .n_points(n_points_3_0),
-        .delay(delay_3_0),
-        .load_config(fft_valid_3 & fft_3._port == 0),
-        .address_valid(port_enable_3_0),
-        .address(addr_3_0)
+        .n_points(n_points_3_1),
+        .delay(delay_3_1),
+        .load_config(fft_valid_3 & fft_3._port == 1),
+        .address_valid(port_enable_3_1),
+        .address(addr_3_1)
     );
 
 
@@ -428,6 +429,33 @@ import {{fingerprint}}_pkg::*;
     end
 
     parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
+
+    logic [AGU_BITWIDTH-1:0] stages, stages_next;
+    logic [AGU_BITWIDTH-1:0] n_points;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stages <= '0;
+            n_points <= '0;
+        end else begin
+            if (fft_valid_1) begin
+                stages <= stages_next;
+                n_points <= n_points_1_0;
+            end
+        end
+    end
+
+    int i;
+    always_comb begin
+        stages_next = '0;
+        for (i = AGU_BITWIDTH-1; i >= 0; i--) begin
+            if (n_points[i]) begin
+                stages_next = i;
+                break;
+            end
+        end
+    end
+
     logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
 
     // LUT with bit reversed sequence for bulk address read
@@ -475,9 +503,9 @@ import {{fingerprint}}_pkg::*;
 
         // reading from io_data_out, otherwise word ports
         if (port_enable_0_3) begin
+            bit_rev_addr = LUT_init();
             for (int i=0; i<WORD_PER_BULK; i++) begin
-                offset_r_addr = i;
-                io_data_out[i*WORD_BITWIDTH +:WORD_BITWIDTH] = memory[{addr_0_3, offset_r_addr}];
+                io_data_out[i*WORD_BITWIDTH +:WORD_BITWIDTH] = memory[bit_rev_addr[i+addr_0_3*WORD_PER_BULK]];
             end
         end else begin 
             if (port_enable_1_1) begin
