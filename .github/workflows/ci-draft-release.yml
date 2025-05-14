@@ -6,11 +6,11 @@ on:
       - 'v*'
 
 jobs:
-  ci-build-sst:
-    uses: ./.github/workflows/ci-build-sst.yml
+  ci-build-library:
+    uses: ./.github/workflows/ci-build-library.yml
 
   create_release:
-    needs: ci-build-sst
+    needs: ci-build-library
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -24,10 +24,6 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: testcases
-
-      - uses: actions/download-artifact@v4
-        with:
           name: library
 
       - name: Release
@@ -37,7 +33,6 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            testcases.tar.gz
             library.tar.gz
 
   create_isa_doc:
