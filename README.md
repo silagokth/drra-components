@@ -1,6 +1,6 @@
 # DRRA Component Library
 
-[![](https://github.com/silagokth/drra-components/actions/workflows/ci-draft-release.yml/badge.svg)](https://github.com/silagokth/drra-components/actions/workflows/ci-draft-release.yml)
+[![](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml/badge.svg)](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml)
 
 This repository contains the DRRA component library. The library is a collection of components that can be used to build a DRRA application.
 
