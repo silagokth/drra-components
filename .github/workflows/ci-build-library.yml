@@ -58,7 +58,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DUSE_SST=ON ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SST=ON ..
         cmake --build .
         echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
 
