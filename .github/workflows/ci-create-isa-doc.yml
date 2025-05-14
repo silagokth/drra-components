@@ -1,4 +1,4 @@
-name: Create ISA Documentation
+name: Create ISA documentation
 
 on:
   workflow_call:

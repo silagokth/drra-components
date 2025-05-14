@@ -1,4 +1,4 @@
-name: Runs test
+name: Run DRRA tests
 
 on:
   workflow_call:
