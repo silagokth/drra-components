@@ -1,7 +1,11 @@
-name: PR tests
+name: Release tests
 
 on:
-  pull_request:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - master
 
 jobs:
   ci-sst-install:
@@ -19,4 +23,16 @@ jobs:
     name: Run DRRA Tests
     uses: ./.github/workflows/ci-run-tests.yml
     needs: ci-build-library
+    secrets: inherit
+
+  ci-draft-release:
+    name: Draft Release
+    uses: ./.github/workflows/ci-draft-release.yml
+    needs: ci-run-tests
+    secrets: inherit
+
+  ci-create-isa-doc:
+    name: Create ISA Doc
+    uses: ./.github/workflows/ci-create-isa-doc.yml
+    needs: ci-run-tests
     secrets: inherit
