@@ -37,6 +37,19 @@ This repository contains the DRRA component library. The library is a collection
     [build]
     rustc-wrapper = "/path/to/sccache"
     ```
+## Cloning the repo
+
+This repo contains submodules.
+Use the following command to clone it:
+
+```bash
+git clone --recurse-submodules git@github.com:silagokth/drra-components.git
+```
+
+Or, if the repo was already cloned:
+```bash
+git submodule update --init
+```
 
 ## Compilation and Installation
 
