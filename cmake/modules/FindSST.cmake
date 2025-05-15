@@ -20,27 +20,75 @@ if(NOT SST_EXECUTABLE)
     message(FATAL_ERROR "SST executable not found. Please set the SST_CORE_HOME environment variable.")
 endif()
 
+# Cache variables
+set(SST_VERSION_CACHE "" CACHE STRING "Cached SST version")
+set(SST_INCLUDE_DIR_CACHE "" CACHE PATH "Cache SST include directory")
+set(SST_CXX_FLAGS_CACHE "" CACHE STRING "Cache SST CXX flags")
+
 # Get SST include directory
-if(SST_EXECUTABLE)
-    execute_process(
-        COMMAND ${SST_EXECUTABLE} --version
-        OUTPUT_VARIABLE SST_VERSION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+if(SST_EXECUTABLE AND(SST_VERSION_CACHE STREQUAL "" OR DEFINED RESET_SST_CACHE))
+    message(STATUS "Fetching SST configuration")
 
-    execute_process(
-        COMMAND sst-config --includedir
-        OUTPUT_VARIABLE SST_INCLUDE_DIR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.10)
+        # Get SST version from CLI
+        execute_process(
+            COMMAND ${SST_EXECUTABLE} --version
+            OUTPUT_VARIABLE SST_VERSION_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            COMMAND_ECHO NONE
+        )
 
-    # Also grab CXXFLAGS which might contain important compile definitions
-    execute_process(
-        COMMAND sst-config --CXXFLAGS
-        OUTPUT_VARIABLE SST_CXX_FLAGS
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+        # Get SST include directory
+        execute_process(
+            COMMAND sst-config --includedir
+            OUTPUT_VARIABLE SST_INCLUDE_DIR_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            COMMAND_ECHO NONE
+        )
+
+        # Get SST CXX flags
+        execute_process(
+            COMMAND sst-config --CXXFLAGS
+            OUTPUT_VARIABLE SST_CXX_FLAGS_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            COMMAND_ECHO NONE
+        )
+    else() # Run sequentially for older CMAKE versions
+        execute_process(
+            COMMAND ${SST_EXECUTABLE} --version
+            OUTPUT_VARIABLE SST_VERSION_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        execute_process(
+            COMMAND sst-config --includedir
+            OUTPUT_VARIABLE SST_INCLUDE_DIR_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        execute_process(
+            COMMAND sst-config --CXXFLAGS
+            OUTPUT_VARIABLE SST_CXX_FLAGS_RESULT
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
+
+    # Update SST cache variables
+    if(SST_VERSION_RESULT AND SST_INCLUDE_DIR_RESULT AND SST_CXX_FLAGS_RESULT)
+        set(SST_VERSION_CACHE "${SST_VERSION_RESULT}" CACHE STRING "Cached SST version" FORCE)
+        set(SST_INCLUDE_DIR_CACHE "${SST_INCLUDE_DIR_RESULT}" CACHE PATH "Cached SST include directory" FORCE)
+        set(SST_CXX_FLAGS_CACHE "${SST_CXX_FLAGS_RESULT}" CACHE STRING "Cached SST CXX flags" FORCE)
+    else()
+        message(FATAL_ERROR "Failed to retrieve SST configuration. Please check your SST installation.")
+    endif()
+
+    message(STATUS "SST version: ${SST_VERSION_CACHE}")
+    message(STATUS "SST include directory: ${SST_INCLUDE_DIR_CACHE}")
+    message(STATUS "SST CXX flags: ${SST_CXX_FLAGS_CACHE}")
 endif()
+
+# Use the cache variables directly
+set(SST_VERSION "${SST_VERSION_CACHE}")
+set(SST_INCLUDE_DIR "${SST_INCLUDE_DIR_CACHE}")
+set(SST_CXX_FLAGS "${SST_CXX_FLAGS_CACHE}")
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SST

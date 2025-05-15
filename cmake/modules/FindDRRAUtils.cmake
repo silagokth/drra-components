@@ -1,16 +1,24 @@
 function(cargo_build FOLDER)
-    include(FetchContent)
-    FetchContent_Declare(
-        Corrosion
-        GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
-        GIT_TAG v0.5.2
-    )
-    FetchContent_MakeAvailable(Corrosion)
+    if(NOT DEFINED CORROSION_FETCHED OR NOT CORROSION_FETCHED)
+        add_subdirectory(
+            ${CMAKE_SOURCE_DIR}/cmake/modules/corrosion
+            ${CMAKE_BINARY_DIR}/corrosion-build
+            EXCLUDE_FROM_ALL
+        )
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion/cmake")
+        include(Corrosion)
+
+        set(
+            CORROSION_FETCHED TRUE
+            CACHE INTERNAL
+            "Wether Corrosion has been fetched"
+        )
+    endif()
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
 
     get_filename_component(FOLDER_NAME ${FOLDER} NAME)
-    message(STATUS "FOLDER_NAME: ${FOLDER_NAME}")
+    message(STATUS "Found Rust project: ${FOLDER}")
 
     # Create temporary directory
     file(MAKE_DIRECTORY "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp")
