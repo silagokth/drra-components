@@ -622,7 +622,10 @@ public:
       trace_file.close();
       // Move the trace file to the output directory
       std::string command = "mv " + trace_name + " trace_complete.json";
-      system(command.c_str());
+      int returnCode = system(command.c_str());
+      if(returnCode != 0) {
+        out.output("WARN: Could not copy the trace file to trace_complete.json");
+      }
     }
   }
 
