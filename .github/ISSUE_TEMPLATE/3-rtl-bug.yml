@@ -48,7 +48,7 @@ body:
       placeholder: tag, commit-hash, etc
   - type: input
     validations:
-      required: true
+      required: false
     attributes:
       label: Toolchain
       placeholder: ModelSim, Genus, DC, Innovus, etc.    
