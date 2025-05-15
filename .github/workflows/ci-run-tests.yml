@@ -27,7 +27,6 @@ jobs:
           cd tests
           . /usr/share/modules/init/sh
           module use /opt/modules
-          module avail
           module add questasim 
           module add vesyla
           module add bender
