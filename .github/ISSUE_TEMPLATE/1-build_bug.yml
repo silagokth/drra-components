@@ -1,7 +1,7 @@
 name: 🐞 Report a bug with DRRA Components
 description: Open a new issue to report a bug
-title: "[bug]:"
-labels: ["bug"]
+title: "[build-bug]:"
+labels: ["build-bug"]
 body:
   - type: checkboxes
     attributes:
