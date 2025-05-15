@@ -1,12 +1,24 @@
 function(cargo_build FOLDER)
     if(NOT DEFINED CORROSION_FETCHED OR NOT CORROSION_FETCHED)
-        add_subdirectory(
-            ${CMAKE_SOURCE_DIR}/cmake/modules/corrosion
-            ${CMAKE_BINARY_DIR}/corrosion-build
-            EXCLUDE_FROM_ALL
-        )
-        list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion/cmake")
-        include(Corrosion)
+        if(NOT EXISTS "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion")
+            message(STATUS "Fetching Corrosion")
+            include(FetchContent)
+            FetchContent_Declare(
+                Corrosion
+                GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+                GIT_TAG v0.5.2
+            )
+            FetchContent_MakeAvailable(Corrosion)
+        else()
+            message(STATUS "Using Corrosion submodule")
+            add_subdirectory(
+                ${CMAKE_SOURCE_DIR}/cmake/modules/corrosion
+                ${CMAKE_BINARY_DIR}/corrosion-build
+                EXCLUDE_FROM_ALL
+            )
+            list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion/cmake")
+            include(Corrosion)
+        endif()
 
         set(
             CORROSION_FETCHED TRUE
