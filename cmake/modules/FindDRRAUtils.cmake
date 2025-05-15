@@ -23,7 +23,7 @@ function(cargo_build FOLDER)
         set(
             CORROSION_FETCHED TRUE
             CACHE INTERNAL
-            "Wether Corrosion has been fetched"
+            "Whether Corrosion has been fetched"
         )
     endif()
 
