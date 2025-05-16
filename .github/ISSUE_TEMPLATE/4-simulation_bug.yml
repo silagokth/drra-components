@@ -1,7 +1,7 @@
-name: 🐞 Report a build bug
+name: 🧮 Report a bug with a simulation run
 description: Open a new issue to report a bug
-title: "[build-bug]"
-labels: ["build-bug"]
+title: "[bug(sst)]"
+labels: ["bug:simulation"]
 body:
   - type: checkboxes
     attributes:
