@@ -1,6 +1,6 @@
 function(cargo_build FOLDER)
     if(NOT DEFINED CORROSION_FETCHED OR NOT CORROSION_FETCHED)
-        if(NOT EXISTS "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion")
+        if(NOT EXISTS "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion/CMakeLists.txt")
             message(STATUS "Fetching Corrosion")
             include(FetchContent)
             FetchContent_Declare(
