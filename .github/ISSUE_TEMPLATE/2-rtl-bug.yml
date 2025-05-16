@@ -1,7 +1,7 @@
-name: 🐞 Report a bug
+name: 📟 Report an RTL bug
 description: Open a new issue to report a bug
-title: "[bug]"
-labels: ["bug"]
+title: "[bug(rtl)]"
+labels: ["bug:rtl"]
 body:
   - type: checkboxes
     attributes:
@@ -10,17 +10,10 @@ body:
         - label: 'Yes'
           required: true
 
-  - type: checkboxes
-    attributes:
-      label: The bug I want to report is not related to RTL, build or simulation. If not, [select the appropriate bug type](https://github.com/silagokth/drra-components/issues/new/choose).
-      options:
-        - label: 'Yes'
-          required: true
-
   - type: markdown
     attributes:
       value: |
-        This issue is for reporting bugs only!
+        This issue is for reporting RTL bugs only!
 
         If you have features or enhancements to request, please go back and select ["Request a feature or enhancement for DRRA Components"](https://github.com/silagokth/drra-components/issues/new/choose).
 
@@ -51,8 +44,14 @@ body:
     validations:
       required: true
     attributes:
-      label: What OS are you using?
-      placeholder: Ubuntu 22.10, Debian, Arch...etc
+      label: Fabric version that generated this
+      placeholder: tag, commit-hash, etc
+  - type: input
+    validations:
+      required: false
+    attributes:
+      label: Toolchain
+      placeholder: ModelSim, Genus, DC, Innovus, etc.    
   - type: input
     id: version
     validations:

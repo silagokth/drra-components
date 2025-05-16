@@ -1,18 +1,11 @@
-name: 🐞 Report a bug
+name: ⚒️  Report a build bug
 description: Open a new issue to report a bug
-title: "[bug]"
-labels: ["bug"]
+title: "[bug(build)]"
+labels: ["bug:build"]
 body:
   - type: checkboxes
     attributes:
       label: I have searched the existing issues, both open and closed, to make sure this is not a duplicate report.
-      options:
-        - label: 'Yes'
-          required: true
-
-  - type: checkboxes
-    attributes:
-      label: The bug I want to report is not related to RTL, build or simulation. If not, [select the appropriate bug type](https://github.com/silagokth/drra-components/issues/new/choose).
       options:
         - label: 'Yes'
           required: true
