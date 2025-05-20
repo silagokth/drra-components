@@ -31,17 +31,14 @@ import {{fingerprint}}_pkg::*;
     logic [COMPLEX_BITWIDTH-1:0] out3_r;
     logic [COMPLEX_BITWIDTH-1:0] out3_i;
 
-    // register input data
-    always_comb begin
-        data0_r <= data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data0_i <= data_in0[WORD_BITWIDTH/2-1:0];
-        data1_r <= data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data1_i <= data_in1[WORD_BITWIDTH/2-1:0];
-        data2_r <= data_in2[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data2_i <= data_in2[WORD_BITWIDTH/2-1:0];
-        data3_r <= data_in3[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data3_i <= data_in3[WORD_BITWIDTH/2-1:0];
-    end
+    assign data0_r = data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data0_i = data_in0[WORD_BITWIDTH/2-1:0];
+    assign data1_r = data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data1_i = data_in1[WORD_BITWIDTH/2-1:0];
+    assign data2_r = data_in2[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data2_i = data_in2[WORD_BITWIDTH/2-1:0];
+    assign data3_r = data_in3[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data3_i = data_in3[WORD_BITWIDTH/2-1:0];
 
     always_comb begin
         // out0 = 1, 1, 1, 1

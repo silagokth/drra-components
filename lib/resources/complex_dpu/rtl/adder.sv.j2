@@ -14,12 +14,10 @@ import {{fingerprint}}_pkg::*;
     logic [WORD_BITWIDTH/2-1:0] add_out_r;
     logic [WORD_BITWIDTH/2-1:0] add_out_i;
 
-    always_comb begin
-        data0_r <= data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data0_i <= data_in0[WORD_BITWIDTH/2-1:0];
-        data1_r <= data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data1_i <= data_in1[WORD_BITWIDTH/2-1:0];
-    end
+    assign data0_r = data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data0_i = data_in0[WORD_BITWIDTH/2-1:0];
+    assign data1_r = data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data1_i = data_in1[WORD_BITWIDTH/2-1:0];
 
     parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
 

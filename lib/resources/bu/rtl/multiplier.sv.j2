@@ -24,12 +24,11 @@ import {{fingerprint}}_pkg::*;
 
     logic signed [COMPLEX_BITWIDTH*2-1:0] temp1, temp2, temp3, temp4;
 
-    always_comb begin
-        data0_r <= data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data0_i <= data_in0[WORD_BITWIDTH/2-1:0];
-        data1_r <= data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
-        data1_i <= data_in1[WORD_BITWIDTH/2-1:0];
-    end
+    assign data0_r = data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data0_i = data_in0[WORD_BITWIDTH/2-1:0];
+    assign data1_r = data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data1_i = data_in1[WORD_BITWIDTH/2-1:0];
+    
 
     always_comb begin
         temp1 = data0_r * data1_r;       // ac
