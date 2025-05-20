@@ -1,0 +1,45 @@
+name: Run DRRA tests
+
+on:
+  workflow_call:
+
+jobs:
+  run-tests:
+    runs-on: [modelsim, vesyla, bender, sst]
+    steps:
+      - name: Download library
+        uses: actions/download-artifact@v4
+        with:
+          name: library
+      - name: Extract library
+        run: |
+          tar -xzf library.tar.gz
+          rm library.tar.gz
+      - name: Checkout testcases
+        uses: actions/checkout@v4
+        with:
+          repository: silagokth/drra-tests
+          path: tests
+          ref: master
+          token: ${{ secrets.DRRA_TEST_PAT }}
+      - name: Run tests
+        run: |
+          cd tests
+          . /usr/share/modules/init/sh
+          module use /opt/modules
+          module add questasim 
+          module add vesyla
+          module add bender
+          module add sst
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
+          vesyla testcase generate -d ./testcases
+          ./run.sh
+      - run: tar czf output.tar.gz tests/output
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-outputs
+          path: output.tar.gz

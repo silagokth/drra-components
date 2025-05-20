@@ -104,8 +104,10 @@ public:
     }
     trace_file.close();
 
-    tc = registerClock(clock, new Clock::Handler<DRRAComponent>(
-                                  this, &DRRAComponent::clockTickBase));
+    tc = registerClock(
+        clock,
+        new Clock::Handler2<DRRAComponent, &DRRAComponent::clockTickBase>(
+            this));
 
     // Cell coordinates
     std::vector<int> paramsCellCoordinates;
@@ -280,10 +282,10 @@ public:
     // Configure links
     for (uint8_t i = 0; i < resource_size; i++) {
       if (isPortConnected("controller_port" + std::to_string(i))) {
-        controller_links.push_back(
-            configureLink("controller_port" + std::to_string(i),
-                          new Event::Handler<DRRAResource>(
-                              this, &DRRAResource::handleEventBase)));
+        controller_links.push_back(configureLink(
+            "controller_port" + std::to_string(i),
+            new Event::Handler2<DRRAResource, &DRRAResource::handleEventBase>(
+                this)));
       } else {
         controller_links.push_back(nullptr);
       }
@@ -620,7 +622,10 @@ public:
       trace_file.close();
       // Move the trace file to the output directory
       std::string command = "mv " + trace_name + " trace_complete.json";
-      system(command.c_str());
+      int returnCode = system(command.c_str());
+      if(returnCode != 0) {
+        out.output("WARN: Could not copy the trace file to trace_complete.json");
+      }
     }
   }
 

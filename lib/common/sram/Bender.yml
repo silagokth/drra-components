@@ -5,6 +5,9 @@ sources:
   - target: tsmc28
     files:
       - ./rtl/sram:tsmc28.sv
+  - target: gf22
+    files:
+      - ./rtl/sram:gf22.sv
   - target: sim
     files:
       - ./rtl/sram:sim.sv

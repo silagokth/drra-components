@@ -58,8 +58,8 @@ import fabric_pkg::*;
         assign instr_en_out[i] = instr_en_net[i][COLS];
     end
     {% for cell in cells %}
-    {%- set r=cell.coordinates.row -%}
-    {%- set c=cell.coordinates.col -%}
+    {% set r=cell.coordinates.row -%}
+    {% set c=cell.coordinates.col -%}
     `{{cell.cell.name}} cell_{{r}}_{{c}}_inst (
         .clk(clk),
         .rst_n(rst_n),

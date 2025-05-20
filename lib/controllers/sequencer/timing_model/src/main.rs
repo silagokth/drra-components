@@ -20,7 +20,6 @@
  *
  */
 use serde_json::Value;
-use std::collections::HashMap;
 use std::env;
 use uuid::Uuid;
 
@@ -28,12 +27,10 @@ use uuid::Uuid;
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
 fn extract_op_expr(op_name: String, instr_list: Vec<(String, Vec<(String, String)>)>) -> String {
-    let mut t: HashMap<i64, String> = HashMap::new();
-    let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = "".to_string();
 
-    let counter = 0;
-    for instr in instr_list {
+    let mut counter = 0;
+    for _ in instr_list {
         if counter == 0 {
             expr = format!("{}_e0", op_name);
         } else {
@@ -119,7 +116,7 @@ fn create_timing_model(
 // Get an 8-character unique tag, starting with "__" and ending with "__"
 fn get_uuid_tag() -> String {
     let uuid = Uuid::new_v4();
-    let uuid_str = uuid.to_simple().to_string();
+    let uuid_str = uuid.simple().to_string();
     let uuid_str = uuid_str.chars().take(8).collect::<String>();
     format!("__{}__", uuid_str)
 }
