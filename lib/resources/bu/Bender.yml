@@ -2,6 +2,7 @@ package:
   name: bu
 
 dependencies:
+  fsm: {path: ../../common/fsm}
 
 sources:
   - ./rtl/bu_pkg.sv

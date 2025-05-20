@@ -51,6 +51,8 @@ import {{fingerprint}}_pkg::*;
     logic [$clog2(FSM_MAX_STATES)-1:0][DPU_MODE_WIDTH-1:0] mode_memory;
     logic [$clog2(FSM_MAX_STATES)-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
     logic [$clog2(FSM_MAX_STATES)-1:0] fsm_option;
+    logic [$clog2(FSM_MAX_STATES)-1:0] fsm_max_init_state;
+    logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
     logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
     logic [DPU_MODE_WIDTH-1:0] mode;
     logic [OPCODE_WIDTH-1:0] opcode;
@@ -60,12 +62,15 @@ import {{fingerprint}}_pkg::*;
     dpu_t dpu;
     fsm_t fsm;
 
-    fsm u_dpu_fsm (
+    fsm #(
+        .FSM_MAX_STATES(FSM_MAX_STATES),
+        .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
+    ) fsm_inst (
         .clk(clk),
         .rst_n(rst_n),
         .activate(|activate),
-        .instruction_valid(instruction_valid),
-        .instruction(instruction),
+        .fsm_delays(fsm_delays),
+        .max_init_state(fsm_max_init_state),
         .state(fsm_option)
     );
 
@@ -84,13 +89,21 @@ import {{fingerprint}}_pkg::*;
     always_ff @(posedge clk or negedge rst_n) begin
       if (!rst_n) begin
         immediate_memory <= '0;
+        mode_memory <= '0;
+        fsm_max_init_state <= '0;
       end else begin
         if (dpu_valid) begin
           mode_memory[dpu._option] <= dpu._mode;
           immediate_memory[dpu._option] <= dpu._immediate;
+          fsm_max_init_state <= dpu._option;
         end
       end
     end
+
+    // TODO: we need to make the number of delays parametric somehow
+    assign fsm_delays[0] = fsm._delay_0;
+    assign fsm_delays[1] = fsm._delay_1;
+    assign fsm_delays[2] = fsm._delay_2;
 
     assign mode = mode_memory[fsm_option];
     assign immediate = immediate_memory[fsm_option];

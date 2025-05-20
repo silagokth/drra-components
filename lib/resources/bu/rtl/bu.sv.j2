@@ -117,6 +117,8 @@ import {{fingerprint}}_pkg::*;
     logic [$clog2(FSM_MAX_STATES)-1:0][BU_RADIX_WIDTH-1:0] radix_memory;
     logic [$clog2(FSM_MAX_STATES)-1:0][BU_DEC_WIDTH-1:0] decimation_memory;
     logic [$clog2(FSM_MAX_STATES)-1:0] fsm_option;
+    logic [$clog2(FSM_MAX_STATES)-1:0] fsm_max_init_state;
+    logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
     logic [BU_RADIX_WIDTH-1:0] radix;
     logic [BU_DEC_WIDTH-1:0] decimation;
     logic [OPCODE_WIDTH-1:0] opcode;
@@ -126,12 +128,15 @@ import {{fingerprint}}_pkg::*;
     bu_t bu;
     fsm_t fsm;
 
-    fsm u_bu_fsm (
+    fsm #(
+        .FSM_MAX_STATES(FSM_MAX_STATES),
+        .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
+    ) fsm_inst (
         .clk(clk),
         .rst_n(rst_n),
         .activate(|activate),
-        .instruction_valid(instruction_valid),
-        .instruction(instruction),
+        .fsm_delays(fsm_delays),
+        .max_init_state(fsm_max_init_state),
         .state(fsm_option)
     );
 
@@ -148,13 +153,24 @@ import {{fingerprint}}_pkg::*;
         '{default: 0};
 
     always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            radix_memory <= '0;
+            decimation_memory <= '0;
+            fsm_max_init_state <= '0;
+        end else begin
         if (rst_n) begin
             if (bu_valid) begin
                 radix_memory[bu._option] <= bu._radix;
                 decimation_memory[bu._option] <= bu._decimation;
+                fsm_max_init_state <= dpu._option;
             end
         end
     end
+
+    // TODO: we need to make the number of delays parametric somehow
+    assign fsm_delays[0] = fsm._delay_0;
+    assign fsm_delays[1] = fsm._delay_1;
+    assign fsm_delays[2] = fsm._delay_2;
 
     assign radix = radix_memory[fsm_option];
     assign decimation = decimation_memory[fsm_option];
