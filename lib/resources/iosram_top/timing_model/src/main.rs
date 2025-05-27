@@ -29,12 +29,12 @@ use std::env;
 fn extract_op_expr(op_name: String, instr_list: Vec<(String, Vec<(String, String)>)>) -> String {
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
-    let mut expr = format!("{}_e0", op_name);
+    let mut expr = format!("e0");
 
     for instr in instr_list {
         if instr.0 == "rep" {
             let instr_fields = instr.1;
-            let mut iter = "1".to_string();
+            let mut iter = "0".to_string();
             let mut delay = "0".to_string();
             let mut level = 0;
             for field in instr_fields {
@@ -45,7 +45,8 @@ fn extract_op_expr(op_name: String, instr_list: Vec<(String, Vec<(String, String
                     _ => {}
                 }
             }
-            r.insert(level, (iter.to_string(), delay.to_string()));
+            iter = (iter.parse::<i64>().unwrap() + 1).to_string();
+            r.insert(level, (iter, delay.to_string()));
         } else if instr.0 == "fsm" {
             let instr_fields = instr.1;
             t.insert(0, "0".to_string());
@@ -72,7 +73,7 @@ fn extract_op_expr(op_name: String, instr_list: Vec<(String, Vec<(String, String
     for i in 0..3 {
         if let Some(delay) = t.get(&i) {
             if delay != "0" {
-                expr = format!("T<{}>({}, {}_e{})", delay, expr, op_name, event_counter);
+                expr = format!("T<{}>({}, e{})", delay, expr, event_counter);
                 event_counter += 1;
             } else {
                 break;
