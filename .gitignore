@@ -16,3 +16,6 @@ sst_test_outputs/
 
 # Rust and Cargo
 target/
+
+# Bender
+Bender.lock
