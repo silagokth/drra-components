@@ -9,8 +9,15 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Add static linking flags
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+set(
+  CMAKE_EXE_LINKER_FLAGS
+  "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++"
+)
+
+set(
+  CMAKE_SHARED_LINKER_FLAGS
+  "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++"
+)
 
 # Create a USE_SST option (default ON)
 option(USE_SST "Compile SST components, needed for SST simulation" ON)
@@ -22,8 +29,20 @@ add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 # SST
 if(USE_SST)
+  # Check if SST is installed
+  find_program(SST_EXECUTABLE sst)
+  if(NOT SST_EXECUTABLE)
+    message(
+      FATAL_ERROR
+      "SST not found. Please install SST and ensure it is in your PATH."
+    )
+  endif()
+
   # Make sure module path is set (already done in your file)
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+  set(
+    CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/"
+  )
 
   # Find SST package
   find_package(SST REQUIRED)
@@ -45,11 +64,16 @@ if(USE_SST)
   add_subdirectory(sst_tests)
 
   # Register DRRA library and its components
-  add_custom_command(TARGET drra POST_BUILD
-    COMMAND echo "Registering SST library: drra"
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra> ${CMAKE_CURRENT_BINARY_DIR}/library
-    COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
-    COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
+  add_custom_command(
+      TARGET drra POST_BUILD
+      COMMENT "Registering DRRA SST library and test components"
+      COMMAND echo "Registering SST library: drra"
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra>
+              ${CMAKE_CURRENT_BINARY_DIR}/library
+      COMMAND sst-register drra
+              drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
+      COMMAND sst-register SST_ELEMENT_TESTS
+              drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
   )
 endif()
 
