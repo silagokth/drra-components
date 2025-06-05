@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(drra-component-lib)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Add RPATH settings for better portability
 set(CMAKE_INSTALL_PATH "$ORIGIN")
@@ -19,6 +20,9 @@ option(USE_SST "Compile SST components, needed for SST simulation" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
+
+# Set global temporary directory for components
+set(CMAKE_COMPONENTS_TEMP_DIR "${CMAKE_BINARY_DIR}/tmp")
 
 # SST
 if(USE_SST)
@@ -45,8 +49,9 @@ if(USE_SST)
   add_subdirectory(sst_tests)
 
   # Register DRRA library and its components
-  add_custom_command(TARGET drra POST_BUILD
-    COMMAND echo "Registering SST library: drra"
+  add_custom_target(register_drra ALL
+    DEPENDS drra
+    COMMENT "Registering SST library: drra"
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra> ${CMAKE_CURRENT_BINARY_DIR}/library
     COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
     COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
@@ -62,3 +67,10 @@ mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 add_subdirectory("lib")
+
+add_custom_target(clean_tmp ALL
+  COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_COMPONENTS_TEMP_DIR}
+  COMMENT "Cleaning up temporary directory"
+  DEPENDS drra
+)
+
