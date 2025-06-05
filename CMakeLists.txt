@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(drra-component-lib)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Add RPATH settings for better portability
 set(CMAKE_INSTALL_PATH "$ORIGIN")
