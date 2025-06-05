@@ -49,7 +49,7 @@ if(USE_SST)
   add_subdirectory(sst_tests)
 
   # Register DRRA library and its components
-  add_custom_target(resgister_drra ALL
+  add_custom_target(register_drra ALL
     DEPENDS drra
     COMMENT "Registering SST library: drra"
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:drra> ${CMAKE_CURRENT_BINARY_DIR}/library
