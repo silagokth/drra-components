@@ -40,41 +40,40 @@ function(cargo_build FOLDER)
     include(Corrosion)
   endif()
 
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_COMPONENTS_LIBRARY_DIR})
 
   get_filename_component(FOLDER_NAME ${FOLDER} NAME)
   message(STATUS "Found Rust project: ${FOLDER}")
 
-  # Create temporary directory
-  file(MAKE_DIRECTORY "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp")
-  file(COPY "${FOLDER}" DESTINATION "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp")
-
   # Generate a unique hash for this package
   string(SHA256 CRATE_HASH "${FOLDER}")
 
-  # Modify the Cargo.toml file DURING CMAKE CONFIGURATION
+  # Create temporary directory and copy the folder contents
+  file(MAKE_DIRECTORY "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}")
   file(
-      READ "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml"
-      CARGO_TOML_CONTENT
+    COPY "${FOLDER}/."
+    DESTINATION "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}"
   )
 
-  # Replace the package name in Cargo.toml
+  # Modify the Cargo.toml file DURING CMAKE CONFIGURATION
+  file(
+      READ "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}/Cargo.toml"
+      CARGO_TOML_CONTENT
+  )
   string(
     REGEX
     REPLACE "(^|\n)name = \"[^\"]*\"" "\\1name = \"sha256_${CRATE_HASH}\""
     UPDATED_CARGO_TOML_CONTENT "${CARGO_TOML_CONTENT}"
   )
-
-  # Write the updated content back to Cargo.toml
   file(
     WRITE
-    "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml"
+    "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}/Cargo.toml"
     "${UPDATED_CARGO_TOML_CONTENT}"
   )
 
   corrosion_import_crate(
     MANIFEST_PATH
-    ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp/${FOLDER_NAME}/Cargo.toml
+    ${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}/Cargo.toml
     PROFILE release
   )
 
@@ -83,20 +82,23 @@ function(cargo_build FOLDER)
 
   # Create a custom target that depends on the Corrosion target
   add_custom_target(
-        copy_${CRATE_HASH} ALL
-        DEPENDS ${CORROSION_TARGET_NAME}
-        COMMAND ${CMAKE_COMMAND} -E copy
-        $<TARGET_FILE:${CORROSION_TARGET_NAME}>
-        "${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/${FOLDER_NAME}"
-        COMMENT "Copying and renaming executable to ${FOLDER_NAME}"
-    )
+    copy_executable_${CRATE_HASH} ALL
+    DEPENDS ${CORROSION_TARGET_NAME}
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${CORROSION_TARGET_NAME}> "${CMAKE_COMPONENTS_LIBRARY_DIR}/${FOLDER_NAME}"
+    COMMENT "Copying and renaming executable to ${FOLDER_NAME}"
+  )
 
   # Clean up temp directory at build time
   add_custom_target(
     cleanup_${CRATE_HASH} ALL
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY}/temp
+    DEPENDS copy_executable_${CRATE_HASH}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}
     COMMAND ${CMAKE_COMMAND} -E remove -f $<TARGET_FILE:${CORROSION_TARGET_NAME}>
     COMMENT "Cleaning up temporary build directory"
+  )
+  add_dependencies(drra
+    copy_executable_${CRATE_HASH}
+    cleanup_${CRATE_HASH}
   )
 endfunction()
 
@@ -108,7 +110,7 @@ function(add_drra_folder TYPE_NAME)
   foreach(SUBDIR ${SUBDIRS})
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR})
       # Set output directory for components
-      set(CMAKE_COMPONENTS_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library/${TYPE_NAME}/${SUBDIR})
+      set(CMAKE_COMPONENTS_LIBRARY_DIR ${CMAKE_BINARY_DIR}/library/${TYPE_NAME}/${SUBDIR})
 
       # Add subdirectory if it has a CMakeLists.txt
       if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/CMakeLists.txt")
@@ -122,7 +124,7 @@ function(add_drra_folder TYPE_NAME)
 
         # Copy all JSON files
         file(GLOB JSON_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/*.json")
-        file(COPY ${JSON_FILES} DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+        file(COPY ${JSON_FILES} DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
       endif()
 
       # Copy RTL folder if it exists
@@ -130,10 +132,10 @@ function(add_drra_folder TYPE_NAME)
         message(STATUS "Found RTL folder in component: ${SUBDIR}")
 
         # Copy Bender file
-        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/Bender.yml" DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/Bender.yml" DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
 
         # Copy RTL folder
-        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/rtl DESTINATION ${CMAKE_COMPONENTS_OUTPUT_DIRECTORY})
+        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/rtl DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
       endif()
     endif()
   endforeach()
