@@ -1,5 +1,7 @@
 # DRRA Component Library
 
+[![](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml/badge.svg)](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml)
+
 This repository contains the DRRA component library. The library is a collection of components that can be used to build a DRRA application.
 
 ## Prerequisites
@@ -7,7 +9,7 @@ This repository contains the DRRA component library. The library is a collection
 ### For using [pre-built releases](https://github.com/silagokth/drra-components/releases)
 
 - GLIBC 2.35 or newer
-- [vesyla](https://github.com/silagokth/vesyla)
+- [vesyla](https://github.com/silagokth/vesyla) v4.2.0 or newer
   - **Option 1**: From the [pre-built releases](https://github.com/silagokth/vesyla/releases)
   - **Option 2**: Built from [source](https://github.com/silagokth/vesyla)
 - [SST framework](https://sst-simulator.org)
@@ -35,6 +37,19 @@ This repository contains the DRRA component library. The library is a collection
     [build]
     rustc-wrapper = "/path/to/sccache"
     ```
+## Cloning the repo
+
+This repo contains submodules.
+Use the following command to clone it:
+
+```bash
+git clone --recurse-submodules git@github.com:silagokth/drra-components.git
+```
+
+Or, if the repo was already cloned:
+```bash
+git submodule update --init
+```
 
 ## Compilation and Installation
 

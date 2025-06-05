@@ -1,0 +1,33 @@
+name: Draft release
+
+on:
+  workflow_call: 
+
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: library
+
+      - name: Release
+        id: upload-release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            library.tar.gz

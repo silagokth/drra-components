@@ -6,4 +6,5 @@ dependencies:
   agu: {path: ../../common/agu}
 
 sources:
+  - ./rtl/iosram_top_pkg.sv
   - ./rtl/iosram_top.sv

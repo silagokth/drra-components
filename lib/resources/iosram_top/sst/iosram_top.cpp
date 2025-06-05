@@ -17,8 +17,7 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
   // Backing store
   bool found = false;
   std::string backingType = params.find<std::string>(
-      "backing", "malloc",
-      found); /* Default to using an mmap backing store, fall back on malloc */
+      "backing", "malloc", found); /* Default to using a malloc backing store */
   if (!found) {
     bool oldBackVal = params.find<bool>("do-not-back", false, found);
     if (oldBackVal)
@@ -45,23 +44,6 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
     try {
       backend = new SST::MemHierarchy::Backend::BackingIO(
           memoryFile, io_data_width, iosram_depth, read_only);
-    } catch (int e) {
-      if (e == 1) {
-        out.fatal(CALL_INFO, -1, "Failed to open memory file: %s\n",
-                  memoryFile.c_str());
-      } else {
-        out.fatal(CALL_INFO, -1, "Failed to map memory file: %s\n",
-                  memoryFile.c_str());
-      }
-    }
-  } else if (backingType == "mmap") {
-    std::string memoryFile = params.find<std::string>("memory_file", "");
-    if (0 == memoryFile.compare("")) {
-      memoryFile.clear();
-    }
-    try {
-      backend =
-          new SST::MemHierarchy::Backend::BackingMMAP(memoryFile, sizeBytes);
     } catch (int e) {
       if (e == 1) {
         out.fatal(CALL_INFO, -1, "Failed to open memory file: %s\n",

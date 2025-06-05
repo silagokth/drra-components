@@ -1,0 +1,74 @@
+name: Build library
+
+on:
+  workflow_call:
+
+env:
+  SST_CORE_HOME: ${{ github.workspace }}/sstcore
+  SST_ELEMENTS_HOME: ${{ github.workspace }}/sstelements
+  SST_DIR: ${{ github.workspace }}/sstcore/lib/cmake/SST
+
+jobs:
+  build-library:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Restore SST Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ github.workspace }}/build
+          ${{ github.workspace }}/sstcore
+          ${{ github.workspace }}/sstelements
+        key: ${{ runner.os }}-build-sst-14.1.0
+        restore-keys: |
+          ${{ runner.os }}-build-sst-14.1.0
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Install dependencies
+      run: sudo apt install libfuse2 libgtest-dev
+
+    - name: Check if SST is already installed
+      id: check-sst
+      uses: ./.github/actions/check-sst-install
+      with:
+        sst-core-home: ${{ env.SST_CORE_HOME }}
+        sst-elements-home: ${{ env.SST_ELEMENTS_HOME }}
+
+    - name: Set environment variables
+      shell: bash
+      run: |
+        echo "SST_CORE_HOME=${{ env.SST_CORE_HOME }}" >> $GITHUB_ENV
+        echo "SST_ELEMENTS_HOME=${{  env.SST_ELEMENTS_HOME }}" >> $GITHUB_ENV
+        echo "SST_DIR=${{ env.SST_CORE_HOME }}/lib/cmake/SST" >> $GITHUB_ENV
+        echo "PATH=${{ env.SST_CORE_HOME }}/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Check SST installation
+      shell: bash
+      run: |
+        ls $SST_CORE_HOME/bin
+        sst --version
+        echo "SST installation found in cache"
+
+    - name: Build library
+      shell: bash
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SST=ON ..
+        cmake --build .
+        echo "VESYLA_SUITE_PATH_COMPONENTS=$(pwd)/library" >> $GITHUB_ENV
+
+    - run: tar czf library.tar.gz -C build library
+
+    - name: Upload library
+      id: upload-library
+      uses: actions/upload-artifact@v4
+      with:
+        name: library
+        path: library.tar.gz

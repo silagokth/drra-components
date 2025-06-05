@@ -37,10 +37,10 @@ public:
     params.push_back({"word_bitwidth", "Width of the word", "16"});
     params.push_back({"access_time", "Time to access the IO buffer", "0ns"});
     params.push_back(
-        {"backing", "Type of backing store (malloc, mmap)", "malloc"});
+        {"backing", "Type of backing store (malloc, mfile)", "malloc"});
     params.push_back(
         {"backing_size_unit", "Size of the backing store", "1MiB"});
-    params.push_back({"memory_file", "Memory file for mmap backing", ""});
+    params.push_back({"memory_file", "Memory file for mfile backing", ""});
     params.push_back({"read_only", "Read-only mode", "false"});
     params.push_back({"num_columns", "Number of columns", "1"});
     return params;

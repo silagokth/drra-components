@@ -1,0 +1,36 @@
+name: Release workflow
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  ci-sst-install:
+    name: SST Install
+    uses: ./.github/workflows/ci-sst-install.yml
+    secrets: inherit
+
+  ci-build-library:
+    name: Build DRRA Library
+    uses: ./.github/workflows/ci-build-library.yml
+    needs: ci-sst-install
+    secrets: inherit
+
+  ci-run-tests:
+    name: Run DRRA Tests
+    uses: ./.github/workflows/ci-run-tests.yml
+    needs: ci-build-library
+    secrets: inherit
+
+  ci-draft-release:
+    name: Draft Release
+    uses: ./.github/workflows/ci-draft-release.yml
+    needs: ci-run-tests
+    secrets: inherit
+
+  ci-create-isa-doc:
+    name: Create ISA Doc
+    uses: ./.github/workflows/ci-create-isa-doc.yml
+    needs: ci-run-tests
+    secrets: inherit
