@@ -1,4 +1,4 @@
-module mux_rotator_v3 #(
+module mux_rotator_r4 #(
     parameter AGU_BITWIDTH = 8, // 256 FFT
     parameter STAGE_WIDTH = 4
 ) (

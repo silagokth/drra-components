@@ -1,5 +1,5 @@
 {
-  "kind": "rf_fft_v3",
+  "kind": "rf_fft_r4",
   "size": 4,
   "io_input": false,
   "io_output": false,

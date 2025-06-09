@@ -1,4 +1,4 @@
-module twiddle_addr_v3 #(
+module twiddle_addr_r4 #(
     parameter AGU_BITWIDTH = 8, // 256 FFT
     parameter STAGE_WIDTH = 4
 ) (

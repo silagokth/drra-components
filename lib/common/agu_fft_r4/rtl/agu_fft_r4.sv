@@ -1,4 +1,4 @@
-module agu_fft_v3 #(
+module agu_fft_r4 #(
     parameter AGU_BITWIDTH = 16,
     parameter DELAY_WIDTH = 5,
     parameter STAGE_WIDTH = 4
@@ -71,7 +71,7 @@ module agu_fft_v3 #(
         end
     end
 
-    mux_rotator_v3 #(
+    mux_rotator_r4 #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .STAGE_WIDTH(STAGE_WIDTH)
     ) mux_rotator_inst (
@@ -85,7 +85,7 @@ module agu_fft_v3 #(
         .addr_out(next_address_rot)
     );
 
-    twiddle_addr_v3 #(
+    twiddle_addr_r4 #(
         .AGU_BITWIDTH(AGU_BITWIDTH),
         .STAGE_WIDTH(STAGE_WIDTH)
     ) twiddle_addr_inst (
