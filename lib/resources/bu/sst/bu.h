@@ -37,14 +37,35 @@ public:
   /* Destructor */
   ~BU() {};
 
-  // SST lifecycle methods
+  /* SST lifecycle methods */
   virtual void init(unsigned int phase) override;
   virtual void setup() override;
   virtual void complete(unsigned int phase) override;
   virtual void finish() override;
 
+  /* SST Clock Handler Function */
+  bool clockTick(SST::Cycle_t currentCycle) override;
+
 private:
+  /* Instruction decoding */
   void decodeInstr(uint32_t instr) override;
+  enum OpCode { FSM = 2, BU_OP = 3 };
+  void handleFSM(uint32_t instr);
+  void handleBU(uint32_t instr);
+  enum Radixes { RADIX_2, RADIX_4 };
+  enum Decimation { DIT, DIF };
+
+  /* Timing model variables */
+  uint32_t current_event_number = 0;
+
+  /* FSM variables */
+  static const uint32_t num_fsms = 4; // Number of FSMs
+  uint32_t current_fsm = 0;
+  std::function<void()> fsmHandlers[num_fsms];
+
+  std::function<void()> getBUHandler(Radixes radix, Decimation decimation) {
+    return {};
+  }
 };
 
 #endif // _BU_H
