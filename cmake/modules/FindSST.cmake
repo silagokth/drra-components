@@ -1,5 +1,18 @@
 # FindSST.cmake - Find SST package
 
+if(USE_SST)
+  message(STATUS "USE_SST is enabled, proceeding with SST package search.")
+else()
+  message(STATUS "USE_SST is disabled, skipping SST package search.")
+  function(sst_build)
+    message(
+      STATUS
+      "SST build function is not called because USE_SST is disabled."
+    )
+  endfunction()
+  return()
+endif()
+
 set(SST_PREFIX $ENV{SST_CORE_HOME})
 
 # Find the SST executable
@@ -17,7 +30,10 @@ if(NOT SST_EXECUTABLE)
     message(STATUS "  ${FILE}")
   endforeach()
 
-  message(FATAL_ERROR "SST executable not found. Please set the SST_CORE_HOME environment variable.")
+  message(
+    FATAL_ERROR
+    "SST executable not found. Set the SST_CORE_HOME environment variable."
+  )
 endif()
 
 # Cache variables
@@ -128,6 +144,7 @@ mark_as_advanced(SST_EXECUTABLE SST_INCLUDE_DIR SST_CXX_FLAGS)
 
 function(sst_build)
   if(USE_SST)
+    find_package(SST REQUIRED)
     set(options)
     set(oneValueArgs OVERRIDE_SOURCE_NAME)
     set(multiValueArgs)
