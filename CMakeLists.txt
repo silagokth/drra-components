@@ -56,6 +56,8 @@ if(USE_SST)
     COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
     COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
   )
+else()
+  add_library(drra INTERFACE)
 endif()
 
 # The project version number.
