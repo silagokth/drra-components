@@ -61,10 +61,19 @@ else()
 endif()
 
 # The project version number.
-set(VERSION_MAJOR 1 CACHE STRING "Project major version number.")
-set(VERSION_MINOR 0 CACHE STRING "Project minor version number.")
-set(VERSION_PATCH 0 CACHE STRING "Project patch version number.")
-mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+execute_process(
+  COMMAND bash -c "git describe --tags --exact-match 2>/dev/null || git describe --always --tags"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE DRRA_COMPONENTS_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# If the DRRA_COMPONENTS_VERSION value is set, write it to a file
+if(NOT DRRA_COMPONENTS_VERSION)
+  set(DRRA_COMPONENTS_VERSION "version unknown")
+endif()
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/library/VERSION" "${DRRA_COMPONENTS_VERSION}\n")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
