@@ -63,7 +63,6 @@ endif()
 # The project version number.
 execute_process(
   COMMAND bash -c "git describe --tags --exact-match 2>/dev/null || git describe --always --tags"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE DRRA_COMPONENTS_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
@@ -73,7 +72,16 @@ if(NOT DRRA_COMPONENTS_VERSION)
   set(DRRA_COMPONENTS_VERSION "version unknown")
 endif()
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/library/VERSION" "${DRRA_COMPONENTS_VERSION}\n")
+file(
+  WRITE
+  "${CMAKE_CURRENT_BINARY_DIR}/library/VERSION"
+  "${DRRA_COMPONENTS_VERSION}\n"
+)
+
+add_custom_target(drra_version ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/library/VERSION
+  COMMENT "Generating DRRA version file"
+)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
