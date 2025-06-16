@@ -46,6 +46,9 @@ public:
   /* SST Clock Handler Function */
   bool clockTick(SST::Cycle_t currentCycle) override;
 
+  /* DRRA Event Handler */
+  void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
+
 private:
   /* Instruction decoding */
   void decodeInstr(uint32_t instr) override;

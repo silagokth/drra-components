@@ -1,4 +1,5 @@
 #include "bu.h"
+#include "dataEvent.h"
 
 BU::BU(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {}
 
@@ -29,7 +30,36 @@ void BU::decodeInstr(uint32_t instr) {
 bool BU::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
 
+  // Handle Data Events
+  for (int i = 0; i < resource_size; i++) {
+    Event *event = data_links[i]->recv();
+    if (event) {
+      handleEventWithSlotID(event, i);
+    }
+  }
+
   return false;
+}
+
+void BU::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
+  // Check if the event is a DataEvent
+  DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
+  if (dataEvent) {
+    // Only handle events on the write narrow port
+    if (dataEvent->portType != DataEvent::PortType::WriteNarrow)
+      out.fatal(CALL_INFO, -1, "Invalid port type\n");
+
+    // Store the data in the buffer of the slot
+    out.output("Received data (slot=%d, size=%dbits, data=%s)\n", slot_id,
+               dataEvent->size,
+               formatRawDataToWords(dataEvent->payload).c_str());
+
+    // Retrieve the data from the event
+    std::vector<uint8_t> data = dataEvent->payload;
+
+    // Store the data in the slot buffer
+    data_buffers[slot_id] = data;
+  }
 }
 
 void BU::handleFSM(uint32_t instr) {
