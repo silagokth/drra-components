@@ -88,17 +88,8 @@ function(cargo_build FOLDER)
     COMMENT "Copying and renaming executable to ${FOLDER_NAME}"
   )
 
-  # Clean up temp directory at build time
-  add_custom_target(
-    cleanup_${CRATE_HASH} ALL
-    DEPENDS copy_executable_${CRATE_HASH}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}
-    COMMAND ${CMAKE_COMMAND} -E remove -f $<TARGET_FILE:${CORROSION_TARGET_NAME}>
-    COMMENT "Cleaning up temporary build directory"
-  )
   add_dependencies(drra
     copy_executable_${CRATE_HASH}
-    cleanup_${CRATE_HASH}
   )
 endfunction()
 
