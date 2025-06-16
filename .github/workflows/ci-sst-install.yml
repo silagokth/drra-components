@@ -2,6 +2,7 @@ name: Install SST
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 env:
   SST_CORE_HOME: ${{ github.workspace }}/sstcore
