@@ -5,6 +5,7 @@ on:
     inputs:
       branch:
         description: (optional) name of the drra-tests branch to run the tests on
+        type: string
         default: 'master'
 
 jobs:
