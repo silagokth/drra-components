@@ -23,6 +23,10 @@ add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 # Set global temporary directory for components
 set(CMAKE_COMPONENTS_TEMP_DIR "${CMAKE_BINARY_DIR}/tmp")
+if(EXISTS "${CMAKE_COMPONENTS_TEMP_DIR}")
+  file(REMOVE_RECURSE "${CMAKE_COMPONENTS_TEMP_DIR}")
+endif()
+file(MAKE_DIRECTORY "${CMAKE_COMPONENTS_TEMP_DIR}")
 
 # SST
 if(USE_SST)
@@ -86,10 +90,4 @@ add_custom_target(drra_version ALL
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 add_subdirectory("lib")
-
-add_custom_target(clean_tmp ALL
-  COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_COMPONENTS_TEMP_DIR}
-  COMMENT "Cleaning up temporary directory"
-  DEPENDS drra
-)
 
