@@ -25,7 +25,7 @@ jobs:
 
     - name: Check branch name
       id: check-branch
-      run: echo "branch:$(git branch --show-current)" >> $GITHUB_OUTPUT
+      run: echo "branch=$(git branch --show-current)" >> $GITHUB_OUTPUT
 
     - name: Restore SST Cache
       uses: actions/cache@v4
