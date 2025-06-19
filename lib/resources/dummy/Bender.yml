@@ -1,8 +1,0 @@
-package:
-  name: dummy
-
-dependencies:
-
-sources:
-  - ./rtl/dummy_pkg.sv
-  - ./rtl/dummy.sv
