@@ -56,13 +56,32 @@ if(USE_SST)
     COMMAND sst-register drra drra_LIBDIR=${CMAKE_CURRENT_BINARY_DIR}/library
     COMMAND sst-register SST_ELEMENT_TESTS drra=${CMAKE_CURRENT_SOURCE_DIR}/sst_tests
   )
+else()
+  add_library(drra INTERFACE)
 endif()
 
 # The project version number.
-set(VERSION_MAJOR 1 CACHE STRING "Project major version number.")
-set(VERSION_MINOR 0 CACHE STRING "Project minor version number.")
-set(VERSION_PATCH 0 CACHE STRING "Project patch version number.")
-mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+execute_process(
+  COMMAND bash -c "git describe --tags --exact-match 2>/dev/null || git describe --always --tags"
+  OUTPUT_VARIABLE DRRA_COMPONENTS_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# If the DRRA_COMPONENTS_VERSION value is set, write it to a file
+if(NOT DRRA_COMPONENTS_VERSION)
+  set(DRRA_COMPONENTS_VERSION "version unknown")
+endif()
+
+file(
+  WRITE
+  "${CMAKE_CURRENT_BINARY_DIR}/library/VERSION"
+  "${DRRA_COMPONENTS_VERSION}\n"
+)
+
+add_custom_target(drra_version ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/library/VERSION
+  COMMENT "Generating DRRA version file"
+)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 

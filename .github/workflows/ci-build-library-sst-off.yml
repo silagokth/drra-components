@@ -1,0 +1,21 @@
+name: Build library without SST
+
+on:
+  workflow_call:
+
+jobs:
+  build-library:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Build library
+      shell: bash
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DUSE_SST=OFF ..
+        cmake --build .
