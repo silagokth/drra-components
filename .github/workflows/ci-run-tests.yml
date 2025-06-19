@@ -37,6 +37,8 @@ jobs:
           if git show-ref --verify --quiet refs/remotes/origin/${{ inputs.branch }}; then
             git checkout ${{ inputs.branch }}
             echo "Switching to drra-tests@${{ inputs.branch }}"
+          else
+            echo "Using the drra-tests master branch"
           fi
 
       - name: Run tests
