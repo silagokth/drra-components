@@ -26,4 +26,4 @@ jobs:
     needs: ci-build-library
     secrets: inherit
     with:
-      branch: ${{ needs.ci-build-vesyla.outputs.branch }}
+      branch: ${{ needs.ci-build-library.outputs.branch }}
