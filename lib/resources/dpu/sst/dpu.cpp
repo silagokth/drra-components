@@ -11,13 +11,7 @@ void DPU::init(unsigned int phase) {
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }
 
-void DPU::setup() {
-  for (int i = 0; i < resource_size; i++) {
-    for (int j = 0; j < word_bitwidth / 8; j++) {
-      data_buffers[i].push_back(0);
-    }
-  }
-}
+void DPU::setup() {}
 
 void DPU::complete(unsigned int phase) {}
 

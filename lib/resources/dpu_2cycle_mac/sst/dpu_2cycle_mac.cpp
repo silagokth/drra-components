@@ -11,13 +11,7 @@ void DPU2CycleMac::init(unsigned int phase) {
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }
 
-void DPU2CycleMac::setup() {
-  for (int i = 0; i < resource_size; i++) {
-    for (int j = 0; j < word_bitwidth / 8; j++) {
-      data_buffers[i].push_back(0);
-    }
-  }
-}
+void DPU2CycleMac::setup() {}
 
 void DPU2CycleMac::complete(unsigned int phase) {}
 
