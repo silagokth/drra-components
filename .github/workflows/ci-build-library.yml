@@ -26,7 +26,7 @@ jobs:
     - name: Check branch name
       id: check-branch
       run: |
-        cd ${{ github.workspace }}/drra-components/
+        cd ${{ github.workspace }}
         branch=$(git branch --show-current)
         echo "Current branch is $branch"
         echo "branch=$branch" >> $GITHUB_OUTPUT
