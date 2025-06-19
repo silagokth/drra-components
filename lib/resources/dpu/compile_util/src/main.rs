@@ -1,3 +1,4 @@
+use serde_json::json;
 /**
  * This is the main file for the Rust implementation of the compile_util program.
  *
@@ -9,14 +10,16 @@
  * - reshape_instr: to reshape the instruction fields and instrucion list
  *
  * The input file is a JSON file that contains the following fields:
- * - row: the number of rows in the timing model
- * - col: the number of columns in the timing model
- * - slot: the number of slots in the timing model
- * - port: the number of ports in the timing model
- * - op_name: the name of the operation
- * - instr_list: a list of instructions, each instruction contains the following fields:
- *  - name: the name of the instruction
- *  - fields: a list of fields, each field contains the following fields:
+ * - kind: the type of the operation, it can be "rop" or "cop"
+ * - id: the id of the operation
+ * - row: the row location of the operation
+ * - col: the column location of the operation
+ * - slot: the slot location of the operation, only exists for "rop"
+ * - port: the port location of the operation, only exists for "rop"
+ * - body: a list of instructions, each instruction contains the following fields:
+ *  - id: the name of the instruction
+ *  - kind: the type of the instruction
+ *  - params: a list of parameter fields, each field contains:
  *   - name: the name of the field
  *   - value: the value of the field
  *
@@ -30,7 +33,6 @@
  *
  */
 use serde_json::Value;
-use serde_json::json;
 use std::collections::HashMap;
 use std::env;
 
@@ -38,23 +40,13 @@ use std::env;
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
 fn get_timing_model(op: Op) -> String {
-    let row = op.row;
-    let col = op.col;
-    let slot = op.slot;
-    let port = op.port;
-    let instr_list = op.instr_list;
-
-    if row < 0 || col < 0 || slot < 0 || port < 0 {
-        panic!("Invalid input");
-    }
-
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = format!("e0");
 
-    for instr in instr_list {
-        if instr.0 == "rep" {
-            let instr_fields = instr.1;
+    for instr in op.body {
+        if instr.kind == "rep" {
+            let instr_fields = instr.params;
             let mut iter = "0".to_string();
             let mut delay = "0".to_string();
             let mut level = 0;
@@ -68,8 +60,8 @@ fn get_timing_model(op: Op) -> String {
             }
             iter = (iter.parse::<i64>().unwrap() + 1).to_string();
             r.insert(level, (iter, delay.to_string()));
-        } else if instr.0 == "fsm" {
-            let instr_fields = instr.1;
+        } else if instr.kind == "fsm" {
+            let instr_fields = instr.params;
             t.insert(0, "0".to_string());
             t.insert(1, "0".to_string());
             t.insert(2, "0".to_string());
@@ -113,14 +105,24 @@ fn get_timing_model(op: Op) -> String {
 }
 
 fn reshape_instr(op: Op) -> Op {
-    let mut reshaped_instr_list = Vec::new();
-    for instr in op.instr_list {
-        if instr.0 == "rep" {
+    let mut new_op = Op {
+        kind: op.kind,
+        id: op.id,
+        row: op.row,
+        col: op.col,
+        slot: op.slot,
+        port: op.port,
+        body: Vec::new(),
+    };
+
+    let mut new_body = Vec::new();
+    for instr in op.body {
+        if instr.kind == "rep" {
             let mut iter = 0;
             let mut delay = 0;
             let mut step = 0;
 
-            for field in instr.1.iter() {
+            for field in instr.params.iter() {
                 if field.0 == "iter" {
                     iter = field.1.parse::<i64>().unwrap();
                 } else if field.0 == "delay" {
@@ -134,26 +136,28 @@ fn reshape_instr(op: Op) -> Op {
             let mut iterx = 0;
             let mut delayx = 0;
             let mut stepx = 0;
-            if iter > 2i64.pow(8) - 1 {
+            if iter > 2i64.pow(6) - 1 {
                 repx_flag = true;
-                iterx = iter / 2i64.pow(8);
-                iter = iter % 2i64.pow(8);
+                iterx = iter / 2i64.pow(6);
+                iter = iter % 2i64.pow(6);
             }
-            if delay > 2i64.pow(8) - 1 {
+            if delay > 2i64.pow(6) - 1 {
                 repx_flag = true;
-                delayx = delay / 2i64.pow(8);
-                delay = delay % 2i64.pow(8);
+                delayx = delay / 2i64.pow(6);
+                delay = delay % 2i64.pow(6);
             }
-            if step > 2i64.pow(8) - 1 {
+            if step > 2i64.pow(6) - 1 {
                 repx_flag = true;
-                stepx = step / 2i64.pow(8);
-                step = step % 2i64.pow(8);
+                stepx = step / 2i64.pow(6);
+                step = step % 2i64.pow(6);
             }
 
             if repx_flag {
                 let mut rep_instr = instr.clone();
                 let mut repx_instr = instr.clone();
-                for field in rep_instr.1.iter_mut() {
+                rep_instr.kind = "rep".to_string();
+                repx_instr.kind = "repx".to_string();
+                for field in rep_instr.params.iter_mut() {
                     if field.0 == "iter" {
                         field.1 = iter.to_string();
                     } else if field.0 == "delay" {
@@ -162,7 +166,7 @@ fn reshape_instr(op: Op) -> Op {
                         field.1 = step.to_string();
                     }
                 }
-                for field in repx_instr.1.iter_mut() {
+                for field in repx_instr.params.iter_mut() {
                     if field.0 == "iter" {
                         field.1 = iterx.to_string();
                     } else if field.0 == "delay" {
@@ -171,90 +175,126 @@ fn reshape_instr(op: Op) -> Op {
                         field.1 = stepx.to_string();
                     }
                 }
-                reshaped_instr_list.push(rep_instr);
-                reshaped_instr_list.push(repx_instr);
+                new_body.push(rep_instr);
+                new_body.push(repx_instr);
             } else {
-                reshaped_instr_list.push(instr.clone());
+                new_body.push(instr.clone());
             }
         } else {
-            reshaped_instr_list.push(instr.clone());
+            new_body.push(instr.clone());
         }
     }
-    Op {
-        op_name: op.op_name,
-        row: op.row,
-        col: op.col,
-        slot: op.slot,
-        port: op.port,
-        instr_list: reshaped_instr_list,
-    }
+    new_op.body = new_body;
+    new_op
 }
 
 /*******************************************************************************
  * Modification ends here
  ******************************************************************************/
+#[derive(Debug, Clone)]
+struct Instr {
+    kind: String,
+    id: String,
+    params: Vec<(String, String)>,
+}
+
+impl Instr {
+    fn from_json(j: Value) -> Instr {
+        let id = j["id"].as_str().unwrap().to_string();
+        let kind = j["kind"].as_str().unwrap().to_string();
+        let mut params = Vec::new();
+        for param_json in j["params"].as_array().unwrap() {
+            let name = param_json["name"].as_str().unwrap().to_string();
+            let value = param_json["value"].as_str().unwrap().to_string();
+            params.push((name, value));
+        }
+        Instr { id, kind, params }
+    }
+    fn to_json(&self) -> Value {
+        let mut params_json = Vec::new();
+        for (name, value) in &self.params {
+            params_json.push(json!({
+                "name": name,
+                "value": value
+            }));
+        }
+        json!({
+            "id": self.id,
+            "kind": self.kind,
+            "params": params_json
+        })
+    }
+}
 
 #[derive(Debug, Clone)]
 struct Op {
-    op_name: String,
+    kind: String,
+    id: String,
     row: i64,
     col: i64,
     slot: i64,
     port: i64,
-    instr_list: Vec<(String, Vec<(String, String)>)>,
+    body: Vec<Instr>,
 }
 
 impl Op {
     fn from_json(j: Value) -> Op {
-        let op_name = j["name"].as_str().unwrap().to_string();
+        if j["kind"] != "rop" && j["kind"] != "cop" {
+            panic!("Unknown operation kind: {}", j["kind"]);
+        }
+
+        let id = j["id"].as_str().unwrap().to_string();
+        let kind = j["kind"].as_str().unwrap().to_string();
         let row = j["row"].as_i64().unwrap();
         let col = j["col"].as_i64().unwrap();
-        let slot = j["slot"].as_i64().unwrap();
-        let port = j["port"].as_i64().unwrap();
-        let mut instr_list = Vec::new();
-        for instr_json in j["instr_list"].as_array().unwrap() {
-            let instr_name = instr_json["name"].as_str().unwrap().to_string();
-            let mut instr_fields = Vec::new();
-            for field_json in instr_json["fields"].as_array().unwrap() {
-                let field_name = field_json["name"].as_str().unwrap().to_string();
-                let field_value = field_json["value"].as_str().unwrap().to_string();
-                instr_fields.push((field_name, field_value));
-            }
-            instr_list.push((instr_name, instr_fields));
+        let mut slot = -1;
+        let mut port = -1;
+        if kind == "rop" {
+            slot = j["slot"].as_i64().unwrap();
+            port = j["port"].as_i64().unwrap();
+        }
+        let mut body = Vec::new();
+        for instr_json in j["body"].as_array().unwrap() {
+            let instr = Instr::from_json(instr_json.clone());
+            body.push(instr);
         }
         Op {
-            op_name,
+            kind,
+            id,
             row,
             col,
             slot,
             port,
-            instr_list,
+            body,
         }
     }
 
     fn to_json(&self) -> Value {
-        let mut instr_list_json = Vec::new();
-        for (instr_name, fields) in &self.instr_list {
-            let mut fields_json = Vec::new();
-            for (field_name, field_value) in fields {
-                fields_json.push(json!({
-                    "name": field_name,
-                    "value": field_value
-                }));
-            }
-            instr_list_json.push(json!({
-                "name": instr_name,
-                "fields": fields_json
-            }));
+        let mut body_json = Vec::new();
+        for instr in &self.body {
+            body_json.push(instr.to_json());
         }
-        json!({
-            "op_name": self.op_name,
-            "row": self.row,
-            "col": self.col,
-            "slot": self.slot,
-            "port": self.port,
-            "instr_list": instr_list_json
-        })
+        if self.kind == "rop" {
+            json!({
+                "kind": self.kind,
+                "id": self.id,
+                "row": self.row,
+                "col": self.col,
+                "slot": self.slot,
+                "port": self.port,
+                "body": body_json
+            })
+        } else if self.kind == "cop" {
+            json!({
+                "kind": self.kind,
+                "id": self.id,
+                "row": self.row,
+                "col": self.col,
+                "body": body_json
+            })
+        } else {
+            panic!("Unknown operation kind: {}", self.kind);
+        }
     }
 }
 
@@ -267,7 +307,7 @@ fn main() {
     let subcommand = &args[1]; // subcommand
     let input_file = &args[2]; // input_file
     let output_file = &args[3]; // output_file
-    // read the input file as json
+                                // read the input file as json
     let input = std::fs::read_to_string(input_file).unwrap();
     let j: Value = serde_json::from_str(&input).unwrap();
     let op = Op::from_json(j);
