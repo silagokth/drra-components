@@ -7,7 +7,7 @@ use serde_json::json;
  * The subcommand specifies the operation to be performed. It can be one of the
  * following:
  * - get_timing_model: to extract operation expressions timing model
- * - reshape_instr: to reshape the instruction fields and instrucion list
+ * - reshape_instr: to reshape the instruction fields and instruction list
  *
  * The input file is a JSON file that contains the following fields:
  * - kind: the type of the operation, it can be "rop" or "cop"
