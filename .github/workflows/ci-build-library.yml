@@ -27,7 +27,7 @@ jobs:
       id: check-branch
       run: |
         cd ${{ github.workspace }}
-        branch=$(git branch --show-current)
+        branch=${{ github.head_ref || github.ref_name }}
         echo "Current branch is $branch"
         echo "branch=$branch" >> $GITHUB_OUTPUT
 
