@@ -25,3 +25,5 @@ jobs:
     uses: ./.github/workflows/ci-run-tests.yml
     needs: ci-build-library
     secrets: inherit
+    with:
+      branch: ${{ needs.ci-build-library.outputs.branch }}
