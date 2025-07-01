@@ -45,8 +45,11 @@ import {{fingerprint}}_pkg::*;
     end
 
     
-    parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
-    logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
+    // parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
+    parameter WORD_PER_BULK = BULK_BITWIDTH / WORD_BITWIDTH;
+    parameter LOG2_WORD_PER_BULK = $clog2(WORD_PER_BULK);
+    // logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
+    logic [LOG2_WORD_PER_BULK-1:0] offset_w_addr, offset_r_addr;
     always_comb begin
         memory_next = memory;
         bulk_data_out_0 = 0;
@@ -54,7 +57,8 @@ import {{fingerprint}}_pkg::*;
         if (bulk_w_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_w_addr = i;
-                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_PER_BULK +:WORD_PER_BULK];
+                // memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_PER_BULK +:WORD_PER_BULK];
+                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_BITWIDTH +:WORD_BITWIDTH];
             end
         end
         if (word_w_en) begin
@@ -65,7 +69,8 @@ import {{fingerprint}}_pkg::*;
         if (bulk_r_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_r_addr = i;
-                bulk_data_out_0[i*WORD_PER_BULK +:WORD_PER_BULK] = memory[{bulk_r_addr, offset_r_addr}];
+                // bulk_data_out_0[i*WORD_PER_BULK +:WORD_PER_BULK] = memory[{bulk_r_addr, offset_r_addr}];
+                bulk_data_out_0[i*WORD_BITWIDTH +:WORD_BITWIDTH] = memory[{bulk_r_addr, offset_r_addr}];
             end
         end
         if (word_r_en) begin
