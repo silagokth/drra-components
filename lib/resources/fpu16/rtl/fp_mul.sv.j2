@@ -1,0 +1,326 @@
+// vesyla_template_start module_head
+
+module {{fingerprint}}_fp_mul
+import {{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input  logic [ 1:0] src_format,     // Format of input operands
+    input  logic [31:0] op_a,
+    input  logic [31:0] op_b,
+    output logic [31:0] result_o
+);
+
+// ==========
+// Stage 1
+// ==========
+logic [2*MULS_WIDTH-1:0] partial_products[0:GRID_SIZE-1][0:GRID_SIZE-1];
+logic [23:0] multiplicand, multiplier;
+logic [4:0]  addend[0:3], augend[0:3];
+logic [5:0]  sums[0:3];
+logic [47:0] mult_man_fp32;
+logic [21:0] mult_man_fp16[0:1];            
+logic [5:0]  mult_man_fp8 [0:3];
+logic [8:0]  sum_exp_fp32;
+logic [3:0]  tsum_exp_fp32;
+logic sign_fp32_s1;
+logic sign_fp16_s1[0:1];
+logic sign_fp8_s1 [0:3];
+
+always_comb begin
+    case (src_format)               // based on the arithmetic format
+        2'b00 : begin               // the corresponding signal is driven to the multiplier & adder
+            multiplicand = {1'b1, op_a[22:0]};    
+            multiplier   = {1'b1, op_b[22:0]}; 
+        end
+        2'b01 : begin
+            multiplicand = {2'b01, op_a[25:16], 2'b01, op_a[9:0]};    
+            multiplier   = {2'b01, op_b[25:16], 2'b01, op_b[9:0]};  
+        end
+        // 2'b10 : begin
+        //     for (int i = 0; i < 4; i++) begin
+        //         multiplicand[i*MULS_WIDTH +: MULS_WIDTH] = format_segment(op_a[i*8 +: 2]);
+        //         multiplier  [i*MULS_WIDTH +: MULS_WIDTH] = format_segment(op_b[i*8 +: 2]);
+        //     end
+        // end
+        2'b10 : begin
+            multiplicand = {4'b0001, op_a[25:24], 4'b0001, op_a[17:16], 
+                             4'b0001, op_a[9:8],   4'b0001, op_a[1:0]};
+            multiplier   = {4'b0001, op_b[25:24], 4'b0001, op_b[17:16], 
+                             4'b0001, op_b[9:8],   4'b0001, op_b[1:0]};
+        end
+        default: begin
+            multiplicand = '0;
+            multiplier   = '0;
+        end
+    endcase
+end
+
+always_comb begin
+    case (src_format)          
+        2'b00 : begin
+            addend[0] =        op_a[27:23];    
+            augend[0] =        op_b[27:23]; 
+            addend[1] = {2'b0, op_a[30:28]};    
+            augend[1] = {2'b0, op_b[30:28]};
+            for (int i = 2; i < 4; i++) begin
+                addend[i] = op_a[2 + i*8 +: 5];
+                augend[i] = op_b[2 + i*8 +: 5];
+            end
+        end
+        2'b01 : begin
+            for (int i = 0; i < 2; i++) begin
+                addend[i] = op_a[10 + i*16 +: 5];
+                augend[i] = op_b[10 + i*16 +: 5];
+            end
+            for (int i = 2; i < 4; i++) begin
+                addend[i] = op_a[2 + i*8 +: 5];
+                augend[i] = op_b[2 + i*8 +: 5];
+            end
+        end
+        2'b10 : begin
+            for (int i = 0; i < 4; i++) begin
+                addend[i] = op_a[2 + i*8 +: 5];
+                augend[i] = op_b[2 + i*8 +: 5];
+            end
+        end
+        default: begin
+            for (int i = 0; i < 4; i++) begin
+                addend[i] = '0;
+                augend[i] = '0;
+            end
+        end
+    endcase
+end
+
+multiplier_grid #(.WIDTH(MULS_WIDTH), .GRID_SIZE(GRID_SIZE)) mul_grid (  
+    .multiplicand(multiplicand),
+    .multiplier(multiplier),
+    .partial_products(partial_products)
+);
+
+adder_tree #(.WIDTH(MULS_WIDTH), .GRID_SIZE(GRID_SIZE)) tree (  
+    .partial_products(partial_products),
+    .sum_1_fp16(mult_man_fp16[0]),
+    .sum_2_fp16(mult_man_fp16[1]),
+    .sum_fp32(mult_man_fp32)
+);
+
+always_comb begin
+    for (int i = 0; i < 4; i++) begin
+        mult_man_fp8[i] = partial_products[i][i][5:0];      
+    end
+end
+
+adder_array #(.WIDTH(5)) adder_exp (
+    .addend(addend),
+    .augend(augend),
+    .sums(sums)
+);
+
+// Combine the sums considering the carry
+always_comb begin
+    tsum_exp_fp32 = sums[1] + sums[0][5];
+    sum_exp_fp32  = {tsum_exp_fp32, sums[0][4:0]};
+end
+
+// Sign extractor
+always_comb begin
+    sign_fp32_s1 = op_a[31] ^ op_b[31];
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s1[i] = op_a[i*16 + 15] ^ op_b[i*16 + 15];   
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s1[i]  = op_a[i*8 + 7] ^ op_b[i*8 + 7];   
+    end
+end
+
+// ==========
+// Stage 2
+// ==========
+logic [47:0] mant_fp32_s2;
+logic [21:0] mant_fp16_s2[0:1];            
+logic [5:0]  mant_fp8_s2 [0:3];
+logic [8:0]  t_exp_fp32_s2;
+logic [5:0]  t_exp_s2 [0:3];
+logic sign_fp32_s2;
+logic sign_fp16_s2    [0:1];
+logic sign_fp8_s2     [0:3];
+
+always_comb begin
+    sign_fp32_s2  = sign_fp32_s1;
+    t_exp_fp32_s2 = sum_exp_fp32;
+    mant_fp32_s2  = mult_man_fp32;
+end
+
+always_comb begin
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s2[i] = sign_fp16_s1[i];
+        mant_fp16_s2[i] = mult_man_fp16[i];
+    end
+end
+
+always_comb begin
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s2[i] = sign_fp8_s1[i];
+        t_exp_s2[i]    = sums[i];                  // works the same for FP16 & FP8
+        mant_fp8_s2[i] = mult_man_fp8[i];
+    end
+end
+
+// ==========
+// Stage 3
+// ==========
+logic sign_fp32_s3, sign_fp32_s3_0;
+logic [8:0]  exp_fp32_s3;
+logic [47:0] mant_fp32_s3, mant_fp32_s3_0;
+logic sign_fp16_s3[0:1], sign_fp16_s3_0[0:1];
+logic [21:0] mant_fp16_s3[0:1], mant_fp16_s3_0[0:1]; 
+logic sign_fp8_s3 [0:3], sign_fp8_s3_0 [0:3];
+logic [5:0]  exp_s3[0:3];
+logic [5:0]  mant_fp8_s3 [0:3], mant_fp8_s3_0 [0:3];
+logic [5:0]  minuend[0:3], subtrahend[0:3];
+logic [6:0]  diff[0:3];
+logic [9:0]  exp_diff_fp32;
+logic [3:0]  texp_diff_fp32;
+logic uf_fp32_s3; 
+logic uf_s3 [0:3];
+
+function automatic logic is_underflow_fp32(input logic [8:0] a);
+    logic msb_overflow = a[8] | a[7];        
+    logic all_ones     = &a[6:0];            
+    return ~(msb_overflow | all_ones);       // underflow if NOT greater AND NOT equal
+endfunction
+
+// For custom: BIAS = 4'b1111 → only 4 LSBs matter, MSBs = [5:4]
+function automatic logic is_underflow_custom(input logic [5:0] a);
+    logic msb_overflow = a[5] | a[4];        // early out if higher than 15
+    logic all_ones     = &a[3:0];            // AND tree for lower 4 bits
+    return ~(msb_overflow | all_ones);       // underflow if NOT greater AND NOT equal
+endfunction
+
+always_comb begin
+    uf_fp32_s3 = is_underflow_fp32(t_exp_fp32_s2);
+    for (int i = 0; i < 4; i++) begin
+        uf_s3[i] = is_underflow_custom(t_exp_s2[i]);
+    end
+end
+
+driver2sub u_driver2sub (
+    .src_format(src_format),
+    .t_exp_fp32_s2(t_exp_fp32_s2),
+    .t_exp_s2(t_exp_s2),
+    .minuend(minuend),
+    .subtrahend(subtrahend)
+);  
+
+adder_array #(.WIDTH(6)) sub2scomp (
+    .addend(minuend),
+    .augend(subtrahend),
+    .sums(diff)
+);
+
+always_comb begin
+    texp_diff_fp32 = diff[1][3:0] + diff[0][6];
+    exp_diff_fp32  = {texp_diff_fp32, diff[0][5:0]};
+end
+ 
+always_comb begin
+    sign_fp32_s3 = sign_fp32_s2;         
+    mant_fp32_s3 = mant_fp32_s2;         
+    exp_fp32_s3  = exp_diff_fp32[8:0];
+end
+
+always_comb begin
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s3[i] = sign_fp16_s2[i];
+        mant_fp16_s3[i] = mant_fp16_s2[i];
+    end
+end
+
+always_comb begin
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s3[i] = sign_fp8_s2[i];
+        exp_s3[i]      = diff[i][5:0];
+        mant_fp8_s3[i] = mant_fp8_s2[i];
+    end
+end
+
+// ==========
+// Stage 4
+// ==========
+logic sign_fp32_s4;
+logic [8:0]  norm_exp_fp32;
+logic [23:0] norm_mant_fp32;
+
+logic sign_fp16_s4[0:1];
+logic [5:0]  norm_exp_fp16[0:1];
+logic [10:0] norm_mant_fp16[0:1];
+
+logic sign_fp8_s4 [0:3];
+logic [5:0] norm_exp_fp8[0:3];
+logic [2:0] norm_mant_fp8 [0:3];
+
+logic of_fp32_s4, uf_fp32_s4; 
+logic of_s4 [0:3], uf_s4 [0:3];
+
+always_comb begin
+    uf_fp32_s4   = uf_fp32_s3;
+    sign_fp32_s4 = sign_fp32_s3;
+    for (int i = 0; i < 4; i++) begin
+        uf_s4 [i]       = uf_s3[i];
+        sign_fp8_s4[i]  = sign_fp8_s3[i];
+    end
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s4[i] = sign_fp16_s3[i];
+    end
+end
+
+always_comb begin
+    of_fp32_s4 = exp_fp32_s3[8];
+     for (int i = 0; i < 4; i++) begin
+        of_s4[i] = exp_s3[i][5];
+    end
+end
+
+always_comb begin
+    // FP32 normalization
+    norm_mant_fp32 = mant_fp32_s3[47] ? mant_fp32_s3[47:24] : mant_fp32_s3[46:23];
+    norm_exp_fp32  = mant_fp32_s3[47] ? (exp_fp32_s3 + 1) : exp_fp32_s3;
+    // FP16 normalization
+    for (int i = 0; i < 2; i++) begin
+        norm_mant_fp16[i] = mant_fp16_s3[i][21] ? mant_fp16_s3[i][21:11] : mant_fp16_s3[i][20:10];
+        norm_exp_fp16 [i] = mant_fp16_s3[i][21] ? (exp_s3[i] + 1) : exp_s3[i];
+    end
+    // FP8 normalization
+    for (int i = 0; i < 4; i++) begin
+        norm_mant_fp8[i] = mant_fp8_s3[i][5] ? mant_fp8_s3[i][5:3] : mant_fp8_s3[i][4:2];
+        norm_exp_fp8 [i] = mant_fp8_s3[i][5] ? (exp_s3[i] + 1) : exp_s3[i];
+    end
+end
+
+always_comb begin
+    case (src_format)
+        2'b00 : begin
+            result_o = (of_fp32_s4) ? {sign_fp32_s4, {8{1'b1}}, {23{1'b0}}} :     // Overflow  -> Inf
+            (uf_fp32_s4) ? {sign_fp32_s4, {31{1'b0}}} :                           // Underflow -> Zero
+            {sign_fp32_s4, norm_exp_fp32[7:0], norm_mant_fp32[22:0]};             // Normal case
+        end
+        2'b01 : begin
+            for (int i = 0; i < 2; i++) begin
+                result_o[(i * 16) +: 16] = (of_s4[i]) ? {sign_fp16_s4[i], {5{1'b1}}, {10{1'b0}}} :     
+                (uf_s4[i]) ? {sign_fp16_s4[i], {31{1'b0}}} :                              
+                {sign_fp16_s4[i], norm_exp_fp16[i][4:0], norm_mant_fp16[i][9:0]};   // Normal case, packing the 16b results      
+            end
+        end
+        2'b10 : begin
+            for (int i = 0; i < 4; i++) begin
+                result_o[(i * 8) +: 8] = (of_s4[i]) ? {sign_fp8_s4[i], {5{1'b1}}, {2{1'b0}}} :     
+                (uf_s4[i]) ? {sign_fp8_s4[i], {7{1'b0}}} :                              
+                {sign_fp8_s4[i], norm_exp_fp8[i][4:0], norm_mant_fp8[i][1:0]};          
+            end
+        end
+        default: result_o = '0;
+    endcase
+end
+
+endmodule
