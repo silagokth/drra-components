@@ -9,6 +9,11 @@ jobs:
     uses: ./.github/workflows/ci-sst-install.yml
     secrets: inherit
 
+  ci-build-library-sst-off:
+    name: Build DRRA Library without SST
+    uses: ./.github/workflows/ci-build-library-sst-off.yml
+    secrets: inherit
+
   ci-build-library:
     name: Build DRRA Library
     uses: ./.github/workflows/ci-build-library.yml
@@ -20,3 +25,5 @@ jobs:
     uses: ./.github/workflows/ci-run-tests.yml
     needs: ci-build-library
     secrets: inherit
+    with:
+      branch: ${{ needs.ci-build-library.outputs.branch }}

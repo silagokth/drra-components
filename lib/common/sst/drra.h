@@ -274,6 +274,13 @@ public:
       }
     }
 
+    // Initialize data buffers to zero
+    for (int i = 0; i < resource_size; i++) {
+      for (int j = 0; j < word_bitwidth / 8; j++) {
+        data_buffers[i].push_back(0);
+      }
+    }
+
     // Annotate slot IDs
     for (uint8_t i = 0; i < resource_size; i++) {
       slot_ids.push_back(slot_id + i);
@@ -560,6 +567,9 @@ protected:
   std::vector<int16_t> slot_ids;
   uint8_t resource_size = 1; // Default to 1 slot
 
+  // Data buffers
+  std::map<uint32_t, std::vector<uint8_t>> data_buffers;
+
   // Timing model state for each ports
   std::map<uint32_t, TimingState> current_timing_states;
   std::map<uint32_t, TimingState> next_timing_states;
@@ -623,8 +633,9 @@ public:
       // Move the trace file to the output directory
       std::string command = "mv " + trace_name + " trace_complete.json";
       int returnCode = system(command.c_str());
-      if(returnCode != 0) {
-        out.output("WARN: Could not copy the trace file to trace_complete.json");
+      if (returnCode != 0) {
+        out.output(
+            "WARN: Could not copy the trace file to trace_complete.json");
       }
     }
   }

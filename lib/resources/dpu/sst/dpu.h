@@ -48,7 +48,6 @@ public:
 
 private:
   // buffers
-  std::map<uint32_t, std::vector<uint8_t>> data_buffers;
   std::vector<uint8_t> accumulate_register;
 
   // Supported opcodes

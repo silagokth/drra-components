@@ -95,6 +95,6 @@ You can add more custom components to the library by adding them to the `lib` di
 
 - `arch.json`: The architecture description file.
 - `isa.json`: The instruction set description file.
-- `tech:X.json`: The technology description file (for example `tech:tsmc28.json`).
+- `tech.X.json`: The technology description file (for example `tech.tsmc28.json`).
 - `rtl/*.sv.j2`: The RTL Jinja2 templates description file. Note that, you should only modify the contents of the module description, not the Jinja calls. If the component is a resource ([./lib/resources](./lib/resources)), you should adjust the input and output ports definition based on the size (how many slots) of the resource.
 - `timing_model`: The timing behavior of the component. Used by the instruction scheduler.
