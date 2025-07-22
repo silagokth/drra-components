@@ -2,6 +2,11 @@ name: Run DRRA tests
 
 on:
   workflow_call:
+    inputs:
+      branch:
+        description: (optional) name of the drra-tests branch to run the tests on
+        type: string
+        default: 'master'
 
 jobs:
   run-tests:
@@ -11,10 +16,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: library
+
       - name: Extract library
         run: |
           tar -xzf library.tar.gz
           rm library.tar.gz
+
       - name: Checkout testcases
         uses: actions/checkout@v4
         with:
@@ -22,9 +29,21 @@ jobs:
           path: tests
           ref: master
           token: ${{ secrets.DRRA_TEST_PAT }}
+
+      - name: Check if a testing branch with the same name exists
+        run: |
+          cd "${{ github.workspace }}/tests"
+          git fetch --all
+          if git show-ref --verify --quiet refs/remotes/origin/${{ inputs.branch }}; then
+            git checkout ${{ inputs.branch }}
+            echo "Switching to drra-tests@${{ inputs.branch }}"
+          else
+            echo "Using the drra-tests master branch"
+          fi
+
       - name: Run tests
         run: |
-          cd tests
+          cd "${{ github.workspace }}/tests"
           . /usr/share/modules/init/sh
           module use /opt/modules
           module add questasim 
@@ -37,7 +56,10 @@ jobs:
           export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
           vesyla testcase generate -d ./testcases
           ./run.sh
-      - run: tar czf output.tar.gz tests/output
+
+      - name: Tar the tests outputs
+        run: tar czf output.tar.gz tests/output
+
       - name: Upload test outputs
         uses: actions/upload-artifact@v4
         with:

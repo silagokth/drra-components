@@ -29,7 +29,6 @@ The library is a collection of components that can be used to build a DRRA appli
 - (Optional, to run ISA-level simulations) [SST framework](https://sst-simulator.org)
 - (Optional, to build faster) [sccache](https://lib.rs/crates/sccache). After installation,
   you'll need to configure it using one of these methods:
-
   - **Option 1**: Configure via environment variables:
 
     ```bash
@@ -111,10 +110,6 @@ and modify it to suit your needs. You need to modify the following files:
 
 - `arch.json`: The architecture description file.
 - `isa.json`: The instruction set description file.
-- `tech:X.json`: The technology description file (for example `tech:tsmc28.json`).
-- `rtl/*.sv.j2`: The RTL Jinja2 templates description file.
-  Note that, you should only modify the contents of the module description,
-  not the Jinja calls. If the component is a resource ([./lib/resources](./lib/resources)),
-  you should adjust the input and output ports definition based on the size
-  (how many slots) of the resource.
+- `tech.X.json`: The technology description file (for example `tech.tsmc28.json`).
+- `rtl/*.sv.j2`: The RTL Jinja2 templates description file. Note that, you should only modify the contents of the module description, not the Jinja calls. If the component is a resource ([./lib/resources](./lib/resources)), you should adjust the input and output ports definition based on the size (how many slots) of the resource.
 - `timing_model`: The timing behavior of the component. Used by the instruction scheduler.

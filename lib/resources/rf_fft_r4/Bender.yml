@@ -1,0 +1,9 @@
+package:
+  name: rf_fft_r4
+
+dependencies:
+  agu: {path: ../../common/agu}
+  agu_fft_r4: {path: ../../common/agu_fft_r4}
+
+sources:
+  - ./rtl/rf_fft_r4.sv
