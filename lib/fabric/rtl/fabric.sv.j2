@@ -76,6 +76,13 @@ import fabric_pkg::*;
         .io_en_out(io_en_out[{{c}}]),
         .io_addr_out(io_addr_out[{{c}}]),
         .io_data_out(io_data_out[{{c}}]),
+        {% elif cell.cell.name == "cell_single_row_impl" %}
+        .io_en_in(io_en_in[{{c}}]),
+        .io_addr_in(io_addr_in[{{c}}]),
+        .io_data_in(io_data_in[{{c}}]),
+        .io_en_out(io_en_out[{{c}}]),
+        .io_addr_out(io_addr_out[{{c}}]),
+        .io_data_out(io_data_out[{{c}}]),
         {% else %}
         .io_data_in(io_data_in[{{c}}]),
         {% endif %}

@@ -150,7 +150,7 @@ import {{fingerprint}}_pkg::*;
         bulk_intercell_n_out = bulk_intercell_c_out;
       end else if (curr_route_out_dst_configs[3]) begin
         bulk_intercell_w_out = bulk_intercell_c_out;
-      end else if (curr_route_out_dst_configs[3]) begin
+      end else if (curr_route_out_dst_configs[4]) begin
         bulk_intercell_self = bulk_intercell_c_out;
       end else if (curr_route_out_dst_configs[5]) begin
         bulk_intercell_e_out = bulk_intercell_c_out;
@@ -160,13 +160,13 @@ import {{fingerprint}}_pkg::*;
 
       if (curr_route_in_src_configs == 1) begin
         bulk_intercell_c_in = bulk_intercell_n_in;
-      end else if (curr_route_out_src_configs == 3) begin
+      end else if (curr_route_in_src_configs == 3) begin
         bulk_intercell_c_in = bulk_intercell_w_in;
-      end else if (curr_route_out_src_configs == 4) begin
+      end else if (curr_route_in_src_configs == 4) begin
         bulk_intercell_c_in = bulk_intercell_self;
-      end else if (curr_route_out_src_configs == 5) begin
+      end else if (curr_route_in_src_configs == 5) begin
         bulk_intercell_c_in = bulk_intercell_e_in;
-      end else if (curr_route_out_src_configs == 7) begin
+      end else if (curr_route_in_src_configs == 7) begin
         bulk_intercell_c_in = bulk_intercell_s_in;
       end
 

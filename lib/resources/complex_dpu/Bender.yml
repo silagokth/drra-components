@@ -1,0 +1,11 @@
+package:
+  name: complex_dpu
+
+dependencies:
+  fsm: {path: ../../common/fsm}
+
+sources:
+  - ./rtl/complex_dpu_pkg.sv
+  - ./rtl/adder.sv
+  - ./rtl/multiplier.sv
+  - ./rtl/complex_dpu.sv

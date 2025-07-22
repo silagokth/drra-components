@@ -1,0 +1,137 @@
+`define {{name}} {{fingerprint}}
+`define {{name}}_pkg {{fingerprint}}_pkg
+
+{% if not already_defined %}
+package {{fingerprint}}_pkg;
+    {% for p in parameters %}
+    parameter {{p}} = {{parameters[p]}};
+    {% endfor %}
+
+    {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+    {% for instr in isa.instructions %}
+    {% if instr.segments is defined and instr.segments|length > 0 %}
+    typedef struct packed {
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth == 1 %}
+        logic _{{segment.name}};
+        {% else %}
+        logic [{{segment.bitwidth-1}}:0] _{{segment.name}};
+        {% endif %}
+        {% endfor %}
+    } {{instr.name}}_t;
+
+    function static {{instr.name}}_t unpack_{{instr.name}};
+        input logic [{{payload_bitwidth - 1}}:0] instr;
+        {{instr.name}}_t _{{instr.name}};
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
+        _{{instr.name}}._{{segment.name}} = instr[{{index}}];
+        {% else %}
+        _{{instr.name}}._{{segment.name}}  = instr[{{index}}:{{index-segment.bitwidth+1}}];
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
+        return _{{instr.name}};
+    endfunction
+
+    function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
+        input {{instr.name}}_t _{{instr.name}};
+        logic [{{ payload_bitwidth - 1 }}:0] instr;
+
+        {% set index=payload_bitwidth -1 %}
+        {% for segment in instr.segments %}
+        {% if segment.bitwidth==1 %}
+        instr[{{index}}] = _{{instr.name}}._{{segment.name}};
+        {% else %}
+        instr[{{index}}:{{index-segment.bitwidth+1}}] = _{{instr.name}}._{{segment.name}};
+        {% endif %}
+        {% set index=index-segment.bitwidth %}
+        {% endfor %}
+        return instr;
+    endfunction
+    {% endif %}
+    {% endfor %}
+endpackage
+
+module {{fingerprint}}
+import {{fingerprint}}_pkg::*;
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
+    input  logic clk_1,
+    input  logic rst_n_1,
+    input  logic instr_en_1,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
+    input  logic [3:0] activate_1,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_1,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_1,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_1
+);
+
+    parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
+
+    logic clk, rst_n, instruction_valid, activate;
+    logic [RESOURCE_INSTR_WIDTH-1:0] instruction;
+    assign clk = clk_0;
+    assign rst_n = rst_n_0;
+    assign instruction_valid = instr_en_0;
+    assign activate = activate_0[0];
+    assign instruction = instr_0;
+
+    // data for butterfly
+    logic [WORD_BITWIDTH/2-1:0] data0_r;
+    logic [WORD_BITWIDTH/2-1:0] data0_i;
+    logic [WORD_BITWIDTH/2-1:0] data1_r;
+    logic [WORD_BITWIDTH/2-1:0] data1_i;
+    logic [WORD_BITWIDTH/2-1:0] data1_r_neg;
+    logic [WORD_BITWIDTH/2-1:0] data1_i_neg;
+    logic [WORD_BITWIDTH/2-1:0] out0_r;
+    logic [WORD_BITWIDTH/2-1:0] out0_i;
+    logic [WORD_BITWIDTH/2-1:0] out1_r;
+    logic [WORD_BITWIDTH/2-1:0] out1_i;
+
+    // not used
+    assign bulk_data_out_0 = 0;
+    assign bulk_data_out_1 = 0;
+
+    // register input data
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            data0_r <= 0;
+            data0_i <= 0;
+            data1_r <= 0;
+            data1_i <= 0;
+        end else begin
+            data0_r <= word_data_in_0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+            data0_i <= word_data_in_0[WORD_BITWIDTH/2-1:0];
+            data1_r <= word_data_in_1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+            data1_i <= word_data_in_1[WORD_BITWIDTH/2-1:0];
+        end
+    end
+
+    // sign conversion (2's complement)
+    assign data1_r_neg = ~data1_r + 1;
+    assign data1_i_neg = ~data1_i + 1;
+
+    always_comb begin
+        out0_r = COMPLEX_BITWIDTH'(data0_r + data1_r);
+        out0_i = COMPLEX_BITWIDTH'(data0_i + data1_i);
+        out1_r = COMPLEX_BITWIDTH'(data0_r + data1_r_neg);
+        out1_i = COMPLEX_BITWIDTH'(data0_i + data1_i_neg);
+    end
+
+    assign word_data_out_0 = {out0_r, out0_i};
+    assign word_data_out_1 = {out1_r, out1_i};
+
+endmodule
+
+{% endif %}
