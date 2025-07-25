@@ -38,7 +38,6 @@ public:
   /* Element Library Ports */
   static std::vector<SST::ElementInfoPort> getComponentPorts() {
     auto ports = DRRAResource::getBasePorts();
-    ports.push_back({"io_port", "Link to input or output buffer"});
     return ports;
   }
   SST_ELI_DOCUMENT_PORTS(getComponentPorts())
