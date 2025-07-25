@@ -57,9 +57,6 @@ IOSRAMBottom::IOSRAMBottom(SST::ComponentId_t id, SST::Params &params)
     backend = new SST::MemHierarchy::Backend::BackingMalloc(sizeBytes);
   }
   out.output("Created backing store (type: %s)\n", backingType.c_str());
-
-  // IO port
-  io_link = configureLink("io_port", access_time);
 }
 
 void IOSRAMBottom::init(unsigned int phase) {
@@ -250,7 +247,7 @@ void IOSRAMBottom::readFromIO() {
         out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
                    sram_read_from_io_address_buffer, io_data_width);
 
-        io_link->send(readReq);
+        io_input_link->send(readReq);
       });
 }
 
@@ -267,7 +264,7 @@ void IOSRAMBottom::writeToIO() {
         IOWriteRequest *writeReq = new IOWriteRequest();
         writeReq->address = sram_write_to_io_address_buffer;
         writeReq->data = to_io_data_buffer;
-        io_link->send(writeReq);
+        io_output_link->send(writeReq);
 
         out.output(
             "Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
@@ -282,7 +279,7 @@ void IOSRAMBottom::writeToSRAM() {
       "dsu_write_to_sram_" + std::to_string(current_event_number), 8, [this] {
         // Check if the IO responded
         IOReadResponse *ioReadResponse =
-            dynamic_cast<IOReadResponse *>(io_link->recv());
+            dynamic_cast<IOReadResponse *>(io_input_link->recv());
         if (ioReadResponse) {
           out.output("Received read response from IO (addr=%d, size=%dbits, "
                      "data=%s)\n",

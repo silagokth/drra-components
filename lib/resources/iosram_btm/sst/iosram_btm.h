@@ -83,7 +83,6 @@ private:
     ReadBulk = 7
   };
 
-  SST::Link *io_link = nullptr;
   SST::Link *self_link = nullptr;
   int64_t sram_read_from_io_address_buffer = -1;
   int64_t sram_read_from_io_initial_addr = -1;
