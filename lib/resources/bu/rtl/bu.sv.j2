@@ -158,11 +158,10 @@ import {{fingerprint}}_pkg::*;
             decimation_memory <= '0;
             fsm_max_init_state <= '0;
         end else begin
-        if (rst_n) begin
             if (bu_valid) begin
                 radix_memory[bu._option] <= bu._radix;
                 decimation_memory[bu._option] <= bu._decimation;
-                fsm_max_init_state <= dpu._option;
+                fsm_max_init_state <= bu._option;
             end
         end
     end
