@@ -1,0 +1,36 @@
+name: master build
+
+on:
+  # trigger on any push on master
+  push:
+    branches:
+      - master
+  # trigger weekly
+  schedule:
+    - cron: '0 3 * * 1' # every monday at 3am
+  workflow_dispatch:
+
+jobs:
+  ci-sst-install:
+    name: SST Install
+    uses: ./.github/workflows/ci-sst-install.yml
+    secrets: inherit
+
+  ci-build-library-sst-off:
+    name: Build DRRA Library without SST
+    uses: ./.github/workflows/ci-build-library-sst-off.yml
+    secrets: inherit
+
+  ci-build-library:
+    name: Build DRRA Library
+    uses: ./.github/workflows/ci-build-library.yml
+    needs: ci-sst-install
+    secrets: inherit
+
+  ci-run-tests:
+    name: Run DRRA Tests
+    uses: ./.github/workflows/ci-run-tests.yml
+    needs: ci-build-library
+    secrets: inherit
+    with:
+      branch: ${{ needs.ci-build-library.outputs.branch }}

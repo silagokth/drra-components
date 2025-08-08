@@ -13,7 +13,7 @@ jobs:
     runs-on: [modelsim, vesyla, bender, sst]
     steps:
       - name: Download vesyla
-        uses: robinraju/release_downloader@v1
+        uses: robinraju/release-downloader@v1
         with:
           out-file-path: bin
           fileName: vesyla
