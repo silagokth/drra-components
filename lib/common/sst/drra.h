@@ -310,6 +310,18 @@ public:
     sst_assert(data_links.size() == resource_size, CALL_INFO, -1,
                "Data links size mismatch");
 
+    // Configure IO links
+    if (has_io_input_connection) {
+      if (isPortConnected("io_input_port")) {
+        io_input_link = configureLink("io_input_port");
+      }
+    }
+    if (has_io_output_connection) {
+      if (isPortConnected("io_output_port")) {
+        io_output_link = configureLink("io_output_port");
+      }
+    }
+
     // Write to trace file
     trace_file.open(trace_name, std::ios::app);
     trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
@@ -549,6 +561,8 @@ protected:
   // Links
   std::vector<Link *> controller_links;
   std::vector<Link *> data_links;
+  Link *io_input_link = nullptr;
+  Link *io_output_link = nullptr;
 
   // Activation
   std::map<uint32_t, bool> active_ports;
