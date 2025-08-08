@@ -5,6 +5,7 @@
 
 #include <sst/core/component.h>
 #include <sst/core/params.h>
+#include <vector>
 
 using namespace std;
 using namespace SST;
@@ -74,7 +75,6 @@ private:
 
   // Add scalar and bool registers
   std::vector<uint32_t> scalarRegisters;
-  std::vector<bool> boolRegisters;
 
   // Add fetch_decode method
   void fetch_decode(uint32_t instruction);

@@ -6,6 +6,7 @@
 #include "activationEvent.h"
 #include "instructionEvent.h"
 #include "sequencer.h"
+#include "sst/core/output.h"
 #include <bitset>
 
 Sequencer::Sequencer(ComponentId_t id, Params &params)
@@ -26,7 +27,6 @@ void Sequencer::init(unsigned int phase) {
   // Initialize scalar and bool registers
   for (uint32_t i = 0; i < num_slots; i++) {
     scalarRegisters.push_back(0);
-    boolRegisters.push_back(false);
   }
 
   // End of initialization
@@ -130,12 +130,10 @@ void Sequencer::fetch_decode(uint32_t instruction) {
       break;
 
     case 3: // CALC
-      out.fatal(CALL_INFO, -1, "TODO implement CALC\n");
       calculate(instruction);
       break;
 
     case 4: // BRN
-      out.fatal(CALL_INFO, -1, "TODO implement BRN\n");
       branch(instruction);
       break;
 
@@ -231,6 +229,9 @@ void Sequencer::activate(uint32_t instr) {
     break;
 
   case 1: // All port X (param) in each slot
+    // TODO: check if this interpretation of mode 1 is correct
+    // + update the docs to make it more clear
+    // (can two ports be used? i.e., X=0110)
     if (param >= 4) {
       out.fatal(CALL_INFO, -1,
                 "Invalid port number, activation mode 1 requires a value "
@@ -247,8 +248,21 @@ void Sequencer::activate(uint32_t instr) {
     }
     break;
 
-  case 2:
-    out.fatal(CALL_INFO, -1, "ACT mode 2 not implemented\n");
+  case 2: // Use activation vector stored in a scalar register
+    if (param > num_slots - 1) {
+      // TODO: change this to check if param is R4 or R8
+      // (the 8 middle registers of the total 16 registers)
+      // + update documentation
+      out.fatal(CALL_INFO, -1,
+                "Invalid value for param (%d), the sequencer only has %d "
+                "registers (0 to %d).",
+                param, num_slots, num_slots - 1);
+    }
+
+    // TODO: parse the 4 scalar registers from param
+    // for each register, divide in 4 chunks and send the activation signals for
+    // the 4 slots
+
     break;
 
   default:
@@ -349,40 +363,41 @@ void Sequencer::calculate(uint32_t instr) {
     break;
   case 17:
     operationStr = "eq";
-    boolRegisters[result] = operand1 == operand2;
+    scalarRegisters[result] = operand1 == operand2;
     break;
   case 18:
     operationStr = "ne";
-    boolRegisters[result] = operand1 != operand2;
+    scalarRegisters[result] = operand1 != operand2;
     break;
   case 19:
     operationStr = "gt";
-    boolRegisters[result] = operand1 > operand2;
+    scalarRegisters[result] = operand1 > operand2;
     break;
   case 20:
     operationStr = "ge";
-    boolRegisters[result] = operand1 >= operand2;
+    scalarRegisters[result] = operand1 >= operand2;
     break;
   case 21:
     operationStr = "lt";
-    boolRegisters[result] = operand1 < operand2;
+    scalarRegisters[result] = operand1 < operand2;
     break;
   case 22:
     operationStr = "le";
-    boolRegisters[result] = operand1 <= operand2;
+    scalarRegisters[result] = operand1 <= operand2;
     break;
   case 32:
     operationStr = "and";
-    boolRegisters[result] =
-        boolRegisters[operand1] && boolRegisters[operand2]; // TODO check this
+    scalarRegisters[result] = scalarRegisters[operand1] &&
+                              scalarRegisters[operand2]; // TODO check this
     break;
   case 33:
     operationStr = "or";
-    boolRegisters[result] = boolRegisters[operand1] || boolRegisters[operand2];
+    scalarRegisters[result] =
+        scalarRegisters[operand1] || scalarRegisters[operand2];
     break;
   case 34:
     operationStr = "not";
-    boolRegisters[result] = !boolRegisters[operand1];
+    scalarRegisters[result] = !scalarRegisters[operand1];
     break;
 
   default:
@@ -433,7 +448,7 @@ void Sequencer::branch(uint32_t instr) {
   }
 
   // Compute new PC
-  if (boolRegisters[reg]) {
+  if (scalarRegisters[reg]) {
     pc += targetTrue;
   } else {
     pc += targetFalse;
