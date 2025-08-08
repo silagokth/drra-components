@@ -26,15 +26,6 @@
               { "key": 2, "val": "Not implemented yet" },
               { "key": 3, "val": "Not implemented yet" }
             ]
-          },
-          {
-            "name": "decimation",
-            "comment": "Decimation used for FFT.",
-            "bitwidth": 1,
-            "verbo_map": [
-              { "key": 0, "val": "DIT" },
-              { "key": 1, "val": "DIF" }
-            ]
           }
         ]
       },

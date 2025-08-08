@@ -7,7 +7,6 @@ module agu_fft_r4 #(
     input  logic rst_n,
     input  logic activate,
     input  logic [1:0] radix,     // 0: radix-2, 1: radix-4
-    input  logic decimation,    // 0: DIT, 1: DIF
     input  logic [1:0] port_index,  // bu port index
     input  logic mode,    // mode 0: twiddle, mode 1: fft data
     input  logic n_bu,    // number of butterfly in the cell -1 (2 possible only if radix-2)
@@ -33,7 +32,6 @@ module agu_fft_r4 #(
     logic mode_reg;
     logic n_bu_reg;
     logic [1:0] radix_reg;
-    logic decimation_reg;
     logic [AGU_BITWIDTH-1:0] n_points_reg;
     logic [DELAY_WIDTH-1:0] delay_reg;
 
@@ -58,7 +56,6 @@ module agu_fft_r4 #(
             mode_reg <= 0;
             n_bu_reg <= 0;
             radix_reg <= '0;
-            decimation_reg <= 0;
         end else begin
             if (load_config) begin
                 n_points_reg <= n_points;
@@ -66,7 +63,6 @@ module agu_fft_r4 #(
                 mode_reg <= mode;
                 n_bu_reg <= n_bu;
                 radix_reg <= radix;
-                decimation_reg <= decimation;
             end
         end
     end
@@ -90,7 +86,6 @@ module agu_fft_r4 #(
         .STAGE_WIDTH(STAGE_WIDTH)
     ) twiddle_addr_inst (
         .n_points(n_points_reg),
-        .decimation(decimation_reg),
         .radix(radix_reg),
         .n_bu(n_bu),
         .bu_index(bu_index),

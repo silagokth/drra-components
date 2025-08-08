@@ -142,7 +142,6 @@ import {{fingerprint}}_pkg::*;
     logic [DELAY_WIDTH-1:0] delay_0_0, delay_0_1;
     logic [AGU_BITWIDTH-1:0] n_points_0_0, n_points_0_1;
     logic [1:0] radix_0_0, radix_0_1;
-    logic dec_0_0, dec_0_1;
     logic [1:0] port_index_0_0, port_index_0_1;
     logic bu_index_0_0, bu_index_0_1;
     logic n_bu_0_0, n_bu_0_1;
@@ -156,7 +155,6 @@ import {{fingerprint}}_pkg::*;
     logic [DELAY_WIDTH-1:0] delay_1_0, delay_1_1;
     logic [AGU_BITWIDTH-1:0] n_points_1_0, n_points_1_1;
     logic [1:0] radix_1_0, radix_1_1;
-    logic dec_1_0, dec_1_1;
     logic [1:0] port_index_1_0, port_index_1_1;
     logic bu_index_1_0, bu_index_1_1;
     logic n_bu_1_0, n_bu_1_1;
@@ -165,7 +163,6 @@ import {{fingerprint}}_pkg::*;
     logic [DELAY_WIDTH-1:0] delay_2_0, delay_2_1;
     logic [AGU_BITWIDTH-1:0] n_points_2_0, n_points_2_1;
     logic [1:0] radix_2_0, radix_2_1;
-    logic dec_2_0, dec_2_1;
     logic [1:0] port_index_2_0, port_index_2_1;
     logic bu_index_2_0, bu_index_2_1;
     logic n_bu_2_0, n_bu_2_1;
@@ -174,7 +171,6 @@ import {{fingerprint}}_pkg::*;
     logic [DELAY_WIDTH-1:0] delay_3_0, delay_3_1;
     logic [AGU_BITWIDTH-1:0] n_points_3_0, n_points_3_1;
     logic [1:0] radix_3_0, radix_3_1;
-    logic dec_3_0, dec_3_1;
     logic [1:0] port_index_3_0, port_index_3_1;
     logic bu_index_3_0, bu_index_3_1;
     logic n_bu_3_0, n_bu_3_1;
@@ -343,13 +339,11 @@ import {{fingerprint}}_pkg::*;
 
     assign n_points_0_0 = fft._n_points;
     assign radix_0_0 = fft._radix;
-    assign dec_0_0 = fft._decimation;
     assign mode_0_0 = fft._mode;
     assign n_bu_0_0 = fft._n_bu;
     assign delay_0_0 = fft._delay;
     assign n_points_0_1 = fft._n_points;
     assign radix_0_1 = fft._radix;
-    assign dec_0_1 = fft._decimation;
     assign mode_0_1 = fft._mode;
     assign n_bu_0_1 = fft._n_bu;
     assign delay_0_1 = fft._delay;
@@ -365,39 +359,33 @@ import {{fingerprint}}_pkg::*;
 
     assign n_points_1_0 = fft._n_points;
     assign radix_1_0 = fft._radix;
-    assign dec_1_0 = fft._decimation;
     assign mode_1_0 = fft._mode;
     assign n_bu_1_0 = fft._n_bu;
     assign delay_1_0 = fft._delay;
     assign n_points_1_1 = fft._n_points;
     assign radix_1_1 = fft._radix;
-    assign dec_1_1 = fft._decimation;
     assign mode_1_1 = fft._mode;
     assign n_bu_1_1 = fft._n_bu;
     assign delay_1_1 = fft._delay;
 
     assign n_points_2_0 = fft._n_points;
     assign radix_2_0 = fft._radix;
-    assign dec_2_0 = fft._decimation;
     assign mode_2_0 = fft._mode;
     assign n_bu_2_0 = fft._n_bu;
     assign delay_2_0 = fft._delay;
     assign n_points_2_1 = fft._n_points;
     assign radix_2_1 = fft._radix;
-    assign dec_2_1 = fft._decimation;
     assign mode_2_1 = fft._mode;
     assign n_bu_2_1 = fft._n_bu;
     assign delay_2_1 = fft._delay;
 
     assign n_points_3_0 = fft._n_points;
     assign radix_3_0 = fft._radix;
-    assign dec_3_0 = fft._decimation;
     assign mode_3_0 = fft._mode;
     assign n_bu_3_0 = fft._n_bu;
     assign delay_3_0 = fft._delay;
     assign n_points_3_1 = fft._n_points;
     assign radix_3_1 = fft._radix;
-    assign dec_3_1 = fft._decimation;
     assign mode_3_1 = fft._mode;
     assign n_bu_3_1 = fft._n_bu;
     assign delay_3_1 = fft._delay;
@@ -470,7 +458,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_0[0]),
         .radix(radix_0_0),
-        .decimation(dec_0_0),
         .port_index(port_index_0_0),
         .mode(mode_0_0),
         .n_bu(n_bu_0_0),
@@ -490,7 +477,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_0[1]),
         .radix(radix_0_1),
-        .decimation(dec_0_1),
         .port_index(port_index_0_1),
         .mode(mode_0_1),
         .n_bu(n_bu_0_1),
@@ -548,7 +534,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_1[0]),
         .radix(radix_1_0),
-        .decimation(dec_1_0),
         .port_index(port_index_1_0),
         .mode(mode_1_0),
         .n_bu(n_bu_1_0),
@@ -568,7 +553,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_1[1]),
         .radix(radix_1_1),
-        .decimation(dec_1_1),
         .port_index(port_index_1_1),
         .mode(mode_1_1),
         .n_bu(n_bu_1_1),
@@ -588,7 +572,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_2[0]),
         .radix(radix_2_0),
-        .decimation(dec_2_0),
         .port_index(port_index_2_0),
         .mode(mode_2_0),
         .n_bu(n_bu_2_0),
@@ -608,7 +591,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_2[1]),
         .radix(radix_2_1),
-        .decimation(dec_2_1),
         .port_index(port_index_2_1),
         .mode(mode_2_1),
         .n_bu(n_bu_2_1),
@@ -628,7 +610,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_3[0]),
         .radix(radix_3_0),
-        .decimation(dec_3_0),
         .port_index(port_index_3_0),
         .mode(mode_3_0),
         .n_bu(n_bu_3_0),
@@ -648,7 +629,6 @@ import {{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .activate(activate_3[1]),
         .radix(radix_3_1),
-        .decimation(dec_3_1),
         .port_index(port_index_3_1),
         .mode(mode_3_1),
         .n_bu(n_bu_3_1),
