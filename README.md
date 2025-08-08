@@ -1,6 +1,7 @@
-# DRRA Component Library
+# DRRA Component Library [![Build Status]][actions]
 
-[![](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml/badge.svg)](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml)
+[Build Status]: https://github.com/silagokth/drra-components/actions/workflows/ci-weekly-build.yml/badge.svg
+[actions]: https://github.com/silagokth/drra-components/actions/workflows/ci-weekly-build.yml
 
 This repository contains the DRRA component library. The library is a collection of components that can be used to build a DRRA application.
 
@@ -37,6 +38,7 @@ This repository contains the DRRA component library. The library is a collection
     [build]
     rustc-wrapper = "/path/to/sccache"
     ```
+
 ## Cloning the repo
 
 This repo contains submodules.
@@ -47,6 +49,7 @@ git clone --recurse-submodules git@github.com:silagokth/drra-components.git
 ```
 
 Or, if the repo was already cloned:
+
 ```bash
 git submodule update --init
 ```
