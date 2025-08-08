@@ -13,10 +13,10 @@ jobs:
     runs-on: [modelsim, vesyla, bender, sst]
     steps:
       - name: Download vesyla
-        uses: actions/download-artifact@v5
+        uses: robinraju/release_downloader@v1
         with:
-          path: $GITHUB_WORKSPACE/bin/
-          name: vesyla
+          out-file-path: bin
+          fileName: vesyla
           repository: silagokth/vesyla
 
       - name: Download library
