@@ -12,8 +12,15 @@ jobs:
   run-tests:
     runs-on: [modelsim, vesyla, bender, sst]
     steps:
+      - name: Download vesyla
+        uses: actions/download-artifact@v5
+        with:
+          path: $GITHUB_WORKSPACE/bin/
+          name: vesyla
+          repository: silagokth/vesyla
+
       - name: Download library
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: library
 
@@ -54,6 +61,8 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
           export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
+          export GITHUB_PATH=$(readlink -e ../bin/vesyla):$GITHUB_PATH
+          vesyla --version
           vesyla testcase generate -d ./testcases
           ./run.sh
 
