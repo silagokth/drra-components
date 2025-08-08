@@ -154,23 +154,6 @@ module agu_fft_r4 #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        case (state)
-            IDLE: begin
-                next_valid <= 0;
-            end
-            ADDR: begin
-                next_valid <= 1;
-            end
-            DELAY: begin
-                next_valid <= 1;
-            end
-            default: begin
-                next_valid <= 0;
-            end
-        endcase
-    end
-
     always_comb begin
         next_state = state;
         delay_counter_next = delay_counter;
@@ -179,6 +162,7 @@ module agu_fft_r4 #(
 
         case (state)
             IDLE: begin
+                next_valid = 0;
                 stage_counter_next = 0;
                 delay_counter_next = 0;
                 address_counter_next = 0;
@@ -190,6 +174,7 @@ module agu_fft_r4 #(
             end
 
             ADDR: begin
+                next_valid = 1;
                 if (stage_finish) begin
                     if (computation_finish) begin
                         if (delay_reg > 0) begin
@@ -219,6 +204,7 @@ module agu_fft_r4 #(
             end
             
             DELAY: begin
+                next_valid = 1;
                 delay_counter_next = delay_counter + 1;
                 if (delay_counter_next == delay_reg) begin
                     delay_counter_next = 0;
@@ -247,6 +233,7 @@ module agu_fft_r4 #(
                 stage_counter_next = 0;
                 delay_counter_next = 0;
                 address_counter_next = 0;
+                next_valid = 0;
             end
         endcase
     end
