@@ -1,5 +1,5 @@
 module agu_fft_r4 #(
-    parameter AGU_BITWIDTH = 16,
+    parameter AGU_BITWIDTH = 8,
     parameter DELAY_WIDTH = 5,
     parameter STAGE_WIDTH = 4
 ) (
@@ -73,7 +73,7 @@ module agu_fft_r4 #(
     ) mux_rotator_inst (
         .n_points(n_points_reg),
         .radix(radix_reg),
-        .n_bu(n_bu),
+        .n_bu(n_bu_reg),
         .bu_index(bu_index),
         .port_index(port_index),
         .addr_in(address_counter),
@@ -87,7 +87,7 @@ module agu_fft_r4 #(
     ) twiddle_addr_inst (
         .n_points(n_points_reg),
         .radix(radix_reg),
-        .n_bu(n_bu),
+        .n_bu(n_bu_reg),
         .bu_index(bu_index),
         .port_index(port_index),
         .addr_in(address_counter),
