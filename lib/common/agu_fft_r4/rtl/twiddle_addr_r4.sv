@@ -13,7 +13,7 @@ module twiddle_addr_r4 #(
 );
 
     logic [STAGE_WIDTH-1:0] stages;
-    logic [AGU_BITWIDTH-2:0] addr_out_r2; // radix-2 uses N/2 addresses
+    logic [AGU_BITWIDTH/2-1:0] addr_out_r2; // radix-2 uses N/2 addresses
     logic [AGU_BITWIDTH-1:0] addr_out_r4;   // radix-4 uses 3N/4 addresses
 
     int j;
@@ -31,7 +31,7 @@ module twiddle_addr_r4 #(
         end
     end
 
-    logic [AGU_BITWIDTH-2:0] addr_twid;
+    logic [AGU_BITWIDTH/2-1:0] addr_twid;
     logic [AGU_BITWIDTH-1:0] counter_r4;
 
     //---- Radix-2 twiddle address generation (DIF) ----
