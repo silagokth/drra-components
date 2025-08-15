@@ -13,7 +13,7 @@ module twiddle_addr_r4 #(
 );
 
     logic [STAGE_WIDTH-1:0] stages;
-    logic [AGU_BITWIDTH/2-1:0] addr_out_r2; // radix-2 uses N/2 addresses
+    logic [AGU_BITWIDTH-2:0] addr_out_r2; // radix-2 uses N/2 addresses
     logic [AGU_BITWIDTH-1:0] addr_out_r4;   // radix-4 uses 3N/4 addresses
 
     int j;
@@ -31,8 +31,7 @@ module twiddle_addr_r4 #(
         end
     end
 
-    logic [AGU_BITWIDTH/2-1:0] addr_twid;
-    // logic [AGU_BITWIDTH*2-1:0] temp_addr;
+    logic [AGU_BITWIDTH-2:0] addr_twid;
     logic [AGU_BITWIDTH-1:0] counter_r4;
 
     //---- Radix-2 twiddle address generation (DIF) ----
@@ -48,30 +47,6 @@ module twiddle_addr_r4 #(
             addr_out_r2 = (addr_twid << curr_stage) & ((1 << (stages - 1)) - 1);
         end
     end
-
-    //---- Radix-2 twiddle address generation (DIT) ----
-    // always_comb begin
-    //     if (bu_index == 0) begin
-    //         addr_twid = addr_in;
-    //     end else begin
-    //         addr_twid = addr_in + n_points/4;
-    //     end
-    // end
-
-    // always_comb begin
-    //     if (curr_stage == 0) begin
-    //         temp_addr = 0;
-    //     end else begin
-    //         temp_addr = (addr_twid >> (stages - 1 - curr_stage)) << AGU_BITWIDTH;
-    //     end
-    // end
-    // // bit reversal
-    // genvar i;
-    // generate
-    //     for (i = 0; i < AGU_BITWIDTH; i++) begin : bitrev_gen
-    //         assign addr_out_r2[i] = temp_addr[stages - 2 - i + AGU_BITWIDTH];
-    //     end
-    // endgenerate
 
     //---- Radix-4 twiddle address generation (DIF) ----
     always_comb begin
