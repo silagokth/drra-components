@@ -115,79 +115,84 @@ void Switchbox::handleSlotEventWithID(Event *event, uint32_t id) {
       slot_links[target]->send(dataEvent);
     } else if (sending_routes_maps[currentFsmOption_route].count(id)) {
       for (auto target : sending_routes_maps[currentFsmOption_route][id]) {
-        if (cell_links[target] == nullptr) {
-          out.fatal(CALL_INFO, -1, "Cell link %u is not linked\n", id);
+        if (target != CellDirection::C) {
+          if (cell_links[target] == nullptr) {
+            out.flush();
+            out.fatal(CALL_INFO, -1, "Cell link %u is not linked\n", id);
+          }
+          out.output("Forwarding data to adjacent cell (direction: %s)\n",
+                     cell_directions_str[target].c_str());
+          DataEvent *dataEventCopy = dataEvent->clone();
+          cell_links[target]->send(dataEventCopy);
+        } else {
+          handleCellEventWithID(event, CellDirection::C);
         }
-        out.output("Forwarding data to adjacent cell (direction: %s)\n",
-                   cell_directions_str[target].c_str());
-        DataEvent *dataEventCopy = dataEvent->clone();
-        cell_links[target]->send(dataEventCopy);
       }
     } else {
+      if (dataEvent->portType == DataEvent::PortType::WriteWide) {
+        // check if Dir::C is in receiving_routes_maps
+        if (receiving_routes_maps[currentFsmOption_route].count(
+                CellDirection::C)) {
+          out.output("Forwarding data to self (direction: C)\n");
+          handleCellEventWithID(event, CellDirection::C);
+          return;
+        }
+      }
       out.output("Slot %u is not linked. Ignoring sent data.\n", id);
-      // for (uint32_t fsm_id = 0; fsm_id < numFSMs; fsm_id++) {
-      //   out.output("Current FSM: %u\n", currentFsmOption);
-      //   out.output("FSM %u connections: %lu\n", fsm_id,
-      //              connection_maps[fsm_id].size());
-      //   for (const auto &conn : connection_maps[fsm_id]) {
-      //     out.output("FSM %u connection from slot %u to slot %u\n", fsm_id,
-      //                conn.first, conn.second);
-      //   }
-      //   out.output("FSM %u receiving routes: %lu\n", fsm_id,
-      //              receiving_routes_maps[fsm_id].size());
-      //   for (const auto &route : receiving_routes_maps[fsm_id]) {
-      //     out.output("FSM %u receiving route from cell %u to slots ", fsm_id,
-      //                route.first);
-      //     for (const auto &slot : route.second) {
-      //       out.print("%u,", slot);
-      //     }
-      //     out.print("\n");
-      //   }
-      //   out.output("FSM %u sending routes: %lu\n", fsm_id,
-      //              sending_routes_maps[fsm_id].size());
-      //   for (const auto &route : sending_routes_maps[fsm_id]) {
-      //     out.output("FSM %u sending route from slot %u to cells ", fsm_id,
-      //                route.first);
-      //     for (const auto &cell : route.second) {
-      //       out.print("%s,", cell_directions_str[cell].c_str());
-      //     }
-      //     out.print("\n");
-      //   }
-      // }
-
-      // out.fatal(CALL_INFO, -1, "Slot %u is not linked\n", id);
     }
   }
 }
 
 void Switchbox::handleCellEventWithID(Event *event, uint32_t id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
-  if (dataEvent)
+  // Verify if the slot is mapped to another slot
+  if (id != CellDirection::C) {
     out.output("Received data from adjacent cell (direction: %s)\n",
                cell_directions_str[id].c_str());
-
-  // Verify if the slot is mapped to another slot
-  if (receiving_routes_maps[currentFsmOption_route].count(id)) {
-    if (receiving_routes_maps[currentFsmOption_route][id].size() > 1) {
-      out.output("Broadcasting data from cell %s to slots ",
-                 cell_directions_str[id].c_str());
-    } else {
-      out.output("Forwarding from cell %s data to slot ",
-                 cell_directions_str[id].c_str());
-    }
-    for (int i = 0;
-         i < receiving_routes_maps[currentFsmOption_route][id].size(); i++) {
-      uint32_t target = receiving_routes_maps[currentFsmOption_route][id][i];
-      out.print("%u", target);
-      if (i < receiving_routes_maps[currentFsmOption_route][id].size() - 1) {
-        out.print(", ");
+    if (receiving_routes_maps[currentFsmOption_route].count(id)) {
+      if (receiving_routes_maps[currentFsmOption_route][id].size() > 1) {
+        out.output("Broadcasting data from cell %s to slots ",
+                   cell_directions_str[id].c_str());
+      } else {
+        out.output("Forwarding from cell %s data to slot ",
+                   cell_directions_str[id].c_str());
       }
-      DataEvent *dataEventCopy = dataEvent->clone();
-      slot_links[target]->send(dataEventCopy);
+      for (int i = 0;
+           i < receiving_routes_maps[currentFsmOption_route][id].size(); i++) {
+        uint32_t target = receiving_routes_maps[currentFsmOption_route][id][i];
+        out.print("%u", target);
+        if (i < receiving_routes_maps[currentFsmOption_route][id].size() - 1) {
+          out.print(", ");
+        }
+        DataEvent *dataEventCopy = dataEvent->clone();
+        slot_links[target]->send(dataEventCopy);
+      }
+      out.print("\n");
+    } else {
+      out.fatal(CALL_INFO, -1, "Cell %u is not linked\n", id);
+    }
+  } else {
+    out.output("Received data from self (direction: C)\n");
+    auto routes = receiving_routes_maps[currentFsmOption_route][id];
+    if (routes.size() > 1)
+      out.output("Broadcasting data to slots ");
+    else
+      out.output("Forwarding data to slot ");
+    for (int i = 0; i < routes.size(); i++) {
+      uint32_t target = routes[i];
+      if (target < num_slots) {
+        if (i < routes.size() - 1) {
+          out.print("%u, ", target);
+        } else {
+          out.print("%u", target);
+        }
+        DataEvent *dataEventCopy = dataEvent->clone();
+        slot_links[target]->send(dataEventCopy);
+      } else {
+        out.fatal(CALL_INFO, -1, "Invalid target slot %u\n", target);
+      }
     }
     out.print("\n");
-  } else {
-    out.fatal(CALL_INFO, -1, "Cell %u is not linked\n", id);
   }
 }
 
@@ -314,7 +319,6 @@ void Switchbox::handleFsm(uint32_t instr) {
   uint32_t delay_0 = getInstrField(instr, 7, 15);
   uint32_t delay_1 = getInstrField(instr, 7, 8);
   uint32_t delay_2 = getInstrField(instr, 7, 1);
-  // TODO: what are the use cases for delay_1 and delay_2?
 
   out.output("fsm (slot %u, port %u, delay_0 %u, delay_1 %u, delay_2 %u)\n",
              slot, port, delay_0, delay_1, delay_2);
@@ -322,7 +326,7 @@ void Switchbox::handleFsm(uint32_t instr) {
   vector<uint32_t> delays = {delay_0, delay_1, delay_2};
   if (port == 0) { // inner cell communication
     if (next_connection_maps[0].size() == 0) {
-      out.fatal(CALL_INFO, -1, "No connections in FSM 0\n");
+      out.fatal(CALL_INFO, -1, "No inner cell connections in FSM 0\n");
     }
     next_timing_states[port].addEvent("fsm_option_slot_reset_" +
                                           std::to_string(currentEventNumber),
@@ -347,7 +351,7 @@ void Switchbox::handleFsm(uint32_t instr) {
   {
     if (next_receiving_routes_maps[0].size() == 0 &&
         (next_sending_routes_maps[0].size() == 0)) {
-      out.fatal(CALL_INFO, -1, "No connections in FSM 0\n");
+      out.fatal(CALL_INFO, -1, "No outer cell connections in FSM 0\n");
     }
     next_timing_states[port].addEvent("fsm_option_slot_reset_" +
                                           std::to_string(currentEventNumber),
