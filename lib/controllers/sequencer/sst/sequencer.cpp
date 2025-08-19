@@ -450,6 +450,11 @@ void Sequencer::calculate(uint32_t instr) {
     operationStr = "le";
     scalarRegisters[result] = (operand1_tmp <= operand2_tmp);
     break;
+  case 23:
+    operationStr = "addh";
+    scalarRegisters[result] =
+        (operand1_tmp & 0xFF) + ((operand2_tmp & 0xFF) << 8);
+    break;
   case 32:
     operationStr = "and";
     scalarRegisters[result] = operand1_tmp && operand2_tmp;

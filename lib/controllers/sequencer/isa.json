@@ -36,17 +36,17 @@
       "segments": [
         {
           "name": "ports",
-          "comment": "1-hot encoded ports that need to be activated.",
+          "comment": "1-hot encoded mask of ports (or slots if `mode=1`)",
           "bitwidth": 16
         },
         {
           "name": "mode",
-          "comment": "Filter mode: [0]: Continues ports start from slot X; [1] All port X in each slot; [2]: the predefined 64-bit activation code in internal activation memory location X. (X is the filter parameter)",
+          "comment": "Activation mode. `0`: activates `ports` starting from slot `param`; `1`: activates ports `param` in each slot that is enabled in `ports`; `2`: activates the predefined 64-bit map of ports stored in the sequencer's scalar register number `param`",
           "bitwidth": 4
         },
         {
           "name": "param",
-          "comment": "The parameter for the filter mode.",
+          "comment": "Parameter used for the different activation modes",
           "bitwidth": 8
         }
       ]
@@ -134,6 +134,10 @@
               "val": "le"
             },
             {
+              "key": 23,
+              "val": "addh"
+            },
+            {
               "key": 32,
               "val": "and"
             },
@@ -183,7 +187,10 @@
       "opcode": 4,
       "name": "brn",
       "instr_type": 0,
-      "machines": ["controller_io", "controller_normal"],
+      "machines": [
+        "controller_io",
+        "controller_normal"
+      ],
       "segments": [
         {
           "name": "reg",
