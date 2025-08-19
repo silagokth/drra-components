@@ -3,6 +3,7 @@
 
 #include "drra.h"
 
+#include <cstdint>
 #include <sst/core/component.h>
 #include <sst/core/params.h>
 #include <vector>
@@ -30,6 +31,9 @@ public:
     params.push_back({"fsm_per_slot", "Number of FSM per slot"});
     params.push_back({"instr_addr_width", "Instruction address width", "6"});
     params.push_back({"instr_hops_width", "Instruction hops width", "4"});
+    params.push_back(
+        {"register_size", "Size in bits of a scalar register", "16"});
+    params.push_back({"num_registers", "Number of scalar registers", "16"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -72,6 +76,8 @@ private:
   uint32_t instrDataWidth;
   uint32_t instrAddrWidth;
   uint32_t instrHopsWidth;
+  uint32_t registerSize;
+  uint32_t numRegisters;
 
   // Add scalar and bool registers
   std::vector<uint32_t> scalarRegisters;
@@ -88,6 +94,12 @@ private:
   void activate(uint32_t content);
   void calculate(uint32_t content);
   void branch(uint32_t content);
+
+  // Helper methods
+  void sendActEvent(uint32_t, uint32_t);
+  void handle_continuous_port_mode(uint32_t ports, uint32_t param);
+  void handle_all_port_X_mode(uint32_t ports, uint32_t param);
+  void handle_activation_vector_mode(uint32_t ports, uint32_t param);
 };
 
 #endif // _SEQUENCER_H
