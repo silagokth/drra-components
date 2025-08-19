@@ -126,11 +126,11 @@ import {{fingerprint}}_pkg::*;
     assign delay_0_3 = rep._delay;
     assign iter_0_3 = rep._iter;
     assign init_addr_0_3 = dsu._init_addr;
-    
+
     agu #(
       .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
-    ) aug_0_0 (
+    ) agu_0_0 (
       .clk(clk),
       .rst_n(rst_n),
       .activate(activate_0[0]),
@@ -149,7 +149,7 @@ import {{fingerprint}}_pkg::*;
     agu #(
       .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
-    ) aug_0_1 (
+    ) agu_0_1 (
       .clk(clk),
       .rst_n(rst_n),
       .activate(activate_0[1]),
