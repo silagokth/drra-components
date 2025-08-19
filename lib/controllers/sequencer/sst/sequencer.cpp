@@ -472,18 +472,6 @@ void Sequencer::calculate(uint32_t instr) {
     out.fatal(CALL_INFO, -1, "Invalid operation mode\n");
     break;
   }
-
-  out.output("CALCULATE: mode=%s (%s), operand1=%s, "
-             "operand2SD=%s, "
-             "operand2=%s, result=%s\n",
-             std::bitset<6>(mode).to_string().c_str(), operationStr.c_str(),
-             std::bitset<4>(operand1).to_string().c_str(),
-             std::bitset<1>(operand2SD).to_string().c_str(),
-             std::bitset<8>(operand2).to_string().c_str(),
-             std::bitset<4>(result).to_string().c_str());
-  out.output("Result stored in register %s: %s\n",
-             std::bitset<4>(result).to_string().c_str(),
-             std::bitset<16>(scalarRegisters[result]).to_string().c_str());
 }
 
 void Sequencer::branch(uint32_t instr) {
