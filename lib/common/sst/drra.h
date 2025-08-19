@@ -14,6 +14,8 @@
 #include <fstream>
 #include <iostream>
 
+#define PORTS_PER_SLOT 4
+
 using namespace SST;
 
 class DRRAOutput : public Output {
@@ -32,6 +34,7 @@ public:
     } else {
       Output::output(prefixed_format.c_str(), args...);
     }
+    std::cout.flush();
   }
 
   template <typename... Args>
@@ -44,6 +47,7 @@ public:
       Output::fatal(line, file, func, exit_code, prefixed_format.c_str(),
                     args...);
     }
+    std::cout.flush();
   }
 
   template <typename... Args>
@@ -265,12 +269,13 @@ public:
     // Resource size
     resource_size = params.find<uint8_t>("resource_size", 1);
     for (uint8_t i = 0; i < resource_size; i++) {
-      for (uint8_t j = 0; j < 4; j++) {
-        active_ports[i * 4 + j] = false;
-        active_ports_cycles[i * 4 + j] = 0;
-        next_timing_states[i * 4 + j] = TimingState();
-        next_timing_states[i * 4 + j].addEvent("event_0", [this] {});
-        port_last_rep_level[i * 4 + j] = -1;
+      for (uint8_t j = 0; j < PORTS_PER_SLOT; j++) {
+        active_ports[i * PORTS_PER_SLOT + j] = false;
+        active_ports_cycles[i * PORTS_PER_SLOT + j] = 0;
+        next_timing_states[i * PORTS_PER_SLOT + j] = TimingState();
+        next_timing_states[i * PORTS_PER_SLOT + j].addEvent("event_0",
+                                                            [this] {});
+        port_last_rep_level[i * PORTS_PER_SLOT + j] = -1;
       }
     }
 
@@ -409,10 +414,10 @@ protected:
   void activatePortsForSlot(uint32_t slot_id, uint32_t ports) {
     uint8_t slot_pos = std::distance(
         slot_ids.begin(), std::find(slot_ids.begin(), slot_ids.end(), slot_id));
-    for (uint8_t i = 0; i < 4; i++) {
+    for (uint8_t i = 0; i < PORTS_PER_SLOT; i++) {
       if ((ports & (1 << i)) >> i) {
-        activatePort(slot_pos * 4 + i);
-        out.output("Activated port %d\n", slot_pos * 4 + i);
+        activatePort(slot_pos * PORTS_PER_SLOT + i);
+        out.output("Activated port %d\n", slot_pos * PORTS_PER_SLOT + i);
       }
     }
   }
@@ -420,7 +425,7 @@ protected:
   uint32_t getRelativePortNum(uint32_t slot_id, uint32_t port_id) {
     uint8_t slot_pos = std::distance(
         slot_ids.begin(), std::find(slot_ids.begin(), slot_ids.end(), slot_id));
-    return slot_pos * 4 + port_id;
+    return slot_pos * PORTS_PER_SLOT + port_id;
   }
 
   uint32_t getPortActiveCycle(uint32_t port) {
@@ -643,6 +648,7 @@ public:
       trace_file << last_line << std::endl;
       // Add the closing bracket
       trace_file << "], \"displayTimeUnit\": \"ns\"}" << std::endl;
+      trace_file.flush();
       trace_file.close();
       // Move the trace file to the output directory
       std::string command = "mv " + trace_name + " trace_complete.json";
