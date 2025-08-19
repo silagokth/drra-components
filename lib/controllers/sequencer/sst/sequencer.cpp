@@ -4,6 +4,7 @@
 #include <sst/core/link.h>
 
 #include "activationEvent.h"
+#include "drra.h"
 #include "instructionEvent.h"
 #include "sequencer.h"
 #include "sst/core/output.h"
@@ -12,6 +13,10 @@
 Sequencer::Sequencer(ComponentId_t id, Params &params)
     : DRRAController(id, params) {
   assemblyProgramPath = params.find<std::string>("assembly_program_path");
+
+  // Register params
+  registerSize = params.find<int>("register_size", 16);
+  numRegisters = params.find<int>("num_registers", 16);
 
   // Register as primary component
   registerAsPrimaryComponent();
@@ -25,9 +30,10 @@ void Sequencer::init(unsigned int phase) {
   load_assembly_program(assemblyProgramPath);
 
   // Initialize scalar and bool registers
-  for (uint32_t i = 0; i < num_slots; i++) {
+  for (uint32_t i = 0; i < numRegisters; i++) {
     scalarRegisters.push_back(0);
   }
+  out.output("Initialized %u scalar registers\n", numRegisters);
 
   // End of initialization
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
@@ -184,12 +190,100 @@ void Sequencer::wait_cycles(uint32_t cycles) { cyclesToWait = cycles; }
 
 void Sequencer::wait_event() { out.output("WAIT EVENT\n"); }
 
+void Sequencer::handle_continuous_port_mode(uint32_t ports, uint32_t param) {
+  uint32_t current_slot = param;
+  uint32_t target_ports_for_slot = 0;
+  uint32_t temp_ports = ports;
+  uint32_t ports_segment_length = 16;
+
+  for (uint32_t i = 0; i < ports_segment_length; i += PORTS_PER_SLOT) {
+    // Extract 1-bit activation for each port and accumulate
+    uint32_t maskAllPorts = ((1 << (PORTS_PER_SLOT + 1)) - 1);
+    target_ports_for_slot = temp_ports & maskAllPorts;
+    temp_ports >>= PORTS_PER_SLOT;
+
+    // Skip this slot if no ports are activated or not linked
+    if ((target_ports_for_slot == 0) || (slot_links[current_slot] == nullptr)) {
+      current_slot++;
+      continue;
+    }
+
+    sendActEvent(current_slot, target_ports_for_slot);
+
+    // Next slot
+    target_ports_for_slot = 0;
+    current_slot++;
+  }
+}
+
+void Sequencer::handle_all_port_X_mode(uint32_t ports, uint32_t param) {
+  uint32_t target_ports_for_slot = 0;
+  uint32_t ports_segment_length = 16;
+  if (param >= PORTS_PER_SLOT) {
+    out.fatal(CALL_INFO, -1,
+              "Invalid port number, activation mode 1 requires a value "
+              "between 0 and %d.\n",
+              PORTS_PER_SLOT - 1);
+  }
+  target_ports_for_slot = param;
+  for (uint32_t i = 0; i < ports_segment_length; i++) {
+    if (ports & (1 << i)) {
+      sendActEvent(i, target_ports_for_slot);
+    }
+  }
+}
+
+void Sequencer::handle_activation_vector_mode(uint32_t ports, uint32_t param) {
+  uint32_t num_bits_needed = num_slots * PORTS_PER_SLOT;
+  uint32_t num_registers_needed = num_bits_needed / registerSize;
+
+  if (param == 0) {
+    out.fatal(CALL_INFO, -1, "Register 0 is reserved.");
+  }
+
+  if (param > num_slots - num_registers_needed) {
+    out.fatal(CALL_INFO, -1,
+              "Invalid value for param (%d), %d consecutive registers are "
+              "needed and the sequencer only has %d registers (r0 to r%d).",
+              param, num_registers_needed, num_slots, num_slots - 1);
+  }
+
+  uint64_t activationVector = 0;
+  for (uint32_t i = 0; i < num_registers_needed; i++) {
+    if (param + i >= scalarRegisters.size()) {
+      out.fatal(CALL_INFO, -1,
+                "Invalid register index %d, only %d registers available.",
+                param + i, scalarRegisters.size());
+    }
+    uint64_t regValue = scalarRegisters[param + i];
+    activationVector += (regValue << (i * registerSize));
+  }
+  out.output("Using activation vector from register %d: %s\n", param,
+             std::bitset<64>(activationVector).to_string().c_str());
+
+  uint64_t activationMask = activationVector;
+  uint64_t slotActMask = 0;
+  uint64_t currentMask =
+      (1 << PORTS_PER_SLOT) - 1; // Mask for PORTS_PER_SLOT bits
+  for (int currentSlot = 0; currentSlot < num_slots; currentSlot++) {
+    slotActMask = activationMask & currentMask;
+    if (slot_links[currentSlot] != nullptr) {
+      sendActEvent(currentSlot, slotActMask);
+    } else {
+      if (activationMask != 0) {
+        out.fatal(CALL_INFO, -1,
+                  "Trying to activate slot %d, but it is not linked.\n",
+                  currentSlot);
+      }
+    }
+    activationMask >>= PORTS_PER_SLOT; // Shift to the next slot
+  }
+}
+
 void Sequencer::activate(uint32_t instr) {
   uint32_t ports_segment_length = 16;
   uint32_t mode_segment_length = 4;
   uint32_t param_segment_length = 8;
-
-  // Extract segments
   uint32_t ports = getInstrField(instr, ports_segment_length, 12);
   uint32_t mode = getInstrField(instr, mode_segment_length, 8);
   uint32_t param = getInstrField(instr, param_segment_length, 0);
@@ -197,78 +291,34 @@ void Sequencer::activate(uint32_t instr) {
   out.output("act (mode=%d, param=%d, ports=%s)\n", mode, param,
              std::bitset<16>(ports).to_string().c_str());
 
-  uint32_t target_ports_for_slot = 0;
-  uint32_t temp_ports = ports;
-  uint32_t current_slot = 0;
-
   switch (mode) {
   case 0: // Continuous ports starting from slot X (param)
-    current_slot = param;
-    for (uint32_t i = 0; i < ports_segment_length; i += 4) {
-      // Extract 1-bit activation for each port and accumulate
-      target_ports_for_slot = temp_ports & 0b1111;
-      temp_ports >>= 4;
-
-      // Skip this slot if no ports are activated or not linked
-      if ((target_ports_for_slot == 0) ||
-          (slot_links[current_slot] == nullptr)) {
-        current_slot++;
-        continue;
-      }
-
-      // Send on-hot encoded 4-bits activation to the slot
-      ActEvent *event = new ActEvent();
-      event->slot_id = current_slot;
-      event->ports = target_ports_for_slot;
-      slot_links[current_slot]->send(event);
-
-      // Next slot
-      target_ports_for_slot = 0;
-      current_slot++;
-    }
+    handle_continuous_port_mode(ports, param);
     break;
 
   case 1: // All port X (param) in each slot
-    // TODO: check if this interpretation of mode 1 is correct
-    // + update the docs to make it more clear
-    // (can two ports be used? i.e., X=0110)
-    if (param >= 4) {
-      out.fatal(CALL_INFO, -1,
-                "Invalid port number, activation mode 1 requires a value "
-                "between 0 and 3.\n");
-    }
-    target_ports_for_slot = param;
-    for (uint32_t i = 0; i < ports_segment_length; i++) {
-      if (ports & (1 << i)) {
-        ActEvent *event = new ActEvent();
-        event->slot_id = i;
-        event->ports = (1 << target_ports_for_slot);
-        slot_links[i]->send(event);
-      }
-    }
+    handle_all_port_X_mode(ports, param);
     break;
 
   case 2: // Use activation vector stored in a scalar register
-    if (param > num_slots - 1) {
-      // TODO: change this to check if param is R4 or R8
-      // (the 8 middle registers of the total 16 registers)
-      // + update documentation
-      out.fatal(CALL_INFO, -1,
-                "Invalid value for param (%d), the sequencer only has %d "
-                "registers (0 to %d).",
-                param, num_slots, num_slots - 1);
-    }
-
-    // TODO: parse the 4 scalar registers from param
-    // for each register, divide in 4 chunks and send the activation signals for
-    // the 4 slots
-
+    handle_activation_vector_mode(ports, param);
     break;
 
-  default:
+  default: {
     out.fatal(CALL_INFO, -1, "ACT mode %d not implemented\n", mode);
     break;
   }
+  }
+}
+
+void Sequencer::sendActEvent(uint32_t slot_id, uint32_t ports_mask) {
+  out.output("Sending ACT event to slot %u with ports mask %s\n", slot_id,
+             std::bitset<PORTS_PER_SLOT>(ports_mask).to_string().c_str());
+  ActEvent *event = new ActEvent();
+  event->slot_id = slot_id;
+  event->ports = ports_mask;
+  if (slot_links[slot_id]->isConfigured())
+    slot_links[slot_id]->send(event);
 }
 
 void Sequencer::calculate(uint32_t instr) {
@@ -312,6 +362,21 @@ void Sequencer::calculate(uint32_t instr) {
 
   std::string operationStr;
 
+  out.output("calc (mode=%d, operand1=%d, "
+             "operand2SD=%s, operand2=%s, result=%d)\n",
+             mode, operand1, operand2SD ? "dynamic" : "static",
+             operand2SD ? std::to_string(operand2).c_str()
+                        : std::bitset<8>(operand2).to_string().c_str(),
+             result);
+
+  uint32_t operand1_tmp = 0;
+  operand1_tmp = scalarRegisters[operand1];
+  uint32_t operand2_tmp = 0;
+  if (operand2SD)
+    operand2_tmp = scalarRegisters[operand2];
+  else
+    operand2_tmp = operand2;
+
   switch (mode) {
   case 0:
     operationStr = "idle";
@@ -319,85 +384,83 @@ void Sequencer::calculate(uint32_t instr) {
 
   case 1:
     operationStr = "add";
-    scalarRegisters[result] = operand1 + operand2;
+    scalarRegisters[result] = operand1_tmp + operand2_tmp;
     break;
   case 2:
     operationStr = "sub";
-    scalarRegisters[result] = operand1 - operand2;
+    scalarRegisters[result] = operand1_tmp - operand2_tmp;
     break;
   case 3:
     operationStr = "lls";
-    scalarRegisters[result] = operand1 / (1 << operand2);
+    scalarRegisters[result] = operand1_tmp << operand2_tmp;
     break;
   case 4:
     operationStr = "lrs";
-    scalarRegisters[result] = operand1 * (1 << operand2);
+    scalarRegisters[result] = operand1_tmp >> operand2_tmp;
     break;
   case 5:
     operationStr = "mul";
-    scalarRegisters[result] = operand1 * operand2;
+    scalarRegisters[result] = operand1_tmp * operand2_tmp;
     break;
   case 6:
     operationStr = "div";
-    scalarRegisters[result] = operand1 / operand2;
+    scalarRegisters[result] = operand1_tmp / operand2_tmp;
     break;
   case 7:
     operationStr = "mod";
-    scalarRegisters[result] = operand1 % operand2;
+    scalarRegisters[result] = operand1_tmp % operand2_tmp;
     break;
   case 8:
     operationStr = "bitand";
-    scalarRegisters[result] = operand1 & operand2;
+    scalarRegisters[result] = operand1_tmp & operand2_tmp;
     break;
   case 9:
     operationStr = "bitor";
-    scalarRegisters[result] = operand1 | operand2;
+    scalarRegisters[result] = operand1_tmp | operand2_tmp;
     break;
   case 10:
     operationStr = "bitinv";
-    scalarRegisters[result] = ~operand1;
+    scalarRegisters[result] = ~operand1_tmp;
     break;
   case 11:
     operationStr = "bitxor";
-    scalarRegisters[result] = operand1 ^ operand2;
+    scalarRegisters[result] = operand1_tmp ^ operand2_tmp;
     break;
   case 17:
     operationStr = "eq";
-    scalarRegisters[result] = operand1 == operand2;
+    scalarRegisters[result] = (operand1_tmp == operand2_tmp);
     break;
   case 18:
     operationStr = "ne";
-    scalarRegisters[result] = operand1 != operand2;
+    scalarRegisters[result] = (operand1_tmp != operand2_tmp);
     break;
   case 19:
     operationStr = "gt";
-    scalarRegisters[result] = operand1 > operand2;
+    scalarRegisters[result] = (operand1_tmp > operand2_tmp);
     break;
   case 20:
     operationStr = "ge";
-    scalarRegisters[result] = operand1 >= operand2;
+    scalarRegisters[result] = (operand1_tmp >= operand2_tmp);
     break;
   case 21:
     operationStr = "lt";
-    scalarRegisters[result] = operand1 < operand2;
+    scalarRegisters[result] = (operand1_tmp < operand2_tmp);
     break;
   case 22:
     operationStr = "le";
-    scalarRegisters[result] = operand1 <= operand2;
+    scalarRegisters[result] = (operand1_tmp <= operand2_tmp);
     break;
   case 32:
     operationStr = "and";
-    scalarRegisters[result] = scalarRegisters[operand1] &&
-                              scalarRegisters[operand2]; // TODO check this
+    scalarRegisters[result] = operand1_tmp && operand2_tmp;
     break;
   case 33:
     operationStr = "or";
-    scalarRegisters[result] =
-        scalarRegisters[operand1] || scalarRegisters[operand2];
+    scalarRegisters[result] = operand1_tmp || operand2_tmp;
     break;
   case 34:
     operationStr = "not";
-    scalarRegisters[result] = !scalarRegisters[operand1];
+    scalarRegisters[result] = !operand1_tmp;
     break;
 
   default:
@@ -413,6 +476,9 @@ void Sequencer::calculate(uint32_t instr) {
              std::bitset<1>(operand2SD).to_string().c_str(),
              std::bitset<8>(operand2).to_string().c_str(),
              std::bitset<4>(result).to_string().c_str());
+  out.output("Result stored in register %s: %s\n",
+             std::bitset<4>(result).to_string().c_str(),
+             std::bitset<16>(scalarRegisters[result]).to_string().c_str());
 }
 
 void Sequencer::branch(uint32_t instr) {
