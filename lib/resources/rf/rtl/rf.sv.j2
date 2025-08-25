@@ -50,6 +50,8 @@ import {{fingerprint}}_pkg::*;
         memory_next = memory;
         bulk_data_out_0 = '0;
         word_data_out_0 = '0;
+        offset_w_addr = '0;
+        offset_r_addr = '0;
         if (bulk_w_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_w_addr = i;
