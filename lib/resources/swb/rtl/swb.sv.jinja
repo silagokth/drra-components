@@ -36,6 +36,7 @@ import {{fingerprint}}_pkg::*;
     logic [23:0] payload;
     swb_t swb;
     route_t route;
+    logic [FSM_PER_SLOT-1:0] reg_activate;
 
     logic [NUM_OPTIONS-1:0][NUM_SLOTS-1:0][3:0] swb_configs, swb_configs_next;
     logic [NUM_OPTIONS-1:0][3:0] route_in_src_configs, route_in_src_configs_next;
@@ -49,9 +50,29 @@ import {{fingerprint}}_pkg::*;
     logic [3:0] curr_route_out_src_configs, curr_route_out_src_configs_next;
     logic [15:0] curr_route_out_dst_configs, curr_route_out_dst_configs_next;
 
-    logic [1:0] current_option;
+    logic [3:0] current_option;
+    logic [3:0] fsm_max_init_state;
+    logic [3:0] reg_fsm_max_init_state;
+    logic [3:0] fsm_option;
+    logic reset_fsm;
+    assign reset_fsm = 0; // TODO: this should be connected to the agu
+    logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
+    logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] reg_fsm_delays;
+    fsm_t fsm;
+    fsm #(
+        .FSM_MAX_STATES(FSM_MAX_STATES),
+        .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
+    ) fsm_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .activate(|activate_0[2]),
+        .fsm_delays(reg_fsm_delays),
+        .max_init_state(reg_fsm_max_init_state),
+        .reset_fsm(reset_fsm),
+        .state(fsm_option)
+    );
+    assign current_option = fsm_option;
 
-    assign current_option = 0;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -65,6 +86,9 @@ import {{fingerprint}}_pkg::*;
             curr_route_in_dst_configs <= 0;
             curr_route_out_src_configs <= 0;
             curr_route_out_dst_configs <= 0;
+            reg_fsm_max_init_state <= 0;
+            reg_fsm_delays <= 0;
+            reg_activate <= '0;
         end else begin
             swb_configs <= swb_configs_next;
             route_in_src_configs <= route_in_src_configs_next;
@@ -76,12 +100,17 @@ import {{fingerprint}}_pkg::*;
             curr_route_in_dst_configs <= curr_route_in_dst_configs_next;
             curr_route_out_src_configs <= curr_route_out_src_configs_next;
             curr_route_out_dst_configs <= curr_route_out_dst_configs_next;
+            reg_fsm_max_init_state <= (fsm_max_init_state > reg_fsm_max_init_state) ? fsm_max_init_state : reg_fsm_max_init_state;
+            reg_fsm_delays <= (fsm_delays > reg_fsm_delays) ? fsm_delays : reg_fsm_delays;
+            reg_activate <= (activate_0 > reg_activate) ? activate_0 : reg_activate;
         end
     end
 
     always_comb begin
       opcode = 0;
       payload = 0;
+      fsm_delays = '0;
+      fsm_max_init_state = '0;
       swb_configs_next = swb_configs;
       route_in_src_configs_next = route_in_src_configs;
       route_in_dst_configs_next = route_in_dst_configs;
@@ -93,10 +122,10 @@ import {{fingerprint}}_pkg::*;
       curr_route_out_src_configs_next = curr_route_out_src_configs;
       curr_route_out_dst_configs_next = curr_route_out_dst_configs;
 
-      if (activate_0[0]) begin
+      if (reg_activate[0]) begin
         curr_swb_configs_next = swb_configs[current_option];
       end
-      if (activate_0[2]) begin
+      if (reg_activate[2]) begin
         curr_route_in_src_configs_next = route_in_src_configs[current_option];
         curr_route_in_dst_configs_next = route_in_dst_configs[current_option];
         curr_route_out_src_configs_next = route_out_src_configs[current_option];
@@ -114,6 +143,7 @@ import {{fingerprint}}_pkg::*;
               OPCODE_ROUTE: begin
                       // Router
                       route = unpack_route(payload);
+                      fsm_max_init_state = route._option;
                       if (route._sr==1'b0) begin // send
                           route_out_src_configs_next[route._option] = route._source;
                           route_out_dst_configs_next[route._option] = route._target;
@@ -122,8 +152,14 @@ import {{fingerprint}}_pkg::*;
                           route_in_dst_configs_next[route._option] = route._target;
                       end
               end
+              OPCODE_FSM: begin
+                      // FSM
+                      fsm = unpack_fsm(payload);
+                      fsm_delays[0] = fsm._delay_0;
+                      fsm_delays[1] = fsm._delay_1;
+                      fsm_delays[2] = fsm._delay_2;
+              end
               default: begin
-                      // Do nothing
               end
           endcase
       end
@@ -139,18 +175,19 @@ import {{fingerprint}}_pkg::*;
       bulk_intercell_n_out = 0;
       bulk_intercell_w_out = 0;
       bulk_intercell_s_out = 0;
+      word_channels_out = '0;
 
       for(int i=0; i<NUM_SLOTS; i=i+1) begin
         word_channels_out[i] = word_channels_in[curr_swb_configs[i]];
       end
 
       bulk_intercell_c_out = bulk_intracell_in[curr_route_out_src_configs];
-      
+
       if (curr_route_out_dst_configs[1]) begin
         bulk_intercell_n_out = bulk_intercell_c_out;
       end else if (curr_route_out_dst_configs[3]) begin
         bulk_intercell_w_out = bulk_intercell_c_out;
-      end else if (curr_route_out_dst_configs[3]) begin
+      end else if (curr_route_out_dst_configs[4]) begin
         bulk_intercell_self = bulk_intercell_c_out;
       end else if (curr_route_out_dst_configs[5]) begin
         bulk_intercell_e_out = bulk_intercell_c_out;
@@ -160,13 +197,13 @@ import {{fingerprint}}_pkg::*;
 
       if (curr_route_in_src_configs == 1) begin
         bulk_intercell_c_in = bulk_intercell_n_in;
-      end else if (curr_route_out_src_configs == 3) begin
+      end else if (curr_route_in_src_configs == 3) begin
         bulk_intercell_c_in = bulk_intercell_w_in;
-      end else if (curr_route_out_src_configs == 4) begin
+      end else if (curr_route_in_src_configs == 4) begin
         bulk_intercell_c_in = bulk_intercell_self;
-      end else if (curr_route_out_src_configs == 5) begin
+      end else if (curr_route_in_src_configs == 5) begin
         bulk_intercell_c_in = bulk_intercell_e_in;
-      end else if (curr_route_out_src_configs == 7) begin
+      end else if (curr_route_in_src_configs == 7) begin
         bulk_intercell_c_in = bulk_intercell_s_in;
       end
 

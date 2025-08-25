@@ -364,6 +364,7 @@ void Switchbox::handleFsm(uint32_t instr) {
           (next_sending_routes_maps[i].size() == 0)) {
         break;
       }
+      // TODO: verify the timing of this
       next_timing_states[port].addTransition(
           delays[i - 1],
           "fsm_option_route_switch_" + std::to_string(currentEventNumber), 5,

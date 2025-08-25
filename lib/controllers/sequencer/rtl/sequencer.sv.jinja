@@ -2,6 +2,7 @@
 `define {{name}} {{fingerprint}}
 `define {{name}}_pkg {{fingerprint}}_pkg
 
+{% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
 {% if not already_defined %}
 // Package holds parameter constants and per-instruction pack/unpack helpers
 package {{fingerprint}}_pkg;
@@ -93,6 +94,13 @@ import {{fingerprint}}_pkg::*;
     output logic [INSTR_HOPS_WIDTH-1:0] instr_load_hops_out,
     output logic instr_load_en_out
 );
+
+    // Scalar registers
+    logic [SCALAR_REG_WIDTH-1:0] regs [NUM_SCALAR_REGS-1:0];
+
+    // CALC modes operands
+    logic [SCALAR_REG_WIDTH-1:0] calc_op1, calc_op2, calc_out;
+    logic [{{calc_mode_bitwidth}}-1:0] calc_mode;
 
     // Broadcast system clock/reset and shared instruction to all slots
     logic [NUM_SLOTS-1:0] resource_instr;
@@ -241,6 +249,7 @@ import {{fingerprint}}_pkg::*;
     act_t _act; // act_t is generated from ISA; contains _ports and _param fields
     always_comb begin
         // Safe defaults
+        _act = '0;
         ret = 0;
         for (int i = 0; i < NUM_SLOTS; i = i + 1) begin
             resource_instr_valid[i] = 0;
@@ -249,6 +258,8 @@ import {{fingerprint}}_pkg::*;
         instr = 0;
 
         case (state)
+            RESET: begin
+            end
             DECODE: begin
                 if (instr_type == 0) begin
                     // Control flow/actuation opcodes
@@ -256,11 +267,24 @@ import {{fingerprint}}_pkg::*;
                         // ACT: build activation mask and broadcast to all slots
                         activate_flat = 0;
                         _act          = unpack_act(instr_reg);
-                        // Shift port mask by (_param * FSM_PER_SLOT) to select target FSM group
-                        activate_flat = _act._ports << (_act._param * FSM_PER_SLOT);
-                        // Slice into per-slot vectors
-                        for (int i=0; i<NUM_SLOTS; i++) begin
-                            resource_activate[i] = activate_flat[FSM_PER_SLOT*i +: FSM_PER_SLOT];
+                        if (_act._mode == 0) begin
+                          // Shift port mask by (_param * FSM_PER_SLOT) to select target FSM group
+                          activate_flat = _act._ports << (_act._param * FSM_PER_SLOT);
+                          // Slice into per-slot vectors
+                          for (int i=0; i<NUM_SLOTS; i++) begin
+                              resource_activate[i] = activate_flat[FSM_PER_SLOT*i +: FSM_PER_SLOT];
+                          end
+                        end else if (_act._mode == 1) begin
+                          for (int i = 0; i < NUM_SLOTS; i++) begin
+                            if (_act._ports[i])
+                              resource_activate[i] = _act._param;
+                          end
+                        end else if (_act._mode == 2) begin
+                          logic [(NUM_SLOTS*FSM_PER_SLOT)-1:0] activation_vector;
+                          activation_vector = {regs[_act._param+3], regs[_act._param+2], regs[_act._param+1], regs[_act._param]};
+                          for (int i = 0; i < NUM_SLOTS; i++) begin
+                            resource_activate[i] = activation_vector[FSM_PER_SLOT*i +: FSM_PER_SLOT];
+                          end
                         end
                     end else if (opcode == 0) begin
                         // RETURN: signal completion to caller
@@ -274,6 +298,51 @@ import {{fingerprint}}_pkg::*;
             end
         endcase
     end
+
+    // Calculation logic
+    calc_t _calc; // calc_t is generated from ISA; contains _op and _args fields
+    always_comb begin
+      // defaults
+      _calc = '0;
+      calc_op1 = '0;
+      calc_op2 = '0;
+      calc_mode = '0;
+
+      case (state)
+        RESET: begin
+          // Reset all registers to 0
+          for (int i = 0; i < NUM_SCALAR_REGS; i++) begin
+              regs[i] = 0;
+          end
+        end
+        DECODE: begin
+          if (instr_type == 0) begin
+            if (opcode == 3) begin
+              _calc = unpack_calc(instr_reg);
+              // set the calculation mode
+              calc_mode = _calc._mode;
+              // assign operand 1
+              calc_op1 = regs[_calc._operand1];
+              if (_calc._operand2_sd == 0) begin
+                // operand 2 is an immediate value
+                calc_op2 = _calc._operand2;
+              end else begin
+                // operand 2 is a scalar register
+                calc_op2 = regs[_calc._operand2];
+              end
+              regs[_calc._result] = calc_out; // Store result in destination register
+            end
+          end
+        end
+      endcase
+    end
+
+  {{fingerprint}}_alu alu_inst (
+    .in1(calc_op1),
+    .in2(calc_op2),
+    .mode(calc_mode),
+    .out(calc_out)
+  );
 endmodule
 
 {% endif %}
