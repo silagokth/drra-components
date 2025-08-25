@@ -1,0 +1,621 @@
+# //  Questa Sim-64
+# //  Version 2022.4 linux_x86_64 Oct 18 2022
+# //
+# //  Copyright 1991-2022 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  QuestaSim and its associated documentation contain trade
+# //  secrets and commercial or financial information that are the property of
+# //  Mentor Graphics Corporation and are privileged, confidential,
+# //  and exempt from disclosure under the Freedom of Information Act,
+# //  5 U.S.C. Section 552. Furthermore, this information
+# //  is prohibited from disclosure under the Trade Secrets Act,
+# //  18 U.S.C. Section 1905.
+# //
+pwd
+# /home/nooshin/Documents/Industrial_Projects/2_Cynergy4MIE/RISCV/SiLago_NN/drra-components/lib/common/agu_RTR
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 09:05:09 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 09:05:09 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+do sim agu_RTR.sv
+# Cannot open macro file: sim
+do sim.do
+# vsim work.agu_RTR_tb -voptargs=""+acc"" 
+# Start time: 09:05:27 on Aug 25,2025
+# ** Note: (vsim-8009) Loading existing optimized design _opt
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 09:40:31 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 09:40:31 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+do sim.do
+# End time: 09:40:42 on Aug 25,2025, Elapsed time: 0:35:15
+# Errors: 0, Warnings: 0
+# vsim work.agu_RTR_tb -voptargs=""+acc"" 
+# Start time: 09:40:42 on Aug 25,2025
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 09:58:30 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 09:58:30 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/count_delay_IR \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/count_delay_MT \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/count_delay_OR
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/en_delay_IR \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/en_delay_MT \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/en_delay_OR
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/init_delay_IR \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/init_delay_MT \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/init_delay_OR
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 10:06:14 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 10:06:14 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 10:13:31 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 10:13:31 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_IR \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_MT \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_OR
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 10:30:41 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 10:30:41 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+# Causality operation skipped due to absence of debug database file
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 10:40:35 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 10:40:35 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 11:05:08 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 11:05:08 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/flag_OR
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 11:15:57 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 11:15:57 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 11:19:00 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 11:19:00 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 11:27:20 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 11:27:20 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 11:28:41 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 11:28:41 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-8009) Loading existing optimized design _opt
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 11:32:48 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 11:32:48 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
+do compile.do
+# QuestaSim-64 vlog 2022.4 Compiler 2022.10 Oct 18 2022
+# Start time: 12:36:47 on Aug 25,2025
+# vlog -reportprogress 300 -sv ./register.sv ./counter.sv ./controller.sv ./agu_RTR_pkg.sv ./agu_RTR.sv ./agu_RTR_tb.sv 
+# -- Compiling module register
+# -- Compiling module down_counter
+# -- Compiling module up_counter
+# -- Compiling module step_counter
+# -- Compiling module controller
+# -- Compiling package agu_RTR_pkg
+# -- Compiling module agu_RTR
+# -- Importing package agu_RTR_pkg
+# -- Compiling module agu_RTR_tb
+# 
+# Top level modules:
+# 	agu_RTR_tb
+# End time: 12:36:47 on Aug 25,2025, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0
+restart
+# ** Note: (vsim-12125) Error and warning message counts have been reset to '0' because of 'restart'.
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "controller(fast)".
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# Loading sv_std.std
+# Loading work.agu_RTR_tb(fast)
+# Loading work.agu_RTR_pkg(fast)
+# Loading work.agu_RTR(fast)
+# Loading work.register(fast)
+# Loading work.register(fast__1)
+# Loading work.register(fast__2)
+# Loading work.register(fast__3)
+# Loading work.register(fast__4)
+# Loading work.step_counter(fast)
+# Loading work.controller(fast)
+# Loading work.down_counter(fast)
+# Loading work.down_counter(fast__1)
+# Loading work.down_counter(fast__2)
+# Loading work.register(fast__5)
+# Loading work.up_counter(fast)
+run -all
+# ** Note: $stop    : ./agu_RTR_tb.sv(146)
+#    Time: 10210 ns  Iteration: 0  Instance: /agu_RTR_tb
+# Break in Module agu_RTR_tb at ./agu_RTR_tb.sv line 146
