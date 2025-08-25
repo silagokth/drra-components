@@ -1,0 +1,8 @@
+
+package:
+  name: cell_single_row
+
+dependencies:
+
+sources:
+  - ./rtl/cell_single_row.sv
