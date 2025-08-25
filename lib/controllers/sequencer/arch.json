@@ -7,6 +7,14 @@
     {
       "name": "NUM_SLOTS",
       "value": 16
+    },
+    {
+      "name": "NUM_SCALAR_REGS",
+      "value": 16
+    },
+    {
+      "name": "SCALAR_REG_WIDTH",
+      "value": 16
     }
   ],
   "required_parameters": [
