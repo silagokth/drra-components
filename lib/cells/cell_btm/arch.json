@@ -2,6 +2,8 @@
   "name": "cell_btm_impl",
   "kind": "cell_btm",
   "component_type": "cell",
+  "io_input": false,
+  "io_output": true,
   "parameters": {
     "INSTR_ADDR_WIDTH": 6,
     "INSTR_DATA_WIDTH": 32,
