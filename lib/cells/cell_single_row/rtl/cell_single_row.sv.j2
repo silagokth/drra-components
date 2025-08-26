@@ -77,9 +77,11 @@ import {{fingerprint}}_pkg::*;
 
   assign ret_out = controller_ret_remember & ret_in_remember;
 
+  // Assign the unused_slots to 0
   {% for slot in unused_slots %}
   assign word_data_out[{{slot}}] = '0;
   {% endfor %}
+  assign word_data_out[0] = '0; // switchbox
 
     // Controller
     `{{controller.name}} controller_inst
