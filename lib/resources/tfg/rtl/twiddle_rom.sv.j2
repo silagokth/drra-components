@@ -1,0 +1,68 @@
+module twiddle_rom
+import {{fingerprint}}_pkg::*;
+(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic [AGU_BITWIDTH-1:0] addr,
+    output logic [WORD_BITWIDTH-1:0] data
+);
+
+    parameter ROM_ENTRIES = 2**ROM_BITWIDTH;
+    logic [WORD_BITWIDTH-1:0] rom [0:ROM_ENTRIES];
+
+    initial begin
+        rom[0] = 32'h01000000;
+        rom[1] = 32'h0100fffa;
+        rom[2] = 32'h0100fff3;
+        rom[3] = 32'h00ffffed;
+        rom[4] = 32'h00ffffe7;
+        rom[5] = 32'h00feffe1;
+        rom[6] = 32'h00fdffda;
+        rom[7] = 32'h00fcffd4;
+        rom[8] = 32'h00fbffce;
+        rom[9] = 32'h00faffc8;
+        rom[10] = 32'h00f8ffc2;
+        rom[11] = 32'h00f7ffbc;
+        rom[12] = 32'h00f5ffb6;
+        rom[13] = 32'h00f3ffb0;
+        rom[14] = 32'h00f1ffaa;
+        rom[15] = 32'h00efffa4;
+        rom[16] = 32'h00edff9e;
+        rom[17] = 32'h00eaff98;
+        rom[18] = 32'h00e7ff93;
+        rom[19] = 32'h00e5ff8d;
+        rom[20] = 32'h00e2ff87;
+        rom[21] = 32'h00dfff82;
+        rom[22] = 32'h00dcff7c;
+        rom[23] = 32'h00d8ff77;
+        rom[24] = 32'h00d5ff72;
+        rom[25] = 32'h00d1ff6d;
+        rom[26] = 32'h00ceff68;
+        rom[27] = 32'h00caff63;
+        rom[28] = 32'h00c6ff5e;
+        rom[29] = 32'h00c2ff59;
+        rom[30] = 32'h00beff54;
+        rom[31] = 32'h00b9ff4f;
+        rom[32] = 32'h00b5ff4b;
+    end
+
+    logic [ROM_BITWIDTH:0] rom_addr;
+
+    always_comb begin
+        rom_addr = 0;
+        if (addr[ROM_BITWIDTH] == 0) begin
+            rom_addr = addr[ROM_BITWIDTH:0];
+        end else begin
+            rom_addr = ~addr[ROM_BITWIDTH:0] + 1;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            data <= '0;
+        end else begin
+            data <= rom[rom_addr];
+        end
+    end
+
+endmodule

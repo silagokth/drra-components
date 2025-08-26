@@ -3,7 +3,7 @@ module twiddle_addr_r4 #(
     parameter STAGE_WIDTH = 4
 ) (
     input  logic [AGU_BITWIDTH-1:0] n_points,
-    input  logic [1:0] radix,   // DIT for radix-2, DIF for radix-4 (other modes not implemented yet)
+    input  logic [1:0] radix,
     input  logic n_bu,
     input  logic bu_index,
     input  logic [1:0] port_index,

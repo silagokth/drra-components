@@ -1,0 +1,291 @@
+`define {{name}} {{fingerprint}}
+
+module {{fingerprint}}
+import {{fingerprint}}_pkg::*;
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
+    input  logic clk_1,
+    input  logic rst_n_1,
+    input  logic instr_en_1,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
+    input  logic [3:0] activate_1,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_1,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_1,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_1,
+    input  logic clk_2,
+    input  logic rst_n_2,
+    input  logic instr_en_2,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_2,
+    input  logic [3:0] activate_2,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_2,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_2,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_2,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_2
+);
+
+    logic clk, rst_n;
+    assign clk = clk_0;
+    assign rst_n = rst_n_0;
+
+    assign bulk_data_out_0 = 0;
+    assign bulk_data_out_1 = 0;
+    assign bulk_data_out_2 = 0;
+
+    logic read_en_0;
+    logic read_en_1;
+    logic read_en_2;
+    logic [AGU_BITWIDTH-1:0] read_agu_0;
+    logic [AGU_BITWIDTH-1:0] read_agu_1;
+    logic [AGU_BITWIDTH-1:0] read_agu_2;
+    logic [AGU_BITWIDTH-1:0] addr_shift_0;
+    logic [AGU_BITWIDTH-1:0] addr_shift_1;
+    logic [AGU_BITWIDTH-1:0] addr_shift_2;
+    logic [AGU_BITWIDTH-1:0] addr_shift_del_0;
+    logic [AGU_BITWIDTH-1:0] addr_shift_del_1;
+    logic [AGU_BITWIDTH-1:0] addr_shift_del_2;
+
+    fft_t fft_0, fft_1, fft_2;
+    logic fft_valid_0, fft_valid_1, fft_valid_2;
+
+    logic [INSTR_OPCODE_BITWIDTH-1:0] opcode_0, opcode_1, opcode_2;
+    logic [RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0] payload_0, payload_1, payload_2;
+
+    assign opcode_0 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_0 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_1 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_1 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_2 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_2 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+
+    assign fft_valid_0 = (instr_en_0) && (opcode_0 == 4);
+    assign fft_0 = fft_valid_0 ? unpack_fft(payload_0) : '{default: 0};
+    assign fft_valid_1 = (instr_en_1) && (opcode_1 == 4);
+    assign fft_1 = fft_valid_1 ? unpack_fft(payload_1) : '{default: 0};
+    assign fft_valid_2 = (instr_en_2) && (opcode_2 == 4);
+    assign fft_2 = fft_valid_2 ? unpack_fft(payload_2) : '{default: 0};
+
+    logic [DELAY_WIDTH-1:0] delay_0, delay_1, delay_2;
+    logic [AGU_BITWIDTH-1:0] n_points_0, n_points_1, n_points_2;
+    logic [1:0] radix_0, radix_1, radix_2;
+    logic n_bu_0, n_bu_1, n_bu_2;
+    logic mode_0, mode_1, mode_2;
+
+    logic [1:0] port_index_0, port_index_1, port_index_2;
+    logic bu_index_0, bu_index_1, bu_index_2;
+
+    assign n_points_0 = fft_0._n_points;
+    assign radix_0 = fft_0._radix;
+    assign mode_0 = fft_0._mode;  // mode must always be set at 1
+    assign n_bu_0 = fft_0._n_bu;
+    assign delay_0 = fft_0._delay;
+    assign n_points_1 = fft_1._n_points;
+    assign radix_1 = fft_1._radix;
+    assign mode_1 = fft_1._mode;
+    assign n_bu_1 = fft_1._n_bu;
+    assign delay_1 = fft_1._delay;
+    assign n_points_2 = fft_2._n_points;
+    assign radix_2 = fft_2._radix;
+    assign mode_2 = fft_2._mode;
+    assign n_bu_2 = fft_2._n_bu;
+    assign delay_2 = fft_2._delay;
+
+    logic [AGU_BITWIDTH-1:0] n_points;
+    logic [1:0] radix;
+    logic n_bu;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            n_points <= '0;
+            radix <= '0;
+            n_bu <= 0;
+        end else begin
+            if (fft_valid_0) begin
+                n_points <= n_points_0;
+                radix <= radix_0;
+                n_bu <= n_bu_0;
+            end
+        end
+    end
+
+    always_comb begin
+        port_index_0 = 0;
+        port_index_1 = 0;
+        port_index_2 = 0;
+        bu_index_0 = 0;
+        bu_index_1 = 0;
+        bu_index_2 = 0;
+        
+        if (radix == 0) begin
+            if (n_bu == 0) begin
+                port_index_0 = 1;   // port is always odd -> twiddle
+            end else begin
+                port_index_0 = 1;   
+                bu_index_0 = 0;
+                port_index_1 = 1;
+                bu_index_1 = 1;
+            end
+        end else if (radix == 1) begin
+            port_index_0 = 1;   // twiddle1
+            port_index_1 = 2;   // twiddle2
+            port_index_2 = 3;   // twiddle3
+        end
+    end
+
+    logic [WORD_BITWIDTH-1:0] rom_out_0;
+    logic [WORD_BITWIDTH-1:0] rom_out_1;
+    logic [WORD_BITWIDTH-1:0] rom_out_2;
+    logic [WORD_BITWIDTH-1:0] mapper_out_0;
+    logic [WORD_BITWIDTH-1:0] mapper_out_1;
+    logic [WORD_BITWIDTH-1:0] mapper_out_2;
+    logic [WORD_BITWIDTH-1:0] out_reg_0;
+    logic [WORD_BITWIDTH-1:0] out_reg_1;
+    logic [WORD_BITWIDTH-1:0] out_reg_2;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            out_reg_0 <= '0;
+            out_reg_1 <= '0;
+            out_reg_2 <= '0;
+
+            addr_shift_del_0 <= '0;
+            addr_shift_del_1 <= '0;
+            addr_shift_del_2 <= '0;
+        end else begin
+            out_reg_0 <= mapper_out_0;
+            out_reg_1 <= mapper_out_1;
+            out_reg_2 <= mapper_out_2;
+
+            addr_shift_del_0 <= addr_shift_0;
+            addr_shift_del_1 <= addr_shift_1;
+            addr_shift_del_2 <= addr_shift_2;
+        end
+    end
+
+    assign word_data_out_0 = out_reg_0;
+    assign word_data_out_1 = out_reg_1;
+    assign word_data_out_2 = out_reg_2;
+
+    logic [AGU_BITWIDTH-1:0] sec_bits, shift;
+
+    int j;
+    always_comb begin
+        sec_bits = 0;
+        for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
+            if (n_points[j]) begin
+                sec_bits = j >> 2;
+                break;
+            end
+        end
+        shift = ROM_BITWIDTH - sec_bits;
+    end
+
+    assign addr_shift_0 = read_agu_0 << shift;
+    assign addr_shift_1 = read_agu_1 << shift;
+    assign addr_shift_2 = read_agu_2 << shift;
+
+    twiddle_map mapper_0 (
+        .addr(addr_shift_del_0),
+        .in_data(rom_out_0),
+        .out_data(mapper_out_0)
+    );
+
+    twiddle_rom rom_0 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .addr(addr_shift_0),
+        .data(rom_out_0)
+    );
+
+    agu_fft_r4 #(
+        .AGU_BITWIDTH(AGU_BITWIDTH),
+        .DELAY_WIDTH(DELAY_WIDTH)
+    ) agu_0_1 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .activate(activate_0[1]),
+        .radix(radix_0),
+        .port_index(port_index_0),
+        .mode(mode_0),
+        .n_bu(n_bu_0),
+        .bu_index(bu_index_0),
+        .n_points(n_points_0),
+        .delay(delay_0),
+        .load_config(fft_valid_0 & fft_0._port == 1),
+        .address_valid(read_en_0),
+        .address(read_agu_0)
+    );
+
+    twiddle_map mapper_1 (
+        .addr(addr_shift_del_1),
+        .in_data(rom_out_1),
+        .out_data(mapper_out_1)
+    );
+
+    twiddle_rom rom_1 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .addr(addr_shift_1),
+        .data(rom_out_1)
+    );
+
+    agu_fft_r4 #(
+        .AGU_BITWIDTH(AGU_BITWIDTH),
+        .DELAY_WIDTH(DELAY_WIDTH)
+    ) agu_1_1 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .activate(activate_1[1]),
+        .radix(radix_1),
+        .port_index(port_index_1),
+        .mode(mode_1),
+        .n_bu(n_bu_1),
+        .bu_index(bu_index_1),
+        .n_points(n_points_1),
+        .delay(delay_1),
+        .load_config(fft_valid_1 & fft_1._port == 1),
+        .address_valid(read_en_1),
+        .address(read_agu_1)
+    );
+
+    twiddle_map mapper_2 (
+        .addr(addr_shift_del_2),
+        .in_data(rom_out_2),
+        .out_data(mapper_out_2)
+    );
+
+    twiddle_rom rom_2 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .addr(addr_shift_2),
+        .data(rom_out_2)
+    );
+
+    agu_fft_r4 #(
+        .AGU_BITWIDTH(AGU_BITWIDTH),
+        .DELAY_WIDTH(DELAY_WIDTH)
+    ) agu_2_1 (
+        .clk(clk),
+        .rst_n(rst_n),
+        .activate(activate_2[1]),
+        .radix(radix_2),
+        .port_index(port_index_2),
+        .mode(mode_2),
+        .n_bu(n_bu_2),
+        .bu_index(bu_index_2),
+        .n_points(n_points_2),
+        .delay(delay_2),
+        .load_config(fft_valid_2 & fft_2._port == 1),
+        .address_valid(read_en_2),
+        .address(read_agu_2)
+    );
+
+endmodule

@@ -1,0 +1,11 @@
+package:
+  name: tfg
+
+dependencies:
+  agu_fft_r4: {path: ../../common/agu_fft_r4}
+
+sources:
+  - ./rtl/tfg_pkg.sv
+  - ./rtl/twiddle_rom.sv
+  - ./rtl/twiddle_map.sv
+  - ./rtl/tfg.sv
