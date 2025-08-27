@@ -317,8 +317,9 @@ void Sequencer::sendActEvent(uint32_t slot_id, uint32_t ports_mask) {
   ActEvent *event = new ActEvent();
   event->slot_id = slot_id;
   event->ports = ports_mask;
-  if (slot_links[slot_id]->isConfigured())
     slot_links[slot_id]->send(event);
+  else
+    delete event;
 }
 
 void Sequencer::calculate(uint32_t instr) {
