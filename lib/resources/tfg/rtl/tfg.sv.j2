@@ -181,11 +181,11 @@ import {{fingerprint}}_pkg::*;
         sec_bits = 0;
         for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
             if (n_points[j]) begin
-                sec_bits = j >> 2;
+                sec_bits = j;
                 break;
             end
         end
-        shift = ROM_BITWIDTH - sec_bits;
+        shift = ROM_BITWIDTH + CTRL_BITWIDTH - sec_bits;
     end
 
     assign addr_shift_0 = read_agu_0 << shift;
