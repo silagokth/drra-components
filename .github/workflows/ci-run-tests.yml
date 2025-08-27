@@ -27,6 +27,9 @@ jobs:
 
       - name: Extract library
         run: |
+          if [ -d "library" ]; then
+            rm -rf library
+          fi
           tar -xzf library.tar.gz
           rm library.tar.gz
 
