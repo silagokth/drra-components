@@ -68,6 +68,9 @@ jobs:
           echo $PATH
           echo $(ls ${{ github.workspace }}/bin)
           vesyla --version
+          ${{ github.workspace }}/bin/vesyla --version
+          where vesyla
+          which vesyla
           vesyla testcase generate -d ./testcases
           ./run.sh
 
