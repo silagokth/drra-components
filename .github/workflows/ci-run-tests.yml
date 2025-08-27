@@ -64,14 +64,7 @@ jobs:
           chmod +x ${{ github.workspace }}/bin/vesyla
           export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
           export GITHUB_PATH=${{ github.workspace }}/bin:$GITHUB_PATH
-          export PATH=${{ github.workspace }}/bin:$PATH
-          echo $GITHUB_PATH
-          echo $PATH
-          echo $(ls ${{ github.workspace }}/bin)
           vesyla --version
-          ${{ github.workspace }}/bin/vesyla --version
-          where vesyla
-          which vesyla
           vesyla testcase generate -d ./testcases
           ./run.sh
 
