@@ -37,12 +37,13 @@ module fabric_tb;
   realtime start_time, end_time;
   logic [15:0][15:0] ob_line, ib_line;
   initial begin
-    rst_n = 0;
+    rst_n = 1;
     for (int i = 0; i < ROWS; i++) begin
       call[i] = 0;
     end
 
     @(posedge clk);
+    @(negedge clk) rst_n = 0;
     @(negedge clk) rst_n = 1;
 
     // load instructions
