@@ -63,7 +63,10 @@ jobs:
           pip install -r requirements.txt
           export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
           export GITHUB_PATH=${{ github.workspace }}/bin:$GITHUB_PATH
+          export PATH=${{ github.workspace }}/bin:$PATH
           echo $GITHUB_PATH
+          echo $PATH
+          echo $(ls ${{ github.workspace }}/bin)
           vesyla --version
           vesyla testcase generate -d ./testcases
           ./run.sh
