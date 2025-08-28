@@ -6,15 +6,6 @@ on:
       branch:
         description: "Current branch of drra-components where the workflow is running"
         value: ${{ jobs.build-library.outputs.branch }}
-    inputs:
-      use_custom_ref:
-        required: false
-        type: string
-        default: 'false'
-      custom_ref:
-        required: false
-        type: string
-        default: ''
 
 env:
   SST_CORE_HOME: ${{ github.workspace }}/sstcore
@@ -27,16 +18,8 @@ jobs:
     outputs:
       branch: ${{ steps.check-branch.outputs.branch }}
     steps:
-    - name: Checkout repository (custom_ref)
+    - name: Checkout repository
       uses: actions/checkout@v4
-      if: ${{ inputs.use_custom_ref == 'true' }}
-      with:
-        submodules: true
-        ref: ${{ inputs.custom_ref }}
-
-    - name: Checkout repository (no custom_ref)
-      uses: actions/checkout@v4
-      if: ${{ inputs.use_custom_ref != 'true' }}
       with:
         submodules: true
 

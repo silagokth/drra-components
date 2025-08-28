@@ -19,9 +19,6 @@ jobs:
     uses: ./.github/workflows/ci-build-library.yml
     needs: ci-sst-install
     secrets: inherit
-    with:
-      use_custom_ref: 'true'
-      custom_ref: ${{ github.event.pull_request.head.sha }}
 
   ci-run-tests:
     name: Run DRRA Tests
