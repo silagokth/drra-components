@@ -3,7 +3,12 @@
   "size": 3,
   "io_input": false,
   "io_output": false,
-  "custom_properties": [],
+  "custom_properties": [
+    {
+      "name": "FRAC_BITWIDTH",
+      "value": 15
+    }
+  ],
   "required_parameters": [
     "IO_DATA_WIDTH",
     "IO_ADDR_WIDTH",
