@@ -63,18 +63,14 @@ module agu_RTR #(
     logic [REP_DELAY_WIDTH-1:0]   regIR_delay  [(NUMBER_MT+1)*NUMBER_IR-1:0];
     logic [REP_STEP_WIDTH-1:0]    regIR_step   [(NUMBER_MT+1)*NUMBER_IR-1:0];
     logic                         regIR_config [(NUMBER_MT+1)*NUMBER_IR-1:0];
-    // logic [REP_OPTION_WIDTH-1:0]  regIR_option [(NUMBER_MT+1)*NUMBER_IR-1:0];
 
     logic [TRANS_DELAY_WIDTH-1:0] regMT_delay  [NUMBER_MT-1:0];
     logic                         regMT_config [NUMBER_MT-1:0];
-    // logic [TRANS_LEVEL_WIDTH-1:0] regMT_level [NUMBER_MT-1:0];
 
     logic [REP_ITER_WIDTH-1:0]    regOR_iter   [NUMBER_OR-1:0];
     logic [REP_DELAY_WIDTH-1:0]   regOR_delay  [NUMBER_OR-1:0];
     logic [REP_STEP_WIDTH-1:0]    regOR_step   [NUMBER_OR-1:0];
     logic                         regOR_config [NUMBER_OR-1:0];
-    // logic [REP_LEVEL_WIDTH-1:0]   regIR_level  [NUMBER_MT*NUMBER_IR-1:0]; 
-    // logic [REP_OPTION_WIDTH-1:0]  regIR_option [NUMBER_MT*NUMBER_IR-1:0];
 
     genvar i;
     for (i = 0; i < (NUMBER_MT+1)*NUMBER_IR; i++) begin : IR_registers
@@ -182,7 +178,7 @@ module agu_RTR #(
         );
     end
 
-    /////////////////////////////////////// Config registers ///////////////////////////////////////
+    /////////////////////////////////////// Counters ///////////////////////////////////////
     always @(posedge clk, negedge rst_n) begin : Address_Counter
         if (!rst_n) begin
             address <= 0;

@@ -21,5 +21,4 @@ sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_MT \
 sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_OR 
 
 
-
 run -all

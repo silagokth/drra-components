@@ -46,38 +46,20 @@ module controller #(
     output logic flag_OR
 );
 
-    // assign rep_valid   = instr_en && (opcode == 0);
-    // assign repx_valid  = instr_en && (opcode == 1);
-    // assign trans_valid = instr_en && (opcode == 2);
-
-    ////////////////////////// counters
-    
-    logic [REP_ITER_WIDTH-1:0]  count_iter_IR      [NUMBER_IR-1:0];
-    logic [REP_ITER_WIDTH-1:0]  init_value_iter_IR [NUMBER_IR-1:0];
     logic en_iter_IR    [NUMBER_IR-1:0];
     logic init_iter_IR  [NUMBER_IR-1:0];
     logic co_iter_IR    [NUMBER_IR-1:0];
-
-    logic [REP_DELAY_WIDTH-1:0] count_delay_IR      [NUMBER_IR-1:0];
-    logic [REP_DELAY_WIDTH-1:0] init_value_delay_IR [NUMBER_IR-1:0];
     logic en_delay_IR   [NUMBER_IR-1:0];
     logic init_delay_IR [NUMBER_IR-1:0];
     logic co_delay_IR   [NUMBER_IR-1:0];
 
-    logic [TRANS_DELAY_WIDTH-1:0] count_delay_MT      [NUMBER_MT-1:0];
-    logic [TRANS_DELAY_WIDTH-1:0] init_value_delay_MT [NUMBER_MT-1:0];
     logic en_delay_MT   [NUMBER_MT-1:0];
     logic init_delay_MT [NUMBER_MT-1:0];
     logic co_delay_MT   [NUMBER_MT-1:0];
 
-    logic [REP_ITER_WIDTH-1:0]  count_iter_OR      [NUMBER_OR-1:0];
-    logic [REP_ITER_WIDTH-1:0]  init_value_iter_OR [NUMBER_OR-1:0];
     logic en_iter_OR    [NUMBER_OR-1:0];
     logic init_iter_OR  [NUMBER_OR-1:0];
     logic co_iter_OR    [NUMBER_OR-1:0];
-
-    logic [REP_DELAY_WIDTH-1:0] count_delay_OR      [NUMBER_OR-1:0];
-    logic [REP_DELAY_WIDTH-1:0] init_value_delay_OR [NUMBER_OR-1:0];
     logic en_delay_OR   [NUMBER_OR-1:0];
     logic init_delay_OR [NUMBER_OR-1:0];
     logic co_delay_OR   [NUMBER_OR-1:0];
@@ -88,46 +70,52 @@ module controller #(
     logic init0_level_MT;
     logic [1:0] inVal_level_IR;
     logic [1:0] inVal_level_OR;
+    logic flag_OR2;
 
 
-
-    //TODO: Remove output of these counters as we do not use them :  .count(count_iter_IR[0])
     down_counter #(
         .WIDTH(REP_ITER_WIDTH)
-    ) IR_counter_iter_inst (
+    ) counter_iter_IR_inst (
         .clk(clk),
         .rst_n(rst_n),
         .enable(en_iter_IR[0]),
         .init(init_iter_IR[0]),
         .init_value(regIR_iter[level_MT*NUMBER_IR+0]-1'b1),
-        .co(co_iter_IR[0]),
-        .count(count_iter_IR[0])
+        .co(co_iter_IR[0])
     );
-
     genvar i;
     for (i = 1; i < NUMBER_IR; i++) begin : IR_counter_iter
         down_counter #(
             .WIDTH(REP_ITER_WIDTH)
-        ) IR_counter_iter_inst (
+        ) counter_iter_IR_inst (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_iter_IR[i]),
             .init(init_iter_IR[i]),
             .init_value(regIR_iter[level_MT*NUMBER_IR+i]),
-            .co(co_iter_IR[i]),
-            .count(count_iter_IR[i])
+            .co(co_iter_IR[i])
         );
     end
-    for (i = 0; i < NUMBER_IR; i++) begin : IR_counter_delay
+
+    down_counter #(
+        .WIDTH(REP_DELAY_WIDTH)
+    ) counter_delay_IR_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(en_delay_IR[0]),
+        .init(init_delay_IR[0]),
+        .init_value(flag_OR2 ? regIR_delay[0] : regIR_delay[level_MT*NUMBER_IR+0]),
+        .co(co_delay_IR[0])
+    );
+    for (i = 1; i < NUMBER_IR; i++) begin : IR_counter_delay
         down_counter #(
             .WIDTH(REP_DELAY_WIDTH)
-        ) IR_counter_delay_inst (
+        ) counter_delay_IR_inst (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_delay_IR[i]),
             .init(init_delay_IR[i]),
             .init_value(regIR_delay[level_MT*NUMBER_IR+i]),
-            .count(count_delay_IR[i]),
             .co(co_delay_IR[i])
         );
     end
@@ -135,13 +123,12 @@ module controller #(
     for (i = 0; i < NUMBER_MT; i++) begin : MT_counter_delay
         down_counter #(
             .WIDTH(TRANS_DELAY_WIDTH)
-        ) MT_counter_delay_inst (
+        ) counter_delay_MT_inst (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_delay_MT[i]),
             .init(init_delay_MT[i]),
-            .init_value(regMT_delay[i]), //init_value_delay_MT
-            .count(count_delay_MT[i]),
+            .init_value(regMT_delay[i]),
             .co(co_delay_MT[i])
         );
     end
@@ -149,24 +136,22 @@ module controller #(
     for (i = 0; i < NUMBER_OR; i++) begin : OR_counter
         down_counter #(
             .WIDTH(REP_ITER_WIDTH)
-        ) OR_counter_iter_inst (
+        ) counter_iter_OR_inst (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_iter_OR[i]),
             .init(init_iter_OR[i]),
-            .init_value(regOR_iter[i]),  //init_value_iter_OR
-            .co(co_iter_OR[i]),
-            .count(count_iter_OR[i])
+            .init_value(regOR_iter[i]),
+            .co(co_iter_OR[i])
         );
         down_counter #(
             .WIDTH(REP_DELAY_WIDTH)
-        ) OR_counter_delay_inst (
+        ) counter_delay_OR_inst (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_delay_OR[i]),
             .init(init_delay_OR[i]),
-            .init_value(regOR_delay[i]),  //init_value_delay_OR
-            .count(count_delay_OR[i]),
+            .init_value(regOR_delay[i]),
             .co(co_delay_OR[i])
         );
     end
@@ -174,7 +159,7 @@ module controller #(
 
     register #(
         .WIDTH(2)
-    ) IR_level_register (
+    ) register_level_IR (
         .clk(clk),
         .rst_n(rst_n),
         .enable(en_level_IR),
@@ -184,7 +169,7 @@ module controller #(
 
     up_counter #(
         .WIDTH(2)
-    ) MT_level_counter (
+    ) counter_level_MT (
         .clk(clk),
         .rst_n(rst_n),
         .enable(en_level_MT),
@@ -194,7 +179,7 @@ module controller #(
 
     register #(
         .WIDTH(2)
-    ) OR_level_counter (
+    ) register_level_OR (
         .clk(clk),
         .rst_n(rst_n),
         .enable(en_level_OR),
@@ -208,6 +193,7 @@ module controller #(
         IDLE,
         CNFG,
         ACTV,
+        GENR_Add0,
         GENR_IR0,
         WAIT_IR0,
         GENR_IR1,
@@ -238,6 +224,7 @@ module controller #(
         initIR_address = 1'b0;
         initOR_address = 1'b0;
         address_valid = 1'b0;
+        flag_OR2 = 1'b0;
         for (int i = 0; i < NUMBER_IR; i++) begin
             init_iter_IR[i] = 1'b0;
             init_delay_IR[i] = 1'b0;
@@ -308,19 +295,26 @@ module controller #(
             ACTV: begin
                 if (!activation) begin 
                     n_state = ACTV;
-                end else if (regIR_config[0]) begin
-                    address_valid = 1'b1;
+                end else begin
+                    n_state = GENR_Add0;
+                end
+            end
+
+            GENR_Add0: begin
+                address_valid = 1'b1;
+                if (regIR_config[0]) begin
                     if (!co_delay_IR[0]) begin
                         en_delay_IR[0] = 1'b1;
                         n_state = WAIT_IR0;
                     end else begin
                         n_state = GENR_IR0;
                     end
-                end else if (regMT_config[0]) begin
+                end  else if (regMT_config[0]) begin
                     //TODO: consider RT pattern instead of RTR 
                     n_state = IDLE;
                 end
             end
+
             GENR_IR0: begin
                 address_valid = 1'b1;
                 en_address = 1'b1;
@@ -366,18 +360,18 @@ module controller #(
                         end else if (regOR_config[0]) begin
                             init0_level_MT = 1'b1;
                             flag_OR = 1'b1;
+                            flag_OR2 = 1'b1;
+                            init_delay_IR[0] = 1'b1;
                             if (!co_iter_OR[0] && !co_delay_OR[0]) begin
                                 en_level_OR = 1'b1;
                                 inVal_level_OR = 0;
                                 en_initVal_OR[0] = 1'b1;
                                 en_delay_OR[0] = 1'b1;
-                                // init_delay_IR[0] = 1'b1;
                                 n_state = WAIT_OR;
                             end else if (!co_iter_OR[0] && co_delay_OR[0]) begin
                                 en_level_OR = 1'b1;
                                 inVal_level_OR = 0;
                                 en_initVal_OR[0] = 1'b1;
-                                // init_delay_IR[0] = 1'b1;
                                 n_state = GENR_OR;
                             end else if (regOR_config[1]) begin
                                 if (!co_iter_OR[1] && !co_delay_OR[1]) begin
@@ -426,6 +420,7 @@ module controller #(
                         end
                     end else if (regOR_config[0]) begin
                         init0_level_MT = 1'b1;
+                        init_delay_IR[0] = 1'b1;
                         if (!co_iter_OR[0] && !co_delay_OR[0]) begin
                             en_level_OR = 1'b1;
                             inVal_level_OR = 0;
@@ -484,6 +479,7 @@ module controller #(
                         end
                 end else if (regOR_config[0]) begin
                     init0_level_MT = 1'b1;
+                    init_delay_IR[0] = 1'b1;
                     if (!co_iter_OR[0] && !co_delay_OR[0]) begin
                         en_level_OR = 1'b1;
                         inVal_level_OR = 0;
@@ -612,7 +608,7 @@ module controller #(
                 // flag_OR = 1'b1;
                 en_level_IR = 1'b1;
                 inVal_level_IR = 0;
-                for (int i = 0; i < NUMBER_IR; i++) begin
+                for (int i = 1; i < NUMBER_IR; i++) begin
                     init_delay_IR[i] = 1'b1;
                 end
                 for (int i = 0; i < NUMBER_IR; i++) begin
