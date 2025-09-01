@@ -11,7 +11,7 @@ module agu_RTR_tb #(
     localparam TRANS_DELAY_WIDTH = 18,
     localparam TRANS_LEVEL_WIDTH = 4,
     localparam NUMBER_OR = 3,    // OR: Outter R-Pattern
-    localparam NUMBER_MT = 2,    // MT: Middle T-Pattern
+    localparam NUMBER_MT = 0,    // MT: Middle T-Pattern
     localparam NUMBER_IR = 3     // IR: Inner  R-Pattern
 ) ();
 
@@ -62,10 +62,10 @@ module agu_RTR_tb #(
         // trans_level_delay
         @(negedge clk);
         instr_en = 1'b1;
-        @(negedge clk);
-        instr = 25'b010_0001_000000000000000011;
-        @(negedge clk);
-        instr = 25'b010_0000_000000000000000111;
+        // @(negedge clk);
+        // instr = 25'b010_0001_000000000000000011;
+        // @(negedge clk);
+        // instr = 25'b010_0000_000000000000000111;
 
         // rep_option_level_step_delay_iter
         @(negedge clk);

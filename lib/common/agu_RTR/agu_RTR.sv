@@ -1,3 +1,5 @@
+`include "config.sv"
+
 module agu_RTR #(
 
     parameter RESOURCE_INSTR_WIDTH,
@@ -38,18 +40,11 @@ module agu_RTR #(
     logic en_address;
     logic init0_address;
     logic initIR_address;
-    logic initOR_address;
-    logic [1:0] level_OR;
-    logic [1:0] level_MT;
     logic [1:0] level_IR;
     logic [ADDRESS_WIDTH-1:0] initVal_IR [NUMBER_IR-1:1];
     logic en_initVal_IR [NUMBER_IR-1:1];
     logic init_initVal_IR [NUMBER_IR-1:1];
     logic init0_initVal_IR [NUMBER_IR-1:1];
-    logic [ADDRESS_WIDTH-1:0] initVal_OR [NUMBER_OR-1:0];
-    logic en_initVal_OR [NUMBER_OR-1:0];
-    logic init_initVal_OR [NUMBER_OR-1:0];
-    logic flag_OR;
 
     rep_t rep;
     repx_t repx;
@@ -58,20 +53,32 @@ module agu_RTR #(
     assign repx  = repx_valid  ? unpack_repx(payload)  : '{default: 0};
     assign trans = trans_valid ? unpack_trans(payload) : '{default: 0};
     
-    /////////////////////////////////////// Config registers /////////////////////////////////////// 
     logic [REP_ITER_WIDTH-1:0]    regIR_iter   [(NUMBER_MT+1)*NUMBER_IR-1:0];
     logic [REP_DELAY_WIDTH-1:0]   regIR_delay  [(NUMBER_MT+1)*NUMBER_IR-1:0];
     logic [REP_STEP_WIDTH-1:0]    regIR_step   [(NUMBER_MT+1)*NUMBER_IR-1:0];
     logic                         regIR_config [(NUMBER_MT+1)*NUMBER_IR-1:0];
 
+    logic [1:0] level_MT;
+    
+    `ifdef INCLUDE_MT_STATES
     logic [TRANS_DELAY_WIDTH-1:0] regMT_delay  [NUMBER_MT-1:0];
     logic                         regMT_config [NUMBER_MT-1:0];
+    `endif
 
+    `ifdef INCLUDE_OR_STATES
+    logic initOR_address;
+    logic [1:0] level_OR;
+    logic [ADDRESS_WIDTH-1:0] initVal_OR [NUMBER_OR-1:0];
+    logic en_initVal_OR [NUMBER_OR-1:0];
+    logic init_initVal_OR [NUMBER_OR-1:0];
+    logic flag_OR;
     logic [REP_ITER_WIDTH-1:0]    regOR_iter   [NUMBER_OR-1:0];
     logic [REP_DELAY_WIDTH-1:0]   regOR_delay  [NUMBER_OR-1:0];
     logic [REP_STEP_WIDTH-1:0]    regOR_step   [NUMBER_OR-1:0];
     logic                         regOR_config [NUMBER_OR-1:0];
+    `endif
 
+    /////////////////////////////////////// Config registers /////////////////////////////////////// 
     genvar i;
     for (i = 0; i < (NUMBER_MT+1)*NUMBER_IR; i++) begin : IR_registers
         register #(
@@ -115,6 +122,7 @@ module agu_RTR #(
         );
     end
 
+    `ifdef INCLUDE_MT_STATES
     for (i = 0; i < NUMBER_MT; i++) begin : MT_registers
         register #(
             .WIDTH(TRANS_DELAY_WIDTH)
@@ -135,7 +143,9 @@ module agu_RTR #(
             .out_value(regMT_config[i])
         );
     end
+    `endif
 
+    `ifdef INCLUDE_OR_STATES
     for (i = 0; i < NUMBER_OR; i++) begin : OR_registers
         register #(
             .WIDTH(REP_ITER_WIDTH)
@@ -177,8 +187,10 @@ module agu_RTR #(
             .out_value(regOR_config[i])
         );
     end
+    `endif
 
     /////////////////////////////////////// Counters ///////////////////////////////////////
+    `ifdef INCLUDE_OR_STATES
     always @(posedge clk, negedge rst_n) begin : Address_Counter
         if (!rst_n) begin
             address <= 0;
@@ -192,6 +204,21 @@ module agu_RTR #(
             address <= address + regIR_step[NUMBER_IR*level_MT+0];
         end
     end
+    `endif
+
+    `ifndef INCLUDE_OR_STATES
+    always @(posedge clk, negedge rst_n) begin : Address_Counter
+        if (!rst_n) begin
+            address <= 0;
+        end else if (init0_address) begin
+            address <= 0;
+        end else if (initIR_address) begin
+            address <= initVal_IR[level_IR];
+        end else if (en_address) begin
+            address <= address + regIR_step[NUMBER_IR*level_MT+0];
+        end
+    end
+    `endif
 
     for (i = 1; i < NUMBER_IR; i++) begin : initVal_IR_counters
         step_counter #(
@@ -209,6 +236,7 @@ module agu_RTR #(
         );
     end
 
+    `ifdef INCLUDE_OR_STATES
     for (i = 0; i < NUMBER_OR; i++) begin : initVal_OR_counters
         step_counter #(
             .COUNT_WIDTH(ADDRESS_WIDTH),
@@ -224,6 +252,7 @@ module agu_RTR #(
             .count(initVal_OR[i])
         );
     end
+    `endif
 ///////////////////////////////////////   controller
 
     controller #(
@@ -250,27 +279,36 @@ module agu_RTR #(
         .regIR_iter(regIR_iter),
         .regIR_delay(regIR_delay),
         .regIR_config(regIR_config),
-        .regMT_delay(regMT_delay),
-        .regMT_config(regMT_config),
-        .regOR_iter(regOR_iter),
-        .regOR_delay(regOR_delay),
-        .regOR_config(regOR_config),
-        .rep_valid(rep_valid),
-        .repx_valid(repx_valid),
-        .trans_valid(trans_valid),
         .en_address(en_address),
         .init0_address(init0_address),
         .initIR_address(initIR_address),
-        .initOR_address(initOR_address),
         .address_valid(address_valid),
         .level_IR(level_IR),
-        .level_MT(level_MT),
-        .level_OR(level_OR),
         .en_initVal_IR(en_initVal_IR),
         .init_initVal_IR(init_initVal_IR),
         .init0_initVal_IR(init0_initVal_IR),
+        
+        //signals shared among IR, MT, OR
+        .level_MT(level_MT),
+        
+        `ifdef INCLUDE_MT_STATES
+        .regMT_delay(regMT_delay),
+        .regMT_config(regMT_config),
+        `endif
+        
+        `ifdef INCLUDE_OR_STATES
+        .regOR_iter(regOR_iter),
+        .regOR_delay(regOR_delay),
+        .regOR_config(regOR_config),
+        .initOR_address(initOR_address),
+        .level_OR(level_OR),
         .en_initVal_OR(en_initVal_OR),
         .init_initVal_OR(init_initVal_OR),
-        .flag_OR(flag_OR)
+        .flag_OR(flag_OR),
+        `endif
+
+        .rep_valid(rep_valid),
+        .repx_valid(repx_valid),
+        .trans_valid(trans_valid)
     );
 endmodule
