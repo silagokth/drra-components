@@ -1,5 +1,5 @@
-`define INCLUDE_IR_STATES
-// `define INCLUDE_MT_STATES
+// `define INCLUDE_IR_STATES
+`define INCLUDE_MT_STATES
 `define INCLUDE_OR_STATES
 
 `define BASE_STATES     4 // IDLE, CNFG, ACTV, GENR_Add0

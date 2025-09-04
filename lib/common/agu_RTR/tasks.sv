@@ -1,4 +1,5 @@
 `ifdef INCLUDE_MT_STATES
+
 task automatic evaluate_MT_state(
     input  logic [1:0] level_MT,
     input  logic co_delay_MT [NUMBER_MT-1:0],
@@ -89,6 +90,7 @@ task automatic evaluate_OR_state(
 endtask
 `endif 
 
+`ifdef INCLUDE_IR_STATES
 task automatic evaluate_IR_state(
     `ifdef INCLUDE_MT_STATES
     input  logic co_delay_MT [NUMBER_MT-1:0],
@@ -232,3 +234,4 @@ task automatic evaluate_IR_state(
         n_state = ACTV;
     end
 endtask
+`endif

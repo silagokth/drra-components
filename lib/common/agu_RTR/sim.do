@@ -16,7 +16,6 @@ sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/n_state \
 sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/p_state
 
 add wave -position insertpoint  \
-sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_IR \
 sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_MT \
 sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/level_OR 
 

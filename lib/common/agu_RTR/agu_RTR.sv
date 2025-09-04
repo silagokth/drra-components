@@ -190,6 +190,7 @@ module agu_RTR #(
     `endif
 
     /////////////////////////////////////// Counters ///////////////////////////////////////
+    `ifdef INCLUDE_IR_STATES
     `ifdef INCLUDE_OR_STATES
     always @(posedge clk, negedge rst_n) begin : Address_Counter
         if (!rst_n) begin
@@ -224,7 +225,7 @@ module agu_RTR #(
         step_counter #(
             .COUNT_WIDTH(ADDRESS_WIDTH),
             .STEP_WIDTH(REP_STEP_WIDTH)
-        ) initVal_IR_counter (
+        ) step_counter_IR (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_initVal_IR[i]),
@@ -235,13 +236,23 @@ module agu_RTR #(
             .count(initVal_IR[i])
         );
     end
-
+    `else
+    always @(posedge clk, negedge rst_n) begin : Address_Counter
+        if (!rst_n) begin
+            address <= 0;
+        end else if (initOR_address) begin
+            address <= initVal_OR[level_OR];
+        end else if (en_address) begin
+            address <= address + 1'b1;
+        end
+    end
+    `endif
     `ifdef INCLUDE_OR_STATES
     for (i = 0; i < NUMBER_OR; i++) begin : initVal_OR_counters
         step_counter #(
             .COUNT_WIDTH(ADDRESS_WIDTH),
             .STEP_WIDTH(REP_STEP_WIDTH)
-        ) initVal_OR_counter (
+        ) step_counter_OR (
             .clk(clk),
             .rst_n(rst_n),
             .enable(en_initVal_OR[i]),
@@ -271,31 +282,22 @@ module agu_RTR #(
         .NUMBER_MT(NUMBER_MT),
         .NUMBER_IR(NUMBER_IR)
     ) controller_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .activation(activation),
-        .instr_en(instr_en),
-        .opcode(opcode),
+        `ifdef INCLUDE_IR_STATES
         .regIR_iter(regIR_iter),
         .regIR_delay(regIR_delay),
         .regIR_config(regIR_config),
-        .en_address(en_address),
-        .init0_address(init0_address),
         .initIR_address(initIR_address),
-        .address_valid(address_valid),
         .level_IR(level_IR),
         .en_initVal_IR(en_initVal_IR),
         .init_initVal_IR(init_initVal_IR),
         .init0_initVal_IR(init0_initVal_IR),
-        
-        //signals shared among IR, MT, OR
+        `endif
         .level_MT(level_MT),
-        
         `ifdef INCLUDE_MT_STATES
         .regMT_delay(regMT_delay),
         .regMT_config(regMT_config),
+        .init0_address(init0_address),
         `endif
-        
         `ifdef INCLUDE_OR_STATES
         .regOR_iter(regOR_iter),
         .regOR_delay(regOR_delay),
@@ -306,7 +308,14 @@ module agu_RTR #(
         .init_initVal_OR(init_initVal_OR),
         .flag_OR(flag_OR),
         `endif
-
+        
+        .clk(clk),
+        .rst_n(rst_n),
+        .activation(activation),
+        .instr_en(instr_en),
+        .opcode(opcode),
+        .en_address(en_address),
+        .address_valid(address_valid),
         .rep_valid(rep_valid),
         .repx_valid(repx_valid),
         .trans_valid(trans_valid)
