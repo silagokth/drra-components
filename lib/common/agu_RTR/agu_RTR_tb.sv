@@ -58,7 +58,7 @@ module agu_RTR_tb #(
         #17;
         rst_n = 1'b1;
 
-        // // //TODO: iter0 - Does it make sence to have it???
+        //////////////////////////////////////////////////////////////// Delay != 0
         // // trans_level_delay
         // @(negedge clk);
         // instr_en = 1'b1;
@@ -96,14 +96,14 @@ module agu_RTR_tb #(
         // instr = 25'b000_00_101_0101_0000000_000001; // op0, L5, S5, D0, iter1
 
 
-
-        // trans_level_delay
-        @(negedge clk);
-        instr_en = 1'b1;
-        @(negedge clk);
-        instr = 25'b010_0001_000000000000000000;
-        @(negedge clk);
-        instr = 25'b010_0000_000000000000000000;
+//////////////////////////////////////////////////////////////// Delay == 0
+        // // trans_level_delay
+        // @(negedge clk);
+        // instr_en = 1'b1;
+        // @(negedge clk);
+        // instr = 25'b010_0001_000000000000000000;
+        // @(negedge clk);
+        // instr = 25'b010_0000_000000000000000000;
 
         // // rep_option_level_step_delay_iter
         // @(negedge clk);
@@ -134,14 +134,42 @@ module agu_RTR_tb #(
         // instr = 25'b000_00_101_0101_0000000_000001; // op0, L5, S5, D0, iter1
         
         
-        /////// When IR = 0
+//////////////////////////////////////////////////////////////// IR = 0 & Delay == 0
+        
+        // // trans_level_delay
+        // @(negedge clk);
+        // instr_en = 1'b1;
+        // @(negedge clk);
+        // instr = 25'b010_0001_000000000000000000;
+        // @(negedge clk);
+        // instr = 25'b010_0000_000000000000000000;
+        
+        // // rep_option_level_step_delay_iter
+        // @(negedge clk);
+        // instr = 25'b000_00_000_1010_0000000_000010; // op0, L0, S10, D0, iter2
+        // @(negedge clk);
+        // instr = 25'b000_00_001_0011_0000000_000001; // op0, L1, S3, D0, iter1
+        // @(negedge clk);
+        // instr = 25'b000_00_010_0101_0000000_000001; // op0, L2, S5, D0, iter1
+
+//////////////////////////////////////////////////////////////// IR = 0 & Delay != 0
+        // trans_level_delay
+        @(negedge clk);
+        instr_en = 1'b1;
+        @(negedge clk);
+        instr = 25'b010_0001_000000000000000011;
+        @(negedge clk);
+        instr = 25'b010_0000_000000000000000111;
+
         // rep_option_level_step_delay_iter
         @(negedge clk);
         instr = 25'b000_00_000_1010_0000000_000010; // op0, L0, S10, D0, iter2
         @(negedge clk);
-        instr = 25'b000_00_001_0011_0000000_000001; // op0, L1, S3, D0, iter1
+        instr = 25'b000_00_101_0011_0000000_000001; // op0, L1, S3, D0, iter1
         @(negedge clk);
         instr = 25'b000_00_010_0101_0000000_000001; // op0, L2, S5, D0, iter1
+
+
 
         @(negedge clk);
         instr_en = 1'b0;
@@ -151,7 +179,7 @@ module agu_RTR_tb #(
         activation = 1'b1;
         @(negedge clk);
         activation = 1'b0;
-
+        
         #10000;
         $stop;
     end

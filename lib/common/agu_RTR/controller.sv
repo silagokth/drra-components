@@ -594,14 +594,15 @@ module controller #(
                     n_state = ACTV;
                 end else begin
                     n_state = GENR_Add0;
-                    // en_level_MT = 1'b1;
                 end
             end
 
             GENR_Add0: begin
                 address_valid = 1'b1;
-                if (regMT_config[level_MT+1]) begin
+                `ifdef INCLUDE_MT_STATES
+                if (regMT_config[level_MT]) begin
                     evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
+                `ifndef INCLUDE_OR_STATES
                 end else if (regOR_config[0]) begin
                     if (!co_iter_OR[0] && !co_delay_OR[0]) begin
                         en_level_OR = 1'b1;
@@ -617,9 +618,32 @@ module controller #(
                     end else begin
                         n_state = IDLE;
                     end
+                `endif
                 end else begin
                     n_state = IDLE;
                 end
+                `else
+                `ifdef INCLUDE_OR_STATES
+                    if (regOR_config[0]) begin
+                        if (!co_iter_OR[0] && !co_delay_OR[0]) begin
+                            en_level_OR = 1'b1;
+                            inVal_level_OR = 0;
+                            en_initVal_OR[0] = 1'b1;
+                            en_delay_OR[0] = 1'b1;
+                            n_state = WAIT_OR;
+                        end else if (!co_iter_OR[0] && co_delay_OR[0]) begin
+                            en_level_OR = 1'b1;
+                            inVal_level_OR = 0;
+                            en_initVal_OR[0] = 1'b1;
+                            n_state = GENR_OR;
+                        end else begin
+                            n_state = IDLE;
+                        end
+                    end else begin
+                        n_state = IDLE;
+                    end
+                `endif 
+                `endif
             end
 
 /////////////////////////////////// T-level ///////////////////////////////////    
@@ -627,9 +651,9 @@ module controller #(
             GENR_MT: begin
                 address_valid = 1'b1;
                 en_address = 1'b1;
-                // en_level_MT = 1'b1;
-                if (regMT_config[level_MT+1]) begin
+                if (regMT_config[level_MT]) begin
                     evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
+                `ifdef INCLUDE_OR_STATES
                 end else if (regOR_config[0]) begin
                     init0_level_MT = 1'b1;
                     evaluate_OR_state (
@@ -642,6 +666,7 @@ module controller #(
                         .en_delay_OR(en_delay_OR),
                         .n_state(n_state)
                     );
+                `endif
                 end else begin
                     n_state = ACTV;
                 end
@@ -673,8 +698,24 @@ module controller #(
                     init_iter_OR[i] = 1'b1;
                     init_initVal_OR[i] = 1'b1;
                 end
-
+                `ifdef INCLUDE_MT_STATES
                 evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
+                `else
+                if (regOR_config[0]) begin
+                    evaluate_OR_state (
+                        .co_iter_OR(co_iter_OR),
+                        .co_delay_OR(co_delay_OR),
+                        .regOR_config(regOR_config),
+                        .en_level_OR(en_level_OR),
+                        .inVal_level_OR(inVal_level_OR),
+                        .en_initVal_OR(en_initVal_OR),
+                        .en_delay_OR(en_delay_OR),
+                        .n_state(n_state)
+                    );
+                end else begin
+                    n_state = ACTV;
+                end
+                `endif
             end
             WAIT_OR: begin
                 en_delay_OR[level_OR] = 1'b1;
