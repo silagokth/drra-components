@@ -49,7 +49,8 @@ bool Sequencer::clockTick(Cycle_t currentCycle) {
   if (currentCycle % 10 == 0) {
     if (cyclesToWait > 0) {
       cyclesToWait--;
-      out.output("Waiting %u cycles\n", cyclesToWait);
+      out.output("Waiting %u cycles (next instruction: %s)\n", cyclesToWait,
+                 bitset<32>(assemblyProgram[pc]).to_string().c_str());
       return false;
     }
 
