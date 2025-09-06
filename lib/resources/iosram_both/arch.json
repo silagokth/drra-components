@@ -1,5 +1,5 @@
 {
-  "kind": "iosram_top",
+  "kind": "iosram_both",
   "size": 4,
   "io_input": true,
   "io_output": true,

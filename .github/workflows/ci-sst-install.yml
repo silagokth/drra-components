@@ -2,6 +2,7 @@ name: Install SST
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 env:
   SST_CORE_HOME: ${{ github.workspace }}/sstcore
@@ -14,6 +15,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v2

@@ -13,32 +13,44 @@
       "segments": [
         {
           "name": "init_addr_sd",
-          "comment": "Is initial address static or dynamic?",
+          "comment": "Static (`0`) or dynamic (`1`) initial address",
           "bitwidth": 1,
           "verbo_map": [
-            { "key": 0, "val": "s" },
-            { "key": 1, "val": "d" }
+            {
+              "key": 0,
+              "val": "s"
+            },
+            {
+              "key": 1,
+              "val": "d"
+            }
           ]
         },
         {
           "name": "init_addr",
-          "comment": "Initial address",
+          "comment": "Initial address value",
           "bitwidth": 16
         },
         {
           "name": "port",
-          "comment": "The port number",
+          "comment": "Port number",
           "bitwidth": 2,
           "verbo_map": [
-            { "key": 0, "val": "address generation for input buffer" },
-            { "key": 1, "val": "address generation for output buffer" },
+            {
+              "key": 0,
+              "val": "Address generation for reading from input buffer"
+            },
+            {
+              "key": 1,
+              "val": "Address generation for writing to output buffer"
+            },
             {
               "key": 2,
-              "val": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
+              "val": "Address generation for writing to SRAM"
             },
             {
               "key": 3,
-              "val": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
+              "val": "Address generation for reading from SRAM"
             }
           ]
         }
@@ -54,8 +66,14 @@
           "comment": "The port number",
           "bitwidth": 2,
           "verbo_map": [
-            { "key": 0, "val": "address generation for input buffer" },
-            { "key": 1, "val": "address generation for output buffer" },
+            {
+              "key": 0,
+              "val": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "address generation for output buffer"
+            },
             {
               "key": 2,
               "val": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
@@ -100,8 +118,14 @@
           "comment": "The port number",
           "bitwidth": 2,
           "verbo_map": [
-            { "key": 0, "val": "address generation for input buffer" },
-            { "key": 1, "val": "address generation for output buffer" },
+            {
+              "key": 0,
+              "val": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "address generation for output buffer"
+            },
             {
               "key": 2,
               "val": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"

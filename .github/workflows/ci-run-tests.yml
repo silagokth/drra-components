@@ -2,19 +2,37 @@ name: Run DRRA tests
 
 on:
   workflow_call:
+    inputs:
+      branch:
+        description: (optional) name of the drra-tests branch to run the tests on
+        type: string
+        default: 'master'
 
 jobs:
   run-tests:
     runs-on: [modelsim, vesyla, bender, sst]
     steps:
+      - name: Download vesyla
+        uses: robinraju/release-downloader@v1
+        with:
+          out-file-path: bin
+          fileName: vesyla
+          repository: silagokth/vesyla
+          latest: true
+
       - name: Download library
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: library
+
       - name: Extract library
         run: |
+          if [ -d "library" ]; then
+            rm -rf library
+          fi
           tar -xzf library.tar.gz
           rm library.tar.gz
+
       - name: Checkout testcases
         uses: actions/checkout@v4
         with:
@@ -22,12 +40,23 @@ jobs:
           path: tests
           ref: master
           token: ${{ secrets.DRRA_TEST_PAT }}
+
+      - name: Check if a testing branch with the same name exists
+        run: |
+          cd "${{ github.workspace }}/tests"
+          git fetch --all
+          if git show-ref --verify --quiet refs/remotes/origin/${{ inputs.branch }}; then
+            git checkout ${{ inputs.branch }}
+            echo "Switching to drra-tests@${{ inputs.branch }}"
+          else
+            echo "Using the drra-tests master branch"
+          fi
+
       - name: Run tests
         run: |
-          cd tests
+          cd "${{ github.workspace }}/tests"
           . /usr/share/modules/init/sh
           module use /opt/modules
-          module avail
           module add questasim 
           module add vesyla
           module add bender
@@ -35,10 +64,16 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r requirements.txt
+          chmod +x ${{ github.workspace }}/bin/vesyla
           export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
+          export PATH=${{ github.workspace }}/bin:$PATH
+          vesyla --version
           vesyla testcase generate -d ./testcases
           ./run.sh
-      - run: tar czf output.tar.gz tests/output
+
+      - name: Tar the tests outputs
+        run: tar czf output.tar.gz tests/output
+
       - name: Upload test outputs
         uses: actions/upload-artifact@v4
         with:

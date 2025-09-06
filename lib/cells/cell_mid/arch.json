@@ -2,6 +2,8 @@
   "name": "cell_mid_impl",
   "kind": "cell_mid",
   "component_type": "cell",
+  "io_input": false,
+  "io_output": false,
   "parameters": {
     "INSTR_ADDR_WIDTH": 6,
     "INSTR_DATA_WIDTH": 32,
@@ -9,8 +11,8 @@
     "NUM_SLOTS": 16,
     "RESOURCE_INSTR_WIDTH": 27
   },
-  "controller": "sequencer_impl",
-  "resource_list": ["swb_impl", "rf_impl", "rf_impl", "rf_impl", "dpu_impl"],
+  "controller": "",
+  "resource_list": [],
   "custom_properties": [
     {
       "name": "NUM_SLOTS",

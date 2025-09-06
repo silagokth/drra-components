@@ -127,11 +127,11 @@ import {{fingerprint}}_pkg::*;
     assign delay_1_2 = rep_1_2._delay[SRAM_ADDR_WIDTH-1:0];
     assign iter_1_2 = rep_1_2._iter[SRAM_ADDR_WIDTH-1:0];
     assign init_addr_1_2 = dsu_1_2._init_addr[SRAM_ADDR_WIDTH-1:0];
-    
+
     agu #(
       .ADDRESS_WIDTH(IO_ADDR_WIDTH),
       .NUMBER_OF_LEVELS(4)
-    ) aug_0_1 (
+    ) agu_0_1 (
       .clk(clk),
       .rst_n(rst_n),
       .activate(activate_0[1]),

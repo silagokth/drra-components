@@ -38,7 +38,6 @@ public:
   /* Element Library Ports */
   static std::vector<SST::ElementInfoPort> getComponentPorts() {
     auto ports = DRRAResource::getBasePorts();
-    ports.push_back({"io_port", "Link to input or output buffer"});
     return ports;
   }
   SST_ELI_DOCUMENT_PORTS(getComponentPorts())
@@ -83,7 +82,6 @@ private:
     ReadBulk = 7
   };
 
-  SST::Link *io_link = nullptr;
   SST::Link *self_link = nullptr;
   int64_t sram_read_from_io_address_buffer = -1;
   int64_t sram_read_from_io_initial_addr = -1;

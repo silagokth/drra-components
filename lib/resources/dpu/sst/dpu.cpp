@@ -11,13 +11,7 @@ void DPU::init(unsigned int phase) {
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }
 
-void DPU::setup() {
-  for (int i = 0; i < resource_size; i++) {
-    for (int j = 0; j < word_bitwidth / 8; j++) {
-      data_buffers[i].push_back(0);
-    }
-  }
-}
+void DPU::setup() {}
 
 void DPU::complete(unsigned int phase) {}
 
@@ -37,7 +31,6 @@ bool DPU::clockTick(SST::Cycle_t currentCycle) {
   // Execute DPU operation (priotity 9)
   if (currentCycle % 10 == 9) {
     for (const auto &port : active_ports) {
-      out.output("cycle=%lu Checking port %d\n", currentCycle, port.first);
       if (isPortActive(port.first)) {
         fsmHandlers[current_fsm]();
         break;

@@ -1,13 +1,20 @@
+// Auto-generated defines to give the module and package stable names
 `define {{name}} {{fingerprint}}
 `define {{name}}_pkg {{fingerprint}}_pkg
 
+{% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
+{% set wait_cycle_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'wait') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'cycle') | list | first).bitwidth %}
+{% set already_defined = false %}
 {% if not already_defined %}
+// Package holds parameter constants and per-instruction pack/unpack helpers
 package {{fingerprint}}_pkg;
+    // Templated parameters
     {% for p in parameters %}
     parameter {{p}} = {{parameters[p]}};
     {% endfor %}
 
-    // Others:
+    // Generate typed payload structs and (un)pack helpers for each instruction
+    // payload_bitwidth excludes type/opcode bits
     {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth %}
     {% for instr in isa.instructions %}
     {% if instr.segments is defined and instr.segments|length > 0 %}
@@ -21,6 +28,7 @@ package {{fingerprint}}_pkg;
         {% endfor %}
     } {{instr.name}}_t;
 
+    // Unpack a payload bitvector into a typed struct
     function static {{instr.name}}_t unpack_{{instr.name}};
         input logic [{{payload_bitwidth - 1}}:0] instr;
         {{instr.name}}_t _{{instr.name}};
@@ -36,6 +44,7 @@ package {{fingerprint}}_pkg;
         return _{{instr.name}};
     endfunction
 
+    // Pack a typed struct back to a payload bitvector
     function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
         input {{instr.name}}_t _{{instr.name}};
         logic [{{ payload_bitwidth - 1 }}:0] instr;
@@ -55,20 +64,29 @@ package {{fingerprint}}_pkg;
     {% endfor %}
 
 endpackage
+
+// Sequencer module: fetch/decode/dispatch micro-instructions to resources
 module {{fingerprint}}
 import {{fingerprint}}_pkg::*;
 (
+    // Clock and reset
     input  logic clk,
     input  logic rst_n,
+
+    // Call/return handshake with caller
     input  logic call,
     output logic ret,
+
+    // Per-slot resource interface
     {% for i in range(size) %}
-    output logic instr_valid_{{i}},
-    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_{{i}},
-    output logic [FSM_PER_SLOT-1:0] activate_{{i}},
+    output logic instr_valid_{{i}},                     // Valid when sending to slot {{i}}
+    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_{{i}},// Shared instruction bus
+    output logic [FSM_PER_SLOT-1:0] activate_{{i}},     // Per-FSM activation bits for slot {{i}}
     output logic clk_{{i}},
     output logic rst_n_{{i}},
     {% endfor %}
+
+    // Instruction-load daisy-chain interface (for programming IRAMs across tiles)
     input  logic [INSTR_DATA_WIDTH-1:0] instr_load_data_in,
     input  logic [INSTR_ADDR_WIDTH-1:0] instr_load_addr_in,
     input  logic [INSTR_HOPS_WIDTH-1:0] instr_load_hops_in,
@@ -79,7 +97,14 @@ import {{fingerprint}}_pkg::*;
     output logic instr_load_en_out
 );
 
-    // Propagate signals to resources:
+    // Scalar registers
+    logic [SCALAR_REG_WIDTH-1:0] regs [NUM_SCALAR_REGS-1:0];
+
+    // CALC modes operands
+    logic [SCALAR_REG_WIDTH-1:0] calc_op1, calc_op2, calc_out;
+    logic [{{calc_mode_bitwidth}}-1:0] calc_mode;
+
+    // Broadcast system clock/reset and shared instruction to all slots
     logic [NUM_SLOTS-1:0] resource_instr;
     logic [RESOURCE_INSTR_WIDTH-1:0] instr;
     logic [NUM_SLOTS-1:0] resource_instr_valid;
@@ -92,36 +117,48 @@ import {{fingerprint}}_pkg::*;
     assign instr_{{i}} = instr;
     {% endfor %}
 
-    // Parameter check:
+    // Internal state and decode fields
+    logic [NUM_SLOTS * FSM_PER_SLOT - 1:0] activate_flat; // Flattened activation mask
 
-    // Function definition:
-    logic [NUM_SLOTS * FSM_PER_SLOT - 1:0] activate_flat;
+    // Simple 64x32 IRAM, PC and decode fields
+    logic [{{payload_bitwidth}}-1:0] instr_reg;            // Payload + slot for type-0 (control) instructions
+    logic [IRAM_DEPTH-1:0][{{isa.format.instr_bitwidth}}-1:0] iram;           // Instruction memory
+    logic [{{isa.format.instr_opcode_bitwidth}}-1:0] opcode;                // 4-bit opcode (bits 30:28)
+    logic [{{isa.format.instr_type_bitwidth}}-1:0] instr_type;                  // Type bit (MSB bit 31): 0=control, 1=resource
+    logic [{{isa.format.instr_slot_bitwidth}}-1:0] slot;                  // Target slot (bits 27:24) for resource instructions
+    logic [{{payload_bitwidth - isa.format.instr_slot_bitwidth}}-1:0] payload;              // Payload (bits 23:0)
+    logic [$clog2(IRAM_DEPTH)-1:0] pc, pc_next;           // Program counter (0..63)
+    logic [{{wait_cycle_bitwidth}}-1:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
 
-    logic [27:0] instr_reg;
-    logic [63:0][31:0] iram;
-    logic [3:0] opcode;
-    logic instr_type;
-    logic [3:0] slot;
-    logic [23:0] payload;
-    logic [5:0] pc, pc_next;
-    logic [16:0] wait_counter, wait_counter_next;
-
+    // FSM states
     typedef enum logic [1:0] { RESET, IDLE, DECODE, WAIT} state_t;
     state_t state, next_state;
 
-    assign instr_type = iram[pc][31];
-    assign opcode = iram[pc][30:28];
-    assign instr_reg = iram[pc][27:0];
-    assign payload = iram[pc][23:0];
-    assign slot = iram[pc][27:24];
+    // Field extraction from current IRAM word
+    {% set current_msb = isa.format.instr_bitwidth - 1 %}
+    {% set current_lsb = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth %}
+    assign instr_type = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
+    {% set current_lsb = current_lsb - isa.format.instr_opcode_bitwidth %}
+    assign opcode     = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
+    {% set current_lsb = current_lsb - (payload_bitwidth) %}
+    assign instr_reg  = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_lsb = current_msb - isa.format.instr_slot_bitwidth + 1 %}
+    assign slot       = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
+    assign payload    = iram[pc][{{current_msb}}:0];
 
+    // IRAM load daisy-chain:
+    // - If hops==0 and en==1, absorb the write locally into iram[addr]
+    // - Otherwise, forward unchanged but with hops decremented
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             instr_load_data_out <= 0;
             instr_load_addr_out <= 0;
             instr_load_hops_out <= 0;
-            instr_load_en_out <= 0;
-            for (int i=0; i<64; i++) begin
+            instr_load_en_out   <= 0;
+            for (int i=0; i<IRAM_DEPTH; i++) begin
                 iram[i] <= 0;
             end
         end else begin
@@ -131,107 +168,191 @@ import {{fingerprint}}_pkg::*;
                     instr_load_data_out <= 0;
                     instr_load_addr_out <= 0;
                     instr_load_hops_out <= 0;
-                    instr_load_en_out <= 0;
+                    instr_load_en_out   <= 0;
                 end else begin
                     instr_load_data_out <= instr_load_data_in;
                     instr_load_addr_out <= instr_load_addr_in;
                     instr_load_hops_out <= instr_load_hops_in - 1;
-                    instr_load_en_out <= instr_load_en_in;
+                    instr_load_en_out   <= instr_load_en_in;
                 end
             end else begin
                 instr_load_data_out <= 0;
                 instr_load_addr_out <= 0;
                 instr_load_hops_out <= 0;
-                instr_load_en_out <= 0;
+                instr_load_en_out   <= 0;
             end
         end
     end
 
-    // FSM:
+    // FSM registers
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
-            state <= RESET;
-            pc <= 0;
+            state        <= RESET;
+            pc           <= 0;
             wait_counter <= 0;
         end else begin
-            state <= next_state;
-            pc <= pc_next;
+            state        <= next_state;
+            pc           <= pc_next;
             wait_counter <= wait_counter_next;
         end
     end
 
+    // FSM next-state logic
     always_comb begin
-        next_state = state;
-        pc_next = pc+1;
+        // Defaults
+        next_state        = state;
+        pc_next           = pc+1;       // Increment PC by default
         wait_counter_next = wait_counter;
+
         case (state)
             RESET: begin
                 next_state = IDLE;
-                pc_next = 0;
+                pc_next    = 0;
             end
             IDLE: begin
+                // Wait for call to start execution from PC=0
                 if (call == 1) begin
                     next_state = DECODE;
-                    pc_next = 0;
+                    pc_next    = 0;
                 end else begin
                     next_state = IDLE;
-                    pc_next = 0;
+                    pc_next    = 0;
                 end
             end
             DECODE: begin
+                // Control-type instructions (instr_type==0)
                 if (instr_type == 0 && opcode == 0) begin
-                    pc_next = 0;
+                    // RETURN: go idle and reset PC
+                    pc_next    = 0;
                     next_state = IDLE;
                 end else if (instr_type == 0 && opcode == 1) begin
+                    // WAIT: stall for _cycle cycles
+                    // wait_t comes from the generated ISA types
                     wait_t _wait;
                     _wait = unpack_wait(instr_reg);
                     if (_wait._cycle != 0) begin
-                        pc_next = pc;
-                        next_state = WAIT;
+                        pc_next           = pc;        // Hold PC while waiting
+                        next_state        = WAIT;
                         wait_counter_next = _wait._cycle;
                     end
+                    // If _cycle==0, just fall through and continue (pc_next default pc+1)
                 end
+                // Resource-type instructions (instr_type==1) fall through; see output block
             end
             WAIT: begin
+                // Countdown wait cycles; resume DECODE when reaching 0
                 wait_counter_next = wait_counter - 1;
                 if (wait_counter == 1) begin
                     next_state = DECODE;
                 end else begin
                     next_state = WAIT;
-                    pc_next = pc;
+                    pc_next    = pc; // Hold PC while waiting
                 end
             end
         endcase
     end
 
-    act_t _act;
+    // Output/dispatch logic
+    // - ret asserted on RETURN
+    // - ACT opcode broadcasts per-FSM activation masks to all slots
+    // - Resource-type instruction forwards opcode+payload to selected slot with valid
+    act_t _act; // act_t is generated from ISA; contains _ports and _param fields
     always_comb begin
+        // Safe defaults
+        _act = '0;
         ret = 0;
         for (int i = 0; i < NUM_SLOTS; i = i + 1) begin
             resource_instr_valid[i] = 0;
-            resource_activate[i] = 0;
+            resource_activate[i]    = 0;
         end
         instr = 0;
+
         case (state)
+            RESET: begin
+            end
             DECODE: begin
                 if (instr_type == 0) begin
+                    // Control flow/actuation opcodes
                     if (opcode == 2) begin
+                        // ACT: build activation mask and broadcast to all slots
                         activate_flat = 0;
-                        _act = unpack_act(instr_reg);
-                        activate_flat = _act._ports << (_act._param * FSM_PER_SLOT);
-                        for (int i=0; i<NUM_SLOTS; i++) begin
-                            resource_activate[i] = activate_flat[FSM_PER_SLOT*i +: FSM_PER_SLOT];
+                        _act          = unpack_act(instr_reg);
+                        if (_act._mode == 0) begin
+                          // Shift port mask by (_param * FSM_PER_SLOT) to select target FSM group
+                          activate_flat = _act._ports << (_act._param * FSM_PER_SLOT);
+                          // Slice into per-slot vectors
+                          for (int i=0; i<NUM_SLOTS; i++) begin
+                              resource_activate[i] = activate_flat[FSM_PER_SLOT*i +: FSM_PER_SLOT];
+                          end
+                        end else if (_act._mode == 1) begin
+                          for (int i = 0; i < NUM_SLOTS; i++) begin
+                            if (_act._ports[i])
+                              resource_activate[i] = _act._param;
+                          end
+                        end else if (_act._mode == 2) begin
+                          logic [(NUM_SLOTS*FSM_PER_SLOT)-1:0] activation_vector;
+                          activation_vector = {regs[_act._param+3], regs[_act._param+2], regs[_act._param+1], regs[_act._param]};
+                          for (int i = 0; i < NUM_SLOTS; i++) begin
+                            resource_activate[i] = activation_vector[FSM_PER_SLOT*i +: FSM_PER_SLOT];
+                          end
                         end
                     end else if (opcode == 0) begin
+                        // RETURN: signal completion to caller
                         ret = 1;
                     end
                 end else begin
-                    instr = {opcode, payload};
-                    resource_instr_valid[slot] = 1;
+                    // Resource instruction: send opcode+payload to target slot and assert valid
+                    instr                       = {opcode, payload};
+                    resource_instr_valid[slot]  = 1;
                 end
             end
         endcase
     end
+
+    // Calculation logic
+    calc_t _calc; // calc_t is generated from ISA; contains _op and _args fields
+    always_comb begin
+      // defaults
+      _calc = '0;
+      calc_op1 = '0;
+      calc_op2 = '0;
+      calc_mode = '0;
+
+      case (state)
+        RESET: begin
+          // Reset all registers to 0
+          for (int i = 0; i < NUM_SCALAR_REGS; i++) begin
+              regs[i] = 0;
+          end
+        end
+        DECODE: begin
+          if (instr_type == 0) begin
+            if (opcode == 3) begin
+              _calc = unpack_calc(instr_reg);
+              // set the calculation mode
+              calc_mode = _calc._mode;
+              // assign operand 1
+              calc_op1 = regs[_calc._operand1];
+              if (_calc._operand2_sd == 0) begin
+                // operand 2 is an immediate value
+                calc_op2 = _calc._operand2;
+              end else begin
+                // operand 2 is a scalar register
+                calc_op2 = regs[_calc._operand2];
+              end
+              regs[_calc._result] = calc_out; // Store result in destination register
+            end
+          end
+        end
+      endcase
+    end
+
+  {{fingerprint}}_alu alu_inst (
+    .in1(calc_op1),
+    .in2(calc_op2),
+    .mode(calc_mode),
+    .out(calc_out)
+  );
 endmodule
 
 {% endif %}

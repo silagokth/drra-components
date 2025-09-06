@@ -218,12 +218,17 @@ void RegisterFile::writeWide() {
   do {
     temp_event = data_links[0]->recv();
     if (temp_event != nullptr) {
-      data_event = dynamic_cast<DataEvent *>(temp_event);
+      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
+      if (new_data_event != nullptr) {
+        if (data_event != nullptr)
+          delete data_event;
+        data_event = new_data_event;
+      }
     }
   } while (temp_event != nullptr);
 
   if (data_event == nullptr)
-    out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
+    out.fatal(CALL_INFO, -1, "Failed to receive data event (writeWide)\n");
   if (data_event->portType != DataEvent::PortType::WriteWide)
     out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
 
@@ -254,12 +259,17 @@ void RegisterFile::writeNarrow() {
   do {
     temp_event = data_links[0]->recv();
     if (temp_event != nullptr) {
-      data_event = dynamic_cast<DataEvent *>(temp_event);
+      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
+      if (new_data_event != nullptr) {
+        if (data_event != nullptr)
+          delete data_event;
+        data_event = new_data_event;
+      }
     }
   } while (temp_event != nullptr);
 
   if (data_event == nullptr)
-    out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
+    out.fatal(CALL_INFO, -1, "Failed to receive data event (writeNarrow)\n");
   if (data_event->portType != DataEvent::PortType::WriteNarrow)
     out.fatal(CALL_INFO, -1, "Invalid port type\n");
 

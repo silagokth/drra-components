@@ -1,6 +1,7 @@
-# DRRA Component Library
+# DRRA Component Library [![Build Status]][actions]
 
-[![](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml/badge.svg)](https://github.com/silagokth/drra-components/actions/workflows/ci-release.yml)
+[Build Status]: https://github.com/silagokth/drra-components/actions/workflows/ci-weekly-build.yml/badge.svg
+[actions]: https://github.com/silagokth/drra-components/actions/workflows/ci-weekly-build.yml
 
 This repository contains the DRRA component library. The library is a collection of components that can be used to build a DRRA application.
 
@@ -37,6 +38,21 @@ This repository contains the DRRA component library. The library is a collection
     [build]
     rustc-wrapper = "/path/to/sccache"
     ```
+
+## Cloning the repo
+
+This repo contains submodules.
+Use the following command to clone it:
+
+```bash
+git clone --recurse-submodules git@github.com:silagokth/drra-components.git
+```
+
+Or, if the repo was already cloned:
+
+```bash
+git submodule update --init
+```
 
 ## Compilation and Installation
 
@@ -82,6 +98,6 @@ You can add more custom components to the library by adding them to the `lib` di
 
 - `arch.json`: The architecture description file.
 - `isa.json`: The instruction set description file.
-- `tech:X.json`: The technology description file (for example `tech:tsmc28.json`).
+- `tech.X.json`: The technology description file (for example `tech.tsmc28.json`).
 - `rtl/*.sv.j2`: The RTL Jinja2 templates description file. Note that, you should only modify the contents of the module description, not the Jinja calls. If the component is a resource ([./lib/resources](./lib/resources)), you should adjust the input and output ports definition based on the size (how many slots) of the resource.
 - `timing_model`: The timing behavior of the component. Used by the instruction scheduler.

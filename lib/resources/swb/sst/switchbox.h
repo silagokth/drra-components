@@ -83,7 +83,7 @@ private:
 
   void resetOption_swb() {
     currentFsmOption_swb = 0;
-    out.output("Reset FSM to 0 %u\n");
+    out.output("Reset FSM to 0\n");
   }
 
   void switchToNextOption_route() {
@@ -93,7 +93,36 @@ private:
 
   void resetOption_route() {
     currentFsmOption_route = 0;
-    out.output("Reset FSM to 0 %u\n");
+    out.output("Reset FSM to 0\n");
+  }
+
+  void printRouteMapsForFSM(uint32_t fsmNumber, bool current = true) {
+    auto _sendingRoutes = current ? sending_routes_maps[fsmNumber]
+                                  : next_sending_routes_maps[fsmNumber];
+    auto _receivingRoutes = current ? receiving_routes_maps[fsmNumber]
+                                    : next_receiving_routes_maps[fsmNumber];
+    if (current)
+      out.output("Routes for FSM %u:\n", fsmNumber);
+    else
+      out.output("Next routes for FSM %u:\n", fsmNumber);
+
+    out.output("  Sending routes (%u):\n", _sendingRoutes.size());
+    for (const auto &route : _sendingRoutes) {
+      out.output("    from slot %u to cells ", route.first);
+      for (const auto &cell : route.second) {
+        out.print("%s,", cell_directions_str[cell].c_str());
+      }
+      out.print("\n");
+    }
+    out.output("  Receiving routes (%u):\n", _receivingRoutes.size());
+    for (const auto &route : _receivingRoutes) {
+      out.output("    from cell %s to slots ",
+                 cell_directions_str[route.first].c_str());
+      for (const auto &slot : route.second) {
+        out.print("%u,", slot);
+      }
+      out.print("\n");
+    }
   }
 
   // Different supported opcodes
