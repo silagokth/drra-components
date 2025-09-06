@@ -31,7 +31,6 @@ bool DPU::clockTick(SST::Cycle_t currentCycle) {
   // Execute DPU operation (priotity 9)
   if (currentCycle % 10 == 9) {
     for (const auto &port : active_ports) {
-      out.output("cycle=%lu Checking port %d\n", currentCycle, port.first);
       if (isPortActive(port.first)) {
         fsmHandlers[current_fsm]();
         break;

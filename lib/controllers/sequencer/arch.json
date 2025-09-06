@@ -7,6 +7,18 @@
     {
       "name": "NUM_SLOTS",
       "value": 16
+    },
+    {
+      "name": "NUM_SCALAR_REGS",
+      "value": 16
+    },
+    {
+      "name": "SCALAR_REG_WIDTH",
+      "value": 16
+    },
+    {
+      "name": "IRAM_DEPTH",
+      "value": 64
     }
   ],
   "required_parameters": [

@@ -44,13 +44,14 @@ import {{fingerprint}}_pkg::*;
         end
     end
 
-    
     parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
     logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
     always_comb begin
         memory_next = memory;
-        bulk_data_out_0 = 0;
-        word_data_out_0 = 0;
+        bulk_data_out_0 = '0;
+        word_data_out_0 = '0;
+        offset_w_addr = '0;
+        offset_r_addr = '0;
         if (bulk_w_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_w_addr = i;
@@ -126,11 +127,11 @@ import {{fingerprint}}_pkg::*;
     assign delay_0_3 = rep._delay;
     assign iter_0_3 = rep._iter;
     assign init_addr_0_3 = dsu._init_addr;
-    
+
     agu #(
       .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
-    ) aug_0_0 (
+    ) agu_0_0 (
       .clk(clk),
       .rst_n(rst_n),
       .activate(activate_0[0]),
@@ -149,7 +150,7 @@ import {{fingerprint}}_pkg::*;
     agu #(
       .ADDRESS_WIDTH(AGU_BITWIDTH),
       .NUMBER_OF_LEVELS(4)
-    ) aug_0_1 (
+    ) agu_0_1 (
       .clk(clk),
       .rst_n(rst_n),
       .activate(activate_0[1]),

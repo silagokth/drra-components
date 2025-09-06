@@ -303,7 +303,7 @@ void IOSRAMBottom::writeToSRAM() {
         // Write data to the backend (SRAM)
         backend->set(io_write_to_sram_address_buffer,
                      from_io_data_buffer.size(), from_io_data_buffer);
-        out.output("Writing to SRAM (adrr=%d, size=%dbits, data=%s)\n",
+        out.output("Writing to SRAM (addr=%d, size=%dbits, data=%s)\n",
                    io_write_to_sram_address_buffer,
                    from_io_data_buffer.size() * 8,
                    formatRawDataToWords(from_io_data_buffer).c_str());

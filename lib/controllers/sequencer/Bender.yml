@@ -5,3 +5,4 @@ dependencies:
 
 sources:
   - ./rtl/sequencer.sv
+  - ./rtl/alu.sv

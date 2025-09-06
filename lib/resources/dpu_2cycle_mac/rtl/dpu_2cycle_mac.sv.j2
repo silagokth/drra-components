@@ -68,6 +68,9 @@ import {{fingerprint}}_pkg::*;
   dpu_t dpu;
   fsm_t fsm;
 
+  logic reset_fsm;
+  assign reset_fsm = 0; // TODO: this should be connected to the agu
+
   fsm u_dpu_fsm #(
       .FSM_MAX_STATES(FSM_MAX_STATES),
       .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
@@ -76,6 +79,7 @@ import {{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .activate(|activate),
       .fsm_delays(fsm_delays),
+      .reset_fsm(reset_fsm),
       .state(fsm_option)
   );
 

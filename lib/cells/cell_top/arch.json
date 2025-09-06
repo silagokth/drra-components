@@ -2,6 +2,8 @@
   "name": "cell_top_impl",
   "kind": "cell_top",
   "component_type": "cell",
+  "io_input": true,
+  "io_output": false,
   "parameters": {
     "INSTR_ADDR_WIDTH": 6,
     "INSTR_DATA_WIDTH": 32,
