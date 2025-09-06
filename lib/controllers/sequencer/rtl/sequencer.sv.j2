@@ -3,6 +3,8 @@
 `define {{name}}_pkg {{fingerprint}}_pkg
 
 {% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
+{% set wait_cycle_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'wait') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'cycle') | list | first).bitwidth %}
+{% set already_defined = false %}
 {% if not already_defined %}
 // Package holds parameter constants and per-instruction pack/unpack helpers
 package {{fingerprint}}_pkg;
@@ -119,25 +121,33 @@ import {{fingerprint}}_pkg::*;
     logic [NUM_SLOTS * FSM_PER_SLOT - 1:0] activate_flat; // Flattened activation mask
 
     // Simple 64x32 IRAM, PC and decode fields
-    logic [27:0] instr_reg;            // Payload + slot for type-0 (control) instructions
-    logic [63:0][31:0] iram;           // Instruction memory
-    logic [3:0] opcode;                // 4-bit opcode (bits 30:28)
-    logic instr_type;                  // Type bit (MSB bit 31): 0=control, 1=resource
-    logic [3:0] slot;                  // Target slot (bits 27:24) for resource instructions
-    logic [23:0] payload;              // Payload (bits 23:0)
-    logic [5:0] pc, pc_next;           // Program counter (0..63)
-    logic [16:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
+    logic [{{payload_bitwidth}}-1:0] instr_reg;            // Payload + slot for type-0 (control) instructions
+    logic [IRAM_DEPTH-1:0][{{isa.format.instr_bitwidth}}-1:0] iram;           // Instruction memory
+    logic [{{isa.format.instr_opcode_bitwidth}}-1:0] opcode;                // 4-bit opcode (bits 30:28)
+    logic [{{isa.format.instr_type_bitwidth}}-1:0] instr_type;                  // Type bit (MSB bit 31): 0=control, 1=resource
+    logic [{{isa.format.instr_slot_bitwidth}}-1:0] slot;                  // Target slot (bits 27:24) for resource instructions
+    logic [{{payload_bitwidth - isa.format.instr_slot_bitwidth}}-1:0] payload;              // Payload (bits 23:0)
+    logic [$clog2(IRAM_DEPTH)-1:0] pc, pc_next;           // Program counter (0..63)
+    logic [{{wait_cycle_bitwidth}}-1:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
 
     // FSM states
     typedef enum logic [1:0] { RESET, IDLE, DECODE, WAIT} state_t;
     state_t state, next_state;
 
     // Field extraction from current IRAM word
-    assign instr_type = iram[pc][31];
-    assign opcode     = iram[pc][30:28];
-    assign instr_reg  = iram[pc][27:0];
-    assign payload    = iram[pc][23:0];
-    assign slot       = iram[pc][27:24];
+    {% set current_msb = isa.format.instr_bitwidth - 1 %}
+    {% set current_lsb = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth %}
+    assign instr_type = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
+    {% set current_lsb = current_lsb - isa.format.instr_opcode_bitwidth %}
+    assign opcode     = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
+    {% set current_lsb = current_lsb - (payload_bitwidth) %}
+    assign instr_reg  = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_lsb = current_msb - isa.format.instr_slot_bitwidth + 1 %}
+    assign slot       = iram[pc][{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
+    assign payload    = iram[pc][{{current_msb}}:0];
 
     // IRAM load daisy-chain:
     // - If hops==0 and en==1, absorb the write locally into iram[addr]
@@ -148,7 +158,7 @@ import {{fingerprint}}_pkg::*;
             instr_load_addr_out <= 0;
             instr_load_hops_out <= 0;
             instr_load_en_out   <= 0;
-            for (int i=0; i<64; i++) begin
+            for (int i=0; i<IRAM_DEPTH; i++) begin
                 iram[i] <= 0;
             end
         end else begin
