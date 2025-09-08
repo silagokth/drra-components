@@ -2,8 +2,8 @@
 
 task automatic evaluate_MT_state(
     input  logic [1:0] level_MT,
-    input  logic co_delay_MT [NUMBER_MT-1:0],
-    output logic en_delay_MT [NUMBER_MT-1:0],
+    input  logic co_delay_MT [NUMBER_MT],
+    output logic en_delay_MT [NUMBER_MT],
     output logic en_level_MT,
     output state_t n_state
 );
@@ -26,13 +26,13 @@ endtask
 
 `ifdef INCLUDE_OR_STATES
 task automatic evaluate_OR_state(
-    input  logic co_iter_OR [NUMBER_OR-1:0],
-    input  logic co_delay_OR [NUMBER_OR-1:0],
-    input  logic regOR_config [NUMBER_OR-1:0],
+    input  logic co_iter_OR   [NUMBER_OR],
+    input  logic co_delay_OR  [NUMBER_OR],
+    input  logic regOR_config [NUMBER_OR],
     output logic en_level_OR,
     output logic [1:0] inVal_level_OR,
-    output logic en_initVal_OR [NUMBER_OR-1:0],
-    output logic en_delay_OR [NUMBER_OR-1:0],
+    output logic en_initVal_OR [NUMBER_OR],
+    output logic en_delay_OR   [NUMBER_OR],
     output state_t n_state
 );
     en_level_OR = 1'b0;
@@ -93,33 +93,33 @@ endtask
 `ifdef INCLUDE_IR_STATES
 task automatic evaluate_IR_state(
     `ifdef INCLUDE_MT_STATES
-    input  logic co_delay_MT [NUMBER_MT-1:0],
-    output logic en_delay_MT [NUMBER_MT-1:0],
+    input  logic co_delay_MT [NUMBER_MT],
+    output logic en_delay_MT [NUMBER_MT],
     output logic init0_level_MT,
     output logic en_level_MT,
     `endif
 
     `ifdef INCLUDE_OR_STATES
-    input  logic co_iter_OR [NUMBER_OR-1:0],
-    input  logic co_delay_OR [NUMBER_OR-1:0],
-    input  logic regOR_config [NUMBER_OR-1:0],
+    input  logic co_iter_OR   [NUMBER_OR],
+    input  logic co_delay_OR  [NUMBER_OR],
+    input  logic regOR_config [NUMBER_OR],
     output logic en_level_OR,
     output logic [1:0] inVal_level_OR,
-    output logic en_initVal_OR [NUMBER_OR-1:0],
-    output logic en_delay_OR [NUMBER_OR-1:0],
+    output logic en_initVal_OR [NUMBER_OR],
+    output logic en_delay_OR   [NUMBER_OR],
     output logic en_flag_OR,
     output logic flag_OR2,
     `endif
 
     input  logic [1:0] level_MT,
-    input  logic co_iter_IR [NUMBER_IR-1:0],
-    input  logic co_delay_IR [NUMBER_IR-1:0],
-    input  logic regIR_config [(NUMBER_MT+1)*NUMBER_IR-1:0],
+    input  logic co_iter_IR   [NUMBER_IR],
+    input  logic co_delay_IR  [NUMBER_IR],
+    input  logic regIR_config [(NUMBER_MT+1)*NUMBER_IR],
     output logic en_level_IR,
     output logic [1:0] inVal_level_IR,
-    output logic en_initVal_IR [NUMBER_IR-1:1],
-    output logic en_delay_IR [NUMBER_IR-1:0],
-    output logic init_delay_IR [NUMBER_IR-1:0],
+    output logic en_initVal_IR [1:NUMBER_IR-1],
+    output logic en_delay_IR   [NUMBER_IR],
+    output logic init_delay_IR [NUMBER_IR],
     output state_t n_state
 );
     `ifdef INCLUDE_OR_STATES

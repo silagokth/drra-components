@@ -16,7 +16,7 @@ sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/n_state \
 sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/p_state
 
 # -----------------------------------------------
-# add wave sim:/agu_RTR_tb/agu_RTR_inst/level_IR 
+add wave sim:/agu_RTR_tb/agu_RTR_inst/level_IR 
 add wave sim:/agu_RTR_tb/agu_RTR_inst/level_MT 
 add wave sim:/agu_RTR_tb/agu_RTR_inst/level_OR
 # -----------------------------------------------

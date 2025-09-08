@@ -1,4 +1,4 @@
-// `define INCLUDE_IR_STATES
+`define INCLUDE_IR_STATES
 `define INCLUDE_MT_STATES
 `define INCLUDE_OR_STATES
 

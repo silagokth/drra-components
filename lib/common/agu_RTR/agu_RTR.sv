@@ -39,10 +39,10 @@ module agu_RTR #(
     logic init0_address;
     logic initIR_address;
     logic [1:0] level_IR;
-    logic [ADDRESS_WIDTH-1:0] initVal_IR [NUMBER_IR-1:1];
-    logic en_initVal_IR [NUMBER_IR-1:1];
-    logic init_initVal_IR [NUMBER_IR-1:1];
-    logic init0_initVal_IR [NUMBER_IR-1:1];
+    logic [ADDRESS_WIDTH-1:0] initVal_IR       [1:NUMBER_IR-1];
+    logic                     en_initVal_IR    [1:NUMBER_IR-1];
+    logic                     init_initVal_IR  [1:NUMBER_IR-1];
+    logic                     init0_initVal_IR [1:NUMBER_IR-1];
 
     rep_t rep;
     repx_t repx;
@@ -51,29 +51,29 @@ module agu_RTR #(
     assign repx  = repx_valid  ? unpack_repx(payload)  : '{default: 0};
     assign trans = trans_valid ? unpack_trans(payload) : '{default: 0};
     
-    logic [REP_ITER_WIDTH-1:0]    regIR_iter   [(NUMBER_MT+1)*NUMBER_IR-1:0];
-    logic [REP_DELAY_WIDTH-1:0]   regIR_delay  [(NUMBER_MT+1)*NUMBER_IR-1:0];
-    logic [REP_STEP_WIDTH-1:0]    regIR_step   [(NUMBER_MT+1)*NUMBER_IR-1:0];
-    logic                         regIR_config [(NUMBER_MT+1)*NUMBER_IR-1:0];
+    logic [REP_ITER_WIDTH-1:0]    regIR_iter   [(NUMBER_MT+1)*NUMBER_IR];
+    logic [REP_DELAY_WIDTH-1:0]   regIR_delay  [(NUMBER_MT+1)*NUMBER_IR];
+    logic [REP_STEP_WIDTH-1:0]    regIR_step   [(NUMBER_MT+1)*NUMBER_IR];
+    logic                         regIR_config [(NUMBER_MT+1)*NUMBER_IR];
 
     logic [1:0] level_MT;
     
     `ifdef INCLUDE_MT_STATES
-    logic [TRANS_DELAY_WIDTH-1:0] regMT_delay  [NUMBER_MT-1:0];
-    logic                         regMT_config [NUMBER_MT-1:0];
+    logic [TRANS_DELAY_WIDTH-1:0] regMT_delay  [NUMBER_MT];
+    logic                         regMT_config [NUMBER_MT];
     `endif
 
     `ifdef INCLUDE_OR_STATES
-    logic initOR_address;
-    logic [1:0] level_OR;
-    logic [ADDRESS_WIDTH-1:0] initVal_OR [NUMBER_OR-1:0];
-    logic en_initVal_OR [NUMBER_OR-1:0];
-    logic init_initVal_OR [NUMBER_OR-1:0];
-    logic flag_OR;
-    logic [REP_ITER_WIDTH-1:0]    regOR_iter   [NUMBER_OR-1:0];
-    logic [REP_DELAY_WIDTH-1:0]   regOR_delay  [NUMBER_OR-1:0];
-    logic [REP_STEP_WIDTH-1:0]    regOR_step   [NUMBER_OR-1:0];
-    logic                         regOR_config [NUMBER_OR-1:0];
+    logic [1:0]                   level_OR;
+    logic                         initOR_address;
+    logic                         flag_OR;
+    logic [ADDRESS_WIDTH-1:0]     initVal_OR      [NUMBER_OR];
+    logic                         en_initVal_OR   [NUMBER_OR];
+    logic                         init_initVal_OR [NUMBER_OR];
+    logic [REP_ITER_WIDTH-1:0]    regOR_iter      [NUMBER_OR];
+    logic [REP_DELAY_WIDTH-1:0]   regOR_delay     [NUMBER_OR];
+    logic [REP_STEP_WIDTH-1:0]    regOR_step      [NUMBER_OR];
+    logic                         regOR_config    [NUMBER_OR];
     `endif
 
     /////////////////////////////////////// Config registers /////////////////////////////////////// 

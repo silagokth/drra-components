@@ -12,29 +12,29 @@ module controller #(
     parameter NUMBER_IR     // IR: Inner  R-Pattern
 ) (
     `ifdef INCLUDE_IR_STATES
-    input  wire  [REP_ITER_WIDTH-1:0]        regIR_iter   [(NUMBER_MT+1)*NUMBER_IR-1:0],
-    input  wire  [REP_DELAY_WIDTH-1:0]       regIR_delay  [(NUMBER_MT+1)*NUMBER_IR-1:0],
-    input  wire                              regIR_config [(NUMBER_MT+1)*NUMBER_IR-1:0],
+    input  logic  [REP_ITER_WIDTH-1:0]       regIR_iter   [(NUMBER_MT+1)*NUMBER_IR],
+    input  logic  [REP_DELAY_WIDTH-1:0]      regIR_delay  [(NUMBER_MT+1)*NUMBER_IR],
+    input  logic                             regIR_config [(NUMBER_MT+1)*NUMBER_IR],
     output logic                             initIR_address,
     output logic [1:0]                       level_IR,
-    output logic                             en_initVal_IR [NUMBER_IR-1:1],
-    output logic                             init_initVal_IR [NUMBER_IR-1:1],
-    output logic                             init0_initVal_IR [NUMBER_IR-1:1],
+    output logic                             en_initVal_IR    [1:NUMBER_IR-1],
+    output logic                             init_initVal_IR  [1:NUMBER_IR-1],
+    output logic                             init0_initVal_IR [1:NUMBER_IR-1],
     `endif
     `ifdef INCLUDE_MT_STATES
-    input  wire  [TRANS_DELAY_WIDTH-1:0]     regMT_delay  [NUMBER_MT-1:0],
-    input  wire                              regMT_config [NUMBER_MT-1:0],
+    input  logic  [TRANS_DELAY_WIDTH-1:0]     regMT_delay  [NUMBER_MT],
+    input  logic                              regMT_config [NUMBER_MT],
     output logic                             init0_address,
     `endif
     output logic [1:0]                       level_MT,
     `ifdef INCLUDE_OR_STATES
-    input  wire  [REP_ITER_WIDTH-1:0]        regOR_iter   [NUMBER_OR-1:0],
-    input  wire  [REP_DELAY_WIDTH-1:0]       regOR_delay  [NUMBER_OR-1:0],
-    input  wire                              regOR_config [NUMBER_OR-1:0],
+    input  logic  [REP_ITER_WIDTH-1:0]        regOR_iter   [NUMBER_OR],
+    input  logic  [REP_DELAY_WIDTH-1:0]       regOR_delay  [NUMBER_OR],
+    input  logic                              regOR_config [NUMBER_OR],
     output logic                             initOR_address,
     output logic [1:0]                       level_OR,
-    output logic                             en_initVal_OR [NUMBER_OR-1:0],
-    output logic                             init_initVal_OR [NUMBER_OR-1:0],
+    output logic                             en_initVal_OR   [NUMBER_OR],
+    output logic                             init_initVal_OR [NUMBER_OR],
     output logic                             flag_OR,
     `endif
     input  logic                             clk,
@@ -51,29 +51,29 @@ module controller #(
 );
 
     `ifdef INCLUDE_IR_STATES
-    logic en_iter_IR    [NUMBER_IR-1:0];
-    logic init_iter_IR  [NUMBER_IR-1:0];
-    logic co_iter_IR    [NUMBER_IR-1:0];
-    logic en_delay_IR   [NUMBER_IR-1:0];
-    logic init_delay_IR [NUMBER_IR-1:0];
-    logic co_delay_IR   [NUMBER_IR-1:0];
+    logic en_iter_IR    [NUMBER_IR];
+    logic init_iter_IR  [NUMBER_IR];
+    logic co_iter_IR    [NUMBER_IR];
+    logic en_delay_IR   [NUMBER_IR];
+    logic init_delay_IR [NUMBER_IR];
+    logic co_delay_IR   [NUMBER_IR];
     logic en_level_IR;
     logic [1:0] inVal_level_IR;
     `endif
     `ifdef INCLUDE_MT_STATES
-    logic en_delay_MT   [NUMBER_MT-1:0];
-    logic init_delay_MT [NUMBER_MT-1:0];
-    logic co_delay_MT   [NUMBER_MT-1:0];
+    logic en_delay_MT   [NUMBER_MT];
+    logic init_delay_MT [NUMBER_MT];
+    logic co_delay_MT   [NUMBER_MT];
     logic en_level_MT;
     logic init0_level_MT;
     `endif
     `ifdef INCLUDE_OR_STATES
-    logic en_iter_OR    [NUMBER_OR-1:0];
-    logic init_iter_OR  [NUMBER_OR-1:0];
-    logic co_iter_OR    [NUMBER_OR-1:0];
-    logic en_delay_OR   [NUMBER_OR-1:0];
-    logic init_delay_OR [NUMBER_OR-1:0];
-    logic co_delay_OR   [NUMBER_OR-1:0];
+    logic en_iter_OR    [NUMBER_OR];
+    logic init_iter_OR  [NUMBER_OR];
+    logic co_iter_OR    [NUMBER_OR];
+    logic en_delay_OR   [NUMBER_OR];
+    logic init_delay_OR [NUMBER_OR];
+    logic co_delay_OR   [NUMBER_OR];
     logic en_level_OR;
     logic [1:0] inVal_level_OR;
     logic en_flag_OR;
