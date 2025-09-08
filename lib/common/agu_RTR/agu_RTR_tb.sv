@@ -6,8 +6,6 @@ module agu_RTR_tb #(
     localparam REP_ITER_WIDTH = 6,
     localparam REP_DELAY_WIDTH = 7,
     localparam REP_STEP_WIDTH = 4,
-    localparam REP_LEVEL_WIDTH = 3,
-    localparam REP_OPTION_WIDTH = 2,
     localparam TRANS_DELAY_WIDTH = 18,
     localparam TRANS_LEVEL_WIDTH = 4,
     localparam NUMBER_OR = 3,    // OR: Outter R-Pattern
@@ -30,8 +28,6 @@ module agu_RTR_tb #(
         .REP_ITER_WIDTH(REP_ITER_WIDTH),
         .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
         .REP_STEP_WIDTH(REP_STEP_WIDTH),
-        .REP_LEVEL_WIDTH(REP_LEVEL_WIDTH),
-        .REP_OPTION_WIDTH(REP_OPTION_WIDTH),
         .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
         .TRANS_LEVEL_WIDTH(TRANS_LEVEL_WIDTH),
         .NUMBER_OR(NUMBER_OR),
@@ -58,10 +54,50 @@ module agu_RTR_tb #(
         #17;
         rst_n = 1'b1;
 
-        //////////////////////////////////////////////////////////////// Delay != 0
-        // // trans_level_delay
+/////////////////////////////////// IR != 0 => RTR, TR, RR, R ///////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////// Delay == 0
         // @(negedge clk);
         // instr_en = 1'b1;
+
+        // // trans_level_delay
+        // @(negedge clk);
+        // instr = 25'b010_0001_000000000000000000;
+        // @(negedge clk);
+        // instr = 25'b010_0000_000000000000000000;
+
+        // // rep_option_level_step_delay_iter
+        // @(negedge clk);
+        // instr = 25'b000_00_000_0011_0000000_000010; // op0, L0, S3, D0, iter2 
+        // @(negedge clk);
+        // instr = 25'b000_00_001_0001_0000000_000011; // op0, L1, S1, D0, iter3
+        // @(negedge clk);
+        // instr = 25'b000_00_010_0010_0000000_000001; // op0, L2, S2, D0, iter1
+        // @(negedge clk);
+        // instr = 25'b000_01_000_0010_0000000_000010; // op1, L0, S2, D0, iter2
+        // @(negedge clk);
+        // instr = 25'b000_01_001_0011_0000000_000011; // op1, L1, S3, D0, iter3
+        // @(negedge clk);
+        // instr = 25'b000_01_010_0101_0000000_000001; // op1, L2, S5, D0, iter1
+        // @(negedge clk);
+        // instr = 25'b000_10_000_0111_0000000_000001; // op2, L0, S7, D0, iter1
+        // @(negedge clk);
+        // instr = 25'b000_10_001_0001_0000000_000010; // op2, L1, S1, D0, iter2
+        // @(negedge clk);
+        // instr = 25'b000_10_010_0011_0000000_000011; // op2, L2, S3, D0, iter3
+
+        // // rep_option_level_step_delay_iter
+        // @(negedge clk);
+        // instr = 25'b000_00_011_1010_0000000_000010; // op0, L3, S10, D0, iter2
+        // @(negedge clk);
+        // instr = 25'b000_00_100_0011_0000000_000001; // op0, L4, S3, D0, iter1
+        // @(negedge clk);
+        // instr = 25'b000_00_101_0101_0000000_000001; // op0, L5, S5, D0, iter1
+
+////////////////////////////////////////////////////////////////////////////////////// Delay != 0
+        // @(negedge clk);
+        // instr_en = 1'b1;
+
+        // // trans_level_delay
         // @(negedge clk);
         // instr = 25'b010_0001_000000000000000011;
         // @(negedge clk);
@@ -96,49 +132,13 @@ module agu_RTR_tb #(
         // instr = 25'b000_00_101_0101_0000000_000001; // op0, L5, S5, D0, iter1
 
 
-//////////////////////////////////////////////////////////////// Delay == 0
-        // // trans_level_delay
+
+////////////////////////////////////// IR == 0 => RT, T, 0 //////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////// Delay == 0
         // @(negedge clk);
         // instr_en = 1'b1;
-        // @(negedge clk);
-        // instr = 25'b010_0001_000000000000000000;
-        // @(negedge clk);
-        // instr = 25'b010_0000_000000000000000000;
 
-        // // rep_option_level_step_delay_iter
-        // @(negedge clk);
-        // instr = 25'b000_00_000_0011_0000000_000010; // op0, L0, S3, D0, iter2 
-        // @(negedge clk);
-        // instr = 25'b000_00_001_0001_0000000_000011; // op0, L1, S1, D0, iter3
-        // @(negedge clk);
-        // instr = 25'b000_00_010_0010_0000000_000001; // op0, L2, S2, D0, iter1
-        // @(negedge clk);
-        // instr = 25'b000_01_000_0010_0000000_000010; // op1, L0, S2, D0, iter2
-        // @(negedge clk);
-        // instr = 25'b000_01_001_0011_0000000_000011; // op1, L1, S3, D0, iter3
-        // @(negedge clk);
-        // instr = 25'b000_01_010_0101_0000000_000001; // op1, L2, S5, D0, iter1
-        // @(negedge clk);
-        // instr = 25'b000_10_000_0111_0000000_000001; // op2, L0, S7, D0, iter1
-        // @(negedge clk);
-        // instr = 25'b000_10_001_0001_0000000_000010; // op2, L1, S1, D0, iter2
-        // @(negedge clk);
-        // instr = 25'b000_10_010_0011_0000000_000011; // op2, L2, S3, D0, iter3
-
-        // // rep_option_level_step_delay_iter
-        // @(negedge clk);
-        // instr = 25'b000_00_011_1010_0000000_000010; // op0, L3, S10, D0, iter2
-        // @(negedge clk);
-        // instr = 25'b000_00_100_0011_0000000_000001; // op0, L4, S3, D0, iter1
-        // @(negedge clk);
-        // instr = 25'b000_00_101_0101_0000000_000001; // op0, L5, S5, D0, iter1
-        
-        
-//////////////////////////////////////////////////////////////// IR = 0 & Delay == 0
-        
         // // trans_level_delay
-        // @(negedge clk);
-        // instr_en = 1'b1;
         // @(negedge clk);
         // instr = 25'b010_0001_000000000000000000;
         // @(negedge clk);
@@ -150,12 +150,13 @@ module agu_RTR_tb #(
         // @(negedge clk);
         // instr = 25'b000_00_001_0011_0000000_000001; // op0, L1, S3, D0, iter1
         // @(negedge clk);
-        // instr = 25'b000_00_010_0101_0000000_000001; // op0, L2, S5, D0, iter1
+        // instr = 25'b000_00_010_0101_0000000_000011; // op0, L2, S5, D0, iter3
 
-//////////////////////////////////////////////////////////////// IR = 0 & Delay != 0
-        // trans_level_delay
+////////////////////////////////////////////////////////////////////////////////////// Delay != 0
         @(negedge clk);
         instr_en = 1'b1;
+
+        // trans_level_delay
         @(negedge clk);
         instr = 25'b010_0001_000000000000000011;
         @(negedge clk);
@@ -163,12 +164,13 @@ module agu_RTR_tb #(
 
         // rep_option_level_step_delay_iter
         @(negedge clk);
-        instr = 25'b000_00_000_1010_0000000_000010; // op0, L0, S10, D0, iter2
+        instr = 25'b000_00_000_1010_0000010_000010; // op0, L0, S10, D0, iter2
         @(negedge clk);
-        instr = 25'b000_00_101_0011_0000000_000001; // op0, L1, S3, D0, iter1
+        instr = 25'b000_00_001_0011_0000101_000001; // op0, L1, S3, D0, iter1
         @(negedge clk);
-        instr = 25'b000_00_010_0101_0000000_000001; // op0, L2, S5, D0, iter1
+        instr = 25'b000_00_010_0101_0001010_000011; // op0, L2, S5, D0, iter3
 
+////////////////////////////////////////////////////////////////
 
 
         @(negedge clk);
@@ -180,7 +182,7 @@ module agu_RTR_tb #(
         @(negedge clk);
         activation = 1'b0;
         
-        #10000;
+        #16000;
         $stop;
     end
 

@@ -17,7 +17,7 @@ module down_counter #(
         end else if (init) begin
             count <= init_value;
         end else if (enable) begin
-            count <= count - 1;
+            count <= count - 1'b1;
         end
     end
 
@@ -40,7 +40,7 @@ module up_counter #(
         end else if (init0) begin
             count <= 0;
         end else if (enable) begin
-            count <= count + 1;
+            count <= count + 1'b1;
         end
     end
 endmodule

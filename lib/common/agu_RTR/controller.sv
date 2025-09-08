@@ -2,15 +2,10 @@
 
 module controller #(
     parameter INSTR_OPCODE_BITWIDTH,
-    parameter ADDRESS_WIDTH,
 
     parameter REP_ITER_WIDTH,
     parameter REP_DELAY_WIDTH,
-    parameter REP_STEP_WIDTH,
-    parameter REP_LEVEL_WIDTH,
-    parameter REP_OPTION_WIDTH,
     parameter TRANS_DELAY_WIDTH,
-    parameter TRANS_LEVEL_WIDTH,
 
     parameter NUMBER_OR,    // OR: Outter R-Pattern
     parameter NUMBER_MT,    // MT: Middle T-Pattern
@@ -49,6 +44,7 @@ module controller #(
     input  logic [INSTR_OPCODE_BITWIDTH-1:0] opcode,
     output logic                             en_address,
     output logic                             address_valid,
+    output logic                             init0_config,
     output logic                             rep_valid,
     output logic                             repx_valid,
     output logic                             trans_valid
@@ -108,6 +104,7 @@ module controller #(
 
     `include "tasks.sv"
 
+    genvar i;
     `ifdef INCLUDE_IR_STATES
     down_counter #(
         .WIDTH(REP_ITER_WIDTH)
@@ -119,19 +116,20 @@ module controller #(
         .init_value(regIR_iter[level_MT*NUMBER_IR+0]-1'b1),
         .co(co_iter_IR[0])
     );
-    genvar i;
-    for (i = 1; i < NUMBER_IR; i++) begin : IR_counter_iter
-        down_counter #(
-            .WIDTH(REP_ITER_WIDTH)
-        ) counter_iter_IR_inst (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_iter_IR[i]),
-            .init(init_iter_IR[i]),
-            .init_value(regIR_iter[level_MT*NUMBER_IR+i]),
-            .co(co_iter_IR[i])
-        );
-    end
+    generate
+        for (i = 1; i < NUMBER_IR; i++) begin : IR_counter_iter
+            down_counter #(
+                .WIDTH(REP_ITER_WIDTH)
+            ) counter_iter_IR_inst (
+                .clk(clk),
+                .rst_n(rst_n),
+                .enable(en_iter_IR[i]),
+                .init(init_iter_IR[i]),
+                .init_value(regIR_iter[level_MT*NUMBER_IR+i]),
+                .co(co_iter_IR[i])
+            );
+        end
+    endgenerate
     down_counter #(
         .WIDTH(REP_DELAY_WIDTH)
     ) counter_delay_IR_inst (
@@ -142,18 +140,20 @@ module controller #(
         .init_value(flag_OR2 ? regIR_delay[0] : regIR_delay[level_MT*NUMBER_IR+0]),
         .co(co_delay_IR[0])
     );
-    for (i = 1; i < NUMBER_IR; i++) begin : IR_counter_delay
-        down_counter #(
-            .WIDTH(REP_DELAY_WIDTH)
-        ) counter_delay_IR_inst (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_delay_IR[i]),
-            .init(init_delay_IR[i]),
-            .init_value(regIR_delay[level_MT*NUMBER_IR+i]),
-            .co(co_delay_IR[i])
-        );
-    end
+    generate
+        for (i = 1; i < NUMBER_IR; i++) begin : IR_counter_delay
+            down_counter #(
+                .WIDTH(REP_DELAY_WIDTH)
+            ) counter_delay_IR_inst (
+                .clk(clk),
+                .rst_n(rst_n),
+                .enable(en_delay_IR[i]),
+                .init(init_delay_IR[i]),
+                .init_value(regIR_delay[level_MT*NUMBER_IR+i]),
+                .co(co_delay_IR[i])
+            );
+        end
+    endgenerate
     register #(
         .WIDTH(2)
     ) register_level_IR (
@@ -166,19 +166,20 @@ module controller #(
     `endif
 
     `ifdef INCLUDE_MT_STATES
-    genvar i;
-    for (i = 0; i < NUMBER_MT; i++) begin : MT_counter_delay
-        down_counter #(
-            .WIDTH(TRANS_DELAY_WIDTH)
-        ) counter_delay_MT_inst (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_delay_MT[i]),
-            .init(init_delay_MT[i]),
-            .init_value(regMT_delay[i]),
-            .co(co_delay_MT[i])
-        );
-    end
+    generate
+        for (i = 0; i < NUMBER_MT; i++) begin : MT_counter_delay
+            down_counter #(
+                .WIDTH(TRANS_DELAY_WIDTH)
+            ) counter_delay_MT_inst (
+                .clk(clk),
+                .rst_n(rst_n),
+                .enable(en_delay_MT[i]),
+                .init(init_delay_MT[i]),
+                .init_value(regMT_delay[i]),
+                .co(co_delay_MT[i])
+            );
+        end
+    endgenerate
     up_counter #(
         .WIDTH(2)
     ) counter_level_MT (
@@ -191,28 +192,30 @@ module controller #(
     `endif 
     
     `ifdef INCLUDE_OR_STATES
-    for (i = 0; i < NUMBER_OR; i++) begin : OR_counter
-        down_counter #(
-            .WIDTH(REP_ITER_WIDTH)
-        ) counter_iter_OR_inst (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_iter_OR[i]),
-            .init(init_iter_OR[i]),
-            .init_value(regOR_iter[i]),
-            .co(co_iter_OR[i])
-        );
-        down_counter #(
-            .WIDTH(REP_DELAY_WIDTH)
-        ) counter_delay_OR_inst (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_delay_OR[i]),
-            .init(init_delay_OR[i]),
-            .init_value(regOR_delay[i]),
-            .co(co_delay_OR[i])
-        );
-    end
+    generate
+        for (i = 0; i < NUMBER_OR; i++) begin : OR_counter
+            down_counter #(
+                .WIDTH(REP_ITER_WIDTH)
+            ) counter_iter_OR_inst (
+                .clk(clk),
+                .rst_n(rst_n),
+                .enable(en_iter_OR[i]),
+                .init(init_iter_OR[i]),
+                .init_value(regOR_iter[i]),
+                .co(co_iter_OR[i])
+            );
+            down_counter #(
+                .WIDTH(REP_DELAY_WIDTH)
+            ) counter_delay_OR_inst (
+                .clk(clk),
+                .rst_n(rst_n),
+                .enable(en_delay_OR[i]),
+                .init(init_delay_OR[i]),
+                .init_value(regOR_delay[i]),
+                .co(co_delay_OR[i])
+            );
+        end
+    endgenerate
     register #(
         .WIDTH(2)
     ) register_level_OR (
@@ -250,12 +253,13 @@ module controller #(
 
     always_comb begin : CONTROLLER_COMB
         n_state = IDLE;
+        init0_config = 1'b0;
         rep_valid = 1'b0;
         repx_valid = 1'b0;
         trans_valid = 1'b0;
         en_address = 1'b0;
         address_valid = 1'b0;
-        
+
         initIR_address = 1'b0;
         inVal_level_IR = 0;
         en_level_IR = 1'b0;
@@ -270,8 +274,6 @@ module controller #(
             init_initVal_IR[i] = 1'b0;
             en_initVal_IR[i] = 1'b0;
         end
-        
-        
         `ifdef INCLUDE_MT_STATES
         init0_level_MT = 1'b0;
         en_level_MT = 1'b0;
@@ -281,7 +283,6 @@ module controller #(
             en_delay_MT[i] = 1'b0;
         end
         `endif
-        
         `ifdef INCLUDE_OR_STATES
         initOR_address = 1'b0;
         en_flag_OR = 1'b0;
@@ -300,7 +301,7 @@ module controller #(
 
         case (p_state)
             IDLE: begin
-                // TODO: Reset all config registers 
+                init0_config = 1'b1;
                 if (instr_en) begin
                     n_state = CNFG;
                 end else begin
@@ -526,6 +527,7 @@ module controller #(
 ////////////////////////////////////////////////////////////////////////////////
     always_comb begin : CONTROLLER_COMB
         n_state = IDLE;
+        init0_config = 1'b0;
         rep_valid = 1'b0;
         repx_valid = 1'b0;
         trans_valid = 1'b0;
@@ -556,7 +558,7 @@ module controller #(
 
         case (p_state)
             IDLE: begin
-                // TODO: Reset all config registers 
+                init0_config = 1'b1;
                 if (instr_en) begin
                     n_state = CNFG;
                 end else begin
@@ -602,8 +604,11 @@ module controller #(
                 `ifdef INCLUDE_MT_STATES
                 if (regMT_config[level_MT]) begin
                     evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
-                `ifndef INCLUDE_OR_STATES
-                end else if (regOR_config[0]) begin
+                end else begin
+                    n_state = IDLE;
+                end
+                `else `ifdef INCLUDE_OR_STATES
+                if (regOR_config[0]) begin
                     if (!co_iter_OR[0] && !co_delay_OR[0]) begin
                         en_level_OR = 1'b1;
                         inVal_level_OR = 0;
@@ -618,35 +623,14 @@ module controller #(
                     end else begin
                         n_state = IDLE;
                     end
-                `endif
                 end else begin
                     n_state = IDLE;
                 end
-                `else
-                `ifdef INCLUDE_OR_STATES
-                    if (regOR_config[0]) begin
-                        if (!co_iter_OR[0] && !co_delay_OR[0]) begin
-                            en_level_OR = 1'b1;
-                            inVal_level_OR = 0;
-                            en_initVal_OR[0] = 1'b1;
-                            en_delay_OR[0] = 1'b1;
-                            n_state = WAIT_OR;
-                        end else if (!co_iter_OR[0] && co_delay_OR[0]) begin
-                            en_level_OR = 1'b1;
-                            inVal_level_OR = 0;
-                            en_initVal_OR[0] = 1'b1;
-                            n_state = GENR_OR;
-                        end else begin
-                            n_state = IDLE;
-                        end
-                    end else begin
-                        n_state = IDLE;
-                    end
                 `endif 
                 `endif
             end
 
-/////////////////////////////////// T-level ///////////////////////////////////    
+/////////////////////////////////// T-level ///////////////////////////////////
             `ifdef INCLUDE_MT_STATES
             GENR_MT: begin
                 address_valid = 1'b1;
@@ -687,12 +671,6 @@ module controller #(
                 address_valid = 1'b1;
                 initOR_address = 1'b1;
                 en_iter_OR[level_OR] = 1'b1;
-
-                `ifdef INCLUDE_MT_STATES
-                for (int i = 0; i < NUMBER_MT; i++) begin
-                    init_delay_MT[i] = 1'b1;
-                end
-                `endif
                 for (int i = 0; i < level_OR; i++) begin
                     init_delay_OR[i] = 1'b1;
                     init_iter_OR[i] = 1'b1;
