@@ -117,6 +117,7 @@ module agu_fft_r4 #(
     // stages: - log2(n_points) if radix-2
     //         - log4(n_points) if radix-4
     always_comb begin
+        computation_finish = 0;
         if (radix_reg == 0) begin
             computation_finish = (stage_counter == stages-1);
         end else if (radix_reg == 1) begin

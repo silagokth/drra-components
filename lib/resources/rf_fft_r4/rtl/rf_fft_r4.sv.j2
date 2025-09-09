@@ -262,6 +262,7 @@ import {{fingerprint}}_pkg::*;
     
     always_comb begin
         memory_next = memory;
+        bit_rev_addr = LUT_init();
         bulk_data_out_0 = 0;
         word_data_out_0 = 0;
         word_data_out_1 = 0;
