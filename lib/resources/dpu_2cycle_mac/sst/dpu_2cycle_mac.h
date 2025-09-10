@@ -38,12 +38,6 @@ public:
   DPU2CycleMac(SST::ComponentId_t id, SST::Params &params);
   ~DPU2CycleMac() {};
 
-  // SST lifecycle methods
-  virtual void init(unsigned int phase) override;
-  virtual void setup() override;
-  virtual void complete(unsigned int phase) override;
-  virtual void finish() override;
-
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 

@@ -54,12 +54,6 @@ public:
       delete backend;
   };
 
-  // SST lifecycle methods
-  virtual void init(unsigned int phase) override;
-  virtual void setup() override;
-  virtual void complete(unsigned int phase) override;
-  virtual void finish() override;
-
   bool clockTick(SST::Cycle_t currentCycle) override;
 
 private:

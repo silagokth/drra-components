@@ -54,9 +54,6 @@ public:
 
   // SST lifecycle methods
   virtual void init(unsigned int phase) override;
-  virtual void setup() override;
-  virtual void complete(unsigned int phase) override;
-  virtual void finish() override;
 
   // SST clock handler
   bool clockTick(Cycle_t currentCycle) override;

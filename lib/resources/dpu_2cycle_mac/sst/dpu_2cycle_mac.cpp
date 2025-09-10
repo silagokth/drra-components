@@ -7,16 +7,6 @@ using namespace SST;
 DPU2CycleMac::DPU2CycleMac(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {}
 
-void DPU2CycleMac::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
-}
-
-void DPU2CycleMac::setup() {}
-
-void DPU2CycleMac::complete(unsigned int phase) {}
-
-void DPU2CycleMac::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
 bool DPU2CycleMac::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
 

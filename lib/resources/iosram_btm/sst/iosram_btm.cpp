@@ -59,16 +59,6 @@ IOSRAMBottom::IOSRAMBottom(SST::ComponentId_t id, SST::Params &params)
   out.output("Created backing store (type: %s)\n", backingType.c_str());
 }
 
-void IOSRAMBottom::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
-}
-
-void IOSRAMBottom::setup() {}
-
-void IOSRAMBottom::complete(unsigned int phase) {}
-
-void IOSRAMBottom::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
 bool IOSRAMBottom::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
   return false;

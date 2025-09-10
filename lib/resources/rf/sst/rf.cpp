@@ -8,15 +8,6 @@ RegisterFile::RegisterFile(ComponentId_t id, Params &params)
   // Register file parameters
   access_time = params.find<std::string>("access_time", "0ns");
   register_file_size = params.find<int>("register_file_size", 64);
-}
-
-RegisterFile::~RegisterFile() {}
-
-void RegisterFile::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
-}
-
-void RegisterFile::setup() {
   for (int i = 0; i < register_file_size; i++) {
     for (int j = 0; j < word_bitwidth / 8; j++) {
       registers[i].push_back(0);
@@ -24,9 +15,7 @@ void RegisterFile::setup() {
   }
 }
 
-void RegisterFile::complete(unsigned int phase) {}
-
-void RegisterFile::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
+RegisterFile::~RegisterFile() {}
 
 bool RegisterFile::clockTick(Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);

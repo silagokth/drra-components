@@ -7,16 +7,6 @@ using namespace SST;
 DPU::DPU(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {}
 
-void DPU::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
-}
-
-void DPU::setup() {}
-
-void DPU::complete(unsigned int phase) {}
-
-void DPU::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
 bool DPU::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
 

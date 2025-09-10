@@ -86,16 +86,6 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
 
 Switchbox::~Switchbox() {}
 
-void Switchbox::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
-}
-
-void Switchbox::setup() { currentEventNumber++; }
-
-void Switchbox::complete(unsigned int phase) {}
-
-void Switchbox::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
 bool Switchbox::clockTick(Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
   return false;

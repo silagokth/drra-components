@@ -39,12 +39,6 @@ void Sequencer::init(unsigned int phase) {
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }
 
-void Sequencer::setup() {}
-
-void Sequencer::complete(unsigned int phase) {}
-
-void Sequencer::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
 bool Sequencer::clockTick(Cycle_t currentCycle) {
   if (currentCycle % 10 == 0) {
     if (cyclesToWait > 0) {

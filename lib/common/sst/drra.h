@@ -135,10 +135,14 @@ public:
   virtual ~DRRAComponent() {}
 
   // SST lifecycle methods
-  virtual void init(unsigned int phase) override = 0;
-  virtual void setup() override = 0;
-  virtual void complete(unsigned int phase) override = 0;
-  virtual void finish() override = 0;
+  virtual void init(unsigned int phase) override {
+    out.verbose(CALL_INFO, 1, 0, "Initialized\n");
+  };
+  virtual void setup() override {};
+  virtual void complete(unsigned int phase) override {};
+  virtual void finish() override {
+    out.verbose(CALL_INFO, 1, 0, "Finishing\n");
+  }
 
   // SST clock handler
   bool clockTickBase(Cycle_t currentCycle) {
@@ -339,12 +343,6 @@ public:
   }
 
   virtual ~DRRAResource() {}
-
-  // SST lifecycle methods
-  virtual void init(unsigned int phase) override = 0;
-  virtual void setup() override = 0;
-  virtual void complete(unsigned int phase) override = 0;
-  virtual void finish() override = 0;
 
   virtual void decodeInstr(uint32_t instr) = 0;
 
