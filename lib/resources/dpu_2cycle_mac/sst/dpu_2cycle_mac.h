@@ -30,7 +30,6 @@ public:
   SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
 
   DPU2CycleMac(SST::ComponentId_t id, SST::Params &params);
-  ~DPU2CycleMac() {};
 
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);

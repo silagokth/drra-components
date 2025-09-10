@@ -47,8 +47,6 @@ public:
       delete backend;
   };
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-
 private:
   std::string access_time;
 

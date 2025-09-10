@@ -29,7 +29,6 @@ public:
   SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
 
   DPU(SST::ComponentId_t id, SST::Params &params);
-  ~DPU() {};
 
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);

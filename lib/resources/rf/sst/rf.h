@@ -40,12 +40,6 @@ public:
   /* Constructor */
   RegisterFile(ComponentId_t id, Params &params);
 
-  /* Destructor */
-  ~RegisterFile();
-
-  // SST clock handler
-  bool clockTick(Cycle_t currentCycle) override;
-
 private:
   // Register File
   uint32_t register_file_size;

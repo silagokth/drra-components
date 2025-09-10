@@ -49,9 +49,6 @@ public:
   /* Constructor */
   Sequencer(ComponentId_t id, Params &params);
 
-  /* Destructor */
-  ~Sequencer();
-
   // SST lifecycle methods
   virtual void init(unsigned int phase) override;
 

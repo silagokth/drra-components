@@ -348,6 +348,12 @@ public:
 
   virtual ~DRRAResource() {}
 
+  virtual bool clockTick(Cycle_t currentCycle) override {
+    executeScheduledEventsForCycle(currentCycle);
+
+    return false;
+  }
+
   virtual void decodeInstr(uint32_t instr) = 0;
 
   virtual void handleActivation(uint32_t slot_id, uint32_t ports) {};

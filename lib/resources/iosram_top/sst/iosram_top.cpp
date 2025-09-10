@@ -59,11 +59,6 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
   out.output("Created backing store (type: %s)\n", backingType.c_str());
 }
 
-bool IOSRAMTop::clockTick(SST::Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
-  return false;
-}
-
 void IOSRAMTop::decodeInstr(uint32_t instr) {
   uint32_t instrType = getInstrType(instr);
   uint32_t instrOpcode = getInstrOpcode(instr);

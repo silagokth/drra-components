@@ -33,25 +33,17 @@ public:
          "Link(s) to resources slots (slot_port0, slot_port1, etc.)"});
     ports.push_back({"cell_port%(portnum)d",
                      "Link(s) to cells (cell_port0, cell_port1, etc.)"});
-    ports.push_back(
-        {"input_buffer_port", "Link to the input buffer (optional)"});
-    ports.push_back(
-        {"output_buffer_port", "Link to the output buffer (optional)"});
     return ports;
   }
   SST_ELI_DOCUMENT_PORTS(getComponentPorts())
 
   SST_ELI_DOCUMENT_STATISTICS()
-  SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
 
   /* Constructor */
   Switchbox(ComponentId_t id, Params &params);
 
   /* Destructor */
-  ~Switchbox();
-
-  // SST clock handler
-  bool clockTick(Cycle_t currentCycle) override;
+  ~Switchbox() {};
 
 private:
   // Decode instruction

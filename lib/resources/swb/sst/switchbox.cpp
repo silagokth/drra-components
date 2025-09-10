@@ -74,16 +74,8 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
   out.output("Connected %u cell links (", totalConnections.size());
   for (auto link : totalConnections) {
     out.print("%s,", cell_directions_str[link].c_str());
-    // out.print("%u,", link);
   }
   out.print(")\n");
-}
-
-Switchbox::~Switchbox() {}
-
-bool Switchbox::clockTick(Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
-  return false;
 }
 
 void Switchbox::handleSlotEventWithID(Event *event, uint32_t id) {

@@ -15,13 +15,6 @@ RegisterFile::RegisterFile(ComponentId_t id, Params &params)
   }
 }
 
-RegisterFile::~RegisterFile() {}
-
-bool RegisterFile::clockTick(Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
-  return false;
-}
-
 void RegisterFile::decodeInstr(uint32_t instr) {
   // Decode instruction
   uint32_t opcode = getInstrOpcode(instr);

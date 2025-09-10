@@ -23,8 +23,6 @@ Sequencer::Sequencer(ComponentId_t id, Params &params)
   primaryComponentDoNotEndSim();
 }
 
-Sequencer::~Sequencer() {}
-
 void Sequencer::init(unsigned int phase) {
   // Load the assembly program
   load_assembly_program(assemblyProgramPath);
