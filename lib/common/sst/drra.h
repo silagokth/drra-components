@@ -124,7 +124,6 @@ public:
       cell_coordinates[0] = paramsCellCoordinates[0];
       cell_coordinates[1] = paramsCellCoordinates[1];
     }
-
     num_slots = params.find<uint32_t>("num_slots", 16);
 
     // Instruction format
@@ -286,6 +285,7 @@ public:
         port_last_rep_level[i * PORTS_PER_SLOT + j] = -1;
       }
     }
+    num_fsms = resource_size * params.find<uint32_t>("fsm_per_slot", 4);
 
     // Initialize data buffers to zero
     for (int i = 0; i < resource_size; i++) {
@@ -587,6 +587,7 @@ protected:
   int16_t slot_id;
   std::vector<int16_t> slot_ids;
   uint8_t resource_size = 1; // Default to 1 slot
+  uint32_t num_fsms;
 
   // Data buffers
   std::map<uint32_t, std::vector<uint8_t>> data_buffers;

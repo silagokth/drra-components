@@ -5,7 +5,9 @@
 using namespace SST;
 
 DPU2CycleMac::DPU2CycleMac(SST::ComponentId_t id, SST::Params &params)
-    : DRRAResource(id, params) {}
+    : DRRAResource(id, params) {
+  fsmHandlers.resize(num_fsms);
+}
 
 bool DPU2CycleMac::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);

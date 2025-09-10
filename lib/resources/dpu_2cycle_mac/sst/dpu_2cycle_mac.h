@@ -200,9 +200,8 @@ private:
   uint32_t current_event_number = 0;
 
   // FSMs
-  static const uint32_t num_fsms = 4;
   uint32_t current_fsm = 0;
-  std::function<void()> fsmHandlers[num_fsms];
+  std::vector<std::function<void()>> fsmHandlers;
 };
 
 #endif // _DPU_H

@@ -21,7 +21,6 @@ public:
   /* Element Library Params */
   static vector<ElementInfoParam> getComponentParams() {
     auto params = DRRAResource::getBaseParams();
-    params.push_back({"number_of_fsms", "Number of FSMs", "4"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -150,7 +149,6 @@ private:
   // Events handlers list
   vector<function<void()>> eventsHandlers;
 
-  uint32_t numFSMs = 4;
   uint32_t currentFsmOption_swb = 0;
   uint32_t currentFsmOption_route = 0;
   uint32_t currentEventNumber = 0;

@@ -6,9 +6,7 @@
 
 Switchbox::Switchbox(ComponentId_t id, Params &params)
     : DRRAResource(id, params) {
-  // Number of FSMs
-  numFSMs = params.find<uint32_t>("number_of_fsms", 4);
-  for (uint32_t i = 0; i < numFSMs; i++) {
+  for (uint32_t i = 0; i < num_fsms; i++) {
     connection_maps.push_back(map<uint32_t, uint32_t>());
     sending_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
     receiving_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
@@ -224,7 +222,7 @@ void Switchbox::handleActivation(uint32_t slot_id, uint32_t ports) {
   if (ports & 0b1) {
     connection_maps = next_connection_maps;
     next_connection_maps.clear();
-    for (uint32_t i = 0; i < numFSMs; i++) {
+    for (uint32_t i = 0; i < num_fsms; i++) {
       next_connection_maps.push_back(map<uint32_t, uint32_t>());
     }
   }
@@ -234,7 +232,7 @@ void Switchbox::handleActivation(uint32_t slot_id, uint32_t ports) {
 
     next_sending_routes_maps.clear();
     next_receiving_routes_maps.clear();
-    for (uint32_t i = 0; i < numFSMs; i++) {
+    for (uint32_t i = 0; i < num_fsms; i++) {
       next_sending_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
       next_receiving_routes_maps.push_back(map<uint32_t, vector<uint32_t>>());
     }
@@ -321,7 +319,7 @@ void Switchbox::handleFsm(uint32_t instr) {
     currentEventNumber++;
     out.output("Adding FSM reset event\n");
 
-    for (uint32_t i = 1; i < numFSMs; i++) {
+    for (uint32_t i = 1; i < num_fsms; i++) {
       out.output("Size of connection_maps[%u]: %lu\n", i,
                  next_connection_maps[i].size());
       if (next_connection_maps[i].size() == 0) {
@@ -346,7 +344,7 @@ void Switchbox::handleFsm(uint32_t instr) {
     currentEventNumber++;
     out.output("Adding FSM reset event\n");
 
-    for (uint32_t i = 1; i < numFSMs; i++) {
+    for (uint32_t i = 1; i < num_fsms; i++) {
       if ((next_receiving_routes_maps[i].size() == 0) &&
           (next_sending_routes_maps[i].size() == 0)) {
         break;

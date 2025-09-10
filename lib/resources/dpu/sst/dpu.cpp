@@ -5,7 +5,9 @@
 using namespace SST;
 
 DPU::DPU(SST::ComponentId_t id, SST::Params &params)
-    : DRRAResource(id, params) {}
+    : DRRAResource(id, params) {
+  fsmHandlers.resize(num_fsms);
+}
 
 bool DPU::clockTick(SST::Cycle_t currentCycle) {
   executeScheduledEventsForCycle(currentCycle);
