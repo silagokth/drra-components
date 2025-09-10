@@ -3,15 +3,6 @@
 
 #include "drra.h"
 
-#include <sst/core/component.h>
-#include <sst/core/event.h>
-#include <sst/core/interfaces/stdMem.h>
-#include <sst/core/link.h>
-#include <sst/core/output.h>
-#include <sst/core/params.h>
-#include <sst/core/sst_types.h>
-#include <sst/core/timeConverter.h>
-
 using namespace std;
 using namespace SST;
 

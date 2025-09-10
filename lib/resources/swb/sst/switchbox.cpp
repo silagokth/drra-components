@@ -1,8 +1,6 @@
 #include "switchbox.h"
 
 #include <bitset>
-#include <sst/core/component.h>
-#include <sst/core/link.h>
 
 #include "dataEvent.h"
 

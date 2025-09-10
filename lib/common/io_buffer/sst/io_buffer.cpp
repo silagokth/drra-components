@@ -1,8 +1,5 @@
 #include "io_buffer.h"
 
-#include <sst/core/componentExtension.h>
-#include <sst/core/interfaces/stdMem.h>
-
 #include "custom_backing.h"
 
 #include "ioEvents.h"
