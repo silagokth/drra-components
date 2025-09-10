@@ -80,7 +80,7 @@ module mux_rotator_r4 #(
             select1 = '0;
             select2 = '0;
         end else begin
-            select1 = select1 | 1 << stages - curr_stage - 1;
+            select1 = (((1 << curr_stage) - 1) << (stages - curr_stage - 1));
             select2 = 1 << stages - curr_stage - 1;
         end
     end
