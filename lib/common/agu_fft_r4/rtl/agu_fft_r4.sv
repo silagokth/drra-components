@@ -98,32 +98,54 @@ module agu_fft_r4 #(
     assign next_address = mode_reg ? next_address_rot : next_address_twid; // mode 1: fft data, mode 0: twiddle
 
     logic stage_finish, computation_finish;
-    logic [STAGE_WIDTH-1:0] stages;
+    logic [STAGE_WIDTH-1:0] stages_reg, max_stage_reg;
+    logic [AGU_BITWIDTH-1:0] divisor_reg;
 
     int j;
-    always_comb begin
-        stages = 0;
-        for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
-            if (n_points_reg[j]) begin
-                stages = j;
-                break;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            stages_reg <= 0;
+        else if (load_config) begin
+            for (j = AGU_BITWIDTH-1; j >= 0; j--) begin
+                if (n_points[j]) begin
+                    stages_reg <= j;
+                end
             end
         end
     end
     
     // counter: - n_points/2 if 1 bu radix-2,
     //          - n_points/4 if 2 bu radix-2 or 1 bu radix-4
-    assign stage_finish = (address_counter >= n_points_reg/(2*(n_bu_reg + 1) + radix_reg*2) - 1);
-    // stages: - log2(n_points) if radix-2
-    //         - log4(n_points) if radix-4
-    always_comb begin
-        computation_finish = 0;
-        if (radix_reg == 0) begin
-            computation_finish = (stage_counter == stages-1);
-        end else if (radix_reg == 1) begin
-            computation_finish = (stage_counter == stages/2-1);
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            divisor_reg <= 0;
+        end else if (load_config) begin
+            // compute divisor once
+            case ({n_bu, radix})
+                2'b00: divisor_reg <= 1; // n_bu=0, radix=0 → 2 → shift 1
+                2'b10: divisor_reg <= 2; // n_bu=1, radix=0 → 4 → shift 2
+                2'b01: divisor_reg <= 2; // n_bu=0, radix=1 → 4 → shift 2
+                default: divisor_reg <= 1;
+            endcase
         end
     end
+
+    assign stage_finish = (address_counter >= (n_points_reg >> divisor_reg) - 1);
+
+    // stages: - log2(n_points) if radix-2
+    //         - log4(n_points) if radix-4
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            max_stage_reg <= 0;
+        else if (load_config) begin
+            if (radix == 0)
+                max_stage_reg <= stages_reg - 1;
+            else
+                max_stage_reg <= (stages_reg >> 1) - 1; // divide by 2
+        end
+    end
+
+    assign computation_finish = (stage_counter == max_stage_reg);
 
     // FSM
     always_ff @(posedge clk or negedge rst_n) begin
