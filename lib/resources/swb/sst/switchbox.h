@@ -22,7 +22,6 @@ public:
   static vector<ElementInfoParam> getComponentParams() {
     auto params = DRRAResource::getBaseParams();
     params.push_back({"number_of_fsms", "Number of FSMs", "4"});
-    params.push_back({"num_slots", "Number of slots", "16"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -134,7 +133,6 @@ private:
   vector<map<uint32_t, vector<uint32_t>>> next_receiving_routes_maps;
 
   // Slot links
-  uint32_t num_slots;
   vector<Link *> slot_links;
 
   // Cell links

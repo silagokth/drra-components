@@ -113,7 +113,7 @@ public:
         new Clock::Handler2<DRRAComponent, &DRRAComponent::clockTickBase>(
             this));
 
-    // Cell coordinates
+    // Parent cell variables
     std::vector<int> paramsCellCoordinates;
     params.find_array<int>("cell_coordinates", paramsCellCoordinates);
     if (paramsCellCoordinates.size() != 2) {
@@ -124,6 +124,8 @@ public:
       cell_coordinates[0] = paramsCellCoordinates[0];
       cell_coordinates[1] = paramsCellCoordinates[1];
     }
+
+    num_slots = params.find<uint32_t>("num_slots", 16);
 
     // Instruction format
     instrBitwidth = params.find<uint64_t>("instr_bitwidth", 32);
@@ -171,6 +173,7 @@ protected:
     params.push_back({"instr_opcode_width", "Instruction opcode width", "3"});
     params.push_back({"instr_slot_width", "Instruction slot width", "4"});
     params.push_back({"cell_coordinates", "Cell coordinates", "[0,0]"});
+    params.push_back({"num_slots", "Number of slots in the parent cell", "16"});
     return params;
   }
 
@@ -187,7 +190,8 @@ protected:
   // Local buffers
   uint32_t instrBuffer;
 
-  // Cell coordinates
+  // Parent cell variables
+  uint32_t num_slots;
   uint32_t cell_coordinates[2] = {0, 0};
 
   // Narrow level
@@ -601,9 +605,6 @@ public:
     out.setPrefix(getType() + " [" + std::to_string(cell_coordinates[0]) + "_" +
                   std::to_string(cell_coordinates[1]) + "] - ");
 
-    // Get number of slots
-    num_slots = params.find<uint32_t>("num_slots", 16);
-
     // Configure slot links
     uint8_t num_connected_links = 0;
     for (uint32_t i = 0; i < num_slots; i++) {
@@ -660,9 +661,6 @@ public:
 
   static std::vector<SST::ElementInfoParam> getBaseParams() {
     std::vector<SST::ElementInfoParam> params = DRRAComponent::getBaseParams();
-    params.push_back({"num_slots",
-                      "Number of slots that can be connected to the controller",
-                      "16"});
     return params;
   }
 
@@ -679,7 +677,6 @@ protected:
   uint32_t pc = 0;
 
   // Slot links
-  uint32_t num_slots;
   std::vector<Link *> slot_links;
 };
 

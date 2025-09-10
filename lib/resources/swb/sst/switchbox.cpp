@@ -22,7 +22,6 @@ Switchbox::Switchbox(ComponentId_t id, Params &params)
   currentFsmOption_route = 0;
 
   // Slot ports
-  num_slots = params.find<uint32_t>("num_slots", 16);
   for (uint32_t i = 0; i < num_slots; i++) {
     slot_links.push_back(nullptr);
   }
