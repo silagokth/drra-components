@@ -1,4 +1,3 @@
-use serde_json::json;
 /**
  * This is the main file for the Rust implementation of the compile_util program.
  *
@@ -32,9 +31,13 @@ use serde_json::json;
  * interface and any other functions. You can add helper functions if needed.
  *
  */
-use serde_json::Value;
-use std::collections::HashMap;
-use std::env;
+use std::{
+    collections::HashMap,
+    env,
+    ops::{Deref, DerefMut},
+};
+
+use serde_json::{json, Value};
 
 /*******************************************************************************
  * Modify here to implement the function. Don't change the function interface.
@@ -42,24 +45,19 @@ use std::env;
 fn get_timing_model(op: Op) -> String {
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
-    let mut expr = format!("e0");
+    let mut expr = "e0".to_string();
 
     for instr in op.body {
         if instr.kind == "rep" {
             let instr_fields = instr.params;
-            let mut iter = "0".to_string();
-            let mut delay = "0".to_string();
-            let mut level = 0;
-            for field in instr_fields {
-                match field.0.as_str() {
-                    "iter" => iter = field.1,
-                    "delay" => delay = field.1,
-                    "level" => level = field.1.parse::<i64>().unwrap(),
-                    _ => {}
-                }
-            }
+            let mut iter = instr_fields.get_value("iter");
+            let delay = instr_fields.get_value("delay");
+            let level = instr_fields.get_value("level");
             iter = (iter.parse::<i64>().unwrap() + 1).to_string();
-            r.insert(level, (iter, delay.to_string()));
+            r.insert(
+                level.parse::<i64>().unwrap(),
+                (iter.to_string(), delay.to_string()),
+            );
         } else if instr.kind == "fsm" {
             let instr_fields = instr.params;
             t.insert(0, "0".to_string());
@@ -83,7 +81,9 @@ fn get_timing_model(op: Op) -> String {
     }
 
     let mut event_counter = 1;
-    for i in 0..3 {
+    let mut t_keys: Vec<_> = t.keys().cloned().collect();
+    t_keys.sort();
+    for i in t_keys {
         if let Some(delay) = t.get(&i) {
             if delay != "0" {
                 expr = format!("T<{}>({}, e{})", delay, expr, event_counter);
@@ -94,43 +94,40 @@ fn get_timing_model(op: Op) -> String {
         }
     }
 
-    for i in 0..8 {
+    let mut r_keys: Vec<_> = r.keys().cloned().collect();
+    r_keys.sort();
+    for i in r_keys {
         if let Some(values) = r.get(&i) {
             expr = format!("R<{},{}>({})", values.0, values.1, expr);
         } else {
             break;
         }
     }
+
     expr
 }
 
 fn reshape_instr(op: Op) -> Op {
-    let mut new_op = Op {
-        kind: op.kind,
-        id: op.id,
-        row: op.row,
-        col: op.col,
-        slot: op.slot,
-        port: op.port,
-        body: Vec::new(),
-    };
-
+    let mut new_op = op.clone();
     let mut new_body = Vec::new();
     for instr in op.body {
         if instr.kind == "rep" {
-            let mut iter = 0;
-            let mut delay = 0;
-            let mut step = 0;
+            let mut iter = instr
+                .params
+                .get_value("iter")
+                .parse::<i64>()
+                .expect("Failed to parse iter as i64");
+            let mut delay = instr
+                .params
+                .get_value("delay")
+                .parse::<i64>()
+                .expect("Failed to parse iter as i64");
 
-            for field in instr.params.iter() {
-                if field.0 == "iter" {
-                    iter = field.1.parse::<i64>().unwrap();
-                } else if field.0 == "delay" {
-                    delay = field.1.parse::<i64>().unwrap();
-                } else if field.0 == "step" {
-                    step = field.1.parse::<i64>().unwrap();
-                }
-            }
+            let mut step = instr
+                .params
+                .get_value("step")
+                .parse::<i64>()
+                .expect("Failed to parse iter as i64");
 
             let mut repx_flag = false;
             let mut iterx = 0;
@@ -139,17 +136,17 @@ fn reshape_instr(op: Op) -> Op {
             if iter > 2i64.pow(6) - 1 {
                 repx_flag = true;
                 iterx = iter / 2i64.pow(6);
-                iter = iter % 2i64.pow(6);
+                iter %= 2i64.pow(6);
             }
             if delay > 2i64.pow(6) - 1 {
                 repx_flag = true;
                 delayx = delay / 2i64.pow(6);
-                delay = delay % 2i64.pow(6);
+                delay %= 2i64.pow(6);
             }
             if step > 2i64.pow(6) - 1 {
                 repx_flag = true;
                 stepx = step / 2i64.pow(6);
-                step = step % 2i64.pow(6);
+                step %= 2i64.pow(6);
             }
 
             if repx_flag {
@@ -191,11 +188,59 @@ fn reshape_instr(op: Op) -> Op {
 /*******************************************************************************
  * Modification ends here
  ******************************************************************************/
+
+#[derive(Debug, Clone)]
+struct InstrSegments(Vec<(String, String)>);
+impl InstrSegments {
+    pub fn new(fields: Vec<(String, String)>) -> Self {
+        InstrSegments(fields)
+    }
+    pub fn get_value(&self, key: &str) -> String {
+        let instr_fields = &self.0;
+        instr_fields
+            .iter()
+            .find_map(|(k, v)| (k == key).then_some(v).cloned())
+            .unwrap_or("0".to_string())
+    }
+}
+
+impl Deref for InstrSegments {
+    type Target = Vec<(String, String)>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for InstrSegments {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for InstrSegments {
+    type Item = (String, String);
+    type IntoIter = std::vec::IntoIter<(String, String)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a InstrSegments {
+    type Item = &'a (String, String);
+    type IntoIter = std::slice::Iter<'a, (String, String)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Instr {
     kind: String,
     id: String,
-    params: Vec<(String, String)>,
+    params: InstrSegments,
 }
 
 impl Instr {
@@ -208,7 +253,11 @@ impl Instr {
             let value = param_json["value"].as_str().unwrap().to_string();
             params.push((name, value));
         }
-        Instr { id, kind, params }
+        Instr {
+            id,
+            kind,
+            params: InstrSegments::new(params),
+        }
     }
     fn to_json(&self) -> Value {
         let mut params_json = Vec::new();
@@ -307,9 +356,10 @@ fn main() {
     let subcommand = &args[1]; // subcommand
     let input_file = &args[2]; // input_file
     let output_file = &args[3]; // output_file
-                                // read the input file as json
-    let input = std::fs::read_to_string(input_file).unwrap();
-    let j: Value = serde_json::from_str(&input).unwrap();
+
+    // read the input file as json
+    let input = std::fs::read_to_string(input_file).expect("Failed to read input file");
+    let j: Value = serde_json::from_str(&input).expect("Failed to parse input file as JSON");
     let op = Op::from_json(j);
 
     // Call the appropriate function based on the subcommand
