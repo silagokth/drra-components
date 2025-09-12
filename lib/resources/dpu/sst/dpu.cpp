@@ -1,5 +1,6 @@
 #include "dpu.h"
 #include "dataEvent.h"
+#include "dpu_operations.h"
 #include <cmath>
 
 using namespace SST;
@@ -7,6 +8,8 @@ using namespace SST;
 DPU::DPU(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   fsmHandlers.resize(num_fsms);
+  dpuHandlers = DPU_Operations::createHandlers(this);
+  instructionHandlers = DPU_PKG::createInstructionHandlers(this);
 }
 
 bool DPU::clockTick(SST::Cycle_t currentCycle) {
@@ -55,88 +58,53 @@ void DPU::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
   }
 }
 
-void DPU::decodeInstr(uint32_t instr) {
-  uint32_t instrOpcode = getInstrOpcode(instr);
-
-  switch (instrOpcode) {
-  case REP:
-    handleRep(instr);
-    break;
-  case REPX:
-    handleRepx(instr);
-    break;
-  case FSM:
-    handleFSM(instr);
-    break;
-  case DPU_OP:
-    handleDPU(instr);
-    break;
-  default:
-    out.fatal(CALL_INFO, -1, "Invalid opcode: %u\n", instrOpcode);
-  }
-}
-
-void DPU::handleRep(uint32_t instr) {
-  // Instruction fields
-  uint32_t port = getInstrField(instr, 2, 22);
-  uint32_t level = getInstrField(instr, 4, 18);
-  uint32_t iter = getInstrField(instr, 6, 12);
-  uint32_t step = getInstrField(instr, 6, 6);
-  uint32_t delay = getInstrField(instr, 6, 0);
+void DPU::handleREP(const DPU_PKG::REPInstruction &rep) {
 
   out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             getInstrSlot(instr), port, level, iter, step, delay);
+             rep.slot, rep.port, rep.level, rep.iter, rep.step, rep.delay);
 
   // For now, we only support increasing repetition levels (and no skipping)
-  if (level != port_last_rep_level[port] + 1) {
+  if (rep.level != port_last_rep_level[rep.port] + 1) {
     out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              port_last_rep_level[port], level);
+              port_last_rep_level[rep.port], rep.level);
   } else {
-    port_last_rep_level[port] = level;
+    port_last_rep_level[rep.port] = rep.level;
   }
 
   // add repetition to the timing model
   try {
-    next_timing_states[0].addRepetition(iter, delay, level, step);
+    next_timing_states[0].addRepetition(rep.iter, rep.delay, rep.level,
+                                        rep.step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
   }
 }
 
-void DPU::handleRepx(uint32_t instr) {
-  // Instruction fields
-  uint32_t port = getInstrField(instr, 2, 22);
-  uint32_t level = getInstrField(instr, 4, 18);
-  uint32_t iter_msb = getInstrField(instr, 6, 12);
-  uint32_t step_msb = getInstrField(instr, 6, 6);
-  uint32_t delay_msb = getInstrField(instr, 6, 0);
-
+void DPU::handleREPX(const DPU_PKG::REPXInstruction &repx) {
   auto repetition_op =
-      next_timing_states[0].getRepetitionOperatorFromLevel(level);
-  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
-  uint32_t step = step_msb << 6 | repetition_op.getStep();
-  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
+      next_timing_states[0].getRepetitionOperatorFromLevel(repx.level);
+  uint32_t iter = repx.iter_msb << 6 | repetition_op.getIterations();
+  uint32_t step = repx.step_msb << 6 | repetition_op.getStep();
+  uint32_t delay = repx.delay_msb << 6 | repetition_op.getDelay();
   try {
-    next_timing_states[0].adjustRepetition(iter, delay, level, step);
+    next_timing_states[0].adjustRepetition(iter, delay, repx.level, step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
   }
 }
 
-void DPU::handleFSM(uint32_t instr) {
-  // Instruction fields
-  uint32_t port = getInstrField(instr, 3, 21);
-  uint32_t delay_0 = getInstrField(instr, 7, 14);
-  uint32_t delay_1 = getInstrField(instr, 7, 7);
-  uint32_t delay_2 = getInstrField(instr, 7, 0);
+void DPU::handleFSM(const DPU_PKG::FSMInstruction &fsm) {
   // TODO: what are the use cases for delay_1 and delay_2?
+  out.output("fsm (slot=%d, port=%d, delay_0=%d, delay_1=%d, delay_2=%d)\n",
+             fsm.slot, fsm.port, fsm.delay_0, fsm.delay_1, fsm.delay_2);
 
   // add transition to the timing model
   try {
     next_timing_states[0].addTransition(
-        delay_0, "event_" + std::to_string(current_event_number), [this, port] {
-          out.output(" FSM switched to %d\n", port);
-          current_fsm = port;
+        fsm.delay_0, "event_" + std::to_string(current_event_number),
+        [this, fsm] {
+          out.output(" FSM switched to %d\n", fsm.port);
+          current_fsm = fsm.port;
         });
     current_event_number++;
   } catch (const std::exception &e) {
@@ -144,19 +112,17 @@ void DPU::handleFSM(uint32_t instr) {
   }
 }
 
-void DPU::handleDPU(uint32_t instr) {
-  uint32_t option = getInstrField(instr, 2, 22);
-  DPU_MODE mode = (DPU_MODE)getInstrField(instr, 5, 17);
-  uint64_t immediate = getInstrField(instr, 16, 1);
-
-  out.output("dpu (slot=%d, option=%u, mode=%u, immediate=%u)\n",
-             getInstrSlot(instr), option, mode, immediate);
+void DPU::handleDPU(const DPU_PKG::DPUInstruction &dpu) {
+  out.output("dpu (slot=%d, option=%u, mode=%u, immediate=%u)\n", dpu.slot,
+             dpu.option, dpu.mode, dpu.immediate);
 
   // replace the data buffer with the immediate value if needed
-  if (mode == DPU_MODE::ADD_CONST || mode == DPU_MODE::SUBT_ABS ||
-      mode == DPU_MODE::MULT_CONST || mode == DPU_MODE::MAX_MIN_CONST ||
-      mode == DPU_MODE::LD_IR) {
-    data_buffers[1] = uint64ToVector(immediate);
+  if (dpu.mode == DPU_PKG::DPU_MODE::ADD_CONST ||
+      dpu.mode == DPU_PKG::DPU_MODE::SUBT_ABS ||
+      dpu.mode == DPU_PKG::DPU_MODE::MULT_CONST ||
+      dpu.mode == DPU_PKG::DPU_MODE::MAX_MIN_CONST ||
+      dpu.mode == DPU_PKG::DPU_MODE::LD_IR) {
+    data_buffers[1] = uint64ToVector(dpu.immediate);
   }
 
   // Add the reset event
@@ -165,7 +131,8 @@ void DPU::handleDPU(uint32_t instr) {
       [this] { accumulate_register.clear(); });
 
   // Add the event handler
-  fsmHandlers[current_fsm] = getDPUHandler(mode);
+  fsmHandlers[current_fsm] =
+      DPU_Operations::getDPUHandler(this, (DPU_PKG::DPU_MODE)dpu.mode);
 }
 
 void DPU::handleOperation(std::string name,
