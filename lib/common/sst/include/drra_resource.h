@@ -372,5 +372,6 @@ protected:
   std::map<uint32_t, int32_t> port_last_rep_level;
 
   // Instruction handlers
-  std::map<uint32_t, std::function<void(uint32_t)>> instructionHandlers;
+  std::unordered_map<uint32_t, std::function<void(uint32_t)>>
+      instructionHandlers;
 };

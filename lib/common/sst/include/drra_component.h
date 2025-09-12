@@ -155,6 +155,7 @@ protected:
   uint32_t instrOpcodeWidth;
   uint32_t instrSlotWidth;
 
+  // TODO: remove this once all components are updated
   uint32_t getInstrType(uint32_t instr) {
     return getInstrField(instr, instrTypeBitwidth,
                          instrBitwidth - instrTypeBitwidth);
