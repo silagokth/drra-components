@@ -4,75 +4,19 @@
 #include <cmath>
 #include <sst/core/component.h>
 #include <sst/core/link.h>
-#include <sst/core/output.h>
 #include <sst/core/params.h>
 
 #include "activationEvent.h"
+#include "drra_output.h"
 #include "instruction.h"
 #include "instructionEvent.h"
 #include "timingModel.h"
 
 #include <fstream>
-#include <iostream>
 
 #define PORTS_PER_SLOT 4
 
 using namespace SST;
-
-class DRRAOutput : public Output {
-private:
-  std::string prefix;
-
-public:
-  DRRAOutput(const std::string &prefix = "") : prefix(prefix) {}
-
-  void setPrefix(const std::string &new_prefix) { prefix = new_prefix; }
-
-  template <typename... Args> void output(const char *format, Args... args) {
-    std::string prefixed_format = prefix + format;
-    if constexpr (sizeof...(args) == 0) {
-      Output::output("%s", prefixed_format.c_str());
-    } else {
-      Output::output(prefixed_format.c_str(), args...);
-    }
-    std::cout.flush();
-  }
-
-  template <typename... Args>
-  void fatal(uint32_t line, const char *file, const char *func, int exit_code,
-             const char *format, Args... args) {
-    std::string prefixed_format = prefix + format;
-    if constexpr (sizeof...(args) == 0) {
-      Output::fatal(line, file, func, exit_code, "%s", prefixed_format.c_str());
-    } else {
-      Output::fatal(line, file, func, exit_code, prefixed_format.c_str(),
-                    args...);
-    }
-    std::cout.flush();
-  }
-
-  template <typename... Args>
-  void verbose(uint32_t line, const char *file, const char *func,
-               uint32_t output_level, uint32_t output_bits, const char *format,
-               Args... args) {
-    std::string prefixed_format = prefix + format;
-    if constexpr (sizeof...(args) == 0) {
-      Output::verbose(line, file, func, output_level, output_bits, "%s",
-                      prefixed_format.c_str());
-    } else {
-      Output::verbose(line, file, func, output_level, output_bits,
-                      prefixed_format.c_str(), args...);
-    }
-  }
-
-  template <typename... Args> void print(const char *format, Args... args) {
-    if constexpr (sizeof...(args) == 0) {
-      Output::output("%s", format);
-    } else {
-      Output::output(format, args...);
-    }
-  }
-};
 
 class DRRAComponent : public Component {
 public:
@@ -179,6 +123,13 @@ protected:
     params.push_back({"cell_coordinates", "Cell coordinates", "[0,0]"});
     params.push_back({"num_slots", "Number of slots in the parent cell", "16"});
     return params;
+  }
+
+  static std::vector<SST::ElementInfoStatistic> getBaseStatistics() {
+    std::vector<SST::ElementInfoStatistic> stats;
+    // stats.push_back({"number_of_instructions", "Number of instructions
+    // executed", "count", 1});
+    return stats;
   }
 
   // Simulation global variables
@@ -407,6 +358,12 @@ protected:
     ports.push_back({"io_input_port", "Link to the IO input port", {""}});
     ports.push_back({"io_output_port", "Link to the IO output port", {""}});
     return ports;
+  }
+
+  static std::vector<SST::ElementInfoStatistic> getBaseStatistics() {
+    std::vector<SST::ElementInfoStatistic> stats =
+        DRRAComponent::getBaseStatistics();
+    return stats;
   }
 
   bool isPortActive(uint32_t port) { return active_ports[port]; }

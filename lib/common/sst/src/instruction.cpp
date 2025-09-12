@@ -31,7 +31,7 @@ Instruction::Instruction(uint32_t raw_instr, Format fmt,
   }
 }
 
-Segment Instruction::get(std::string name) {
+Segment Instruction::get(std::string name) const {
   for (auto &seg : segments) {
     if (seg.name == name) {
       return seg;

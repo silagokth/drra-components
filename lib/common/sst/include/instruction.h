@@ -40,7 +40,7 @@ public:
 
   std::vector<Segment> segments;
 
-  Segment get(std::string name);
+  Segment get(std::string name) const;
 
   Instruction(uint32_t raw_instr);
   Instruction(uint32_t raw_instr, Format fmt);
