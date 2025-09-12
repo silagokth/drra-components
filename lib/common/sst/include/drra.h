@@ -8,6 +8,7 @@
 #include <sst/core/params.h>
 
 #include "activationEvent.h"
+#include "instruction.h"
 #include "instructionEvent.h"
 #include "timingModel.h"
 
@@ -127,10 +128,14 @@ public:
     num_slots = params.find<uint32_t>("num_slots", 16);
 
     // Instruction format
-    instrBitwidth = params.find<uint64_t>("instr_bitwidth", 32);
-    instrTypeBitwidth = params.find<uint64_t>("instr_type_bitwidth", 1);
-    instrOpcodeWidth = params.find<uint64_t>("instr_opcode_width", 3);
-    instrSlotWidth = params.find<uint64_t>("instr_slot_width", 4);
+    format.total_bitwidth = params.find<uint64_t>("instr_bitwidth", 32);
+    format.type_bitwidth = params.find<uint64_t>("instr_type_bitwidth", 1);
+    format.opcode_bitwidth = params.find<uint64_t>("instr_opcode_width", 3);
+    format.slot_bitwidth = params.find<uint64_t>("instr_slot_width", 4);
+    instrBitwidth = format.total_bitwidth;
+    instrTypeBitwidth = format.type_bitwidth;
+    instrOpcodeWidth = format.opcode_bitwidth;
+    instrSlotWidth = format.slot_bitwidth;
   }
 
   virtual ~DRRAComponent() {}
@@ -197,6 +202,7 @@ protected:
   size_t word_bitwidth;
 
   // Instruction format (from isa.json file)
+  Instruction::Format format;
   uint32_t instrBitwidth;
   uint32_t instrTypeBitwidth;
   uint32_t instrOpcodeWidth;
@@ -228,12 +234,6 @@ protected:
 
   uint32_t getInstrField(uint32_t instr, uint32_t fieldWidth,
                          uint32_t fieldOffset) {
-    // Validate field parameters against instruction width
-    sst_assert(fieldWidth > 0, CALL_INFO, -1, "Field width must be positive");
-    sst_assert(fieldOffset + fieldWidth <= instrBitwidth, CALL_INFO, -1,
-               "Field (width=%u, offset=%u) exceeds instruction width %u",
-               fieldWidth, fieldOffset, instrBitwidth);
-
     return (instr & ((1 << fieldWidth) - 1) << fieldOffset) >> fieldOffset;
   }
 
@@ -354,7 +354,11 @@ public:
     return false;
   }
 
-  virtual void decodeInstr(uint32_t instr) = 0;
+  virtual void decodeInstr(uint32_t instr) {
+    Instruction instruction(instr, format);
+    uint32_t instrOpcode = instruction.opcode;
+    instructionHandlers[instrOpcode](instr);
+  };
 
   virtual void handleActivation(uint32_t slot_id, uint32_t ports) {};
 
@@ -603,6 +607,9 @@ protected:
   std::map<uint32_t, TimingState> next_timing_states;
   // std::map<std::string, std::function<void()>> events_handlers_map;
   std::map<uint32_t, int32_t> port_last_rep_level;
+
+  // Instruction handlers
+  std::map<uint32_t, std::function<void(uint32_t)>> instructionHandlers;
 };
 
 class DRRAController : public DRRAComponent {
