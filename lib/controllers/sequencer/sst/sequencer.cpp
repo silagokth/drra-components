@@ -4,7 +4,6 @@
 #include <sst/core/link.h>
 
 #include "activationEvent.h"
-#include "drra.h"
 #include "instructionEvent.h"
 #include "sequencer.h"
 #include "sst/core/output.h"
@@ -97,8 +96,9 @@ void Sequencer::fetch_decode(uint32_t instruction) {
   // TODO make dependent on ISA.json
   if (instrBitwidth != 32) {
     out.fatal(CALL_INFO, -1,
-              "Invalid instruction bitwidth. Only 32-bit "
-              "is supported for now.\n");
+              "Invalid instruction bitwidth (%d). Only 32-bit "
+              "is supported for now.\n",
+              instrBitwidth);
   }
   uint32_t instruction_type = getInstrType(instruction);
   uint32_t opcode = getInstrOpcode(instruction);

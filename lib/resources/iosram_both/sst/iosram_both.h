@@ -1,7 +1,7 @@
 #ifndef _IOSRAM_BOTH_H
 #define _IOSRAM_BOTH_H
 
-#include "drra.h"
+#include "drra_resource.h"
 
 #include "sst/elements/memHierarchy/membackend/backing.h"
 

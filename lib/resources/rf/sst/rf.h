@@ -1,7 +1,7 @@
 #ifndef _RF_H
 #define _RF_H
 
-#include "drra.h"
+#include "drra_resource.h"
 
 using namespace std;
 using namespace SST;

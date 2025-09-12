@@ -1,7 +1,7 @@
 #ifndef _SWITCHBOX_H
 #define _SWITCHBOX_H
 
-#include "drra.h"
+#include "drra_resource.h"
 
 using namespace std;
 using namespace SST;

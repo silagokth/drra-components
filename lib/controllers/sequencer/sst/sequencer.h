@@ -1,7 +1,7 @@
 #ifndef _SEQUENCER_H
 #define _SEQUENCER_H
 
-#include "drra.h"
+#include "drra_controller.h"
 
 #include <cstdint>
 #include <sst/core/component.h>

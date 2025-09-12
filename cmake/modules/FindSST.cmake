@@ -148,7 +148,9 @@ function(sst_build)
       get_filename_component(component_name "${last_path}" NAME)
     endif()
 
-    add_library(${component_name} OBJECT ${component_name}.cpp)
+    file(GLOB COMPONENT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+         ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
+    add_library(${component_name} OBJECT ${COMPONENT_SOURCES})
     set_property(TARGET ${component_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     target_link_libraries(${component_name} PRIVATE drra_sst_utils)

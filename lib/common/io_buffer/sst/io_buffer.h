@@ -1,9 +1,10 @@
 #ifndef _IOBUFFER_H
 #define _IOBUFFER_H
 
-#include "drra.h"
+#include "drra_output.h"
 
 #include "sst/elements/memHierarchy/membackend/backing.h"
+#include <sst/core/component.h>
 
 class ScratchBackendConvertor;
 

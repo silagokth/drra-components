@@ -1,7 +1,7 @@
 #ifndef _DPU_H
 #define _DPU_H
 
-#include "drra.h"
+#include "drra_resource.h"
 #include <climits>
 
 class DPU2CycleMac : public DRRAResource {

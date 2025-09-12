@@ -1,8 +1,8 @@
 #ifndef _DPU_H
 #define _DPU_H
 
-#include "drra.h"
 #include <climits>
+#include "drra_resource.h"
 
 class DPU : public DRRAResource {
 public:
