@@ -1,5 +1,6 @@
 
 #include "drra_component.h"
+#include "instructionEvent.h"
 #include "timingModel.h"
 
 #include <cmath>
@@ -82,6 +83,24 @@ public:
                      "slot_port1, etc."});
     return ports;
   }
+
+  virtual void decodeInstr(uint32_t instr) {
+    Instruction instruction(instr, format);
+    if (instruction.type) {
+      if (!slot_links[instruction.slot]->isConfigured()) {
+        out.fatal(CALL_INFO, -1, "Slot %u link not configured\n",
+                  instruction.slot);
+      }
+      InstrEvent *event = new InstrEvent();
+      event->instruction = instr;
+      out.output("Sending INSTRUCTION event to slot %u\n", instruction.slot);
+      slot_links[instruction.slot]->send(event);
+
+      return;
+    }
+    uint32_t instrOpcode = instruction.opcode;
+    instructionHandlers[instrOpcode](instr);
+  };
 
 protected:
   // Program counter

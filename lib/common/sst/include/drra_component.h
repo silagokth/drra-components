@@ -155,6 +155,10 @@ protected:
   uint32_t instrOpcodeWidth;
   uint32_t instrSlotWidth;
 
+  // Instruction handlers
+  std::unordered_map<uint32_t, std::function<void(uint32_t)>>
+      instructionHandlers;
+
   // TODO: remove this once all components are updated
   uint32_t getInstrType(uint32_t instr) {
     return getInstrField(instr, instrTypeBitwidth,

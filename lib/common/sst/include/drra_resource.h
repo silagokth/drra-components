@@ -1,7 +1,6 @@
 
 #include "activationEvent.h"
 #include "drra_component.h"
-#include "instruction.h"
 #include "instructionEvent.h"
 #include "timingModel.h"
 
@@ -370,8 +369,4 @@ protected:
   std::map<uint32_t, TimingState> next_timing_states;
   // std::map<std::string, std::function<void()>> events_handlers_map;
   std::map<uint32_t, int32_t> port_last_rep_level;
-
-  // Instruction handlers
-  std::unordered_map<uint32_t, std::function<void(uint32_t)>>
-      instructionHandlers;
 };
