@@ -3,8 +3,8 @@
 
 namespace DPU_Operations {
 
-std::function<void()> getDPUHandler(DPU *dpu, DPU_PKG::DPU_MODE mode) {
-  static auto handlers = createHandlers(dpu);
+std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode) {
+  static auto handlers = DPU_Operations::createHandlers(dpu);
   if (handlers.find(mode) != handlers.end()) {
     return handlers[mode];
   } else {
@@ -14,63 +14,67 @@ std::function<void()> getDPUHandler(DPU *dpu, DPU_PKG::DPU_MODE mode) {
 }
 
 std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>>
-createHandlers(DPU *dpu) {
-  return {{DPU_PKG::IDLE, [dpu] { Impl::handleIdle(dpu); }},
-          {DPU_PKG::ADD, [dpu] { Impl::handleAdd(dpu); }},
-          {DPU_PKG::ADD_CONST, [dpu] { Impl::handleAddConst(dpu); }},
-          {DPU_PKG::SUBT, [dpu] { Impl::handleSubt(dpu); }},
-          {DPU_PKG::SUBT_ABS, [dpu] { Impl::handleSubtAbs(dpu); }},
-          {DPU_PKG::MULT, [dpu] { Impl::handleMult(dpu); }},
-          {DPU_PKG::MULT_CONST, [dpu] { Impl::handleMultConst(dpu); }},
-          {DPU_PKG::LD_IR, [dpu] { Impl::handleLoadIR(dpu); }},
-          {DPU_PKG::MAC, [dpu] { Impl::handleMAC(dpu); }}};
+createHandlers(Dpu *dpu) {
+  return {
+      {DPU_PKG::DPU_MODE::DPU_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_ADD_CONST,
+       [dpu] { Impl::handleAddConst(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_SUBT, [dpu] { Impl::handleSubt(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_SUBT_ABS,
+       [dpu] { Impl::handleSubtAbs(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_MULT_CONST,
+       [dpu] { Impl::handleMultConst(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_LD_IR, [dpu] { Impl::handleLoadIR(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }}};
 }
 
 namespace Impl {
 
-void handleIdle(DPU *dpu) {
+void handleIdle(Dpu *dpu) {
   // Access through public interface - assuming DPU has an 'out' member
   // accessible You might need to add a getOutput() method to DPU class
   // dpu->getOutput().output("IDLE\n");
 }
 
-void handleAdd(DPU *dpu) {
+void handleAdd(Dpu *dpu) {
   dpu->handleOperation("ADD",
                        [](int64_t a, int64_t b) { return add_sat(a, b); });
 }
 
-void handleAddConst(DPU *dpu) {
+void handleAddConst(Dpu *dpu) {
   dpu->handleOperation("ADD_CONST",
                        [](int64_t a, int64_t b) { return add_sat(a, b); });
 }
 
-void handleSubt(DPU *dpu) {
+void handleSubt(Dpu *dpu) {
   dpu->handleOperation("SUBT",
                        [](int64_t a, int64_t b) { return add_sat(a, -b); });
 }
 
-void handleSubtAbs(DPU *dpu) {
+void handleSubtAbs(Dpu *dpu) {
   dpu->handleOperation("SUBT_ABS",
                        [](int64_t a, int64_t b) { return add_sat(a, -b); });
 }
 
-void handleMult(DPU *dpu) {
+void handleMult(Dpu *dpu) {
   dpu->handleOperation("MULT",
                        [](int64_t a, int64_t b) { return mul_sat(a, b); });
 }
 
-void handleMultConst(DPU *dpu) {
+void handleMultConst(Dpu *dpu) {
   dpu->handleOperation("MULT_CONST",
                        [](int64_t a, int64_t b) { return mul_sat(a, b); });
 }
 
-void handleLoadIR(DPU *dpu) {
+void handleLoadIR(Dpu *dpu) {
   dpu->handleOperation("LD_IR", [](int64_t a, int64_t b) {
     return b; // Load immediate to register
   });
 }
 
-void handleMAC(DPU *dpu) {
+void handleMAC(Dpu *dpu) {
   dpu->handleOperation("MAC", [dpu](int64_t a, int64_t b) {
     // Note: This might need adjustment based on how you want to handle
     // the accumulate register access. You might need to add more public

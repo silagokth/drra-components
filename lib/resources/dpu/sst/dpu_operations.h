@@ -5,25 +5,25 @@
 #include <functional>
 
 // Forward declaration
-class DPU;
+class Dpu;
 
 namespace DPU_Operations {
 
-std::function<void()> getDPUHandler(DPU *dpu, DPU_PKG::DPU_MODE mode);
+std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode);
 std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>>
-createHandlers(DPU *dpu);
+createHandlers(Dpu *dpu);
 
 // Individual operation implementations
 namespace Impl {
-void handleIdle(DPU *dpu);
-void handleAdd(DPU *dpu);
-void handleAddConst(DPU *dpu);
-void handleSubt(DPU *dpu);
-void handleSubtAbs(DPU *dpu);
-void handleMult(DPU *dpu);
-void handleMultConst(DPU *dpu);
-void handleLoadIR(DPU *dpu);
-void handleMAC(DPU *dpu);
+void handleIdle(Dpu *dpu);
+void handleAdd(Dpu *dpu);
+void handleAddConst(Dpu *dpu);
+void handleSubt(Dpu *dpu);
+void handleSubtAbs(Dpu *dpu);
+void handleMult(Dpu *dpu);
+void handleMultConst(Dpu *dpu);
+void handleLoadIR(Dpu *dpu);
+void handleMAC(Dpu *dpu);
 } // namespace Impl
 
 // Utility functions for arithmetic operations
