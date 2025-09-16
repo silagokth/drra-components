@@ -85,7 +85,22 @@ void Dpu::handleREP(const DPU_PKG::REPInstruction &instr) {
              instr.slot, instr.port, instr.level, instr.iter, instr.step,
              instr.delay);
 
-  // TODO: implement instruction behavior
+  auto rep = instr;
+  // For now, we only support increasing repetition levels (and no skipping)
+  if (rep.level != port_last_rep_level[rep.port] + 1) {
+    out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
+              port_last_rep_level[rep.port], rep.level);
+  } else {
+    port_last_rep_level[rep.port] = rep.level;
+  }
+
+  // add repetition to the timing model
+  try {
+    next_timing_states[0].addRepetition(rep.iter, rep.delay, rep.level,
+                                        rep.step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
+  }
 }
 
 void Dpu::handleREPX(const DPU_PKG::REPXInstruction &instr) {
@@ -93,7 +108,17 @@ void Dpu::handleREPX(const DPU_PKG::REPXInstruction &instr) {
              instr.slot, instr.port, instr.level, instr.iter, instr.step,
              instr.delay);
 
-  // TODO: implement instruction behavior
+  auto repx = instr;
+  auto repetition_op =
+      next_timing_states[0].getRepetitionOperatorFromLevel(repx.level);
+  uint32_t iter = repx.iter << 6 | repetition_op.getIterations();
+  uint32_t step = repx.step << 6 | repetition_op.getStep();
+  uint32_t delay = repx.delay << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[0].adjustRepetition(iter, delay, repx.level, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
 }
 
 void Dpu::handleFSM(const DPU_PKG::FSMInstruction &instr) {
@@ -101,7 +126,19 @@ void Dpu::handleFSM(const DPU_PKG::FSMInstruction &instr) {
              instr.slot, instr.port, instr.delay_0, instr.delay_1,
              instr.delay_2);
 
-  // TODO: implement instruction behavior
+  auto fsm = instr;
+  // add transition to the timing model
+  try {
+    next_timing_states[0].addTransition(
+        fsm.delay_0, "event_" + std::to_string(current_event_number),
+        [this, fsm] {
+          out.output(" FSM switched to %d\n", fsm.port);
+          current_fsm = fsm.port;
+        });
+    current_event_number++;
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
+  }
 }
 
 void Dpu::handleOperation(std::string name,
