@@ -1,65 +1,66 @@
 #ifndef _SEQUENCER_H
 #define _SEQUENCER_H
 
-#include "drra.h"
-
-#include <cstdint>
-#include <sst/core/component.h>
-#include <sst/core/params.h>
-#include <vector>
-
-using namespace std;
-using namespace SST;
+#include "drra_controller.h"
+#include "sequencer_pkg.h"
 
 class Sequencer : public DRRAController {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(Sequencer,   // Class name
-                             "drra",      // Name of library
-                             "sequencer", // Lookup name for component
-                             SST_ELI_ELEMENT_VERSION(1, 0,
-                                                     0),  // Component version
-                             "Sequencer component",       // Description
-                             COMPONENT_CATEGORY_PROCESSOR // Category
-  )
+  SST_ELI_REGISTER_COMPONENT(Sequencer, "drra", "sequencer",
+                             SST_ELI_ELEMENT_VERSION(1, 0, 0),
+                             "Sequencer component",
+                             COMPONENT_CATEGORY_UNCATEGORIZED)
 
-  // Add component-specific parameters
-  static vector<ElementInfoParam> getComponentParams() {
+  /* Element Library Params */
+  static std::vector<SST::ElementInfoParam> getComponentParams() {
     auto params = DRRAController::getBaseParams();
+    params.push_back({"NUM_SLOTS", "", "16"});
+    params.push_back({"NUM_SCALAR_REGS", "", "16"});
+    params.push_back({"SCALAR_REG_WIDTH", "", "16"});
+    params.push_back({"IRAM_DEPTH", "", "64"});
     params.push_back(
         {"assembly_program_path", "Path to the assembly program file", ""});
-    params.push_back({"fsm_per_slot", "Number of FSM per slot"});
     params.push_back({"instr_addr_width", "Instruction address width", "6"});
     params.push_back({"instr_hops_width", "Instruction hops width", "4"});
-    params.push_back(
-        {"register_size", "Size in bits of a scalar register", "16"});
-    params.push_back({"num_registers", "Number of scalar registers", "16"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
 
-  static vector<ElementInfoPort> getControllerPorts() {
+  /* Element Library Ports */
+  static std::vector<SST::ElementInfoPort> getComponentPorts() {
     auto ports = DRRAController::getBasePorts();
     return ports;
   }
-  SST_ELI_DOCUMENT_PORTS(getControllerPorts())
-  SST_ELI_DOCUMENT_STATISTICS()
-  SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
+  SST_ELI_DOCUMENT_PORTS(getComponentPorts())
+
+  /* Element Library Statistics */
+  static std::vector<SST::ElementInfoStatistic> getComponentStatistics() {
+    auto stats = DRRAController::getBaseStatistics();
+    return stats;
+  }
+  SST_ELI_DOCUMENT_STATISTICS(getComponentStatistics())
 
   /* Constructor */
-  Sequencer(ComponentId_t id, Params &params);
+  Sequencer(SST::ComponentId_t id, SST::Params &params);
 
   /* Destructor */
-  ~Sequencer();
+  ~Sequencer() {};
 
   // SST lifecycle methods
   virtual void init(unsigned int phase) override;
-  virtual void setup() override;
-  virtual void complete(unsigned int phase) override;
-  virtual void finish() override;
 
-  // SST clock handler
-  bool clockTick(Cycle_t currentCycle) override;
+  bool clockTick(SST::Cycle_t currentCycle) override;
+
+  // Instruction format
+  using DRRAController::format;
+  void handleHALT(const SEQUENCER_PKG::HALTInstruction &instr);
+  void handleWAIT(const SEQUENCER_PKG::WAITInstruction &instr);
+  void handleACT(const SEQUENCER_PKG::ACTInstruction &instr);
+  void handleCALC(const SEQUENCER_PKG::CALCInstruction &instr);
+  void handleBRN(const SEQUENCER_PKG::BRNInstruction &instr);
+
+  using DRRAController::out;
 
 private:
   bool readyToFinish = false;
@@ -85,15 +86,6 @@ private:
   // Add fetch_decode method
   void fetch_decode(uint32_t instruction);
   void load_assembly_program(std::string);
-
-  // Add execute method
-  void halt();
-  void wait(uint32_t content);
-  void wait_event();
-  void wait_cycles(uint32_t cycles);
-  void activate(uint32_t content);
-  void calculate(uint32_t content);
-  void branch(uint32_t content);
 
   // Helper methods
   void sendActEvent(uint32_t, uint32_t);
