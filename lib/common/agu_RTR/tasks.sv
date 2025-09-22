@@ -218,7 +218,7 @@ task automatic evaluate_IR_state(
                     n_state = GENR_IR1;
                 `ifdef INCLUDE_MT_STATES
                 end else if (regMT_config[level_MT]) begin
-                    init_delay_IR[0] = 1'b1;   /////// Fix MT Timing
+                    init_delay_IR[0] = 1'b1;
                     evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
                 `endif
                 `ifdef INCLUDE_OR_STATES

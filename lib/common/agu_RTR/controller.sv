@@ -145,7 +145,10 @@ module controller #(
         .rst_n(rst_n),
         .enable(en_delay_IR[0]),
         .init(init_delay_IR[0]),
-        .init_value(flag_OR2 ? regOR_delay[0] : regIR_delay[level_MT*NUMBER_IR+0]),
+        .init_value(flag_OR2 ? regIR_delay[0] : 
+                    en_level_MT ? regIR_delay[(level_MT+1)*NUMBER_IR+0] :
+                    regIR_delay[level_MT*NUMBER_IR+0]),
+                    // init0_level_MT? regIR_delay[0] : regIR_delay[level_MT*NUMBER_IR+0]),
         .co(co_delay_IR[0])
     );
     generate

@@ -158,82 +158,82 @@ module agu_RTR_tb #(
 
 ////////////////////////////////////////////////////////////////////////////////////// Delay != 0
         // Must be issued one cycle before the first rep instruction, to go to the CNFG state
-        // @(posedge clk);
-        // rep_valid = 1'b1;
+        @(posedge clk);
+        rep_valid = 1'b1;
         
-        // // IR0
-        // @(posedge clk);
-        // rep_level = 0; rep_step = 3;  rep_delay = 2; rep_iter = 2; // L0, S3,  D2, iter2
-        // @(posedge clk);  
-        // rep_level = 1; rep_step = 1;  rep_delay = 1; rep_iter = 3; // L1, S1,  D1, iter3
-        // @(posedge clk);  
-        // rep_level = 2; rep_step = 2;  rep_delay = 3; rep_iter = 1; // L2, S2,  D3, iter1
-        // @(posedge clk);
-        // rep_level = 3; rep_step = 10; rep_delay = 0; rep_iter = 2; // L3, S10, D0, iter2
+        // IR0
+        @(posedge clk);
+        rep_level = 0; rep_step = 3;  rep_delay = 2; rep_iter = 2; // L0, S3,  D2, iter2
+        @(posedge clk);  
+        rep_level = 1; rep_step = 1;  rep_delay = 1; rep_iter = 3; // L1, S1,  D1, iter3
+        @(posedge clk);  
+        rep_level = 2; rep_step = 2;  rep_delay = 3; rep_iter = 1; // L2, S2,  D3, iter1
+        @(posedge clk);
+        rep_level = 3; rep_step = 10; rep_delay = 0; rep_iter = 2; // L3, S10, D0, iter2
 
-        // // MT0
-        // @(posedge clk);
-        // rep_valid = 1'b0;
-        // trans_valid = 1'b1;
-        // trans_level = 0; trans_delay = 7;
+        // MT0
+        @(posedge clk);
+        rep_valid = 1'b0;
+        trans_valid = 1'b1;
+        trans_level = 0; trans_delay = 7;
 
-        // // IR1
-        // @(posedge clk);
-        // rep_valid = 1'b1;
-        // trans_valid = 1'b0;
-        // rep_level = 0; rep_step = 2; rep_delay = 0; rep_iter = 2; // L0, S2, D0, iter2
-        // @(posedge clk);
-        // rep_level = 1; rep_step = 3; rep_delay = 0; rep_iter = 3; // L1, S3, D0, iter3
-        // @(posedge clk);
-        // rep_level = 2; rep_step = 5; rep_delay = 0; rep_iter = 1; // L2, S5, D0, iter1
-        // @(posedge clk);
-        // rep_level = 3; rep_step = 4; rep_delay = 3; rep_iter = 1; // L3, S4, D3, iter1
+        // IR1
+        @(posedge clk);
+        rep_valid = 1'b1;
+        trans_valid = 1'b0;
+        rep_level = 0; rep_step = 2; rep_delay = 0; rep_iter = 2; // L0, S2, D0, iter2
+        @(posedge clk);
+        rep_level = 1; rep_step = 3; rep_delay = 0; rep_iter = 3; // L1, S3, D0, iter3
+        @(posedge clk);
+        rep_level = 2; rep_step = 5; rep_delay = 0; rep_iter = 1; // L2, S5, D0, iter1
+        @(posedge clk);
+        rep_level = 3; rep_step = 4; rep_delay = 3; rep_iter = 1; // L3, S4, D3, iter1
 
-        // // MT1
-        // @(posedge clk);
-        // rep_valid = 1'b0;
-        // trans_valid = 1'b1;
-        // trans_level = 1; trans_delay = 3;
+        // MT1
+        @(posedge clk);
+        rep_valid = 1'b0;
+        trans_valid = 1'b1;
+        trans_level = 1; trans_delay = 3;
 
-        // // IR2
-        // @(posedge clk);
-        // rep_valid = 1'b1;
-        // trans_valid = 1'b0;
-        // rep_level = 0; rep_step = 7; rep_delay = 0; rep_iter = 1; // L0, S7, D0, iter1
-        // @(posedge clk);
-        // rep_level = 1; rep_step = 1; rep_delay = 0; rep_iter = 2; // L1, S1, D0, iter2
-        // @(posedge clk);
-        // rep_level = 2; rep_step = 3; rep_delay = 0; rep_iter = 3; // L2, S3, D0, iter3
-        // @(posedge clk);
-        // rep_level = 3; rep_step = 5; rep_delay = 0; rep_iter = 2; // L3, S5, D0, iter2
+        // IR2
+        @(posedge clk);
+        rep_valid = 1'b1;
+        trans_valid = 1'b0;
+        rep_level = 0; rep_step = 7; rep_delay = 0; rep_iter = 1; // L0, S7, D0, iter1
+        @(posedge clk);
+        rep_level = 1; rep_step = 1; rep_delay = 0; rep_iter = 2; // L1, S1, D0, iter2
+        @(posedge clk);
+        rep_level = 2; rep_step = 3; rep_delay = 0; rep_iter = 3; // L2, S3, D0, iter3
+        @(posedge clk);
+        rep_level = 3; rep_step = 5; rep_delay = 0; rep_iter = 2; // L3, S5, D0, iter2
 
-        // // MT2
-        // @(posedge clk);
-        // rep_valid = 1'b0;
-        // trans_valid = 1'b1;
-        // trans_level = 2; trans_delay = 0;
+        // MT2
+        @(posedge clk);
+        rep_valid = 1'b0;
+        trans_valid = 1'b1;
+        trans_level = 2; trans_delay = 0;
 
-        // // IR3
-        // @(posedge clk);
-        // rep_valid = 1'b1;
-        // trans_valid = 1'b0;
-        // rep_level = 0; rep_step = 1; rep_delay = 1; rep_iter = 5; // L0, S1, D1, iter5
-        // @(posedge clk);
-        // rep_level = 1; rep_step = 6; rep_delay = 3; rep_iter = 1; // L1, S6, D3, iter1
-        // @(posedge clk);
-        // rep_level = 2; rep_step = 0; rep_delay = 7; rep_iter = 2; // L2, S0, D7, iter2
-        // @(posedge clk);
-        // rep_level = 3; rep_step = 5; rep_delay = 9; rep_iter = 1; // L3, S5, D9, iter1
+        // IR3
+        @(posedge clk);
+        rep_valid = 1'b1;
+        trans_valid = 1'b0;
+        rep_level = 0; rep_step = 1; rep_delay = 1; rep_iter = 5; // L0, S1, D1, iter5
+        @(posedge clk);
+        rep_level = 1; rep_step = 6; rep_delay = 3; rep_iter = 1; // L1, S6, D3, iter1
+        @(posedge clk);
+        rep_level = 2; rep_step = 0; rep_delay = 7; rep_iter = 2; // L2, S0, D7, iter2
+        @(posedge clk);
+        rep_level = 3; rep_step = 5; rep_delay = 9; rep_iter = 1; // L3, S5, D9, iter1
         
-        // // OR
-        // @(posedge clk);
-        // rep_level = 4; rep_step = 10; rep_delay = 0; rep_iter = 2; // L4, S10, D0, iter2
-        // @(posedge clk);
-        // rep_level = 5; rep_step = 3;  rep_delay = 5; rep_iter = 1; // L5, S3,  D5, iter1
-        // @(posedge clk); 
-        // rep_level = 6; rep_step = 5;  rep_delay = 0; rep_iter = 1; // L6, S5,  D0, iter1
-        // @(posedge clk); 
-        // rep_level = 7; rep_step = 1;  rep_delay = 9; rep_iter = 1; // L7, S1,  D9, iter1
+        // OR
+        @(posedge clk);
+        rep_level = 4; rep_step = 10; rep_delay = 0; rep_iter = 2; // L4, S10, D0, iter2
+        @(posedge clk);
+        rep_level = 5; rep_step = 3;  rep_delay = 5; rep_iter = 1; // L5, S3,  D5, iter1
+        @(posedge clk); 
+        rep_level = 6; rep_step = 5;  rep_delay = 0; rep_iter = 1; // L6, S5,  D0, iter1
+        @(posedge clk); 
+        rep_level = 7; rep_step = 1;  rep_delay = 9; rep_iter = 1; // L7, S1,  D9, iter1
 
 
 ////////////////////////////////////// IR == 0 => RT, T, 0 //////////////////////////////////////

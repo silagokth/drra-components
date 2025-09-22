@@ -25,6 +25,9 @@ add wave sim:/agu_RTR_tb/agu_RTR_inst/level_MT
 add wave sim:/agu_RTR_tb/agu_RTR_inst/level_OR
 # -----------------------------------------------
 
+
+
+# ----------------------------------------------- Config Signals
 # add wave -position insertpoint  \
 # sim:/agu_RTR_tb/agu_RTR_inst/IR_registers[0]/regIR_iter_inst/in_value \
 # sim:/agu_RTR_tb/agu_RTR_inst/IR_registers[0]/regIR_iter_inst/enable \
@@ -102,5 +105,17 @@ add wave sim:/agu_RTR_tb/agu_RTR_inst/level_OR
 # {sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/IR_counter_iter[1]/counter_iter_IR_inst/enable} \
 # {sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/IR_counter_iter[1]/counter_iter_IR_inst/init} \
 # {sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/IR_counter_iter[1]/counter_iter_IR_inst/init_value}
+
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_level_MT/count \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_level_MT/enable \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_level_MT/init0
+add wave -position insertpoint  \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_delay_IR_inst/co \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_delay_IR_inst/count \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_delay_IR_inst/enable \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_delay_IR_inst/init \
+sim:/agu_RTR_tb/agu_RTR_inst/controller_inst/counter_delay_IR_inst/init_value
+
 
 run -all
