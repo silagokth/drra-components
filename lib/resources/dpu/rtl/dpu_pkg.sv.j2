@@ -15,11 +15,26 @@ package {{fingerprint}}_pkg;
   parameter INSTRUCTION_PAYLOAD_WIDTH = 27;
   parameter OPCODE_H = 26;
   parameter OPCODE_L = 24;
+
+  parameter OPCODE_REP = 0;
+  parameter OPCODE_REPX = 1;
+  parameter OPCODE_TRANS = 2;
   parameter OPCODE_DPU = 3;
-  parameter OPCODE_FSM = 2;
+
   parameter DPU_MODE_ADD = 1;
   parameter DPU_MODE_MUL = 7;
   parameter DPU_MODE_MAC = 10;
 
+  // AGU RTR params
+  parameter ADDRESS_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter REP_LEVEL_WIDTH = 4; // TODO: change to 3 bits as we only have up to 8 levels
+  parameter REP_DELAY_WIDTH = 6;
+  parameter REP_ITER_WIDTH = 6;
+  parameter REP_STEP_WIDTH = 6;
+  parameter TRANS_LEVEL_WIDTH = 2;
+  parameter TRANS_DELAY_WIDTH = 7;
+  parameter NUMBER_OR = 4;
+  parameter NUMBER_MT = 3;
+  parameter NUMBER_IR = 4;
 endpackage
 

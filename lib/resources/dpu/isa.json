@@ -263,7 +263,7 @@
       ]
     },
     {
-      "name": "fsm",
+      "name": "trans",
       "opcode": 2,
       "instr_type": 1,
       "segments": [
@@ -273,12 +273,12 @@
           "bitwidth": 2
         },
         {
-          "name": "delay_0",
+          "name": "delay",
           "comment": "Delay between configuration options 0 and 1",
           "bitwidth": 7
         },
         {
-          "name": "delay_1",
+          "name": "level",
           "comment": "Delay between configuration options 1 and 2",
           "bitwidth": 7
         },
