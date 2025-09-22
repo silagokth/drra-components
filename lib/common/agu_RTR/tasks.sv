@@ -123,7 +123,6 @@ task automatic evaluate_IR_state(
     output logic                           en_initVal_OR [NUMBER_OR],
     output logic                           en_delay_OR   [NUMBER_OR],
     output logic                           en_flag_OR,
-    output logic                           flag_OR2,
     `endif
 
     input  logic [$clog2(NUMBER_MT+1)-1:0] level_MT,
@@ -167,7 +166,6 @@ task automatic evaluate_IR_state(
     en_level_OR = 1'b0;
     inVal_level_OR = 0;
     en_flag_OR = 1'b0;
-    flag_OR2 = 1'b0;
     for (int i = 0; i < NUMBER_OR; i++) begin
         en_initVal_OR[i] = 1'b0;
         en_delay_OR[i] = 1'b0;
@@ -225,7 +223,6 @@ task automatic evaluate_IR_state(
                 end else if (regOR_config[0]) begin
                     init0_level_MT = 1'b1;
                     en_flag_OR = 1'b1;
-                    flag_OR2 = 1'b1;
                     init_delay_IR[0] = 1'b1;
                     evaluate_OR_state(co_iter_OR, co_delay_OR, regOR_config, 
                     en_level_OR, inVal_level_OR, en_initVal_OR, en_delay_OR, n_state);
@@ -241,7 +238,6 @@ task automatic evaluate_IR_state(
             end else if (regOR_config[0]) begin
                 init0_level_MT = 1'b1;
                 en_flag_OR = 1'b1;
-                flag_OR2 = 1'b1;
                 init_delay_IR[0] = 1'b1;
                 evaluate_OR_state(co_iter_OR, co_delay_OR, regOR_config, 
                 en_level_OR, inVal_level_OR, en_initVal_OR, en_delay_OR, n_state);

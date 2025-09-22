@@ -84,7 +84,6 @@ module controller #(
     logic                         en_level_OR;
     logic                         en_flag_OR;
     logic                         init0_flag_OR;
-    logic                         flag_OR2;
     logic [$clog2(NUMBER_OR)-1:0] inVal_level_OR;
     `endif
 
@@ -145,10 +144,9 @@ module controller #(
         .rst_n(rst_n),
         .enable(en_delay_IR[0]),
         .init(init_delay_IR[0]),
-        .init_value(flag_OR2 ? regIR_delay[0] : 
+        .init_value(init0_level_MT ? regIR_delay[0] :
                     en_level_MT ? regIR_delay[(level_MT+1)*NUMBER_IR+0] :
                     regIR_delay[level_MT*NUMBER_IR+0]),
-                    // init0_level_MT? regIR_delay[0] : regIR_delay[level_MT*NUMBER_IR+0]),
         .co(co_delay_IR[0])
     );
     generate
@@ -306,7 +304,6 @@ module controller #(
         en_decoder_config_OR = 1'b0;
         initOR_address = 1'b0;
         en_flag_OR = 1'b0;
-        flag_OR2 = 1'b0;
         en_level_OR = 1'b0;
         inVal_level_OR = 0;
         for (int i = 0; i < NUMBER_OR; i++) begin
@@ -414,7 +411,6 @@ module controller #(
                     .en_initVal_OR(en_initVal_OR),
                     .en_delay_OR(en_delay_OR),
                     .en_flag_OR(en_flag_OR),
-                    .flag_OR2(flag_OR2),
                     `endif
                     .co_iter_IR(co_iter_IR),
                     .co_delay_IR(co_delay_IR),
