@@ -1,17 +1,16 @@
 #include "iosram_top.h"
-
 #include "custom_backing.h"
 #include "dataEvent.h"
 #include "ioEvents.h"
-#include "sst/core/event.h"
-#include <bitset>
+#include "iosram_top_pkg.h"
 
 using namespace SST;
 
-IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
+Iosram_top::Iosram_top(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
+  instructionHandlers = IOSRAM_TOP_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
-  iosram_depth = params.find<uint32_t>("iosram_depth", 65536);
+  iosram_depth = 1u << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
@@ -59,165 +58,44 @@ IOSRAMTop::IOSRAMTop(SST::ComponentId_t id, SST::Params &params)
   out.output("Created backing store (type: %s)\n", backingType.c_str());
 }
 
-void IOSRAMTop::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
+bool Iosram_top::clockTick(SST::Cycle_t currentCycle) {
+  return DRRAResource::clockTick(currentCycle);
 }
 
-void IOSRAMTop::setup() {}
-
-void IOSRAMTop::complete(unsigned int phase) {}
-
-void IOSRAMTop::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
-bool IOSRAMTop::clockTick(SST::Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
-  return false;
-}
-
-void IOSRAMTop::decodeInstr(uint32_t instr) {
-  uint32_t instrType = getInstrType(instr);
-  uint32_t instrOpcode = getInstrOpcode(instr);
-  uint32_t instrSlot = getInstrSlot(instr);
-
-  if (std::find(slot_ids.begin(), slot_ids.end(), instrSlot) ==
-      slot_ids.end()) {
-    out.fatal(CALL_INFO, -1, "Invalid slot: %u\n", instrSlot);
-  }
-
-  switch (instrOpcode) {
-  case REP:
-    handleRep(instr);
-    break;
-  case REPX:
-    handleRepx(instr);
-    break;
-  case DSU:
-    handleDSU(instr);
-    break;
-  default:
-    out.fatal(CALL_INFO, -1, "Invalid opcode: %u\n", instrOpcode);
-  }
-}
-
-void IOSRAMTop::handleRep(uint32_t instr) {
-  // Instruction fields
-  uint32_t slot = getInstrSlot(instr);
-  uint32_t port = getInstrField(instr, 2, 22);
-  uint32_t level = getInstrField(instr, 4, 18);
-  uint32_t iter = getInstrField(instr, 6, 12);
-  uint32_t step = getInstrField(instr, 6, 6);
-  uint32_t delay = getInstrField(instr, 6, 0);
-
-  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             slot, port, level, iter, step, delay);
-
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + port;
-
-  // For now, we only support increasing repetition levels (and no skipping)
-  if (level != port_last_rep_level[port_num] + 1) {
-    out.output("port_num = %d\n", port_num);
-    out.fatal(
-        CALL_INFO, -1,
-        "Invalid repetition level (last=%d, curr=%d), instruction: %s (slot: "
-        "%d, port: %d, level: %d, iter: %d, step: %d, delay: %d)\n",
-        port_last_rep_level[port_num], level,
-        std::bitset<32>(instr).to_string().c_str(), slot, port, level, iter,
-        step, delay);
-  } else {
-    port_last_rep_level[port_num] = level;
-  }
-
-  // add repetition to the timing model
-  try {
-    next_timing_states[port_num].addRepetition(iter, delay, level, step);
-    out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
-               iter, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
-}
-
-void IOSRAMTop::handleRepx(uint32_t instr) {
-  // Instruction fields
-  uint32_t slot = getInstrSlot(instr);
-  uint32_t port = getInstrField(instr, 2, 22);
-  uint32_t level = getInstrField(instr, 4, 18);
-  uint32_t iter_msb = getInstrField(instr, 6, 12);
-  uint32_t step_msb = getInstrField(instr, 6, 6);
-  uint32_t delay_msb = getInstrField(instr, 6, 0);
-
-  out.output("repx (slot=%d, port=%d, level=%d, iter_msb=%d, step_msb=%d, "
-             "delay_msb=%d)\n",
-             slot, port, level, iter_msb, step_msb, delay_msb);
-
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + port;
-
-  auto repetition_op =
-      next_timing_states[port_num].getRepetitionOperatorFromLevel(level);
-  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
-  uint32_t step = step_msb << 6 | repetition_op.getStep();
-  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
-  try {
-    next_timing_states[port_num].adjustRepetition(iter, delay, level, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
-  }
-}
-
-void IOSRAMTop::handleDSU(uint32_t instr) {
-  // Instruction fields
-  uint32_t slot = getInstrSlot(instr);
-  bool init_addr_sd = getInstrField(instr, 1, 23) == 1;
-  uint16_t init_addr = getInstrField(instr, 16, 7);
-  uint32_t port = getInstrField(instr, 2, 5);
-  uint32_t port_num = getRelativePortNum(slot, port);
-
-  out.output("dsu (slot: %d, init_addr_sd: %d, init_addr: %d, port: %d)\n",
-             slot, init_addr_sd, init_addr, port);
+void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
+  out.output("dsu (slot=%d, init_addr_sd=%d, init_addr=%d, port=%d)\n",
+             instr.slot, instr.init_addr_sd, instr.init_addr, instr.port);
 
   // Set initial address
-  agu_initial_addr = init_addr;
+  agu_initial_addr = instr.init_addr;
 
   // Add the event handler
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
   switch (port_num) {
-  case PortMap::SRAMReadFromIO:
-    sram_read_from_io_initial_addr = init_addr;
+  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_SRAM_READ_FROM_IO:
+    sram_read_from_io_initial_addr = instr.init_addr;
     readFromIO();
     break;
-  case PortMap::SRAMWriteToIO:
+  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_SRAM_WRITE_TO_IO:
     out.fatal(CALL_INFO, -1,
               "Invalid DSU mode IOSRAM Top should not write to IO\n");
-    sram_write_to_io_initial_addr = init_addr;
+    sram_write_to_io_initial_addr = instr.init_addr;
     writeToIO();
     break;
-  case PortMap::IOWriteToSRAM:
-    io_write_to_sram_initial_addr = init_addr;
+  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
+    io_write_to_sram_initial_addr = instr.init_addr;
     writeToSRAM();
     break;
-  case PortMap::IOReadFromSRAM:
-    io_read_from_sram_initial_addr = init_addr;
+  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_IO_READ_FROM_SRAM:
+    io_read_from_sram_initial_addr = instr.init_addr;
     readFromSRAM();
     break;
-  case PortMap::WriteBulk:
-    write_bulk_initial_addr = init_addr;
+  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_WRITE_BULK:
+    write_bulk_initial_addr = instr.init_addr;
     writeBulk();
     break;
-  case PortMap::ReadBulk:
-    read_bulk_initial_addr = init_addr;
+  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_READ_BULK:
+    read_bulk_initial_addr = instr.init_addr;
     readBulk();
     break;
 
@@ -229,15 +107,80 @@ void IOSRAMTop::handleDSU(uint32_t instr) {
   current_event_number++;
 }
 
-void IOSRAMTop::readFromIO() {
+void Iosram_top::handleREP(const IOSRAM_TOP_PKG::REPInstruction &instr) {
+  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port, instr.level, instr.iter, instr.step,
+             instr.delay);
+
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), instr.slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + instr.port;
+
+  // For now, we only support increasing repetition levels (and no skipping)
+  if (instr.level != port_last_rep_level[port_num] + 1) {
+    out.output("port_num = %d\n", port_num);
+    out.fatal(
+        CALL_INFO, -1,
+        "Invalid repetition level (last=%d, curr=%d), instruction: (slot: "
+        "%d, port: %d, level: %d, iter: %d, step: %d, delay: %d)\n",
+        port_last_rep_level[port_num], instr.level, instr.slot, instr.port,
+        instr.level, instr.iter, instr.step, instr.delay);
+  } else {
+    port_last_rep_level[port_num] = instr.level;
+  }
+
+  // add repetition to the timing model
+  try {
+    next_timing_states[port_num].addRepetition(instr.iter, instr.delay,
+                                               instr.level, instr.step);
+    out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
+               instr.iter, instr.step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
+  }
+}
+
+void Iosram_top::handleREPX(const IOSRAM_TOP_PKG::REPXInstruction &instr) {
+  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port, instr.level, instr.iter, instr.step,
+             instr.delay);
+
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), instr.slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + instr.port;
+
+  auto repetition_op =
+      next_timing_states[port_num].getRepetitionOperatorFromLevel(instr.level);
+  uint32_t iter = instr.iter << 6 | repetition_op.getIterations();
+  uint32_t step = instr.step << 6 | repetition_op.getStep();
+  uint32_t delay = instr.delay << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[port_num].adjustRepetition(iter, delay, instr.level,
+                                                  step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
+
+void Iosram_top::readFromIO() {
   // Reading data from the IO to the buffer
-  next_timing_states[PortMap::SRAMReadFromIO].addEvent(
+  next_timing_states[IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ_FROM_IO].addEvent(
       "dsu_read_from_io_" + std::to_string(current_event_number), 1, [this] {
         sram_read_from_io_address_buffer =
             sram_read_from_io_initial_addr +
-            current_timing_states[PortMap::SRAMReadFromIO]
-                .getRepIncrementForCycle(
-                    getPortActiveCycle(PortMap::SRAMReadFromIO));
+            current_timing_states[IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ_FROM_IO]
+                .getRepIncrementForCycle(getPortActiveCycle(
+                    IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ_FROM_IO));
 
         IOReadRequest *readReq = new IOReadRequest();
         readReq->address = sram_read_from_io_address_buffer;
@@ -251,15 +194,15 @@ void IOSRAMTop::readFromIO() {
       });
 }
 
-void IOSRAMTop::writeToIO() {
+void Iosram_top::writeToIO() {
   // Writing buffer data to the IO
-  next_timing_states[PortMap::SRAMWriteToIO].addEvent(
+  next_timing_states[IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE_TO_IO].addEvent(
       "dsu_write_to_io_" + std::to_string(current_event_number), 9, [this] {
         sram_write_to_io_address_buffer =
             sram_write_to_io_initial_addr +
-            current_timing_states[PortMap::SRAMWriteToIO]
-                .getRepIncrementForCycle(
-                    getPortActiveCycle(PortMap::SRAMWriteToIO));
+            current_timing_states[IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE_TO_IO]
+                .getRepIncrementForCycle(getPortActiveCycle(
+                    IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE_TO_IO));
 
         IOWriteRequest *writeReq = new IOWriteRequest();
         writeReq->address = sram_write_to_io_address_buffer;
@@ -273,9 +216,9 @@ void IOSRAMTop::writeToIO() {
       });
 }
 
-void IOSRAMTop::writeToSRAM() {
+void Iosram_top::writeToSRAM() {
   // Writing buffer data to the backend
-  next_timing_states[PortMap::IOWriteToSRAM].addEvent(
+  next_timing_states[IOSRAM_TOP_PKG::DSU_PORT_IO_WRITE_TO_SRAM].addEvent(
       "dsu_write_to_sram_" + std::to_string(current_event_number), 8, [this] {
         // Check if the IO responded
         IOReadResponse *ioReadResponse =
@@ -296,9 +239,9 @@ void IOSRAMTop::writeToSRAM() {
         // Calculate the SRAM address
         io_write_to_sram_address_buffer =
             io_write_to_sram_initial_addr +
-            current_timing_states[PortMap::IOWriteToSRAM]
-                .getRepIncrementForCycle(
-                    getPortActiveCycle(PortMap::IOWriteToSRAM));
+            current_timing_states[IOSRAM_TOP_PKG::DSU_PORT_IO_WRITE_TO_SRAM]
+                .getRepIncrementForCycle(getPortActiveCycle(
+                    IOSRAM_TOP_PKG::DSU_PORT_IO_WRITE_TO_SRAM));
 
         // Write data to the backend (SRAM)
         backend->set(io_write_to_sram_address_buffer,
@@ -313,15 +256,15 @@ void IOSRAMTop::writeToSRAM() {
       });
 }
 
-void IOSRAMTop::readFromSRAM() {
+void Iosram_top::readFromSRAM() {
   // Reading data from the backend to the buffer
-  next_timing_states[PortMap::IOReadFromSRAM].addEvent(
+  next_timing_states[IOSRAM_TOP_PKG::DSU_PORT_IO_READ_FROM_SRAM].addEvent(
       "dsu_read_from_sram_" + std::to_string(current_event_number), 2, [this] {
         io_read_from_sram_address_buffer =
             io_read_from_sram_initial_addr +
-            current_timing_states[PortMap::IOReadFromSRAM]
-                .getRepIncrementForCycle(
-                    getPortActiveCycle(PortMap::IOReadFromSRAM));
+            current_timing_states[IOSRAM_TOP_PKG::DSU_PORT_IO_READ_FROM_SRAM]
+                .getRepIncrementForCycle(getPortActiveCycle(
+                    IOSRAM_TOP_PKG::DSU_PORT_IO_READ_FROM_SRAM));
 
         to_io_data_buffer.clear();
         backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
@@ -333,14 +276,15 @@ void IOSRAMTop::readFromSRAM() {
       });
 }
 
-void IOSRAMTop::readBulk() {
-  out.output("Add event read bulk (port %d prio %d)\n", PortMap::ReadBulk, 1);
-  next_timing_states[PortMap::ReadBulk].addEvent(
+void Iosram_top::readBulk() {
+  out.output("Add event read bulk (port %d prio %d)\n",
+             IOSRAM_TOP_PKG::DSU_PORT_READ_BULK, 1);
+  next_timing_states[IOSRAM_TOP_PKG::DSU_PORT_READ_BULK].addEvent(
       "dsu_send_" + std::to_string(current_event_number), 1, [this] {
         read_bulk_address_buffer =
             read_bulk_initial_addr +
-            current_timing_states[PortMap::ReadBulk].getRepIncrementForCycle(
-                getPortActiveCycle(PortMap::ReadBulk));
+            current_timing_states[IOSRAM_TOP_PKG::DSU_PORT_READ_BULK]
+                .getRepIncrementForCycle(IOSRAM_TOP_PKG::DSU_PORT_READ_BULK);
 
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
@@ -354,13 +298,14 @@ void IOSRAMTop::readBulk() {
       });
 }
 
-void IOSRAMTop::writeBulk() {
-  next_timing_states[PortMap::WriteBulk].addEvent(
+void Iosram_top::writeBulk() {
+  next_timing_states[IOSRAM_TOP_PKG::DSU_PORT_WRITE_BULK].addEvent(
       "dsu_receive_" + std::to_string(current_event_number), 9, [this] {
         write_bulk_address_buffer =
             write_bulk_initial_addr +
-            current_timing_states[PortMap::WriteBulk].getRepIncrementForCycle(
-                getPortActiveCycle(PortMap::WriteBulk));
+            current_timing_states[IOSRAM_TOP_PKG::DSU_PORT_WRITE_BULK]
+                .getRepIncrementForCycle(
+                    getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_WRITE_BULK));
 
         // Check if some data was received
         DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());

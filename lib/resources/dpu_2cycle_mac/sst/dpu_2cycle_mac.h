@@ -1,21 +1,15 @@
-#ifndef _DPU_H
-#define _DPU_H
+#ifndef _DPU_2CYCLE_MAC_H
+#define _DPU_2CYCLE_MAC_H
 
-#include "drra.h"
-#include <climits>
-#include <sst/core/component.h>
-#include <sst/core/event.h>
-#include <sst/core/link.h>
-#include <sst/core/output.h>
-#include <sst/core/sst_types.h>
-#include <sst/core/timeConverter.h>
+#include "dpu_2cycle_mac_pkg.h"
+#include "drra_resource.h"
 
-class DPU2CycleMac : public DRRAResource {
+class Dpu_2cycle_mac : public DRRAResource {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(DPU2CycleMac, "drra", "dpu_2cycle_mac",
+  SST_ELI_REGISTER_COMPONENT(Dpu_2cycle_mac, "drra", "dpu_2cycle_mac",
                              SST_ELI_ELEMENT_VERSION(1, 0, 0),
-                             "DPU component 2cycle MAC",
+                             "Dpu_2cycle_mac component",
                              COMPONENT_CATEGORY_PROCESSOR)
 
   /* Element Library Params */
@@ -32,189 +26,51 @@ public:
   }
   SST_ELI_DOCUMENT_PORTS(getComponentPorts())
 
-  SST_ELI_DOCUMENT_STATISTICS()
-  SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS()
+  /* Element Library Statistics */
+  static std::vector<SST::ElementInfoStatistic> getComponentStatistics() {
+    auto stats = DRRAResource::getBaseStatistics();
+    return stats;
+  }
+  SST_ELI_DOCUMENT_STATISTICS(getComponentStatistics())
 
-  DPU2CycleMac(SST::ComponentId_t id, SST::Params &params);
-  ~DPU2CycleMac() {};
+  /* Constructor */
+  Dpu_2cycle_mac(SST::ComponentId_t id, SST::Params &params);
 
-  // SST lifecycle methods
-  virtual void init(unsigned int phase) override;
-  virtual void setup() override;
-  virtual void complete(unsigned int phase) override;
-  virtual void finish() override;
+  /* Destructor */
+  ~Dpu_2cycle_mac() {};
 
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 
-private:
-  int MAC_phase;
-
-  // buffers
-  std::vector<uint8_t> accumulate_register;
-
-  // Supported opcodes
-  void decodeInstr(uint32_t instr) override;
-  enum OpCode { REP, REPX, FSM, DPU_OP };
-  void handleRep(uint32_t instr);
-  void handleRepx(uint32_t instr);
-  void handleFSM(uint32_t instr);
-  void handleDPU(uint32_t instr);
   void handleOperation(std::string name,
                        std::function<int64_t(int64_t, int64_t)> operation);
 
-  // DPU modes
-  enum DPU_MODE {
-    IDLE,
-    ADD,
-    SUM_ACC,
-    ADD_CONST,
-    SUBT,
-    SUBT_ABS,
-    MODE_6,
-    MULT,
-    MULT_ADD,
-    MULT_CONST,
-    MAC,
-    LD_IR,
-    AXPY,
-    MAX_MIN_ACC,
-    MAX_MIN_CONST,
-    MODE_15,
-    MAX_MIN,
-    SHIFT_L,
-    SHIFT_R,
-    SIGM,
-    TANHYP,
-    EXPON,
-    LK_RELU,
-    RELU,
-    DIV,
-    ACC_SOFTMAX,
-    DIV_SOFTMAX,
-    LD_ACC,
-    SCALE_DW,
-    SCALE_UP,
-    MAC_INTER,
-    MODE_31
-  };
+  std::vector<uint8_t> &getAccumulateRegister() { return accumulate_register; }
 
-  const int64_t add_sat(int64_t a, int64_t b) {
-    if (a > 0) {
-      if (b > INT64_MAX - a) {
-        return INT64_MAX;
-      }
-    } else if (b < INT64_MIN - a) {
-      return INT64_MIN;
-    }
-    return a + b;
-  }
+  using DRRAResource::int64ToVector;
+  using DRRAResource::uint64ToVector;
+  using DRRAResource::vectorToInt64;
 
-  const int64_t mul_sat(int64_t a, int64_t b) {
-    if (a == 0 || b == 0) {
-      return 0;
-    }
+  // Instruction format
+  using DRRAResource::format;
+  void handleDPU(const DPU_2CYCLE_MAC_PKG::DPUInstruction &instr);
+  void handleREP(const DPU_2CYCLE_MAC_PKG::REPInstruction &instr);
+  void handleREPX(const DPU_2CYCLE_MAC_PKG::REPXInstruction &instr);
+  void handleFSM(const DPU_2CYCLE_MAC_PKG::FSMInstruction &instr);
 
-    if (a > 0) {
-      if (b > 0) {
-        if (a > INT64_MAX / b) {
-          return INT64_MAX;
-        }
-      } else {
-        if (b < INT64_MIN / a) {
-          return INT64_MIN;
-        }
-      }
-    } else {
-      if (b > 0) {
-        if (a < INT64_MIN / b) {
-          return INT64_MIN;
-        }
-      } else {
-        if (a != INT64_MIN && b < INT64_MAX / a) {
-          return INT64_MAX;
-        }
-      }
-    }
+  using DRRAResource::out;
 
-    return a * b;
-  }
+private:
+  std::vector<uint8_t> accumulate_register;
 
-  // Map of DSU modes to handlers
-  std::map<DPU_MODE, std::function<void()>> dsuHandlers = {
-      {IDLE, [this] { out.output("IDLE\n"); }},
-      {ADD,
-       [this] {
-         handleOperation(
-             "ADD", [this](int64_t a, int64_t b) { return add_sat(a, b); });
-       }},
-      {ADD_CONST,
-       [this] {
-         handleOperation("ADD_CONST", [this](int64_t a, int64_t b) {
-           return add_sat(a, b);
-         });
-       }},
-      {SUBT,
-       [this] {
-         handleOperation(
-             "SUBT", [this](int64_t a, int64_t b) { return add_sat(a, -b); });
-       }},
-      {SUBT_ABS,
-       [this] {
-         handleOperation("SUBT_ABS", [this](int64_t a, int64_t b) {
-           return add_sat(a, -b);
-         });
-       }},
-      {MULT,
-       [this] {
-         handleOperation(
-             "MULT", [this](int64_t a, int64_t b) { return mul_sat(a, b); });
-       }},
-      {MULT_CONST,
-       [this] {
-         handleOperation("MULT_CONST", [this](int64_t a, int64_t b) {
-           return mul_sat(a, b);
-         });
-       }},
-      {LD_IR,
-       [this] {
-         handleOperation("LD_IR", [](int64_t a, int64_t b) { return b; });
-       }},
-      {MAC,
-       [this] {
-         handleOperation("MAC", [this](int64_t a, int64_t b) {
-           int64_t result = 0;
-           if (MAC_phase == 0) {
-             MAC_phase = 1;
-             result =
-                 add_sat(vectorToInt64(accumulate_register), mul_sat(a, b));
-             accumulate_register = int64ToVector(result);
-             result = 0;
-           } else {
-             MAC_phase = 0;
-             result = vectorToInt64(accumulate_register);
-           }
-           return result;
-         });
-       }},
-  };
+  std::unordered_map<DPU_2CYCLE_MAC_PKG::DPU_MODE, std::function<void()>>
+      dpuHandlers;
 
-  std::function<void()> getDSUHandler(DPU_MODE mode) {
-    out.output("DSU mode: %d\n", mode);
-    if (dsuHandlers.find(mode) == dsuHandlers.end())
-      out.fatal(CALL_INFO, -1, "DSU mode %d not implemented\n", mode);
-
-    return dsuHandlers[mode];
-  }
-
-  // Events handlers list
-  std::vector<std::function<void()>> eventsHandlers;
   uint32_t current_event_number = 0;
+  std::vector<std::function<void()>> eventsHandlers;
 
-  // FSMs
-  static const uint32_t num_fsms = 4;
   uint32_t current_fsm = 0;
-  std::function<void()> fsmHandlers[num_fsms];
+  std::vector<std::function<void()>> fsmHandlers;
 };
 
-#endif // _DPU_H
+#endif // _DPU_2CYCLE_MAC_H

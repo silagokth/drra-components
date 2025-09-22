@@ -1,5 +1,6 @@
 {
   "kind": "dpu",
+  "type": "resource",
   "size": 2,
   "io_input": false,
   "io_output": false,

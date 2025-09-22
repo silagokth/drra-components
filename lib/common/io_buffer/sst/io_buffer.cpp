@@ -1,11 +1,9 @@
 #include "io_buffer.h"
 
-#include <sst/core/componentExtension.h>
-#include <sst/core/interfaces/stdMem.h>
-
 #include "custom_backing.h"
 
 #include "ioEvents.h"
+#include <sst/core/link.h>
 
 IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   // Output
