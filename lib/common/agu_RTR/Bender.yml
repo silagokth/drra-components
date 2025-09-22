@@ -1,0 +1,11 @@
+package:
+  name: agu_RTR
+
+sources:
+  - ./rtl/agu_RTR.sv
+  - ./rtl/config.sv
+  - ./rtl/controller.sv
+  - ./rtl/counter.sv
+  - ./rtl/decoder.sv
+  - ./rtl/tasks.sv
+  - ./rtl/register.sv

@@ -12,7 +12,7 @@ module agu_RTR #(
 
     parameter NUMBER_OR,
     parameter NUMBER_MT,
-    parameter NUMBER_IR 
+    parameter NUMBER_IR
 ) (
 
     input  logic                         clk,
