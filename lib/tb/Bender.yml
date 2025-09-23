@@ -2,7 +2,7 @@ package:
   name: tb
 
 dependencies:
-  fabric: { path: ../fabric }
+  alimp : { path : ../alimp }
 
 sources:
   - ./rtl/tb.sv

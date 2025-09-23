@@ -1,0 +1,9 @@
+package:
+  name: alimp
+
+dependencies:
+  pcu : { path : ../pcu }
+
+sources:
+  - ./rtl/alimp_pkg.sv
+  - ./rtl/alimp.sv

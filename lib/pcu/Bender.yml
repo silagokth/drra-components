@@ -1,0 +1,14 @@
+package:
+  name: pcu
+
+dependencies:
+
+sources:
+  - ./rtl/pcu_pkg.sv
+  - ./rtl/extif.sv
+  - ./rtl/boot.sv
+  - ./rtl/ram.sv
+  - ./rtl/picorv32.v
+  - ./rtl/core.sv
+  - ./rtl/ssm.sv
+  - ./rtl/pcu.sv

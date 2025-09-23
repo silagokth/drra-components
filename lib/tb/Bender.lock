@@ -1,0 +1,14 @@
+packages:
+  alimp:
+    revision: null
+    version: null
+    source:
+      Path: ../alimp
+    dependencies:
+    - pcu
+  pcu:
+    revision: null
+    version: null
+    source:
+      Path: ../alimp/../pcu
+    dependencies: []

@@ -1,154 +1,215 @@
+`define HAS_SSM
 
-module fabric_tb;
-  import fabric_pkg::*;
+
+
+module tb;
+
+    parameter ADDR_WIDTH = 16; // Address width in bits
+    parameter DATA_WIDTH = 32; // Data width in bits
+    parameter IO_ADDR_WIDTH = 16; // IO Address width in bits
+    parameter IO_DATA_WIDTH = 256; // IO Data width in bits
 
   // stimuli
   logic clk;
   logic rst_n;
-  logic [ROWS-1:0] call;
-  logic [ROWS-1:0] ret;
-  logic [COLS-1:0] io_en_in;
-  logic [COLS-1:0][IO_ADDR_WIDTH-1:0] io_addr_in;
-  logic [COLS-1:0][IO_DATA_WIDTH-1:0] io_data_in;
-  logic [COLS-1:0] io_en_out;
-  logic [COLS-1:0][IO_ADDR_WIDTH-1:0] io_addr_out;
-  logic [COLS-1:0][IO_DATA_WIDTH-1:0] io_data_out;
 
-  logic [ROWS-1:0][INSTR_DATA_WIDTH-1:0] instr_data_in;
-  logic [ROWS-1:0][INSTR_ADDR_WIDTH-1:0] instr_addr_in;
-  logic [ROWS-1:0][INSTR_HOPS_WIDTH-1:0] instr_hops_in;
-  logic [ROWS-1:0] instr_en_in;
-  logic [ROWS-1:0][INSTR_DATA_WIDTH-1:0] instr_data_out;
-  logic [ROWS-1:0][INSTR_ADDR_WIDTH-1:0] instr_addr_out;
-  logic [ROWS-1:0][INSTR_HOPS_WIDTH-1:0] instr_hops_out;
-  logic [ROWS-1:0] instr_en_out;
+`ifdef HAS_DRRA
+  logic [COLS-1:0] io_en_in_drra;
+  logic [COLS-1:0][IO_ADDR_WIDTH-1:0] io_addr_in_drra;
+  logic [COLS-1:0][IO_DATA_WIDTH-1:0] io_data_in_drra;
+  logic [COLS-1:0] io_en_out_drra;
+  logic [COLS-1:0][IO_ADDR_WIDTH-1:0] io_addr_out_drra;
+  logic [COLS-1:0][IO_DATA_WIDTH-1:0] io_data_out_drra;
+`endif
+
+  logic io_en_in;
+  logic [IO_ADDR_WIDTH-1:0] io_addr_in;
+  logic [IO_DATA_WIDTH-1:0] io_data_in;
+  logic io_en_out;
+  logic [IO_ADDR_WIDTH-1:0] io_addr_out;
+  logic [IO_DATA_WIDTH-1:0] io_data_out;
 
   logic [255:0] input_buffer[int];
   logic [255:0] output_buffer[int];
 
-  logic ret_all;
-  assign ret_all = &ret;
+  // axi-lite signals
+  logic [31:0] s_axi_awaddr;
+  logic s_axi_awvalid;
+  logic s_axi_awready;
+  logic [31:0] s_axi_wdata;
+  logic [3:0] s_axi_wstrb;
+  logic s_axi_wvalid;
+  logic s_axi_wready;
+  logic [1:0] s_axi_bresp;
+  logic s_axi_bvalid;
+  logic s_axi_bready;
+  logic [31:0] s_axi_araddr;
+  logic s_axi_arvalid;
+  logic s_axi_arready;
+  logic [31:0] s_axi_rdata;
+  logic [1:0] s_axi_rresp;
+  logic s_axi_rvalid;
+  logic s_axi_rready;
 
-  int fd;
-  int r, c;
-  int index;
-  string line;
-  logic [INSTR_DATA_WIDTH-1:0] temp_instruction;
-  realtime start_time, end_time;
-  logic [15:0][15:0] ob_line, ib_line;
-  initial begin
-    rst_n = 0;
-    for (int i = 0; i < ROWS; i++) begin
-      call[i] = 0;
-    end
+  // custom signals
+  logic start_in;
+  logic start_out;
 
-    @(posedge clk);
-    @(negedge clk) rst_n = 1;
+  // DUT: alimp
+  alimp alimp_inst (
+      .clk            (clk),
+      .rst_n          (rst_n),
 
-    // load instructions
-    index = 0;
-    r = 0;
-    c = 0;
-    fd = $fopen("instr.bin", "r");
-    while (!$feof(
-        fd
-    )) begin
-      if ($fscanf(fd, "cell %d %d", r, c)) begin
-        $display("cell %d %d", r, c);
-        index = 0;
-      end else if ($fscanf(fd, "%b", temp_instruction)) begin
-        $display("instr_data_in[%d][%d] = %b", r, c, temp_instruction);
-        instr_data_in[r] = temp_instruction;
-        instr_addr_in[r] = index;
-        instr_hops_in[r] = c;
-        instr_en_in[r] = 1;
-        index = index + 1;
-        @(negedge clk);
-        instr_data_in[r] = 0;
-        instr_addr_in[r] = 0;
-        instr_hops_in[r] = 0;
-        instr_en_in[r]   = 0;
-      end
-    end
+      // AXI4-Lite Slave Interface
+      .s_axi_awaddr   (s_axi_awaddr),
+      .s_axi_awvalid  (s_axi_awvalid),
+      .s_axi_awready  (s_axi_awready),
+      .s_axi_wdata    (s_axi_wdata),
+      .s_axi_wstrb    (s_axi_wstrb),
+      .s_axi_wvalid   (s_axi_wvalid),
+      .s_axi_wready   (s_axi_wready),
+      .s_axi_bresp    (s_axi_bresp),
+      .s_axi_bvalid   (s_axi_bvalid),
+      .s_axi_bready   (s_axi_bready),
+      .s_axi_araddr   (s_axi_araddr),
+      .s_axi_arvalid  (s_axi_arvalid),
+      .s_axi_arready  (s_axi_arready),
+      .s_axi_rdata    (s_axi_rdata),
+      .s_axi_rresp    (s_axi_rresp),
+      .s_axi_rvalid   (s_axi_rvalid),
+      .s_axi_rready   (s_axi_rready),
 
-    // record simulation time
-    @(negedge clk)
-    for (int i = 0; i < ROWS; i++) begin
-      call[i] = 1;
-    end
-    start_time = $realtime;
-    @(negedge clk)
-    for (int i = 0; i < ROWS; i++) begin
-      call[i] = 0;
-    end
-    // wait until every cell is called and ret signal is stable
-    for (int i = 0; i < COLS * 2; i++) begin
-      @(negedge clk);
-    end
+      // Custom signals
+      .start_in       (start_in),
+      .start_out      (start_out),
 
-    // wait for ret to be 1
-    @(posedge ret_all);
-    // record simulation time
-    @(negedge clk) end_time = $realtime;
-    $display("Simulation ends! Total cycles = %d", (end_time - start_time) / 10);
-
-    // display all the output buffer and write it to a file
-    $display("Output Buffers:");
-    fd = $fopen("sram_image_out.bin", "w+");
-    foreach (output_buffer[i]) begin
-      for (int x = 0; x < 16; x = x + 1) begin
-        ob_line[x] = output_buffer[i][16*x+:16];
-      end
-      $display("OB[%d] = %s", i, $sformatf("%p", ob_line));
-      $fwrite(fd, "%d %b\n", i, output_buffer[i]);
-    end
-    $finish;
-  end
-
-  // loading input buffer
-  logic [255:0] temp_data;
-  initial begin
-    fd = $fopen("sram_image_in.bin", "r");
-    // for each line put it in the input buffer
-    $display("Loading input buffer");
-    while (!$feof(
-        fd
-    )) begin
-      $fscanf(fd, "%d %b", index, temp_data);
-      $display("index = %d, data = %b", index, temp_data);
-      input_buffer[index] = temp_data;
-    end
-
-    $display("Input Buffers:");
-    foreach (input_buffer[i]) begin
-      for (int x = 0; x < 16; x = x + 1) begin
-        ib_line[x] = input_buffer[i][16*x+:16];
-      end
-      $display("IB[%d] = %s", i, $sformatf("%p", ib_line));
-    end
-  end
-
-  // DUT
-  fabric fabric_inst (
-      .clk(clk),
-      .rst_n(rst_n),
-      .call(call),
-      .ret(ret),
-      .io_en_in(io_en_in),
-      .io_addr_in(io_addr_in),
-      .io_data_in(io_data_in),
-      .io_en_out(io_en_out),
-      .io_addr_out(io_addr_out),
-      .io_data_out(io_data_out),
-      .instr_data_in(instr_data_in),
-      .instr_addr_in(instr_addr_in),
-      .instr_hops_in(instr_hops_in),
-      .instr_en_in(instr_en_in),
-      .instr_data_out(instr_data_out),
-      .instr_addr_out(instr_addr_out),
-      .instr_hops_out(instr_hops_out),
-      .instr_en_out(instr_en_out)
+      // IO signals
+      .io_en_in       (io_en_in),
+      .io_addr_in     (io_addr_in),
+      .io_data_in     (io_data_in),
+      .io_en_out      (io_en_out),
+      .io_addr_out    (io_addr_out),
+      .io_data_out    (io_data_out)
   );
+
+  // instruction memory interface
+  localparam IRAM_SIZE = 23767; // 1GB
+  logic [DATA_WIDTH-1:0] iram [0:IRAM_SIZE-1];
+  logic [DATA_WIDTH-1:0] status;
+  logic [DATA_WIDTH-1:0] return_value;
+  int check_count = 0;
+  initial begin
+      if (!$readmemb("firmware.mem", iram)) begin
+          $display("Error: Failed to read memory file");
+      end else begin
+          $display("Memory file loaded successfully");
+      end
+
+      // initial clock and reset
+      rst_n = 0;
+      @(posedge clk);
+      @(negedge clk) rst_n = 1;
+      @(posedge clk);
+      @(negedge clk) rst_n = 0;
+      @(posedge clk);
+      @(negedge clk) rst_n = 1;
+
+      // write everything to alimp instance using axi-lite interface
+      s_axi_awvalid = 0;
+      s_axi_wvalid = 0;
+      s_axi_bready = 1;
+      s_axi_arvalid = 0;
+      s_axi_rready = 1;
+      start_in = 0;
+      @(negedge clk);
+      for (int i = 0; i < IRAM_SIZE; i++) begin
+          // write address
+          s_axi_awaddr = i * 4;
+          s_axi_awvalid = 1;
+          @(negedge clk);
+          while (!s_axi_awready) begin
+              @(negedge clk);
+          end
+          s_axi_awvalid = 0;
+          // write data
+          s_axi_wdata = iram[i];
+          s_axi_wstrb = 4'b1111;
+          s_axi_wvalid = 1;
+          @(negedge clk);
+          while (!s_axi_wready) begin
+              @(negedge clk);
+          end
+          s_axi_wvalid = 0;
+          // wait for write response
+          @(negedge clk);
+          while (!s_axi_bvalid) begin
+              @(negedge clk);
+          end
+          @(negedge clk);
+      end
+      $display("Instruction memory loaded successfully");
+
+      // assert start signal for one cycle
+      @(negedge clk);
+      start_in = 1;
+      @(negedge clk);
+      start_in = 0;
+
+      // Wake up every 100 cycles and check address 0x00000_C000.
+      // If the contents is 0x0000_0001, then the program is still running.
+      // If the contents is 0x0000_0000, then the program has completed.
+      // Then read address 0x0000_2000, this is the return register.
+      // If the contents is 0x47545353, then the program has completed successfully
+      //   (0x47545353 is ASCII for "GTSS" -- a magic number meaning "Great Success")
+      // If the contents is anything else, then the program has failed.
+
+      forever begin
+          repeat (100) @(negedge clk);
+          // read status
+          s_axi_araddr = 'h0000_C000;
+          s_axi_arvalid = 1;
+          @(negedge clk);
+          while (!s_axi_arready) begin
+              @(negedge clk);
+          end
+          s_axi_arvalid = 0;
+          @(negedge clk);
+          while (!s_axi_rvalid) begin
+              @(negedge clk);
+          end
+          status = s_axi_rdata;
+          @(negedge clk);
+          if (status == 32'h0000_0000) begin
+              // read return value
+              s_axi_araddr = 'h0000_2000;
+              s_axi_arvalid = 1;
+              @(negedge clk);
+              while (!s_axi_arready) begin
+                  @(negedge clk);
+              end
+              s_axi_arvalid = 0;
+              @(negedge clk);
+              while (!s_axi_rvalid) begin
+                  @(negedge clk);
+              end
+              return_value = s_axi_rdata;
+              @(negedge clk);
+              if (return_value == 32'h47545353) begin
+                  $display("Program completed successfully!");
+              end else begin
+                  $display("Program failed with return value: 0x%08X", return_value);
+              end
+              $finish;
+          end else begin
+              check_count = check_count + 1;
+              $display("Check %0d: Program still running...", check_count);
+          end
+      end
+      // wait a few cycles and finish
+      repeat (10) @(negedge clk);
+      $finish;
+
+  end
 
   // clock
   initial begin
@@ -158,14 +219,16 @@ module fabric_tb;
     end
   end
 
+
+  `ifdef HAS_DRRA
   // Write to IO
   always_ff @(posedge clk or negedge rst_n) begin
     if (~rst_n) begin
       output_buffer.delete();
     end else begin
       for (int i = 0; i < COLS; i++) begin
-        if (io_en_out[i]) begin
-          output_buffer[io_addr_out[i]] = io_data_out[i];
+        if (io_en_out_drra[i]) begin
+          output_buffer[io_addr_out[i]] = io_data_out_drra[i];
         end
       end
     end
@@ -174,11 +237,32 @@ module fabric_tb;
   // Read from IO
   always_comb begin
     for (int i = 0; i < COLS; i++) begin
-      if (io_en_in[i]) begin
-        io_data_in[i] = input_buffer[io_addr_in[i]];
+      if (io_en_in_drra[i]) begin
+        io_data_in_drra[i] = input_buffer[io_addr_in_drra[i]];
       end else begin
-        io_data_in[i] = 0;
+        io_data_in_drra[i] = 0;
       end
+    end
+  end
+  `endif
+
+    // Write to IO
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (~rst_n) begin
+      output_buffer.delete();
+    end else begin
+      if (io_en_out) begin
+        output_buffer[io_addr_out] = io_data_out;
+      end
+    end
+  end
+
+  // Read from IO
+  always_comb begin
+    if (io_en_in) begin
+      io_data_in = input_buffer[io_addr_in];
+    end else begin
+      io_data_in = 0;
     end
   end
 
