@@ -14,39 +14,47 @@ module agu_RTR #(
     parameter NUMBER_MT,
     parameter NUMBER_IR
 ) (
-
     input  logic                         clk,
     input  logic                         rst_n,
     input  logic                         activation,
 
-    input  logic                         rep_valid,
-    input  logic                         repx_valid,
+    `ifdef INCLUDE_IR_STATES
+        input  logic                     rep_valid,
+        input  logic                     repx_valid,
+    `elsif INCLUDE_OR_STATES
+        input  logic                     rep_valid,
+        input  logic                     repx_valid,
+    `endif
+
+    `ifdef INCLUDE_IR_STATES
+    input  logic [REP_DELAY_WIDTH-1:0]   rep_delay_IR  [(NUMBER_MT+1)*NUMBER_IR],
+    input  logic [REP_ITER_WIDTH-1:0]    rep_iter_IR   [(NUMBER_MT+1)*NUMBER_IR],
+    input  logic [REP_STEP_WIDTH-1:0]    rep_step_IR   [(NUMBER_MT+1)*NUMBER_IR],
+    input  logic                         rep_config_IR [(NUMBER_MT+1)*NUMBER_IR],
+    `endif
+    `ifdef INCLUDE_MT_STATES
     input  logic                         trans_valid,
-    input  logic [REP_LEVEL_WIDTH-1:0]   rep_level,
-    input  logic [REP_DELAY_WIDTH-1:0]   rep_delay,
-    input  logic [REP_ITER_WIDTH-1:0]    rep_iter,
-    input  logic [REP_STEP_WIDTH-1:0]    rep_step,
-    input  logic [TRANS_LEVEL_WIDTH-1:0] trans_level,
-    input  logic [TRANS_DELAY_WIDTH-1:0] trans_delay,
+    input  logic [TRANS_DELAY_WIDTH-1:0] trans_delay   [NUMBER_MT],
+    input  logic                         trans_config  [NUMBER_MT],
+    `endif
+    `ifdef INCLUDE_OR_STATES
+    input  logic [REP_DELAY_WIDTH-1:0]   rep_delay_OR  [NUMBER_OR],
+    input  logic [REP_ITER_WIDTH-1:0]    rep_iter_OR   [NUMBER_OR],
+    input  logic [REP_STEP_WIDTH-1:0]    rep_step_OR   [NUMBER_OR],
+    input  logic                         rep_config_OR [NUMBER_OR],
+    `endif
 
     output logic                         address_valid,
     output logic [ADDRESS_WIDTH-1:0]     address
 );
-    logic                                init0_config;
+
     logic                                en_address;
 
     `ifdef INCLUDE_IR_STATES
     logic [REP_ITER_WIDTH-1:0]           regIR_iter       [(NUMBER_MT+1)*NUMBER_IR];
     logic [REP_DELAY_WIDTH-1:0]          regIR_delay      [(NUMBER_MT+1)*NUMBER_IR];
     logic [REP_STEP_WIDTH-1:0]           regIR_step       [(NUMBER_MT+1)*NUMBER_IR];
-    logic                                regIR_config     [(NUMBER_MT+1)*NUMBER_IR];
-    logic                                IRbarOR;
-    logic                                init0_config_IR;
-    logic                                en_config_IR;
-    logic [$clog2(NUMBER_IR)-1:0]        config_IR; 
-    logic                                en_decoder_config_IR;
-    logic [$clog2(NUMBER_IR*(NUMBER_MT+1))-1:0] in_decoder_config_IR;
-    logic [2**$clog2(NUMBER_IR*(NUMBER_MT+1))-1:0] decoded_config_IR;
+    logic                                regIR_config     [(NUMBER_MT+1)*NUMBER_IR]; 
     logic                                initIR_address;
     logic [$clog2(NUMBER_IR)-1:0]        level_IR;
     logic [ADDRESS_WIDTH-1:0]            initVal_IR       [1:NUMBER_IR-1];
@@ -58,8 +66,6 @@ module agu_RTR #(
     `ifdef INCLUDE_MT_STATES
     logic [TRANS_DELAY_WIDTH-1:0]        regMT_delay       [NUMBER_MT];
     logic                                regMT_config      [NUMBER_MT];
-    logic                                en_decoder_config_MT;
-    logic [2**$clog2(NUMBER_MT)-1:0]     en_config_MT;
     logic                                init0_address;
     `endif  
 
@@ -70,10 +76,6 @@ module agu_RTR #(
     logic [REP_DELAY_WIDTH-1:0]          regOR_delay       [NUMBER_OR];
     logic [REP_STEP_WIDTH-1:0]           regOR_step        [NUMBER_OR];
     logic                                regOR_config      [NUMBER_OR];
-    logic                                en_config_OR;
-    logic [$clog2(NUMBER_OR)-1:0]        config_OR; 
-    logic                                en_decoder_config_OR;
-    logic [2**$clog2(NUMBER_OR)-1:0]     decoded_config_OR;
     logic                                initOR_address;
     logic [$clog2(NUMBER_OR)-1:0]        level_OR;
     logic [ADDRESS_WIDTH-1:0]            initVal_OR        [NUMBER_OR];
@@ -86,27 +88,6 @@ module agu_RTR #(
 
     genvar i;
     `ifdef INCLUDE_IR_STATES
-    up_counter #(
-        .WIDTH($clog2(NUMBER_IR))
-        ) counter_config_IR (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_config_IR),
-            .init0(init0_config_IR),
-            .count(config_IR)
-    );
-
-    assign IRbarOR = rep_level < NUMBER_IR[REP_LEVEL_WIDTH-1:0] ? 1'b1 : 1'b0;
-
-    assign in_decoder_config_IR = NUMBER_IR * level_MT + config_IR;
-    decoder #(
-        .WIDTH($clog2(NUMBER_IR*(NUMBER_MT+1)))
-        ) decoder_IR_option (
-            .enable(en_decoder_config_IR),
-            .in_data(in_decoder_config_IR),
-            .out_data(decoded_config_IR)
-    );
-
     generate
         for (i = 0; i < (NUMBER_MT+1)*NUMBER_IR; i++) begin : IR_registers
             register #(
@@ -114,9 +95,9 @@ module agu_RTR #(
             ) regIR_iter_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_IR[i]),
-                .in_value(rep_iter),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_iter_IR[i]),
                 .out_value(regIR_iter[i])
             );
 
@@ -125,9 +106,9 @@ module agu_RTR #(
             ) regIR_delay_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_IR[i]),
-                .in_value(rep_delay),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_delay_IR[i]),
                 .out_value(regIR_delay[i])
             );
 
@@ -136,9 +117,9 @@ module agu_RTR #(
             ) regIR_step_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_IR[i]),
-                .in_value(rep_step),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_step_IR[i]),
                 .out_value(regIR_step[i])
             );
 
@@ -147,9 +128,9 @@ module agu_RTR #(
             ) regIR_config_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_IR[i]),
-                .in_value(1'b1),
+                .init0(),
+                .enable(rep_valid),  
+                .in_value(rep_config_IR[i]),
                 .out_value(regIR_config[i])
             );
         end
@@ -157,14 +138,6 @@ module agu_RTR #(
     `endif
 
     `ifdef INCLUDE_MT_STATES
-    decoder #(
-        .WIDTH($clog2(NUMBER_MT))
-        ) decoder_MT_option (
-            .enable(en_decoder_config_MT),
-            .in_data(level_MT[$clog2(NUMBER_MT)-1:0]),
-            .out_data(en_config_MT)
-    );
-
     generate
         for (i = 0; i < NUMBER_MT; i++) begin : MT_registers
             register #(
@@ -172,9 +145,9 @@ module agu_RTR #(
             ) regMT_delay_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(en_config_MT[i]),
-                .in_value(trans_delay),
+                .init0(),
+                .enable(trans_valid),
+                .in_value(trans_delay[i]),
                 .out_value(regMT_delay[i])
             );
 
@@ -183,9 +156,9 @@ module agu_RTR #(
             ) regMT_config_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(en_config_MT[i]),
-                .in_value(1'b1),
+                .init0(),
+                .enable(trans_valid),
+                .in_value(trans_config[i]),
                 .out_value(regMT_config[i])
             );
         end
@@ -193,24 +166,6 @@ module agu_RTR #(
     `endif
 
     `ifdef INCLUDE_OR_STATES
-    up_counter #(
-        .WIDTH($clog2(NUMBER_OR))
-        ) counter_config_OR (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(en_config_OR),
-            .init0(),
-            .count(config_OR)
-    );
-
-    decoder #(
-        .WIDTH($clog2(NUMBER_OR))
-        ) decoder_OR_option (
-            .enable(en_decoder_config_OR),
-            .in_data(config_OR),
-            .out_data(decoded_config_OR)
-    );
-
     generate
         for (i = 0; i < NUMBER_OR; i++) begin : OR_registers
             register #(
@@ -218,9 +173,9 @@ module agu_RTR #(
             ) regOR_iter_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_OR[i]),
-                .in_value(rep_iter),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_iter_OR[i]),
                 .out_value(regOR_iter[i])
             );
 
@@ -229,9 +184,9 @@ module agu_RTR #(
             ) regOR_delay_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_OR[i]),
-                .in_value(rep_delay),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_delay_OR[i]),
                 .out_value(regOR_delay[i])
             );
 
@@ -240,9 +195,9 @@ module agu_RTR #(
             ) regOR_step_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_OR[i]),
-                .in_value(rep_step),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_step_OR[i]),
                 .out_value(regOR_step[i])
             );
 
@@ -251,9 +206,9 @@ module agu_RTR #(
             ) regOR_config_inst (
                 .clk(clk),
                 .rst_n(rst_n),
-                .init0(init0_config),
-                .enable(decoded_config_OR[i]),
-                .in_value(1'b1),
+                .init0(),
+                .enable(rep_valid),
+                .in_value(rep_config_OR[i]),
                 .out_value(regOR_config[i])
             );
         end
@@ -368,10 +323,6 @@ module agu_RTR #(
         .regIR_iter(regIR_iter),
         .regIR_delay(regIR_delay),
         .regIR_config(regIR_config),
-        .IRbarOR(IRbarOR),
-        .init0_config_IR(init0_config_IR),
-        .en_config_IR(en_config_IR),
-        .en_decoder_config_IR(en_decoder_config_IR),
         .initIR_address(initIR_address),
         .level_IR(level_IR),
         .en_initVal_IR(en_initVal_IR),
@@ -381,7 +332,6 @@ module agu_RTR #(
         `ifdef INCLUDE_MT_STATES
         .regMT_delay(regMT_delay),
         .regMT_config(regMT_config),
-        .en_decoder_config_MT(en_decoder_config_MT),
         .init0_address(init0_address),
         `endif
         .level_MT(level_MT),
@@ -389,8 +339,6 @@ module agu_RTR #(
         .regOR_iter(regOR_iter),
         .regOR_delay(regOR_delay),
         .regOR_config(regOR_config),
-        .en_config_OR(en_config_OR),
-        .en_decoder_config_OR(en_decoder_config_OR),
         .initOR_address(initOR_address),
         .level_OR(level_OR),
         .en_initVal_OR(en_initVal_OR),
@@ -398,15 +346,11 @@ module agu_RTR #(
         .flag_OR(flag_OR),
         `endif
         
-        .init0_config(init0_config),
         .en_address(en_address),
 
         .clk(clk),
         .rst_n(rst_n),
         .activation(activation),
-        .rep_valid(rep_valid),
-        .repx_valid(repx_valid),
-        .trans_valid(trans_valid),
         .address_valid(address_valid)
     );
 endmodule

@@ -91,16 +91,16 @@ task automatic evaluate_OR_state(
                     en_initVal_OR[3] = 1'b1;
                     n_state = GENR_OR;
                 end else begin
-                    n_state = ACTV;
+                    n_state = IDLE;
                 end
             end else begin
-                n_state = ACTV;
+                n_state = IDLE;
             end
         end else begin
-            n_state = ACTV;
+            n_state = IDLE;
         end
     end else begin
-        n_state = ACTV;
+        n_state = IDLE;
     end
 endtask
 `endif 
@@ -228,7 +228,7 @@ task automatic evaluate_IR_state(
                     en_level_OR, inVal_level_OR, en_initVal_OR, en_delay_OR, n_state);
                 `endif
                 end else begin
-                    n_state = ACTV;
+                    n_state = IDLE;
                 end
             `ifdef INCLUDE_MT_STATES
             end else if (regMT_config[level_MT]) begin
@@ -243,7 +243,7 @@ task automatic evaluate_IR_state(
                 en_level_OR, inVal_level_OR, en_initVal_OR, en_delay_OR, n_state);
             `endif
             end else begin
-                n_state = ACTV;
+                n_state = IDLE;
             end
         `ifdef INCLUDE_MT_STATES
         end else if (regMT_config[level_MT]) begin
@@ -257,7 +257,7 @@ task automatic evaluate_IR_state(
                 en_level_OR, inVal_level_OR, en_initVal_OR, en_delay_OR, n_state);
         `endif
         end else begin
-            n_state = ACTV;
+            n_state = IDLE;
         end
     `ifdef INCLUDE_MT_STATES
     end else if (regMT_config[level_MT]) begin
@@ -271,7 +271,7 @@ task automatic evaluate_IR_state(
                 en_level_OR, inVal_level_OR, en_initVal_OR, en_delay_OR, n_state);
     `endif
     end else begin
-        n_state = ACTV;
+        n_state = IDLE;
     end
 endtask
 `endif

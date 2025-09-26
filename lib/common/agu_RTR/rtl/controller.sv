@@ -13,10 +13,6 @@ module controller #(
     input  logic [REP_ITER_WIDTH-1:0]      regIR_iter            [(NUMBER_MT+1)*NUMBER_IR],
     input  logic [REP_DELAY_WIDTH-1:0]     regIR_delay           [(NUMBER_MT+1)*NUMBER_IR],
     input  logic                           regIR_config          [(NUMBER_MT+1)*NUMBER_IR],
-    input  logic                           IRbarOR,
-    output logic                           init0_config_IR,
-    output logic                           en_config_IR,
-    output logic                           en_decoder_config_IR, 
     output logic                           initIR_address,
     output logic [$clog2(NUMBER_IR)-1:0]   level_IR,
     output logic                           en_initVal_IR         [1:NUMBER_IR-1],
@@ -27,7 +23,6 @@ module controller #(
     `ifdef INCLUDE_MT_STATES
     input  logic [TRANS_DELAY_WIDTH-1:0]   regMT_delay           [NUMBER_MT],
     input  logic                           regMT_config          [NUMBER_MT],
-    output logic                           en_decoder_config_MT,
     output logic                           init0_address,
     `endif
     
@@ -37,23 +32,17 @@ module controller #(
     input  logic [REP_ITER_WIDTH-1:0]      regOR_iter             [NUMBER_OR],
     input  logic [REP_DELAY_WIDTH-1:0]     regOR_delay            [NUMBER_OR],
     input  logic                           regOR_config           [NUMBER_OR],
-    output logic                           en_config_OR,
-    output logic                           en_decoder_config_OR,
     output logic                           initOR_address,
     output logic [$clog2(NUMBER_OR)-1:0]   level_OR,
     output logic                           en_initVal_OR          [NUMBER_OR],
     output logic                           init_initVal_OR        [NUMBER_OR],
     output logic                           flag_OR,
     `endif 
-    output logic                           init0_config,
     output logic                           en_address,
 
     input  logic                           clk,
     input  logic                           rst_n,
     input  logic                           activation,
-    input  logic                           rep_valid,
-    input  logic                           repx_valid,
-    input  logic                           trans_valid,
     output logic                           address_valid
 );
 
@@ -103,8 +92,6 @@ module controller #(
         WAIT_OR,
         `endif
         IDLE,
-        CNFG,
-        ACTV,
         GENR_Add0
     } state_t;
     state_t p_state, n_state;
@@ -266,13 +253,9 @@ module controller #(
 
     always_comb begin : CONTROLLER_COMB
         n_state = IDLE;
-        init0_config = 1'b0;
         en_address = 1'b0;
         address_valid = 1'b0;
 
-        init0_config_IR = 1'b0;
-        en_config_IR = 1'b0;
-        en_decoder_config_IR = 1'b0;
         initIR_address = 1'b0;
         en_level_IR = 1'b0;
         inVal_level_IR = 0;
@@ -289,7 +272,6 @@ module controller #(
         end
 
         `ifdef INCLUDE_MT_STATES
-        en_decoder_config_MT = 1'b0;
         init0_level_MT = 1'b0;
         en_level_MT = 1'b0;
         init0_address = 1'b0;
@@ -300,8 +282,6 @@ module controller #(
         `endif
 
         `ifdef INCLUDE_OR_STATES
-        en_config_OR = 1'b0;
-        en_decoder_config_OR = 1'b0;
         initOR_address = 1'b0;
         en_flag_OR = 1'b0;
         en_level_OR = 1'b0;
@@ -318,44 +298,8 @@ module controller #(
 
         case (p_state)
             IDLE: begin
-                init0_config = 1'b1;
-                if (rep_valid || repx_valid || trans_valid) begin
-                    n_state = CNFG;
-                end else begin
-                    n_state = IDLE;
-                end
-            end
-
-            CNFG: begin
-                if (rep_valid || repx_valid || trans_valid) begin
-                    n_state = CNFG;
-                    if (rep_valid && IRbarOR) begin
-                        en_decoder_config_IR = 1'b1;
-                        en_config_IR = 1'b1;
-                    `ifdef INCLUDE_MT_STATES
-                    end else if (trans_valid) begin
-                        en_decoder_config_MT = 1'b1;
-                        en_level_MT = 1'b1;
-                        init0_config_IR = 1'b1;
-                    `endif
-                    `ifdef INCLUDE_OR_STATES
-                    end else if (rep_valid && !IRbarOR) begin
-                        en_decoder_config_OR = 1'b1;
-                        en_config_OR = 1'b1;
-                    `endif
-                    end
-                end else begin
-                    n_state = ACTV;
-                    `ifdef INCLUDE_MT_STATES
-                    init0_level_MT = 1'b1;
-                    `endif
-                    
-                end
-            end
-
-            ACTV: begin
                 if (!activation) begin 
-                    n_state = ACTV;
+                    n_state = IDLE;
                 end else begin
                     n_state = GENR_Add0;
                     for (int i = 0; i < NUMBER_IR; i++) begin
@@ -552,12 +496,10 @@ module controller #(
     `else
     always_comb begin : CONTROLLER_COMB
         n_state = IDLE;
-        init0_config = 1'b0;
         en_address = 1'b0;
         address_valid = 1'b0;
 
         `ifdef INCLUDE_MT_STATES
-        en_decoder_config_MT = 1'b0;
         init0_level_MT = 1'b0;
         en_level_MT = 1'b0;
         for (int i = 0; i < NUMBER_MT; i++) begin
@@ -567,8 +509,6 @@ module controller #(
         `endif
 
         `ifdef INCLUDE_OR_STATES
-        en_config_OR = 1'b0;
-        en_decoder_config_OR = 1'b0;
         initOR_address = 1'b0;
         en_level_OR = 1'b0;
         inVal_level_OR = 0;
@@ -584,49 +524,8 @@ module controller #(
 
         case (p_state)
             IDLE: begin
-                init0_config = 1'b1;
-                if (rep_valid || repx_valid || trans_valid) begin
-                    n_state = CNFG;
-                end else begin
-                    n_state = IDLE;
-                end
-            end
-
-            CNFG: begin
-                if (rep_valid || repx_valid || trans_valid) begin
-                    n_state = CNFG;
-                    `ifdef INCLUDE_MT_STATES
-                    if (trans_valid) begin
-                        en_decoder_config_MT = 1'b1;
-                        en_level_MT = 1'b1;
-                    end
-                    `endif
-                    `ifdef INCLUDE_OR_STATES
-                    else if (rep_valid) begin
-                        en_decoder_config_OR = 1'b1;
-                        en_config_OR = 1'b1;
-                    end
-                    `endif
-                end else begin
-                    n_state = ACTV;
-                    `ifdef INCLUDE_MT_STATES
-                    init0_level_MT = 1'b1;
-                    for (int i = 0; i < NUMBER_MT; i++) begin
-                        init_delay_MT[i] = 1'b1;
-                    end
-                    `endif
-                    `ifdef INCLUDE_OR_STATES
-                    for (int i = 0; i < NUMBER_OR; i++) begin
-                        init_iter_OR[i] = 1'b1;
-                        init_delay_OR[i] = 1'b1;
-                    end
-                    `endif
-                end
-            end
-
-            ACTV: begin
                 if (!activation) begin 
-                    n_state = ACTV;
+                    n_state = IDLE;
                 end else begin
                     n_state = GENR_Add0;
                 end
@@ -664,7 +563,7 @@ module controller #(
                     );
                 `endif
                 end else begin
-                    n_state = ACTV;
+                    n_state = IDLE;
                 end
             end
             WAIT_MT: begin
@@ -703,7 +602,7 @@ module controller #(
                         .n_state(n_state)
                     );
                 end else begin
-                    n_state = ACTV;
+                    n_state = IDLE;
                 end
                 `endif
             end

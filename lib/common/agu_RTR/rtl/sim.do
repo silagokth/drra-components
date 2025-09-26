@@ -5,12 +5,13 @@ sim:/agu_RTR_tb/rst_n \
 sim:/agu_RTR_tb/clk \
 sim:/agu_RTR_tb/rep_valid \
 sim:/agu_RTR_tb/trans_valid \
-sim:/agu_RTR_tb/rep_level \
-sim:/agu_RTR_tb/rep_delay \
-sim:/agu_RTR_tb/rep_iter \
-sim:/agu_RTR_tb/rep_step \
-sim:/agu_RTR_tb/trans_level \
+sim:/agu_RTR_tb/rep_delay_IR \
+sim:/agu_RTR_tb/rep_iter_IR \
+sim:/agu_RTR_tb/rep_step_IR \
 sim:/agu_RTR_tb/trans_delay \
+sim:/agu_RTR_tb/rep_delay_OR \
+sim:/agu_RTR_tb/rep_iter_OR \
+sim:/agu_RTR_tb/rep_step_OR \
 sim:/agu_RTR_tb/activation \
 sim:/agu_RTR_tb/address \
 sim:/agu_RTR_tb/address_valid 
