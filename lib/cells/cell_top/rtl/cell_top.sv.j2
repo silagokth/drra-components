@@ -78,7 +78,8 @@ import {{fingerprint}}_pkg::*;
         .instr_load_addr_out(instr_addr_out),
         .instr_load_hops_out(instr_hops_out),
         .instr_load_en_out(instr_en_out),
-        .ret_out(ret_out)
+        .ret_out(ret_out),
+        .call_out(call_out)
     );
 
     {% for res in resources_list %}
