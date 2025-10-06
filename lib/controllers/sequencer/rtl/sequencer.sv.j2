@@ -75,7 +75,6 @@ import {{fingerprint}}_pkg::*;
 
     // Call/return handshake with caller
     input  logic call,
-    output logic ret,
 
     // Per-slot resource interface
     {% for i in range(size) %}
@@ -94,7 +93,9 @@ import {{fingerprint}}_pkg::*;
     output logic [INSTR_DATA_WIDTH-1:0] instr_load_data_out,
     output logic [INSTR_ADDR_WIDTH-1:0] instr_load_addr_out,
     output logic [INSTR_HOPS_WIDTH-1:0] instr_load_hops_out,
-    output logic instr_load_en_out
+    output logic instr_load_en_out,
+
+    output logic ret_out
 );
 
     // Scalar registers
@@ -129,6 +130,26 @@ import {{fingerprint}}_pkg::*;
     logic [{{payload_bitwidth - isa.format.instr_slot_bitwidth}}-1:0] payload;              // Payload (bits 23:0)
     logic [$clog2(IRAM_DEPTH)-1:0] pc, pc_next;           // Program counter (0..63)
     logic [{{wait_cycle_bitwidth}}-1:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
+
+    logic ret;
+    assign ret_out = controller_ret_remember & ret_in_remember;
+    logic controller_ret_remember, ret_in_remember;
+    always_ff @(negedge rst_n or posedge clk) begin
+        if (~rst_n) begin
+            call_out <= 0;
+            controller_ret_remember <= 0;
+            ret_in_remember <= 0;
+        end else begin
+            if (ret) begin
+                controller_ret_remember <= 1;
+            end else if (ret_in) begin
+                ret_in_remember <= 1;
+            end
+            call_out <= call_in;
+        end
+    end
+
+
 
     // FSM states
     typedef enum logic [1:0] { RESET, IDLE, DECODE, WAIT} state_t;

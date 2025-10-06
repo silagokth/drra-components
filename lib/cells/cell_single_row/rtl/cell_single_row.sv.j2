@@ -57,39 +57,12 @@ import {{fingerprint}}_pkg::*;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_in;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_out;
 
-  logic controller_call;
-  logic controller_ret, controller_ret_remember, ret_in_remember;
-  assign controller_call = call_in;
-  always_ff @(negedge rst_n or posedge clk) begin
-    if (~rst_n) begin
-      call_out <= 0;
-      controller_ret_remember <= 0;
-      ret_in_remember <= 0;
-    end else begin
-      if (controller_ret) begin
-        controller_ret_remember <= 1;
-      end else if (ret_in) begin
-        ret_in_remember <= 1;
-      end
-      call_out <= call_in;
-    end
-  end
-
-  assign ret_out = controller_ret_remember & ret_in_remember;
-
-  // Assign the unused_slots to 0
-  {% for slot in unused_slots %}
-  assign word_data_out[{{slot}}] = '0;
-  {% endfor %}
-  assign word_data_out[0] = '0; // switchbox
-
     // Controller
     `{{controller.name}} controller_inst
     (
         .clk(clk),
         .rst_n(rst_n),
-        .call(controller_call),
-        .ret(controller_ret),
+        .call(call_in),
         {% for i in range(16) %}
         .instr_valid_{{i}}(instr_valid[{{i}}]),
         .instr_{{i}}(instr[{{i}}]),
@@ -104,7 +77,8 @@ import {{fingerprint}}_pkg::*;
         .instr_load_data_out(instr_data_out),
         .instr_load_addr_out(instr_addr_out),
         .instr_load_hops_out(instr_hops_out),
-        .instr_load_en_out(instr_en_out)
+        .instr_load_en_out(instr_en_out),
+        .ret_out(ret_out)
     );
 
     {% for res in resources_list %}
