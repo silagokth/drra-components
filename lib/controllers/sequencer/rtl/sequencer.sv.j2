@@ -134,18 +134,18 @@ import {{fingerprint}}_pkg::*;
     logic [{{wait_cycle_bitwidth}}-1:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
 
     logic ret;
-    logic controller_ret_remember, ret_in_remember;
-    assign ret_out = controller_ret_remember & ret_in_remember;
+    logic controller_ret_reg, ret_in_reg;
+    assign ret_out = controller_ret_reg & ret_in_reg;
     always_ff @(negedge rst_n or posedge clk) begin
         if (~rst_n) begin
             call_out <= 0;
-            controller_ret_remember <= 0;
-            ret_in_remember <= 0;
+            controller_ret_reg <= 0;
+            ret_in_reg <= 0;
         end else begin
             if (ret) begin
-                controller_ret_remember <= 1;
+                controller_ret_reg <= 1;
             end else if (ret_in) begin
-                ret_in_remember <= 1;
+                ret_in_reg <= 1;
             end
             call_out <= call;
         end
