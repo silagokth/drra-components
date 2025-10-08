@@ -15,7 +15,7 @@
       {% endfor %}
   } {{instr.name}}_t;
 
-  function static {{instr.name}}_t unpack_{{instr.name}};
+  function automatic {{instr.name}}_t unpack_{{instr.name}};
       input logic [{{payload_bitwidth - 1}}:0] instr;
       {{instr.name}}_t _{{instr.name}};
       {% set index=payload_bitwidth -1 %}
@@ -30,7 +30,7 @@
       return _{{instr.name}};
   endfunction
 
-  function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
+  function automatic logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
       input {{instr.name}}_t _{{instr.name}};
       logic [{{ payload_bitwidth - 1 }}:0] instr;
 
