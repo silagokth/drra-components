@@ -1,6 +1,6 @@
 {% for key, value in fingerprint_table | items %}
-`define {{key}} {{value}}
-`define {{key}}_pkg {{value}}_pkg
+`define {{key}} {{key}}_{{value}}
+`define {{key}}_pkg {{key}}_{{value}}_pkg
 {% endfor %}
 
 package fabric_pkg;

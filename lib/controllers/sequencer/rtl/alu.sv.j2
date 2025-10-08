@@ -1,6 +1,6 @@
 // vesyla_template_start module_head
-module {{fingerprint}}_alu
-import {{fingerprint}}_pkg::*;
+module {{name}}_{{fingerprint}}_alu
+import {{name}}_{{fingerprint}}_pkg::*;
 {% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
 // vesyla_template_end module_head
 (

@@ -1,13 +1,13 @@
 // Auto-generated defines to give the module and package stable names
-`define {{name}} {{fingerprint}}
-`define {{name}}_pkg {{fingerprint}}_pkg
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 
 {% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
 {% set wait_cycle_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'wait') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'cycle') | list | first).bitwidth %}
 {% set already_defined = false %}
 {% if not already_defined %}
 // Package holds parameter constants and per-instruction pack/unpack helpers
-package {{fingerprint}}_pkg;
+package {{name}}_{{fingerprint}}_pkg;
     // Templated parameters
     {% for p in parameters %}
     parameter {{p}} = {{parameters[p]}};
@@ -66,8 +66,8 @@ package {{fingerprint}}_pkg;
 endpackage
 
 // Sequencer module: fetch/decode/dispatch micro-instructions to resources
-module {{fingerprint}}
-import {{fingerprint}}_pkg::*;
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
 (
     // Clock and reset
     input  logic clk,
@@ -347,7 +347,7 @@ import {{fingerprint}}_pkg::*;
       endcase
     end
 
-  {{fingerprint}}_alu alu_inst (
+  {{name}}_{{fingerprint}}_alu alu_inst (
     .in1(calc_op1),
     .in2(calc_op2),
     .mode(calc_mode),
