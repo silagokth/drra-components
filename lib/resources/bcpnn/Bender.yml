@@ -3,3 +3,4 @@ package:
 
 sources:
   - ./rtl/bcpnn_pkg.sv
+  - ./rtl/bcpnn.sv
