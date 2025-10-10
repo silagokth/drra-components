@@ -1,0 +1,5 @@
+package:
+  name: bcpnn
+
+sources:
+  - ./rtl/bcpnn_pkg.sv
