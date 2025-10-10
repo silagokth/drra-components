@@ -3,7 +3,9 @@
 
 #include "bcpnn_pkg.h"
 #include "drra_resource.h"
-
+#include <cstdint>
+#include <map>
+#include <vector>
 class Bcpnn : public DRRAResource {
 public:
   /* Element Library Info */
@@ -58,6 +60,28 @@ public:
 
 private:
   // Define private members here
+  // Register File
+  uint32_t register_file_size;
+  std::string access_time;
+  std::map<uint32_t, std::vector<uint8_t>> registers;
+
+  void readWide();
+  void readNarrow();
+  void writeWide();
+  void writeNarrow();
+
+  uint32_t current_event_number = 0;
+  std::map<uint32_t, uint32_t> port_agus_init;
+  std::map<uint32_t, uint32_t> port_agus;
+
+  void updatePortAGUs(uint32_t port) {
+    port_agus[port] = port_agus_init[port] +
+                      current_timing_states[port].getRepIncrementForCycle(
+                          getPortActiveCycle(port));
+    if (port_agus[port] >= register_file_size) {
+      out.fatal(CALL_INFO, -1, "Invalid AGU address (greater than RF size)\n");
+    }
+  }
 };
 
 #endif // _BCPNN_H

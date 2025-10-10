@@ -1,5 +1,4 @@
 use serde_json::json;
-use std::ops::{Deref, DerefMut};
 /**
  * This is the main file for the Rust implementation of the compile_util program.
  *
@@ -36,45 +35,34 @@ use std::ops::{Deref, DerefMut};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
+use std::ops::{Deref, DerefMut};
 
 /*******************************************************************************
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
-  let mut t: HashMap<i64, String> = HashMap::new();
+    let t: HashMap<i64, String> = HashMap::new();
   let mut r: HashMap<i64, (String, String)> = HashMap::new();
   let mut expr = "e0".to_string();
 
   for instr in op.body {
     let instr_segments = instr.params;
     match instr.kind.as_str() {
-      "dsu" => {
-        let mut init_addr_sd = instr_segments.get_value("init_addr_sd");
-        let mut init_addr = instr_segments.get_value("init_addr");
-        let mut port = instr_segments.get_value("port");
-        todo!("Implement timing model for instruction dsu");
-      },
+            "dsu" => {}
       "rep" => {
-        let mut port = instr_segments.get_value("port");
-        let mut level = instr_segments.get_value("level");
+                let _port = instr_segments.get_value("port");
+                let level = instr_segments.get_value("level");
         let mut iter = instr_segments.get_value("iter");
-        let mut step = instr_segments.get_value("step");
-        let mut delay = instr_segments.get_value("delay");
-        todo!("Implement timing model for instruction rep");
-      },
-      "repx" => {
-        let mut port = instr_segments.get_value("port");
-        let mut level = instr_segments.get_value("level");
-        let mut iter = instr_segments.get_value("iter");
-        let mut step = instr_segments.get_value("step");
-        let mut delay = instr_segments.get_value("delay");
-        todo!("Implement timing model for instruction repx");
-      },
+                let _step = instr_segments.get_value("step");
+                let delay = instr_segments.get_value("delay");
+                iter = (iter.parse::<i64>().unwrap() + 1).to_string();
+                r.insert(level.parse::<i64>().unwrap(), (iter, delay.to_string()));
+            }
+            "repx" => {}
       _ => {
         panic!("Unknown instruction kind: {}", instr.kind);
       }
-
     }
   }
 
@@ -111,31 +99,13 @@ fn reshape_instr(op: Op) -> Op {
   for instr in op.body {
     let new_instr = instr.clone();
     match instr.kind.as_str() {
-      "dsu" => {
-        let mut init_addr_sd = instr
-            .params
-            .get_value("init_addr_sd")
-            .parse::<i64>()
-            .expect("Failed to parse init_addr_sd as i64");
-        let mut init_addr = instr
-            .params
-            .get_value("init_addr")
-            .parse::<i64>()
-            .expect("Failed to parse init_addr as i64");
-        let mut port = instr
-            .params
-            .get_value("port")
-            .parse::<i64>()
-            .expect("Failed to parse port as i64");
-        todo!("Implement instruction reshaping for instruction dsu");
-      },
       "rep" => {
-        let mut port = instr
+                let _port = instr
             .params
             .get_value("port")
             .parse::<i64>()
             .expect("Failed to parse port as i64");
-        let mut level = instr
+                let _level = instr
             .params
             .get_value("level")
             .parse::<i64>()
@@ -155,36 +125,55 @@ fn reshape_instr(op: Op) -> Op {
             .get_value("delay")
             .parse::<i64>()
             .expect("Failed to parse delay as i64");
-        todo!("Implement instruction reshaping for instruction rep");
-      },
-      "repx" => {
-        let mut port = instr
-            .params
-            .get_value("port")
-            .parse::<i64>()
-            .expect("Failed to parse port as i64");
-        let mut level = instr
-            .params
-            .get_value("level")
-            .parse::<i64>()
-            .expect("Failed to parse level as i64");
-        let mut iter = instr
-            .params
-            .get_value("iter")
-            .parse::<i64>()
-            .expect("Failed to parse iter as i64");
-        let mut step = instr
-            .params
-            .get_value("step")
-            .parse::<i64>()
-            .expect("Failed to parse step as i64");
-        let mut delay = instr
-            .params
-            .get_value("delay")
-            .parse::<i64>()
-            .expect("Failed to parse delay as i64");
-        todo!("Implement instruction reshaping for instruction repx");
-      },
+                let mut repx_flag = false;
+                let mut iterx = 0;
+                let mut delayx = 0;
+                let mut stepx = 0;
+                if iter > 2i64.pow(6) - 1 {
+                    repx_flag = true;
+                    iterx = iter / 2i64.pow(6);
+                    iter %= 2i64.pow(6);
+                }
+                if delay > 2i64.pow(6) - 1 {
+                    repx_flag = true;
+                    delayx = delay / 2i64.pow(6);
+                    delay %= 2i64.pow(6);
+                }
+                if step > 2i64.pow(6) - 1 {
+                    repx_flag = true;
+                    stepx = step / 2i64.pow(6);
+                    step %= 2i64.pow(6);
+                }
+
+                if repx_flag {
+                    let mut rep_instr = instr.clone();
+                    let mut repx_instr = instr.clone();
+                    rep_instr.kind = "rep".to_string();
+                    repx_instr.kind = "repx".to_string();
+                    for field in rep_instr.params.iter_mut() {
+                        if field.0 == "iter" {
+                            field.1 = iter.to_string();
+                        } else if field.0 == "delay" {
+                            field.1 = delay.to_string();
+                        } else if field.0 == "step" {
+                            field.1 = step.to_string();
+                        }
+                    }
+                    for field in repx_instr.params.iter_mut() {
+                        if field.0 == "iter" {
+                            field.1 = iterx.to_string();
+                        } else if field.0 == "delay" {
+                            field.1 = delayx.to_string();
+                        } else if field.0 == "step" {
+                            field.1 = stepx.to_string();
+                        }
+                    }
+                    new_body.push(rep_instr);
+                    new_body.push(repx_instr);
+                } else {
+                    new_body.push(instr.clone());
+                }
+            }
       _ => {
         // By default, keep the instruction unchanged
         new_body.push(new_instr);
