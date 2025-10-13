@@ -1,0 +1,11 @@
+package:
+  name: dpu_Q88
+
+dependencies:
+  fsm: {path: ../../common/fsm}
+
+sources:
+  - ./rtl/dpu_Q88_pkg.sv
+  - ./rtl/adder.sv
+  - ./rtl/multiplier.sv
+  - ./rtl/dpu_Q88.sv
