@@ -2,11 +2,12 @@ package:
   name: dpu
 
 dependencies:
-  fsm: {path: ../../common/fsm}
-  agu_RTR: {path: ../../common/agu_RTR}
+  fsm: { path: ../../common/fsm }
+  agu_RTR: { path: ../../common/agu_RTR }
 
 sources:
   - ./rtl/dpu_pkg.sv
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
+  - ./rtl/controller.sv

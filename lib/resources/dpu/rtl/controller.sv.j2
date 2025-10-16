@@ -1,0 +1,92 @@
+// vesyla_template_start module_head
+module dpu_controller
+import {{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+  input logic clk,
+  input logic rst_n,
+
+  input logic instruction_valid,
+  input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+
+  input logic address_valid,
+  input logic [$clog2(FSM_MAX_STATES)-1:0] address, // current state
+
+  output logic [REP_DELAY_WIDTH-1:0]   rep_delay_IR  [(NUMBER_MT+1)*NUMBER_IR],
+  output logic [REP_ITER_WIDTH-1:0]    rep_iter_IR   [(NUMBER_MT+1)*NUMBER_IR],
+  output logic [REP_STEP_WIDTH-1:0]    rep_step_IR   [(NUMBER_MT+1)*NUMBER_IR],
+  output logic                         rep_config_IR [(NUMBER_MT+1)*NUMBER_IR],
+  output logic [TRANS_DELAY_WIDTH-1:0] trans_delay   [NUMBER_MT],
+  output logic                         trans_config  [NUMBER_MT],
+  output logic [REP_DELAY_WIDTH-1:0]   rep_delay_OR  [NUMBER_OR],
+  output logic [REP_ITER_WIDTH-1:0]    rep_iter_OR   [NUMBER_OR],
+  output logic [REP_STEP_WIDTH-1:0]    rep_step_OR   [NUMBER_OR],
+  output logic                         rep_config_OR [NUMBER_OR],
+
+  output logic [DPU_MODE_WIDTH-1:0]      dpu_mode,
+  output logic [DPU_IMMEDIATE_WIDTH-1:0] immediate,
+  output logic                           reset_accumulator
+);
+
+  // Get opcode
+  logic [OPCODE_WIDTH-1:0] opcode;
+  assign opcode = instruction[OPCODE_H:OPCODE_L];
+
+  // Instruction type valid signals
+  logic rep_valid;
+  logic repx_valid;
+  logic trans_valid;
+  logic dpu_valid;
+  assign rep_valid = instruction_valid && (opcode == OPCODE_REP);
+  assign repx_valid = instruction_valid && (opcode == OPCODE_REPX);
+  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
+  assign dpu_valid = instruction_valid && (opcode == OPCODE_DPU);
+
+  // Unpack instructions
+  rep_t rep_instr;
+  repx_t repx_instr;
+  trans_t trans_instr;
+  dpu_t dpu_instr;
+  assign rep_instr = rep_valid ? unpack_rep(
+          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      ) :
+      '{default: 0};
+  assign repx_instr = repx_valid ? unpack_repx(
+          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      ) :
+      '{default: 0};
+  assign trans_instr = trans_valid ? unpack_trans(
+          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      ) :
+      '{default: 0};
+  assign dpu_instr = dpu_valid ? unpack_dpu(
+          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
+      ) :
+      '{default: 0};
+
+  // Save the config for each FSM state
+  logic [$clog2(FSM_MAX_STATES)-1:0][DPU_MODE_WIDTH-1:0] mode_memory;
+  logic [$clog2(FSM_MAX_STATES)-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
+  logic [$clog2(FSM_MAX_STATES)-1:0] fsm_max_init_state;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      immediate_memory <= '0;
+      mode_memory <= '0;
+      fsm_max_init_state <= '0;
+    end else begin
+      if (dpu_valid) begin
+        mode_memory[dpu_instr._option] <= dpu_instr._mode;
+        immediate_memory[dpu_instr._option] <= dpu_instr._immediate;
+        fsm_max_init_state <= dpu_instr._option;
+      end
+    end
+  end
+
+
+  // Set the output according to the current state
+  assign dpu_mode = address_valid ? mode_memory[address] : mode_memory[0];
+  assign immediate = address_valid ? immediate_memory[address] : '0;
+
+  assign reset_accumulator = address_valid;
+endmodule
+

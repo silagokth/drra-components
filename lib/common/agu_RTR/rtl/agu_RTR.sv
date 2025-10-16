@@ -129,7 +129,7 @@ module agu_RTR #(
                 .clk(clk),
                 .rst_n(rst_n),
                 .init0(),
-                .enable(rep_valid),  
+                .enable(rep_valid),
                 .in_value(rep_config_IR[i]),
                 .out_value(regIR_config[i])
             );
@@ -345,7 +345,7 @@ module agu_RTR #(
         .init_initVal_OR(init_initVal_OR),
         .flag_OR(flag_OR),
         `endif
-        
+
         .en_address(en_address),
 
         .clk(clk),

@@ -29,15 +29,15 @@ import {{fingerprint}}_pkg::*;
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_1
 );
 
-    logic clk, rst_n, instruction_valid, activate;
-    logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+    logic clk, rst_n, activate;
     assign clk = clk_0;
     assign rst_n = rst_n_0;
-    assign instruction_valid = instr_en_0;
     assign activate = activate_0[0];
+
+    logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+    logic instruction_valid;
     assign instruction = instr_0;
-    // TODO: check how to drive this reset_fsm
-    logic reset_fsm;
+    assign instruction_valid = instr_en_0;
 
     // useless output
     assign word_data_out_1 = 0;
@@ -50,34 +50,46 @@ import {{fingerprint}}_pkg::*;
         if (!rst_n) begin
             in0 <= 0;
             in1 <= 0;
-            reset_fsm <= 1;
         end else begin
             in0 <= word_data_in_0;
             in1 <= word_data_in_1;
-            reset_fsm <= 0;
         end
     end
 
-  logic [$clog2(FSM_MAX_STATES)-1:0][DPU_MODE_WIDTH-1:0] mode_memory;
-  logic [$clog2(FSM_MAX_STATES)-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
-  logic [$clog2(FSM_MAX_STATES)-1:0] trans_option;
-  logic [$clog2(FSM_MAX_STATES)-1:0] fsm_max_init_state;
-  //logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] trans_delays;
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
   logic [DPU_MODE_WIDTH-1:0] dpu_mode;
-  logic [OPCODE_WIDTH-1:0] opcode;
-
-  logic rep_valid;
-  logic repx_valid;
-  logic trans_valid;
-  logic dpu_valid;
-  rep_t rep_instr;
-  repx_t repx_instr;
-  trans_t trans_instr;
-  dpu_t dpu_instr;
 
   logic reset_accumulator;
-  logic address_valid;
+
+  `define ADDRESS_WIDTH $clog2(FSM_MAX_STATES)
+  `define REP_LEVEL_WIDTH 4
+  `define REP_DELAY_WIDTH 6
+  `define REP_ITER_WIDTH 6
+  `define REP_STEP_WIDTH 6
+  `define TRANS_LEVEL_WIDTH 7
+  `define TRANS_DELAY_WIDTH 7
+  `define NUMBER_OR 4
+  `define NUMBER_MT 3
+  `define NUMBER_IR 4
+
+  `define INCLUDE_IR_STATES 1
+  `define INCLUDE_MT_STATES 1
+  `define INCLUDE_OR_STATES 1
+
+  // Configuration signals from controller to AGU_RTR
+  logic [REP_DELAY_WIDTH-1:0]   rep_delay_IR  [(NUMBER_MT+1)*NUMBER_IR];
+  logic [REP_ITER_WIDTH-1:0]    rep_iter_IR   [(NUMBER_MT+1)*NUMBER_IR];
+  logic [REP_STEP_WIDTH-1:0]    rep_step_IR   [(NUMBER_MT+1)*NUMBER_IR];
+  logic                         rep_config_IR [(NUMBER_MT+1)*NUMBER_IR];
+  logic [TRANS_DELAY_WIDTH-1:0] trans_delay   [NUMBER_MT];
+  logic                         trans_config  [NUMBER_MT];
+  logic [REP_DELAY_WIDTH-1:0]   rep_delay_OR  [NUMBER_OR];
+  logic [REP_ITER_WIDTH-1:0]    rep_iter_OR   [NUMBER_OR];
+  logic [REP_STEP_WIDTH-1:0]    rep_step_OR   [NUMBER_OR];
+  logic                         rep_config_OR [NUMBER_OR];
+
+  logic [ADDRESS_WIDTH-1:0]     address;
+  logic                         address_valid;
 
   agu_RTR # (
     .ADDRESS_WIDTH(ADDRESS_WIDTH),
@@ -96,71 +108,50 @@ import {{fingerprint}}_pkg::*;
     .activation(|activate),
     .rep_valid(rep_valid),
     .repx_valid(repx_valid),
+    .rep_delay_IR(rep_delay_IR),
+    .rep_iter_IR(rep_iter_IR),
+    .rep_step_IR(rep_step_IR),
+    .rep_config_IR(rep_config_IR),
     .trans_valid(trans_valid),
-    .rep_level(rep_instr._level),
-    .rep_delay(rep_instr._delay),
-    .rep_iter(rep_instr._iter),
-    .rep_step(rep_instr._step),
-    .trans_level(trans_instr._level),
-    .trans_delay(trans_instr._delay),
+    .trans_delay(trans_delay),
+    .trans_config(trans_config),
+    .rep_delay_OR(rep_delay_OR),
+    .rep_iter_OR(rep_iter_OR),
+    .rep_step_OR(rep_step_OR),
+    .rep_config_OR(rep_config_OR),
     .address_valid(address_valid),
-    .address(trans_option)
+    .address(address)
   );
 
-  //fsm #(
-  //    .FSM_MAX_STATES(FSM_MAX_STATES),
-  //    .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
-  //) fsm_inst (
-  //    .clk(clk),
-  //    .rst_n(rst_n),
-  //    .activate(|activate),
-  //    .trans_delays(trans_delays),
-  //    .max_init_state(fsm_max_init_state),
-  //    .reset_fsm(reset_fsm),
-  //    .state(trans_option)
-  //);
+  dpu_controller controller_inst (
+    .clk(clk),
+    .rst_n(rst_n),
 
-  assign opcode = instruction[OPCODE_H:OPCODE_L];
-  assign rep_valid = instruction_valid && (opcode == OPCODE_REP);
-  assign repx_valid = instruction_valid && (opcode == OPCODE_REPX);
-  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
-  assign dpu_valid = instruction_valid && (opcode == OPCODE_DPU);
-  assign reset_accumulator = address_valid;
+    .instruction_valid(instruction_valid),
+    .instruction(instruction),
 
-  assign rep_instr = rep_valid ? unpack_rep(
-          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
-      ) :
-      '{default: 0};
-  assign repx_instr = repx_valid ? unpack_repx(
-          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
-      ) :
-      '{default: 0};
-  assign trans_instr = trans_valid ? unpack_trans(
-          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
-      ) :
-      '{default: 0};
-  assign dpu_instr = dpu_valid ? unpack_dpu(
-          instruction[INSTRUCTION_PAYLOAD_WIDTH-1:0]
-      ) :
-      '{default: 0};
+    .address_valid(address_valid),
+    .address(address),
 
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      immediate_memory <= '0;
-      mode_memory <= '0;
-      fsm_max_init_state <= '0;
-    end else begin
-      if (dpu_valid) begin
-        mode_memory[dpu_instr._option] <= dpu_instr._mode;
-        immediate_memory[dpu_instr._option] <= dpu_instr._immediate;
-        fsm_max_init_state <= dpu_instr._option;
-      end
-    end
-  end
+    .rep_delay_IR(rep_delay_IR),
+    .rep_iter_IR(rep_iter_IR),
+    .rep_step_IR(rep_step_IR),
+    .rep_config_IR(rep_config_IR),
 
-  assign dpu_mode = address_valid ? mode_memory[trans_option] : mode_memory[0];
-  assign immediate = address_valid ? immediate_memory[trans_option] : '0;
+    .trans_delay(trans_delay),
+    .trans_config(trans_config),
 
+    .rep_delay_OR(rep_delay_OR),
+    .rep_iter_OR(rep_iter_OR),
+    .rep_step_OR(rep_step_OR),
+    .rep_config_OR(rep_config_OR),
+
+    .dpu_mode(dpu_mode),
+    .immediate(immediate),
+    .reset_accumulator(reset_accumulator)
+  );
+
+  // Calculation logic
   logic signed [BITWIDTH-1:0] acc0, acc0_next;
   logic signed [BITWIDTH-1:0] adder_in0;
   logic signed [BITWIDTH-1:0] adder_in1;
@@ -169,10 +160,9 @@ import {{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
 
-  // signed saturateion
+  // signed saturation
   localparam logic signed [BITWIDTH-1:0] MAX_RESULT = 2 ** (BITWIDTH - 1) - 1;
   localparam logic signed [BITWIDTH-1:0] MIN_RESULT = -2 ** (BITWIDTH - 1);
-
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -216,7 +206,7 @@ import {{fingerprint}}_pkg::*;
     endcase
   end
 
-  // in future we will use ChipWare blocks for pipelined and such 
+  // in future we will use ChipWare blocks for pipelined and such
   {{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
@@ -238,3 +228,4 @@ endmodule
 // vesyla_template_start module_tail
 {% endif %}
 // vesyla_template_end module_tail
+
