@@ -341,9 +341,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       calc_op1 = '0;
       calc_op2 = '0;
       calc_mode = '0;
-      for (int i = 0; i < NUM_SCALAR_REGS; i++) begin
-        regs_next[i] = 0;
-      end
+      regs_next = regs;
 
       case (state)
         RESET: begin
