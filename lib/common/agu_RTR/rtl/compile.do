@@ -1,5 +1,5 @@
-vlog -svinputport=var -sv ./register.sv \
-                          ./counter.sv \
-                          ./controller.sv \
-                          ./agu_RTR.sv \
-                          ./agu_RTR_tb.sv
+vlog -svinputport=var -sv ./rtl/register.sv \
+                          ./rtl/counter.sv \
+                          ./rtl/controller.sv \
+                          ./rtl/agu_RTR.sv \
+                          ./rtl/agu_RTR_tb.sv
