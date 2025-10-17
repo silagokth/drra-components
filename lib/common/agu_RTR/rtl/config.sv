@@ -2,7 +2,7 @@
 `define INCLUDE_MT_STATES
 `define INCLUDE_OR_STATES
 
-`define BASE_STATES     2 // IDLE, GENR_Add0
+`define BASE_STATES     1 // IDLE
 
 `ifdef INCLUDE_IR_STATES
     `define IR_STATES   4
