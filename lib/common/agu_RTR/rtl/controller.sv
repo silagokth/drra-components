@@ -91,8 +91,7 @@ module controller #(
         GENR_OR,
         WAIT_OR,
         `endif
-        IDLE,
-        GENR_Add0
+        IDLE
     } state_t;
     state_t p_state, n_state;
 
@@ -298,39 +297,38 @@ module controller #(
 
         case (p_state)
             IDLE: begin
+                for (int i = 0; i < NUMBER_IR; i++) begin
+                    init_iter_IR[i] = 1'b1;
+                    init_delay_IR[i] = 1'b1;
+                end
+                `ifdef INCLUDE_MT_STATES
+                for (int i = 0; i < NUMBER_MT; i++) begin
+                    init_delay_MT[i] = 1'b1;
+                end
+                `endif
+                `ifdef INCLUDE_OR_STATES
+                for (int i = 0; i < NUMBER_OR; i++) begin
+                    init_iter_OR[i] = 1'b1;
+                    init_delay_OR[i] = 1'b1;
+                end
+                `endif
+
                 if (!activation) begin 
                     n_state = IDLE;
                 end else begin
-                    n_state = GENR_Add0;
-                    for (int i = 0; i < NUMBER_IR; i++) begin
-                        init_iter_IR[i] = 1'b1;
-                        init_delay_IR[i] = 1'b1;
+                    if (regIR_config[0]) begin
+                        if (!co_delay_IR[0]) begin
+                            en_delay_IR[0] = 1'b1;
+                            n_state = WAIT_IR0;
+                        end else begin
+                            address_valid = 1'b1;
+                            n_state = GENR_IR0;
+                        end
+                    end  else begin
+                        n_state = IDLE;
                     end
-                    `ifdef INCLUDE_MT_STATES
-                    for (int i = 0; i < NUMBER_MT; i++) begin
-                        init_delay_MT[i] = 1'b1;
-                    end
-                    `endif
-                    `ifdef INCLUDE_OR_STATES
-                    for (int i = 0; i < NUMBER_OR; i++) begin
-                        init_iter_OR[i] = 1'b1;
-                        init_delay_OR[i] = 1'b1;
-                    end
-                    `endif
-                end
-            end
+                    
 
-            GENR_Add0: begin
-                address_valid = 1'b1;
-                if (regIR_config[0]) begin
-                    if (!co_delay_IR[0]) begin
-                        en_delay_IR[0] = 1'b1;
-                        n_state = WAIT_IR0;
-                    end else begin
-                        n_state = GENR_IR0;
-                    end
-                end  else begin
-                    n_state = IDLE;
                 end
             end
 
@@ -527,19 +525,15 @@ module controller #(
                 if (!activation) begin 
                     n_state = IDLE;
                 end else begin
-                    n_state = GENR_Add0;
+                    address_valid = 1'b1;
+                    `ifdef INCLUDE_MT_STATES
+                    if (regMT_config[level_MT]) begin
+                        evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
+                    end else begin
+                        n_state = IDLE;
+                    end
+                    `endif
                 end
-            end
-
-            GENR_Add0: begin
-                address_valid = 1'b1;
-                `ifdef INCLUDE_MT_STATES
-                if (regMT_config[level_MT]) begin
-                    evaluate_MT_state(level_MT, co_delay_MT, en_delay_MT, en_level_MT, n_state);
-                end else begin
-                    n_state = IDLE;
-                end
-                `endif
             end
 
             `ifdef INCLUDE_MT_STATES
