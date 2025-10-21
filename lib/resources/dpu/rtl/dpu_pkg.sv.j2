@@ -26,15 +26,17 @@ package {{fingerprint}}_pkg;
   parameter DPU_MODE_MAC = 10;
 
   // AGU RTR params
-  parameter ADDRESS_WIDTH = $clog2(FSM_MAX_STATES);
-  parameter REP_LEVEL_WIDTH = 4; // TODO: change to 3 bits as we only have up to 8 levels
+  parameter ADDRESS_WIDTH = 6;
+  parameter REP_LEVEL_WIDTH = 4;
   parameter REP_DELAY_WIDTH = 6;
   parameter REP_ITER_WIDTH = 6;
   parameter REP_STEP_WIDTH = 6;
-  parameter TRANS_LEVEL_WIDTH = 2;
+  parameter TRANS_LEVEL_WIDTH = 7;
   parameter TRANS_DELAY_WIDTH = 7;
   parameter NUMBER_OR = 4;
   parameter NUMBER_MT = 3;
   parameter NUMBER_IR = 4;
+  parameter INCLUDE_IR_STATES = 1;
+  parameter INCLUDE_MT_STATES = 1;
+  parameter INCLUDE_OR_STATES = 1;
 endpackage
-

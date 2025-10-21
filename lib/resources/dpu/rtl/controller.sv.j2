@@ -10,7 +10,7 @@ import {{fingerprint}}_pkg::*;
   input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
 
   input logic address_valid,
-  input logic [$clog2(FSM_MAX_STATES)-1:0] address, // current state
+  input logic [6-1:0] address, // current state
 
   output logic [REP_DELAY_WIDTH-1:0]   rep_delay_IR  [(NUMBER_MT+1)*NUMBER_IR],
   output logic [REP_ITER_WIDTH-1:0]    rep_iter_IR   [(NUMBER_MT+1)*NUMBER_IR],
@@ -25,7 +25,11 @@ import {{fingerprint}}_pkg::*;
 
   output logic [DPU_MODE_WIDTH-1:0]      dpu_mode,
   output logic [DPU_IMMEDIATE_WIDTH-1:0] immediate,
-  output logic                           reset_accumulator
+  output logic                           reset_accumulator,
+
+  output logic rep_valid,
+  output logic repx_valid,
+  output logic trans_valid
 );
 
   // Get opcode
@@ -33,9 +37,6 @@ import {{fingerprint}}_pkg::*;
   assign opcode = instruction[OPCODE_H:OPCODE_L];
 
   // Instruction type valid signals
-  logic rep_valid;
-  logic repx_valid;
-  logic trans_valid;
   logic dpu_valid;
   assign rep_valid = instruction_valid && (opcode == OPCODE_REP);
   assign repx_valid = instruction_valid && (opcode == OPCODE_REPX);
@@ -68,18 +69,47 @@ import {{fingerprint}}_pkg::*;
   logic [$clog2(FSM_MAX_STATES)-1:0][DPU_MODE_WIDTH-1:0] mode_memory;
   logic [$clog2(FSM_MAX_STATES)-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
   logic [$clog2(FSM_MAX_STATES)-1:0] fsm_max_init_state;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      immediate_memory <= '0;
-      mode_memory <= '0;
-      fsm_max_init_state <= '0;
-    end else begin
-      if (dpu_valid) begin
-        mode_memory[dpu_instr._option] <= dpu_instr._mode;
-        immediate_memory[dpu_instr._option] <= dpu_instr._immediate;
-        fsm_max_init_state <= dpu_instr._option;
+always_ff @(posedge clk or negedge rst_n) begin
+  if (!rst_n) begin
+    mode_memory <= '0;
+    immediate_memory <= '0;
+    fsm_max_init_state <= '0;
+  end else if (dpu_valid) begin
+    mode_memory[dpu_instr._option] <= dpu_instr._mode;
+    immediate_memory[dpu_instr._option] <= dpu_instr._immediate;
+    fsm_max_init_state <= dpu_instr._option;
+  end
+end
+
+  always_comb begin
+      for (int i = 0; i < (NUMBER_MT+1)*NUMBER_IR; i++) begin
+        rep_delay_IR[i] = '0;
+        rep_iter_IR[i] = '0;
+        rep_step_IR[i] = '0;
+        rep_config_IR[i] = 1'b0;
       end
+      for (int i = 0; i < NUMBER_MT; i++) begin
+        trans_delay[i] = '0;
+        trans_config[i] = 1'b0;
+      end
+      for (int i = 0; i < NUMBER_OR; i++) begin
+        rep_delay_OR[i] = '0;
+        rep_iter_OR[i] = '0;
+        rep_step_OR[i] = '0;
+        rep_config_OR[i] = 1'b0;
+      end
+
+    if (rep_valid) begin
+      rep_delay_IR[rep_instr._level] = rep_instr._delay;
+      rep_iter_IR[rep_instr._level] = rep_instr._iter;
+      rep_step_IR[rep_instr._level] = '0; // step is not used in DPU
+      rep_config_IR[rep_instr._level] = 1'b1;
     end
+    if (trans_valid) begin
+      trans_delay[trans_instr._level] = trans_instr._delay;
+      trans_config[trans_instr._level] = 1'b1;
+    end
+    // Add similar logic for OR if needed
   end
 
 
