@@ -30,7 +30,6 @@ module agu_RTR_tb #(
   logic [   REP_ITER_WIDTH-1:0] rep_iter_OR   [              NUMBER_OR];
   logic [   REP_STEP_WIDTH-1:0] rep_step_OR   [              NUMBER_OR];
   logic                         rep_config_OR [              NUMBER_OR];
-
   logic                         address_valid;
   logic [    ADDRESS_WIDTH-1:0] address;
 
