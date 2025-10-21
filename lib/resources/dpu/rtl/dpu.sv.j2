@@ -1,12 +1,12 @@
 // vesyla_template_start defines
-`define {{name}} {{fingerprint}}
-`define {{name}}_pkg {{fingerprint}}_pkg
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 // vesyla_template_end defines
 
 // vesyla_template_start module_head
 {% if not already_defined %}
-module {{fingerprint}}
-import {{fingerprint}}_pkg::*;
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
     input  logic clk_0,
@@ -221,14 +221,14 @@ import {{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such
-  {{fingerprint}}_adder adder_inst (
+  {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
       .out(adder_out)
   );
 
-  {{fingerprint}}_multiplier mult_inst (
+  {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),

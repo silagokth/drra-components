@@ -12,13 +12,27 @@ jobs:
   run-tests:
     runs-on: [modelsim, vesyla, bender, sst]
     steps:
+      - name: Clean bin folder
+        run: |
+          rm -rf ${{ github.workspace }}/bin
+
       - name: Download vesyla
         uses: robinraju/release-downloader@v1
         with:
           out-file-path: bin
-          fileName: vesyla
+          fileName: vesyla-*.AppImage
           repository: silagokth/vesyla
           latest: true
+
+      - name: Rename vesyla AppImage
+        run: |
+          set -e
+          file=(${{ github.workspace }}/bin/vesyla-*.AppImage)
+          if [ "${#file[@]}" -ne 1 ]; then
+            echo "Error: Expected exactly one vesyla-*.AppImage file, found ${#file[@]}"
+            exit 1
+          fi
+          cp "${file[0]}" ${{ github.workspace }}/bin/vesyla
 
       - name: Download library
         uses: actions/download-artifact@v5
