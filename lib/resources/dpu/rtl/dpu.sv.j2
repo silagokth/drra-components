@@ -33,14 +33,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign clk = clk_0;
     assign rst_n = rst_n_0;
     assign activate = activate_0[0];
-    logic activate_prev, activate_stretched;
-    always_ff @(posedge clk or negedge rst_n) begin
-      if (!rst_n)
-        activate_prev <= 1'b0;
-      else
-        activate_prev <= activate;
-    end
-    assign activate_stretched = activate | activate_prev;
 
     logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
     logic instruction_valid;
@@ -178,14 +170,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
   localparam logic signed [BITWIDTH-1:0] MAX_RESULT = 2 ** (BITWIDTH - 1) - 1;
   localparam logic signed [BITWIDTH-1:0] MIN_RESULT = -2 ** (BITWIDTH - 1);
 
+  logic accumulator_valid;
+
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       acc0 <= '0;
+      accumulator_valid <= 1'b0;
     end else begin
       if (reset_accumulator | activate) begin
         acc0 <= '0;
+        accumulator_valid <= 1'b1;
       end else begin
         acc0 <= acc0_next;
+        accumulator_valid <= accumulator_valid;
       end
     end
   end
@@ -208,7 +205,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
         mult_in0 = in0;
         mult_in1 = in1;
         adder_in0 = mult_out;
-        adder_in1 = acc0;
+        if (accumulator_valid) begin
+          adder_in1 = acc0;
+        end else begin
+          adder_in1 = '0;
+        end
         acc0_next = adder_out;
         out0 = adder_out;
       end
