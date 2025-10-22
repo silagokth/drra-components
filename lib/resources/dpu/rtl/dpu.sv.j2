@@ -9,155 +9,147 @@ module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
-    input  logic clk_0,
-    input  logic rst_n_0,
-    input  logic instr_en_0,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
-    input  logic [3:0] activate_0,
-    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    input logic clk_0,
+    input logic rst_n_0,
+    input logic instr_en_0,
+    input logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input logic [3:0] activate_0,
+    input logic [WORD_BITWIDTH-1:0] word_data_in_0,
     output logic [WORD_BITWIDTH-1:0] word_data_out_0,
-    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    input logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
-    input  logic clk_1,
-    input  logic rst_n_1,
-    input  logic instr_en_1,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
-    input  logic [3:0] activate_1,
-    input  logic [WORD_BITWIDTH-1:0] word_data_in_1,
+    input logic clk_1,
+    input logic rst_n_1,
+    input logic instr_en_1,
+    input logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
+    input logic [3:0] activate_1,
+    input logic [WORD_BITWIDTH-1:0] word_data_in_1,
     output logic [WORD_BITWIDTH-1:0] word_data_out_1,
-    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
+    input logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_1
 );
 
-    logic clk, rst_n, activate;
-    assign clk = clk_0;
-    assign rst_n = rst_n_0;
-    assign activate = activate_0[0];
+  logic clk, rst_n, activate;
+  assign clk = clk_0;
+  assign rst_n = rst_n_0;
+  assign activate = activate_0[0];
+  logic activate_prev, activate_stretched;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) activate_prev <= 1'b0;
+    else activate_prev <= activate;
+  end
+  assign activate_stretched = activate | activate_prev;
 
-    logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
-    logic instruction_valid;
-    assign instruction = instr_0;
-    assign instruction_valid = instr_en_0;
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+  logic instruction_valid;
+  assign instruction = instr_0;
+  assign instruction_valid = instr_en_0;
 
-    // useless output
-    assign word_data_out_1 = 0;
-    assign bulk_data_out_0 = 0;
-    assign bulk_data_out_1 = 0;
+  // useless output
+  assign word_data_out_1 = 0;
+  assign bulk_data_out_0 = 0;
+  assign bulk_data_out_1 = 0;
 
-    // register inputs
-    logic [WORD_BITWIDTH-1:0] in0, in1, out0;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            in0 <= 0;
-            in1 <= 0;
-        end else begin
-            in0 <= word_data_in_0;
-            in1 <= word_data_in_1;
-        end
+  // register inputs
+  logic [WORD_BITWIDTH-1:0] in0, in1, out0;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      in0 <= 0;
+      in1 <= 0;
+    end else begin
+      in0 <= word_data_in_0;
+      in1 <= word_data_in_1;
     end
+  end
 
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
-  logic [DPU_MODE_WIDTH-1:0] dpu_mode;
-
-  //`define ADDRESS_WIDTH 6
-  //`define REP_LEVEL_WIDTH 4
-  //`define REP_DELAY_WIDTH 6
-  //`define REP_ITER_WIDTH 6
-  //`define REP_STEP_WIDTH 6
-  //`define TRANS_LEVEL_WIDTH 7
-  //`define TRANS_DELAY_WIDTH 7
-  //`define NUMBER_OR 4
-  //`define NUMBER_MT 3
-  //`define NUMBER_IR 4
-
-  //`define INCLUDE_IR_STATES 1
-  //`define INCLUDE_MT_STATES 1
-  //`define INCLUDE_OR_STATES 1
+  logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
 
   // Configuration signals from controller to AGU_RTR
-  logic [REP_DELAY_WIDTH-1:0]   rep_delay_IR  [(NUMBER_MT+1)*NUMBER_IR];
-  logic [REP_ITER_WIDTH-1:0]    rep_iter_IR   [(NUMBER_MT+1)*NUMBER_IR];
-  logic [REP_STEP_WIDTH-1:0]    rep_step_IR   [(NUMBER_MT+1)*NUMBER_IR];
-  logic                         rep_config_IR [(NUMBER_MT+1)*NUMBER_IR];
-  logic [TRANS_DELAY_WIDTH-1:0] trans_delay   [NUMBER_MT];
-  logic                         trans_config  [NUMBER_MT];
-  logic [REP_DELAY_WIDTH-1:0]   rep_delay_OR  [NUMBER_OR];
-  logic [REP_ITER_WIDTH-1:0]    rep_iter_OR   [NUMBER_OR];
-  logic [REP_STEP_WIDTH-1:0]    rep_step_OR   [NUMBER_OR];
-  logic                         rep_config_OR [NUMBER_OR];
+  logic [    REP_DELAY_WIDTH-1:0] rep_delay_IR      [(NUMBER_MT+1)*NUMBER_IR];
+  logic [     REP_ITER_WIDTH-1:0] rep_iter_IR       [(NUMBER_MT+1)*NUMBER_IR];
+  logic [     REP_STEP_WIDTH-1:0] rep_step_IR       [(NUMBER_MT+1)*NUMBER_IR];
+  logic                           rep_config_IR     [(NUMBER_MT+1)*NUMBER_IR];
+  logic [  TRANS_DELAY_WIDTH-1:0] trans_delay       [              NUMBER_MT];
+  logic                           trans_config      [              NUMBER_MT];
+  logic [    REP_DELAY_WIDTH-1:0] rep_delay_OR      [              NUMBER_OR];
+  logic [     REP_ITER_WIDTH-1:0] rep_iter_OR       [              NUMBER_OR];
+  logic [     REP_STEP_WIDTH-1:0] rep_step_OR       [              NUMBER_OR];
+  logic                           rep_config_OR     [              NUMBER_OR];
 
-  logic [ADDRESS_WIDTH-1:0]     address;
-  logic                         address_valid;
+  logic [      ADDRESS_WIDTH-1:0] address;
+  logic                           address_valid;
 
-  logic reset_accumulator;
+  logic                           reset_accumulator;
 
   logic rep_valid, repx_valid, trans_valid;
 
-  agu_RTR # (
-    .ADDRESS_WIDTH(ADDRESS_WIDTH),
-    .REP_LEVEL_WIDTH(REP_LEVEL_WIDTH),
-    .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-    .REP_ITER_WIDTH(REP_ITER_WIDTH),
-    .REP_STEP_WIDTH(REP_STEP_WIDTH),
-    .TRANS_LEVEL_WIDTH(TRANS_LEVEL_WIDTH),
-    .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
-    .NUMBER_OR(NUMBER_OR),
-    .NUMBER_MT(NUMBER_MT),
-    .NUMBER_IR(NUMBER_IR)
+  agu_RTR #(
+      .ADDRESS_WIDTH(ADDRESS_WIDTH),
+      .REP_LEVEL_WIDTH(REP_LEVEL_WIDTH),
+      .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH(REP_ITER_WIDTH),
+      .REP_STEP_WIDTH(REP_STEP_WIDTH),
+      .TRANS_LEVEL_WIDTH(TRANS_LEVEL_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .NUMBER_OR(NUMBER_OR),
+      .NUMBER_MT(NUMBER_MT),
+      .NUMBER_IR(NUMBER_IR)
   ) agu_RTR_inst (
-    .clk(clk),
-    .rst_n(rst_n),
-    .activation(|activate),
-    .rep_valid(rep_valid),
-    .repx_valid(repx_valid),
-    .rep_delay_IR(rep_delay_IR),
-    .rep_iter_IR(rep_iter_IR),
-    .rep_step_IR(rep_step_IR),
-    .rep_config_IR(rep_config_IR),
-    .trans_valid(trans_valid),
-    .trans_delay(trans_delay),
-    .trans_config(trans_config),
-    .rep_delay_OR(rep_delay_OR),
-    .rep_iter_OR(rep_iter_OR),
-    .rep_step_OR(rep_step_OR),
-    .rep_config_OR(rep_config_OR),
-    .address_valid(address_valid),
-    .address(address)
+      .clk(clk),
+      .rst_n(rst_n),
+      .activation(|activate),
+      .rep_valid(rep_valid),
+      .repx_valid(repx_valid),
+      .rep_delay_IR(rep_delay_IR),
+      .rep_iter_IR(rep_iter_IR),
+      .rep_step_IR(rep_step_IR),
+      .rep_config_IR(rep_config_IR),
+      .trans_valid(trans_valid),
+      .trans_delay(trans_delay),
+      .trans_config(trans_config),
+      .rep_delay_OR(rep_delay_OR),
+      .rep_iter_OR(rep_iter_OR),
+      .rep_step_OR(rep_step_OR),
+      .rep_config_OR(rep_config_OR),
+      .address_valid(address_valid),
+      .address(address)
   );
 
   dpu_controller controller_inst (
-    .clk(clk),
-    .rst_n(rst_n),
+      .clk  (clk),
+      .rst_n(rst_n),
 
-    .instruction_valid(instruction_valid),
-    .instruction(instruction),
+      .instruction_valid(instruction_valid),
+      .instruction(instruction),
 
-    .address_valid(address_valid),
-    .address(address),
+      .address_valid(address_valid),
+      .address(address),
 
-    .rep_delay_IR(rep_delay_IR),
-    .rep_iter_IR(rep_iter_IR),
-    .rep_step_IR(rep_step_IR),
-    .rep_config_IR(rep_config_IR),
+      .rep_delay_IR (rep_delay_IR),
+      .rep_iter_IR  (rep_iter_IR),
+      .rep_step_IR  (rep_step_IR),
+      .rep_config_IR(rep_config_IR),
 
-    .trans_delay(trans_delay),
-    .trans_config(trans_config),
+      .trans_delay (trans_delay),
+      .trans_config(trans_config),
 
-    .rep_delay_OR(rep_delay_OR),
-    .rep_iter_OR(rep_iter_OR),
-    .rep_step_OR(rep_step_OR),
-    .rep_config_OR(rep_config_OR),
+      .rep_delay_OR (rep_delay_OR),
+      .rep_iter_OR  (rep_iter_OR),
+      .rep_step_OR  (rep_step_OR),
+      .rep_config_OR(rep_config_OR),
 
-    .dpu_mode(dpu_mode),
-    .immediate(immediate),
-    .reset_accumulator(reset_accumulator),
+      .dpu_mode(dpu_mode),
+      .immediate(immediate),
+      .reset_accumulator(reset_accumulator),
 
-    .rep_valid(rep_valid),
-    .repx_valid(repx_valid),
-    .trans_valid(trans_valid)
+      .rep_valid  (rep_valid),
+      .repx_valid (repx_valid),
+      .trans_valid(trans_valid)
   );
 
   // Calculation logic
+  logic accumulator_valid;
   logic signed [BITWIDTH-1:0] acc0, acc0_next;
   logic signed [BITWIDTH-1:0] adder_in0;
   logic signed [BITWIDTH-1:0] adder_in1;
@@ -165,12 +157,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] mult_in0;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
-
-  // signed saturation
-  localparam logic signed [BITWIDTH-1:0] MAX_RESULT = 2 ** (BITWIDTH - 1) - 1;
-  localparam logic signed [BITWIDTH-1:0] MIN_RESULT = -2 ** (BITWIDTH - 1);
-
-  logic accumulator_valid;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -202,8 +188,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
         out0 = adder_out;
       end
       DPU_MODE_MAC: begin
-        mult_in0 = in0;
-        mult_in1 = in1;
+        mult_in0  = in0;
+        mult_in1  = in1;
         adder_in0 = mult_out;
         if (accumulator_valid) begin
           adder_in1 = acc0;
@@ -222,14 +208,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such
-  {{name}}_{{fingerprint}}_adder adder_inst (
+  dpu_impl_pnkjyubmn1c_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
       .out(adder_out)
   );
 
-  {{name}}_{{fingerprint}}_multiplier mult_inst (
+  dpu_impl_pnkjyubmn1c_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),

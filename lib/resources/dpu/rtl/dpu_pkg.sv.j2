@@ -6,37 +6,37 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "package.j2" %}
   // vesyla_template_end package_macro
 
-  parameter FSM_MAX_STATES = 4;
-  parameter FSM_DELAY_WIDTH = 3;
-  parameter DPU_MODE_WIDTH = 6;
-  parameter DPU_IMMEDIATE_WIDTH = 8;
-  parameter OPCODE_WIDTH = 4;
-  parameter BITWIDTH = 16;
-  parameter INSTRUCTION_PAYLOAD_WIDTH = 27;
-  parameter OPCODE_H = 26;
-  parameter OPCODE_L = 24;
+  parameter int FSM_MAX_STATES = 4;
+  parameter int FSM_DELAY_WIDTH = 3;
+  parameter int DPU_MODE_WIDTH = 6;
+  parameter int DPU_IMMEDIATE_WIDTH = 8;
+  parameter int OPCODE_WIDTH = 4;
+  parameter int BITWIDTH = 16;
+  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter int OPCODE_H = 26;
+  parameter int OPCODE_L = 24;
 
-  parameter OPCODE_REP = 0;
-  parameter OPCODE_REPX = 1;
-  parameter OPCODE_TRANS = 2;
-  parameter OPCODE_DPU = 3;
+  parameter int OPCODE_REP = 0;
+  parameter int OPCODE_REPX = 1;
+  parameter int OPCODE_TRANS = 2;
+  parameter int OPCODE_DPU = 3;
 
-  parameter DPU_MODE_ADD = 1;
-  parameter DPU_MODE_MUL = 7;
-  parameter DPU_MODE_MAC = 10;
+  parameter int DPU_MODE_ADD = 1;
+  parameter int DPU_MODE_MUL = 7;
+  parameter int DPU_MODE_MAC = 10;
 
   // AGU RTR params
-  parameter ADDRESS_WIDTH = 6;
-  parameter REP_LEVEL_WIDTH = 4;
-  parameter REP_DELAY_WIDTH = 6;
-  parameter REP_ITER_WIDTH = 6;
-  parameter REP_STEP_WIDTH = 6;
-  parameter TRANS_LEVEL_WIDTH = 7;
-  parameter TRANS_DELAY_WIDTH = 7;
-  parameter NUMBER_OR = 4;
-  parameter NUMBER_MT = 3;
-  parameter NUMBER_IR = 4;
-  parameter INCLUDE_IR_STATES = 1;
-  parameter INCLUDE_MT_STATES = 1;
-  parameter INCLUDE_OR_STATES = 1;
+  parameter int ADDRESS_WIDTH = 6;
+  parameter int REP_LEVEL_WIDTH = 4;
+  parameter int REP_DELAY_WIDTH = 6;
+  parameter int REP_ITER_WIDTH = 6;
+  parameter int REP_STEP_WIDTH = 6;
+  parameter int TRANS_LEVEL_WIDTH = 7;
+  parameter int TRANS_DELAY_WIDTH = 7;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+  parameter int INCLUDE_IR_STATES = 1;
+  parameter int INCLUDE_MT_STATES = 1;
+  parameter int INCLUDE_OR_STATES = 1;
 endpackage
