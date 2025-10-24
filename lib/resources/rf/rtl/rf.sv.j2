@@ -37,8 +37,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign activate_out = activate;
     assign instr_en_resource_out = instr_en_resource;
 
-    logic instr_en_x [1-1:0];
-    logic [FSM_PER_SLOT-1:0] activate_x [1-1:0];
+    parameter RESOURCE_SLOTS = 1;
+    logic instr_en_x [RESOURCE_SLOTS-1:0];
+    logic [FSM_PER_SLOT-1:0] activate_x [RESOURCE_SLOTS-1:0];
     
     logic instr_en_0;
     logic [FSM_PER_SLOT-1:0] activate_0;
@@ -48,7 +49,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     signal_selector #(
         .NUM_SLOTS(NUM_SLOTS),
-        .RESOURCE_SLOTS(1),
+        .RESOURCE_SLOTS(RESOURCE_SLOTS),
         .FSM_PER_SLOT(FSM_PER_SLOT)
     ) signal_selector_0 (
         .resource_address(resource_address),

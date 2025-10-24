@@ -128,7 +128,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
         .word_data_out_{{i}}(word_data_out[{{res.slot+i}}]),
         .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),
-        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]), {% if i < res.size-1 %},{% endif %}
+        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]), {% if i < res.size-1 %}{% endif %}
         {% endfor %}
         .clk(clk_feedthrough_resource),
         .rst_n(rst_n_feedthrough_resource),

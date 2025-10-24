@@ -3,6 +3,7 @@ package:
 
 dependencies:
   sram: {path: ../../common/sram}
+  signal_selector: {path: ../../common/signal_selector}
 
 sources:
   - ./rtl/iosram_both_pkg.sv
