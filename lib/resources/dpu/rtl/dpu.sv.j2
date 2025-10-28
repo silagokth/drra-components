@@ -1,12 +1,12 @@
 // vesyla_template_start defines
-`define {{name}} {{fingerprint}}
-`define {{name}}_pkg {{fingerprint}}_pkg
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 // vesyla_template_end defines
 
 // vesyla_template_start module_head
 {% if not already_defined %}
-module {{fingerprint}}
-import {{fingerprint}}_pkg::*;
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
     input  logic clk_0,
@@ -36,6 +36,8 @@ import {{fingerprint}}_pkg::*;
     assign instruction_valid = instr_en_0;
     assign activate = activate_0[0];
     assign instruction = instr_0;
+    // TODO: check how to drive this reset_fsm
+    logic reset_fsm;
 
     // useless output
     assign word_data_out_1 = 0;
@@ -48,9 +50,11 @@ import {{fingerprint}}_pkg::*;
         if (!rst_n) begin
             in0 <= 0;
             in1 <= 0;
+            reset_fsm <= 1;
         end else begin
             in0 <= word_data_in_0;
             in1 <= word_data_in_1;
+            reset_fsm <= 0;
         end
     end
 
@@ -78,6 +82,7 @@ import {{fingerprint}}_pkg::*;
       .activate(|activate),
       .fsm_delays(fsm_delays),
       .max_init_state(fsm_max_init_state),
+      .reset_fsm(reset_fsm),
       .state(fsm_option)
   );
 
@@ -171,14 +176,14 @@ import {{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such 
-  {{fingerprint}}_adder adder_inst (
+  {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
       .out(adder_out)
   );
 
-  {{fingerprint}}_multiplier mult_inst (
+  {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),

@@ -1,161 +1,57 @@
 #include "rf.h"
-
 #include "dataEvent.h"
-#include <cstdint>
 
-RegisterFile::RegisterFile(ComponentId_t id, Params &params)
-    : DRRAResource(id, params) {
+using namespace SST;
+
+Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
   // Register file parameters
   access_time = params.find<std::string>("access_time", "0ns");
-  register_file_size = params.find<int>("register_file_size", 64);
-}
-
-RegisterFile::~RegisterFile() {}
-
-void RegisterFile::init(unsigned int phase) {
-  out.verbose(CALL_INFO, 1, 0, "Initialized\n");
-}
-
-void RegisterFile::setup() {
+  register_file_size = params.find<int>("RF_DEPTH", 64);
   for (int i = 0; i < register_file_size; i++) {
     for (int j = 0; j < word_bitwidth / 8; j++) {
       registers[i].push_back(0);
     }
   }
+  instructionHandlers = RF_PKG::createInstructionHandlers(this);
 }
 
-void RegisterFile::complete(unsigned int phase) {}
-
-void RegisterFile::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
-
-bool RegisterFile::clockTick(Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
-  return false;
+bool Rf::clockTick(SST::Cycle_t currentCycle) {
+  return DRRAResource::clockTick(currentCycle);
 }
 
-void RegisterFile::decodeInstr(uint32_t instr) {
-  // Decode instruction
-  uint32_t opcode = getInstrOpcode(instr);
-  switch (opcode) {
-  case REP: // repetition instruction
-    handleRep(instr);
-    break;
-  case REPX: // repetition instruction
-    handleRepx(instr);
-    break;
-  case DSU: // data setup instruction
-    handleDSU(instr);
-    break;
-  default:
-    out.fatal(CALL_INFO, -1, "Invalid opcode\n");
-  }
-}
+void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
+  out.output("dsu (slot=%d, init_addr_sd=%d, init_addr=%d, port=%d)\n",
+             instr.slot, instr.init_addr_sd, instr.init_addr, instr.port);
 
-void RegisterFile::handleRep(uint32_t instr) {
-  // Instruction fields
-  uint32_t slot = getInstrSlot(instr);
-  uint32_t port = getInstrField(instr, 2, 22);
-  uint32_t level = getInstrField(instr, 4, 18);
-  uint32_t iter = getInstrField(instr, 6, 12);
-  uint32_t step = getInstrField(instr, 6, 6);
-  uint32_t delay = getInstrField(instr, 6, 0);
+  auto dsu = instr;
 
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + port;
-
-  // For now, we only support increasing repetition levels (and no skipping)
-  if (level != port_last_rep_level[port_num] + 1) {
-    out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              port_last_rep_level[port_num], level);
-  } else {
-    port_last_rep_level[port_num] = level;
-  }
-
-  // add repetition to the timing model
-  try {
-    next_timing_states[port_num].addRepetition(iter, delay, level, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
-}
-
-void RegisterFile::handleRepx(uint32_t instr) {
-  // Instruction fields
-  uint32_t slot = getInstrSlot(instr);
-  uint32_t port = getInstrField(instr, 2, 22);
-  uint32_t level = getInstrField(instr, 4, 18);
-  uint32_t iter_msb = getInstrField(instr, 6, 12);
-  uint32_t step_msb = getInstrField(instr, 6, 6);
-  uint32_t delay_msb = getInstrField(instr, 6, 0);
-
-  out.output("repx (slot=%d, port=%d, level=%d, iter_msb=%d, step_msb=%d, "
-             "delay_msb=%d)\n",
-             slot, port, level, iter_msb, step_msb, delay_msb);
-
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + port;
-
-  auto repetition_op =
-      next_timing_states[port_num].getRepetitionOperatorFromLevel(level);
-  uint32_t iter = iter_msb << 6 | repetition_op.getIterations();
-  uint32_t step = step_msb << 6 | repetition_op.getStep();
-  uint32_t delay = delay_msb << 6 | repetition_op.getDelay();
-  try {
-    next_timing_states[port_num].adjustRepetition(iter, delay, level, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
-  }
-}
-
-void RegisterFile::handleDSU(uint32_t instr) {
-  // Instruction fields
-  uint32_t slot = getInstrSlot(instr);
-  bool init_addr_sd = getInstrField(instr, 1, 23) == 1;
-  uint16_t init_addr = getInstrField(instr, 16, 7);
-  uint32_t port = getInstrField(instr, 2, 5);
-
-  out.output("dsu (slot=%d, init_addr_sd=%d, init_addr=%d, port=%d)\n", slot,
-             init_addr_sd, init_addr, port);
-
-  port_agus_init[port] = init_addr;
+  port_agus_init[dsu.port] = dsu.init_addr;
 
   // Add the event handler
-  switch (port) {
+  switch (dsu.port) {
   case DataEvent::PortType::ReadNarrow:
-    next_timing_states[port].addEvent(
+    next_timing_states[dsu.port].addEvent(
         "dsu_read_narrow_" + std::to_string(current_event_number), 1, [this] {
           updatePortAGUs(DataEvent::PortType::ReadNarrow);
           readNarrow();
         });
     break;
   case DataEvent::PortType::ReadWide:
-    next_timing_states[port].addEvent(
+    next_timing_states[dsu.port].addEvent(
         "dsu_read_wide_" + std::to_string(current_event_number), 1, [this] {
           updatePortAGUs(DataEvent::PortType::ReadWide);
           readWide();
         });
     break;
   case DataEvent::PortType::WriteNarrow:
-    next_timing_states[port].addEvent(
+    next_timing_states[dsu.port].addEvent(
         "dsu_write_narrow_" + std::to_string(current_event_number), 9, [this] {
           updatePortAGUs(DataEvent::PortType::WriteNarrow);
           writeNarrow();
         });
     break;
   case DataEvent::PortType::WriteWide:
-    next_timing_states[port].addEvent(
+    next_timing_states[dsu.port].addEvent(
         "dsu_write_wide_" + std::to_string(current_event_number), 9, [this] {
           updatePortAGUs(DataEvent::PortType::WriteWide);
           writeWide();
@@ -170,13 +66,73 @@ void RegisterFile::handleDSU(uint32_t instr) {
   current_event_number++;
 }
 
-void RegisterFile::readWide() {
-  vector<uint8_t> data;
+void Rf::handleREP(const RF_PKG::REPInstruction &instr) {
+  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port, instr.level, instr.iter, instr.step,
+             instr.delay);
+
+  auto rep = instr;
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), rep.slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + rep.port;
+
+  // For now, we only support increasing repetition levels (and no skipping)
+  if (rep.level != port_last_rep_level[port_num] + 1) {
+    out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
+              port_last_rep_level[port_num], rep.level);
+  } else {
+    port_last_rep_level[port_num] = rep.level;
+  }
+
+  // add repetition to the timing model
+  try {
+    next_timing_states[port_num].addRepetition(rep.iter, rep.delay, rep.level,
+                                               rep.step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
+  }
+}
+
+void Rf::handleREPX(const RF_PKG::REPXInstruction &instr) {
+  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port, instr.level, instr.iter, instr.step,
+             instr.delay);
+
+  auto repx = instr;
+  uint32_t port_num = 0;
+  auto it = std::find(slot_ids.begin(), slot_ids.end(), repx.slot);
+  if (it != slot_ids.end()) {
+    port_num = std::distance(slot_ids.begin(), it);
+  } else {
+    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
+  }
+  port_num = port_num * 4 + repx.port;
+
+  auto repetition_op =
+      next_timing_states[port_num].getRepetitionOperatorFromLevel(repx.level);
+  uint32_t iter = repx.iter << 6 | repetition_op.getIterations();
+  uint32_t step = repx.step << 6 | repetition_op.getStep();
+  uint32_t delay = repx.delay << 6 | repetition_op.getDelay();
+  try {
+    next_timing_states[port_num].adjustRepetition(iter, delay, repx.level,
+                                                  step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
+
+void Rf::readWide() {
+  std::vector<uint8_t> data;
   uint32_t addr =
       port_agus[DataEvent::PortType::ReadWide] * io_data_width / word_bitwidth;
 
   out.output("Reading bulk data (");
-  vector<uint8_t> current_data;
+  std::vector<uint8_t> current_data;
   for (int i = 0; i < io_data_width / word_bitwidth; i++) {
     for (int j = 0; j < word_bitwidth / 8; j++) {
       data.push_back(registers[addr][j]);
@@ -198,9 +154,10 @@ void RegisterFile::readWide() {
   data_links[0]->send(dataEvent);
 }
 
-void RegisterFile::readNarrow() {
+void Rf::readNarrow() {
   DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
-  vector<uint8_t> data = registers[port_agus[DataEvent::PortType::ReadNarrow]];
+  std::vector<uint8_t> data =
+      registers[port_agus[DataEvent::PortType::ReadNarrow]];
   data.resize(word_bitwidth / 8); // Resize to word size
 
   dataEvent->size = word_bitwidth;
@@ -212,18 +169,23 @@ void RegisterFile::readNarrow() {
   data_links[0]->send(dataEvent);
 }
 
-void RegisterFile::writeWide() {
+void Rf::writeWide() {
   Event *temp_event = nullptr;
   DataEvent *data_event = nullptr;
   do {
     temp_event = data_links[0]->recv();
     if (temp_event != nullptr) {
-      data_event = dynamic_cast<DataEvent *>(temp_event);
+      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
+      if (new_data_event != nullptr) {
+        if (data_event != nullptr)
+          delete data_event;
+        data_event = new_data_event;
+      }
     }
   } while (temp_event != nullptr);
 
   if (data_event == nullptr)
-    out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
+    out.fatal(CALL_INFO, -1, "Failed to receive data event (writeWide)\n");
   if (data_event->portType != DataEvent::PortType::WriteWide)
     out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
 
@@ -232,7 +194,7 @@ void RegisterFile::writeWide() {
       port_agus[DataEvent::PortType::WriteWide] * io_data_width / word_bitwidth;
 
   out.output("Writing bulk data (");
-  vector<uint8_t> data;
+  std::vector<uint8_t> data;
   for (int i = 0; i < data_event->payload.size(); i++) {
     data.push_back(data_event->payload[i]);
     if (data.size() == word_bitwidth / 8) {
@@ -248,22 +210,27 @@ void RegisterFile::writeWide() {
   out.print(")\n");
 }
 
-void RegisterFile::writeNarrow() {
+void Rf::writeNarrow() {
   Event *temp_event = nullptr;
   DataEvent *data_event = nullptr;
   do {
     temp_event = data_links[0]->recv();
     if (temp_event != nullptr) {
-      data_event = dynamic_cast<DataEvent *>(temp_event);
+      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
+      if (new_data_event != nullptr) {
+        if (data_event != nullptr)
+          delete data_event;
+        data_event = new_data_event;
+      }
     }
   } while (temp_event != nullptr);
 
   if (data_event == nullptr)
-    out.fatal(CALL_INFO, -1, "Failed to receive data event\n");
+    out.fatal(CALL_INFO, -1, "Failed to receive data event (writeNarrow)\n");
   if (data_event->portType != DataEvent::PortType::WriteNarrow)
     out.fatal(CALL_INFO, -1, "Invalid port type\n");
 
-  vector<uint8_t> data;
+  std::vector<uint8_t> data;
   data.resize(word_bitwidth / 8);
   for (int i = 0; i < word_bitwidth / 8; i++) {
     data[i] = data_event->payload[i];

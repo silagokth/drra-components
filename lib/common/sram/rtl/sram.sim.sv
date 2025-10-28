@@ -18,6 +18,10 @@ module sram #(
 
   logic [DEPTH-1:0][WIDTH-1:0] memory;
 
+  initial begin
+    memory = '{default: '0};
+  end
+
   always_ff @(posedge clk) begin
     if (!enable_a_n && !write_enable_a_n) begin
       memory[address_a] <= data_a;

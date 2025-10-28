@@ -9,10 +9,9 @@ find_package(GTest REQUIRED)
 
 # Set SST include dir
 execute_process(
-    COMMAND sst-config --includedir
-    OUTPUT_VARIABLE SST_INCLUDE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+  COMMAND sst-config --includedir
+  OUTPUT_VARIABLE SST_INCLUDE_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Set the source files
 file(GLOB SOURCES "*.cpp")
@@ -24,12 +23,7 @@ foreach(source ${SOURCES})
   message(STATUS "Adding test: ${source}")
   get_filename_component(EXECUTABLE_NAME ${source} NAME_WE)
   add_executable(${EXECUTABLE_NAME} ${source})
-  target_include_directories(${EXECUTABLE_NAME} PRIVATE
-    ${COMMON_INCLUDE_DIRS}
-  )
-  target_link_libraries(${EXECUTABLE_NAME} PRIVATE
-    GTest::GTest
-    GTest::Main
-    timingModel
-  )
+  target_include_directories(${EXECUTABLE_NAME} PRIVATE ${COMMON_INCLUDE_DIRS})
+  target_link_libraries(${EXECUTABLE_NAME} PRIVATE GTest::GTest GTest::Main
+                                                   drra_sst_utils)
 endforeach()
