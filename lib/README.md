@@ -25,7 +25,7 @@ This directory contains the FFT-specific components of the DRRA architecture.
   - Used in: `fft16_1cell` testcase
   - Handles complex number arithmetic operations
 
-### Register Files and Memory
+### Register Files
 - [`rf_fft_r4`](./resources/rf_fft_r4)
   - Used in: `fft_r4` and `fft_2r2` testcases
   - Stores FFT data and manage FFT addressing for both radix-2 and radix-4 FFT, up to 256 points
@@ -33,3 +33,8 @@ This directory contains the FFT-specific components of the DRRA architecture.
   - Used in: `fft16_1cell` single-cell testcase
   - Stores FFT data and manage FFT addressing for radix-2.
   - Has IO connections for single-cell implementation (no SRAM)
+
+### Twiddle factor Generator
+- [`tfg`](./resources/tfg)
+  - Used in: `fft_r4` and `fft_2r2` testcases
+  - Generates twiddle factors on-the-fly from base values saved in ROM
