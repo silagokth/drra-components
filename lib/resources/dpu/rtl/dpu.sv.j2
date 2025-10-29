@@ -49,7 +49,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign activate_0 = activate_x[0];
     assign activate_1 = activate_x[1];
 
-    logic clk, rst_n;
     assign clk_out = clk; 
     assign rst_n_out = rst_n;
     assign activate_out = activate;
@@ -69,11 +68,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     );
     
     
-    logic instruction_valid, activate;
+    logic instruction_valid, activate_internal;
     logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
 
     assign instruction_valid = instr_en_0;
-    assign activate = activate_0[0];
+    assign activate_internal = activate_0[0];
     assign instruction = instr;
     // TODO: check how to drive this reset_fsm
     logic reset_fsm;
@@ -118,7 +117,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   ) fsm_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .activate(|activate),
+      .activate(|activate_internal),
       .fsm_delays(fsm_delays),
       .max_init_state(fsm_max_init_state),
       .reset_fsm(reset_fsm),
