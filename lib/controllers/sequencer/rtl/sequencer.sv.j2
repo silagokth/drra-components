@@ -79,7 +79,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Per-slot resource interface
     {% for i in range(size) %}
     {% endfor %}
-    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus, // Shared instruction bus
+    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus_resource, // Shared instruction bus
     output logic clk_feedthrough_resource,
     output logic rst_n_feedthrough_resource,
     output logic [NUM_SLOTS-1:0] instr_valid_resource,                     // Valid when sending to slot {{i}}

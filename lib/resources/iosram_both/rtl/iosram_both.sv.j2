@@ -17,7 +17,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input [$clog2(NUM_SLOTS)-1:0] resource_address,
     output [$clog2(NUM_SLOTS)-1:0] resource_address_out,
     input  logic [NUM_SLOTS-1:0] instr_en_resource,
-    input  logic [NUM_SLOTS-1:0] instr_en_resource_out,
+    output  logic [NUM_SLOTS-1:0] instr_en_resource_out,
     input  logic [RESOURCE_INSTR_WIDTH-1:0] instr,
     output logic [RESOURCE_INSTR_WIDTH-1:0] instr_out,
     input  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate,
@@ -78,11 +78,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign activate_2 = activate_x[2];
     assign activate_3 = activate_x[3];
 
-    logic clk, rst_n;
     assign clk_out = clk; 
     assign rst_n_out = rst_n;
     assign activate_out = activate;
     assign instr_en_resource_out = instr_en_resource;
+    assign instr_out = instr;
 
     signal_selector #(
         .NUM_SLOTS(NUM_SLOTS),

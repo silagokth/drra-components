@@ -18,7 +18,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input [$clog2(NUM_SLOTS)-1:0] resource_address,
     output [$clog2(NUM_SLOTS)-1:0] resource_address_out,
     input  logic [NUM_SLOTS-1:0] instr_en_resource,
-    input  logic [NUM_SLOTS-1:0] instr_en_resource_out,
+    output  logic [NUM_SLOTS-1:0] instr_en_resource_out,
     input  logic [RESOURCE_INSTR_WIDTH-1:0] instr,
     output logic [RESOURCE_INSTR_WIDTH-1:0] instr_out,
     input  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate,
