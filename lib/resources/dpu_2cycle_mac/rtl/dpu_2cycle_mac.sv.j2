@@ -9,33 +9,73 @@ module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
-    input  logic clk_0,
-    input  logic rst_n_0,
-    input  logic instr_en_0,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
-    input  logic [3:0] activate_0,
+
+    input  logic clk,
+    output logic clk_out,
+    input  logic rst_n,
+    output  logic rst_n_out,
+
+    input [$clog2(NUM_SLOTS)-1:0] resource_address,
+    output [$clog2(NUM_SLOTS)-1:0] resource_address_out,
+    input  logic [NUM_SLOTS-1:0] instr_en_resource,
+    output  logic [NUM_SLOTS-1:0] instr_en_resource_out,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr,
+    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_out,
+    input  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate,
+    output logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_out,
+
     input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
     output logic [WORD_BITWIDTH-1:0] word_data_out_0,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
-    input  logic clk_1,
-    input  logic rst_n_1,
-    input  logic instr_en_1,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
-    input  logic [3:0] activate_1,
+
     input  logic [WORD_BITWIDTH-1:0] word_data_in_1,
     output logic [WORD_BITWIDTH-1:0] word_data_out_1,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_1
 );
 
-    logic clk, rst_n, instruction_valid, activate;
+    parameter RESOURCE_SLOTS = 2;
+    logic instr_en_x [RESOURCE_SLOTS-1:0];
+    logic [FSM_PER_SLOT-1:0] activate_x [RESOURCE_SLOTS-1:0];
+
+    
+    logic instr_en_0;
+    logic instr_en_1;
+    logic [FSM_PER_SLOT-1:0] activate_0;
+    logic [FSM_PER_SLOT-1:0] activate_1;
+    assign instr_en_0 = instr_en_x[0];
+    assign instr_en_1 = instr_en_x[1];
+    assign activate_0 = activate_x[0];
+    assign activate_1 = activate_x[1];
+
+    assign clk_out = clk; 
+    assign rst_n_out = rst_n;
+    assign activate_out = activate;
+    assign instr_en_resource_out = instr_en_resource;
+
+    signal_selector #(
+        .NUM_SLOTS(NUM_SLOTS),
+        .RESOURCE_SLOTS(2),
+        .FSM_PER_SLOT(FSM_PER_SLOT)
+    ) signal_selector_0 (
+        .resource_address(resource_address),
+        .activate_resource(activate),
+        .instr_valid_resource(instr_en_resource),
+        .instr_valid(instr_en_x),
+        .activate(activate_x),
+        .resource_address_out(resource_address_out)
+    );
+    
+    
+    logic instruction_valid, activate_internal;
     logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
-    assign clk = clk_0;
-    assign rst_n = rst_n_0;
+
     assign instruction_valid = instr_en_0;
-    assign activate = activate_0[0];
-    assign instruction = instr_0;
+    assign activate_internal = activate_0[0];
+    assign instruction = instr;
+    // TODO: check how to drive this reset_fsm
+    logic reset_fsm;
 
     // useless output
     assign word_data_out_1 = 0;
@@ -77,7 +117,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   ) fsm_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .activate(|activate),
+      .activate(|activate_internal),
       .fsm_delays(fsm_delays),
       .reset_fsm(reset_fsm),
       .state(fsm_option)

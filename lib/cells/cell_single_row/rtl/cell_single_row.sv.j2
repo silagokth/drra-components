@@ -52,8 +52,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_out;
 
   logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus [NUM_SLOTS-1:0]; // Shared instruction bus
-  logic clk_feedthrough_resource;
-  logic rst_n_feedthrough_resource;
+  logic clk_feedthrough_resource [NUM_SLOTS-1:0];
+  logic rst_n_feedthrough_resource [NUM_SLOTS-1:0];
   logic [NUM_SLOTS-1:0] instr_valid_resource [NUM_SLOTS-1:0];                     // Valid when sending to slot {{i}}
   logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_resource [NUM_SLOTS-1:0];     // Per-FSM activation bits for slot {{i}}
   logic [$clog2(NUM_SLOTS)-1:0] resource_address [NUM_SLOTS-1:0];
@@ -72,8 +72,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .rst_n(rst_n),
         .call(call_in),
         .instr_bus_resource(instr_bus[0]), 
-        .clk_feedthrough_resource(clk_feedthrough_resource),
-        .rst_n_feedthrough_resource(rst_n_feedthrough_resource),
+        .clk_feedthrough_resource(clk_feedthrough_resource[0]),
+        .rst_n_feedthrough_resource(rst_n_feedthrough_resource[0]),
         .instr_valid_resource(instr_valid_resource[0]),                     
         .activate_resource(activate_resource[0]),     
         .resource_address(resource_address[0]),
@@ -130,8 +130,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),
         .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]), {% if i < res.size-1 %}{% endif %}
         {% endfor %}
-        .clk(clk_feedthrough_resource),
-        .rst_n(rst_n_feedthrough_resource),
+        .clk(clk_feedthrough_resource[{{res.slot}}-1]),
+        .rst_n(rst_n_feedthrough_resource[{{res.slot}}-1]),
+        .clk_out(clk_feedthrough_resource[{{res.slot+res.size}}-1]),
+        .rst_n_out(rst_n_feedthrough_resource[{{res.slot+res.size}}-1]),
         .instr_en_resource(instr_valid_resource[{{res.slot}}-1]),
         .instr_en_resource_out(instr_valid_resource[{{res.slot+res.size}}-1]),
         .instr(instr_bus[{{res.slot}}-1]),
