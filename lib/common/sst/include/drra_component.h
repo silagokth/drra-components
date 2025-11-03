@@ -3,7 +3,6 @@
 
 #include <fstream>
 
-#include <cmath>
 #include <sst/core/component.h>
 #include <sst/core/link.h>
 #include <sst/core/params.h>

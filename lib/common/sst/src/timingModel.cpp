@@ -1,6 +1,5 @@
 #include "timingModel.h"
 #include <algorithm>
-#include <cstdint>
 #include <stdexcept>
 
 // TimingExpression implementations
