@@ -1,9 +1,9 @@
-
 #include "activationEvent.h"
 #include "drra_component.h"
 #include "instructionEvent.h"
 #include "timingModel.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include <sst/core/link.h>
@@ -17,7 +17,7 @@ class DRRAResource : public DRRAComponent {
 public:
   DRRAResource(ComponentId_t id, Params &params) : DRRAComponent(id, params) {
     // Resource-specific params
-    slot_id = params.find<int16_t>("slot_id", -1);
+    slot_id = params.find<int32_t>("slot_id", -1);
     io_data_width = params.find<uint32_t>("io_data_width", 256);
 
     // Configure output
@@ -356,8 +356,8 @@ protected:
   bool has_io_input_connection, has_io_output_connection;
 
   // Slot settings
-  int16_t slot_id;
-  std::vector<int16_t> slot_ids;
+  int32_t slot_id;
+  std::vector<int32_t> slot_ids;
   uint8_t resource_size = 1; // Default to 1 slot
   uint32_t num_fsms;
 
