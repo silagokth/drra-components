@@ -50,17 +50,24 @@ import {{name}}_{{fingerprint}}_pkg::*;
   assign bulk_data_out_0 = 0;
   assign bulk_data_out_1 = 0;
 
-  // register inputs
+  // assign inputs
   logic [WORD_BITWIDTH-1:0] in0, in1, out0;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      in0 <= 0;
-      in1 <= 0;
-    end else begin
-      in0 <= word_data_in_0;
-      in1 <= word_data_in_1;
-    end
-  end
+  assign in0 = word_data_in_0;
+  assign in1 = word_data_in_1;
+
+  // NOTE: removed this always_ff to reduce latency
+  // as the inputs are directly from RF outputs
+  // in future, we may want to merge dpu and rf (paul)
+  // register inputs
+  //always_ff @(posedge clk or negedge rst_n) begin
+  //  if (!rst_n) begin
+  //    in0 <= 0;
+  //    in1 <= 0;
+  //  end else begin
+  //    in0 <= word_data_in_0;
+  //    in1 <= word_data_in_1;
+  //  end
+  //end
 
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
   logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
@@ -222,7 +229,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .out(mult_out)
   );
 
-  assign word_data_out_0 = out0;
+  // register output
+  logic [WORD_BITWIDTH-1:0] out0_reg;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      out0_reg <= 0;
+    end else begin
+      out0_reg <= out0;
+    end
+  end
+  assign word_data_out_0 = out0_reg;
 
 endmodule
 
