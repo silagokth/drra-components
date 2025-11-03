@@ -1,0 +1,51 @@
+module {{name}}_{{fingerprint}}_controller
+import {{name}}_{{fingerprint}}_pkg::*;
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic instruction_valid,
+    input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
+
+    output agu_config_t agu_configs[4],
+
+    output logic [3:0] rep_valid_portnum,
+    output logic [3:0] repx_valid_portnum,
+    output logic [3:0] dsu_valid_portnum
+);
+
+    // Instruction type valid signals
+    logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
+    assign opcode = instruction_payload[INSTR_PAYLOAD_BITWIDTH-1:INSTR_PAYLOAD_BITWIDTH - INSTR_OPCODE_BITWIDTH];
+    logic dsu_valid_instr, rep_valid_instr, repx_valid_instr;
+    assign dsu_valid_instr = instruction_valid && (opcode == OPCODE_DSU);
+    assign rep_valid_instr = instruction_valid && (opcode == OPCODE_REP);
+    assign repx_valid_instr = instruction_valid && (opcode == OPCODE_REPX);
+
+    // Unpack instructions
+    dsu_t  dsu;
+    rep_t  rep;
+    repx_t repx;
+    assign dsu = dsu_valid_instr ? unpack_dsu(instruction_payload) : '{default: 0};
+    assign rep = rep_valid_instr ? unpack_rep(instruction_payload) : '{default: 0};
+    assign repx = repx_valid_instr ? unpack_repx(instruction_payload) : '{default: 0};
+
+    assign dsu_valid_portnum  = dsu_valid_instr  ? (1 << dsu._port)  : 4'b0;
+    assign rep_valid_portnum  = rep_valid_instr  ? (1 << rep._port)  : 4'b0;
+    assign repx_valid_portnum = repx_valid_instr ? (1 << repx._port) : 4'b0;
+
+    // Generate AGU configurations
+    always_comb begin
+      for (int i = 0; i < 4; i++) agu_configs[i] = '{default: '0};
+
+      if (rep_valid_instr) begin
+        agu_configs[rep._port].IR_configs.delays[rep._level] = rep._delay;
+        agu_configs[rep._port].IR_configs.iters[rep._level]  = rep._iter;
+        agu_configs[rep._port].IR_configs.steps[rep._level]  = rep._step;
+        agu_configs[rep._port].IR_configs.confs[rep._level]  = '1;
+      end
+    end
+
+    // TODO: Add support for REPX and OR-level REP
+
+endmodule
