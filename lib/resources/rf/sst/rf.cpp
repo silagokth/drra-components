@@ -28,34 +28,35 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
   port_agus_init[dsu.port] = dsu.init_addr;
 
   // Add the event handler
+  std::string event_name;
   switch (dsu.port) {
   case DataEvent::PortType::ReadNarrow:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_read_narrow_" + std::to_string(current_event_number), 1, [this] {
-          updatePortAGUs(DataEvent::PortType::ReadNarrow);
-          readNarrow();
-        });
+    event_name = "dsu_read_narrow_" + std::to_string(current_event_number);
+    next_timing_states[dsu.port].addEvent(event_name, 1, [this, event_name] {
+      updatePortAGUs(DataEvent::PortType::ReadNarrow);
+      readNarrow();
+    });
     break;
   case DataEvent::PortType::ReadWide:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_read_wide_" + std::to_string(current_event_number), 1, [this] {
-          updatePortAGUs(DataEvent::PortType::ReadWide);
-          readWide();
-        });
+    event_name = "dsu_read_wide_" + std::to_string(current_event_number);
+    next_timing_states[dsu.port].addEvent(event_name, 1, [this, event_name] {
+      updatePortAGUs(DataEvent::PortType::ReadWide);
+      readWide();
+    });
     break;
   case DataEvent::PortType::WriteNarrow:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_write_narrow_" + std::to_string(current_event_number), 9, [this] {
-          updatePortAGUs(DataEvent::PortType::WriteNarrow);
-          writeNarrow();
-        });
+    event_name = "dsu_write_narrow_" + std::to_string(current_event_number);
+    next_timing_states[dsu.port].addEvent(event_name, 9, [this, event_name] {
+      updatePortAGUs(DataEvent::PortType::WriteNarrow);
+      writeNarrow();
+    });
     break;
   case DataEvent::PortType::WriteWide:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_write_wide_" + std::to_string(current_event_number), 9, [this] {
-          updatePortAGUs(DataEvent::PortType::WriteWide);
-          writeWide();
-        });
+    event_name = "dsu_write_wide_" + std::to_string(current_event_number);
+    next_timing_states[dsu.port].addEvent(event_name, 9, [this, event_name] {
+      updatePortAGUs(DataEvent::PortType::WriteWide);
+      writeWide();
+    });
     break;
 
   default:
@@ -167,6 +168,11 @@ void Rf::readNarrow() {
              formatRawDataToWords(data).c_str());
 
   data_links[0]->send(dataEvent);
+
+  logTraceEvent("rf_read_narrow", 0, true,
+                {{"address", (int)port_agus[DataEvent::PortType::ReadNarrow]},
+                 {"size", (int)(word_bitwidth / 8)},
+                 {"data", formatRawDataToWords(data)}});
 }
 
 void Rf::writeWide() {
@@ -208,6 +214,11 @@ void Rf::writeWide() {
     }
   }
   out.print(")\n");
+
+  logTraceEvent("rf_write_wide", 0, true,
+                {{"address", (int)port_agus[DataEvent::PortType::WriteWide]},
+                 {"size", (int)(data_event->size / 8)},
+                 {"data", formatRawDataToWords(data_event->payload)}});
 }
 
 void Rf::writeNarrow() {

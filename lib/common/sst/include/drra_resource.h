@@ -9,6 +9,7 @@
 #include <sst/core/link.h>
 #include <sst/core/params.h>
 #include <sst/core/timeConverter.h>
+#include <string>
 
 using namespace SST;
 
@@ -125,6 +126,8 @@ public:
       if (actEvent) {
         activatePortsForSlot(actEvent->slot_id, actEvent->ports);
         handleActivation(actEvent->slot_id, actEvent->ports);
+        logTraceEvent("activation", slot_id, true,
+                      {{"ports", std::to_string(actEvent->ports)}});
         return;
       }
 
@@ -132,7 +135,12 @@ public:
       InstrEvent *instrEvent = dynamic_cast<InstrEvent *>(event);
       if (instrEvent) {
         instrBuffer = instrEvent->instruction;
+        Instruction instruction(instrBuffer);
         decodeInstr(instrBuffer);
+        logTraceEvent("instruction", slot_id, true,
+                      {{"instruction", instruction.toString()},
+                       {"instruction_bin", instruction.toBinaryString()},
+                       {"instruction_hex", instruction.toHexString()}});
         return;
       }
     }
@@ -214,7 +222,7 @@ protected:
   }
 
   void executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
-    // if first subcycle of the cycle -> gather events for the cycle
+    // if second subcycle of the cycle -> gather events for the cycle
     if (currentSSTCycle % 10 == 1) {
       for (auto &port : active_ports) { // for each port
         if (isPortActive(port.first)) { // if port is active
@@ -252,16 +260,8 @@ protected:
         //            event->getPriority());
         event->execute();
         if (trace_name != "") {
-          trace_file.open(trace_name, std::ios::app);
-          trace_file << "{\"name\": \"" << getType()
-                     << "\", \"cat\": \"event\", \"ph\": \"X\", \"ts\": "
-                     << currentSSTCycle << ", \"dur\": 1, \"tid\": 1"
-                     << std::setw(3) << std::setfill('0') << cell_coordinates[0]
-                     << std::setw(3) << std::setfill('0') << cell_coordinates[1]
-                     << std::setw(3) << std::setfill('0') << slot_id
-                     << ", \"pid\": 0, \"args\": {\"port\": " << port
-                     << ", \"event\": \"" << event->getName() << "\"}},\n";
-          trace_file.close();
+          logTraceEvent(event->getName(), slot_id, true,
+                        {{"port", (int)port}, {"event", event->getName()}});
         }
         current_timing_states[port].incrementLevels();
         // out.output("port %d incremented levels\n", port);
