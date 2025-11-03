@@ -59,7 +59,18 @@ Iosram_btm::Iosram_btm(SST::ComponentId_t id, SST::Params &params)
 }
 
 bool Iosram_btm::clockTick(SST::Cycle_t currentCycle) {
-  return DRRAResource::clockTick(currentCycle);
+  bool result = DRRAResource::clockTick(currentCycle);
+  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
+    for (const auto &port : portsToActivate) {
+      activatePortsForSlot(port.first, port.second);
+    }
+    portsToActivate.clear();
+  }
+  return result;
+}
+
+void Iosram_btm::handleActivation(uint32_t slot_id, uint32_t ports) {
+  portsToActivate[slot_id] = ports;
 }
 
 void Iosram_btm::handleDSU(const IOSRAM_BTM_PKG::DSUInstruction &instr) {

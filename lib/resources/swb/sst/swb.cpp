@@ -377,6 +377,7 @@ void Swb::handleCellEventWithID(Event *event, uint32_t id) {
 }
 
 void Swb::handleActivation(uint32_t slot_id, uint32_t ports) {
+  activatePortsForSlot(slot_id, ports);
   uint32_t relative_ports = ports << (slot_id * 4);
   if (ports & 0b1) {
     connection_maps = next_connection_maps;

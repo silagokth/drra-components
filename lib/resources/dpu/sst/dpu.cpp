@@ -12,7 +12,14 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
 }
 
 bool Dpu::clockTick(SST::Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
+  bool result = DRRAResource::clockTick(currentCycle);
+
+  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
+    for (const auto &port : portsToActivate) {
+      activatePortsForSlot(port.first, port.second);
+    }
+    portsToActivate.clear();
+  }
 
   // Deal with data events
   for (int i = 0; i < resource_size; i++) {
@@ -32,7 +39,11 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
-  return false;
+  return result;
+}
+
+void Dpu::handleActivation(uint32_t slot_id, uint32_t ports) {
+  portsToActivate[slot_id] = ports;
 }
 
 void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
@@ -72,8 +83,10 @@ void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
 
   // Add the reset event
   next_timing_states[current_fsm].addEvent(
-      "dpu_reset_" + std::to_string(current_event_number), 5,
-      [this] { accumulate_register.clear(); });
+      "dpu_reset_" + std::to_string(current_event_number), 5, [this] {
+        out.output(" DPU accumulate register cleared\n");
+        accumulate_register.clear();
+      });
 
   // Add the event handler
   fsmHandlers[current_fsm] =

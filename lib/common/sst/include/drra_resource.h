@@ -118,14 +118,15 @@ public:
     instructionHandlers[instrOpcode](instr);
   };
 
-  virtual void handleActivation(uint32_t slot_id, uint32_t ports) {};
+  virtual void handleActivation(uint32_t slot_id, uint32_t ports) {
+    activatePortsForSlot(slot_id, ports);
+  };
 
   void handleEventBase(Event *event) {
     if (event) {
       // Check if the event is an ActEvent
       ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
       if (actEvent) {
-        activatePortsForSlot(actEvent->slot_id, actEvent->ports);
         handleActivation(actEvent->slot_id, actEvent->ports);
         logTraceEvent("activation", slot_id, true,
                       {{"ports", std::to_string(actEvent->ports)}});

@@ -53,6 +53,9 @@ public:
   };
 
   bool clockTick(SST::Cycle_t currentCycle) override;
+  void handleActivation(uint32_t slot_id, uint32_t ports) override;
+
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   // Instruction format
   using DRRAResource::format;

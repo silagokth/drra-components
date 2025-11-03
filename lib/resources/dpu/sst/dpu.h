@@ -57,6 +57,9 @@ public:
   void handleREPX(const DPU_PKG::REPXInstruction &instr);
   void handleFSM(const DPU_PKG::FSMInstruction &instr);
 
+  void handleActivation(uint32_t slot_id, uint32_t ports) override;
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
   using DRRAResource::out;
 
 private:

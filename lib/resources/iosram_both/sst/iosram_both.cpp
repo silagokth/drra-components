@@ -59,7 +59,18 @@ Iosram_both::Iosram_both(SST::ComponentId_t id, SST::Params &params)
 }
 
 bool Iosram_both::clockTick(SST::Cycle_t currentCycle) {
-  return DRRAResource::clockTick(currentCycle);
+  bool result = DRRAResource::clockTick(currentCycle);
+  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
+    for (const auto &port : portsToActivate) {
+      activatePortsForSlot(port.first, port.second);
+    }
+    portsToActivate.clear();
+  }
+  return result;
+}
+
+void Iosram_both::handleActivation(uint32_t slot_id, uint32_t ports) {
+  portsToActivate[slot_id] = ports;
 }
 
 void Iosram_both::handleDSU(const IOSRAM_BOTH_PKG::DSUInstruction &instr) {
