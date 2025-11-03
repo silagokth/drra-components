@@ -1,18 +1,18 @@
 `include "config.sv"
 
 module agu_RTR #(
-    parameter ADDRESS_WIDTH,
+    parameter int ADDRESS_WIDTH,
 
-    parameter REP_LEVEL_WIDTH,
-    parameter REP_DELAY_WIDTH,
-    parameter REP_ITER_WIDTH,
-    parameter REP_STEP_WIDTH,
-    parameter TRANS_LEVEL_WIDTH,
-    parameter TRANS_DELAY_WIDTH,
+    parameter int REP_LEVEL_WIDTH,
+    parameter int REP_DELAY_WIDTH,
+    parameter int REP_ITER_WIDTH,
+    parameter int REP_STEP_WIDTH,
+    parameter int TRANS_LEVEL_WIDTH,
+    parameter int TRANS_DELAY_WIDTH,
 
-    parameter NUMBER_OR,
-    parameter NUMBER_MT,
-    parameter NUMBER_IR
+    parameter int NUMBER_OR,
+    parameter int NUMBER_MT,
+    parameter int NUMBER_IR
 ) (
     input logic clk,
     input logic rst_n,
@@ -96,7 +96,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_IR[i]),
           .in_value(rep_iter_IR[i]),
           .out_value(regIR_iter[i])
       );
@@ -107,7 +107,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_IR[i]),
           .in_value(rep_delay_IR[i]),
           .out_value(regIR_delay[i])
       );
@@ -118,7 +118,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_IR[i]),
           .in_value(rep_step_IR[i]),
           .out_value(regIR_step[i])
       );
@@ -129,7 +129,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_IR[i]),
           .in_value(rep_config_IR[i]),
           .out_value(regIR_config[i])
       );
@@ -146,7 +146,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(trans_valid),
+          .enable(trans_valid && trans_config[i]),
           .in_value(trans_delay[i]),
           .out_value(regMT_delay[i])
       );
@@ -157,7 +157,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(trans_valid),
+          .enable(trans_valid && trans_config[i]),
           .in_value(trans_config[i]),
           .out_value(regMT_config[i])
       );
@@ -174,7 +174,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_OR[i]),
           .in_value(rep_iter_OR[i]),
           .out_value(regOR_iter[i])
       );
@@ -185,7 +185,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_OR[i]),
           .in_value(rep_delay_OR[i]),
           .out_value(regOR_delay[i])
       );
@@ -196,7 +196,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_OR[i]),
           .in_value(rep_step_OR[i]),
           .out_value(regOR_step[i])
       );
@@ -207,7 +207,7 @@ module agu_RTR #(
           .clk(clk),
           .rst_n(rst_n),
           .init0(),
-          .enable(rep_valid),
+          .enable(rep_valid && rep_config_OR[i]),
           .in_value(rep_config_OR[i]),
           .out_value(regOR_config[i])
       );
@@ -218,19 +218,33 @@ module agu_RTR #(
   /////////////////////////////////////// Counters ///////////////////////////////////////
 `ifdef INCLUDE_IR_STATES
 `ifdef INCLUDE_OR_STATES
-  always @(posedge clk, negedge rst_n) begin : Address_Counter
+  logic [ADDRESS_WIDTH-1:0] address_reg;
+  logic [ADDRESS_WIDTH-1:0] address_next;
+
+  always_ff @(posedge clk, negedge rst_n) begin : Address_Counter
     if (!rst_n) begin
-      address <= 0;
-    end else if (init0_address) begin
-      address <= !flag_OR ? 0 : initVal_OR[level_OR];
-    end else if (initIR_address) begin
-      address <= !flag_OR ? initVal_IR[level_IR] : initVal_IR[level_IR] + initVal_OR[level_OR];
-    end else if (initOR_address) begin
-      address <= initVal_OR[level_OR];
-    end else if (en_address) begin
-      address <= address + regIR_step[NUMBER_IR*level_MT+0];
+      address_reg <= 0;
+    end else begin
+      address_reg <= address_next;
     end
   end
+
+  always_comb begin
+    // default: hold value
+    address_next = address_reg;
+
+    if (init0_address) begin
+      address_next = flag_OR ? initVal_OR[level_OR] : '0;
+    end else if (initIR_address) begin
+      address_next = flag_OR ? initVal_IR[level_IR] + initVal_OR[level_OR] : initVal_IR[level_IR];
+    end else if (initOR_address) begin
+      address_next = initVal_OR[level_OR];
+    end else if (en_address) begin
+      address_next = address_reg + regIR_step[NUMBER_IR*level_MT+0];
+    end
+  end
+
+  assign address = address_next;
 `endif
 `ifndef INCLUDE_OR_STATES
   always @(posedge clk, negedge rst_n) begin : Address_Counter
