@@ -1,12 +1,12 @@
 // vesyla_template_start defines
-`define {{name}} {{fingerprint}}
-`define {{name}}_pkg {{fingerprint}}_pkg
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 // vesyla_template_end defines
 
 // vesyla_template_start module_head
 {% if not already_defined %}
-module {{fingerprint}}
-import {{fingerprint}}_pkg::*;
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
     input  logic clk_0,
@@ -127,11 +127,11 @@ import {{fingerprint}}_pkg::*;
     assign delay_1_3 = rep_1_3._delay[SRAM_ADDR_WIDTH-1:0];
     assign iter_1_3 = rep_1_3._iter[SRAM_ADDR_WIDTH-1:0];
     assign init_addr_1_3 = dsu_1_3._init_addr[SRAM_ADDR_WIDTH-1:0];
-    
+
     agu #(
       .ADDRESS_WIDTH(IO_ADDR_WIDTH),
       .NUMBER_OF_LEVELS(4)
-    ) aug_0_0 (
+    ) agu_0_0 (
       .clk(clk),
       .rst_n(rst_n),
       .activate(activate_0[0]),

@@ -2,6 +2,7 @@ package:
   name: swb
 
 dependencies:
+  fsm: {path: ../../common/fsm}
 
 sources:
   - ./rtl/swb_pkg.sv

@@ -1,5 +1,6 @@
 {
   "kind": "swb",
+  "type": "resource",
   "size": 1,
   "io_input": false,
   "io_output": false,

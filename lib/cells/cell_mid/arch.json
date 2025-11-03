@@ -2,6 +2,8 @@
   "name": "cell_mid_impl",
   "kind": "cell_mid",
   "component_type": "cell",
+  "io_input": false,
+  "io_output": false,
   "parameters": {
     "INSTR_ADDR_WIDTH": 6,
     "INSTR_DATA_WIDTH": 32,

@@ -8,6 +8,8 @@ exe/
 .vscode/
 workspace.code-workspace
 .clang-format
+.clangd
+.nvim/
 
 # Python
 .venv/

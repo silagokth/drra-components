@@ -302,9 +302,9 @@ swb_0_1_to_0_2.connect((swb_0_1, "cell_port7", "0ns"), (swb_0_2, "cell_port1", "
 # Connect IOSRAMs to input and output buffers
 iosram_0_0_to_input_buffer = sst.Link("link_iosram_0_0_to_input_buffer")
 iosram_0_0_to_input_buffer.connect(
-    (iosram_0_0, "io_port", "0ns"), (input_buffer, "col_port0", "0ns")
+    (iosram_0_0, "io_input_port", "0ns"), (input_buffer, "col_port0", "0ns")
 )
 iosram_0_2_to_output_buffer = sst.Link("link_iosram_0_2_to_output_buffer")
 iosram_0_2_to_output_buffer.connect(
-    (iosram_0_2, "io_port", "0ns"), (output_buffer, "col_port0", "0ns")
+    (iosram_0_2, "io_output_port", "0ns"), (output_buffer, "col_port0", "0ns")
 )
