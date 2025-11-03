@@ -38,19 +38,23 @@
           "verbo_map": [
             {
               "key": 0,
-              "val": "Address generation for reading from input buffer"
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
             },
             {
               "key": 1,
-              "val": "Address generation for writing to output buffer"
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
             },
             {
               "key": 2,
-              "val": "Address generation for writing to SRAM"
+              "val": "sram_write",
+              "comment": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
             },
             {
               "key": 3,
-              "val": "Address generation for reading from SRAM"
+              "val": "sram_read",
+              "comment": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
             }
           ]
         }
@@ -68,19 +72,23 @@
           "verbo_map": [
             {
               "key": 0,
-              "val": "address generation for input buffer"
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
             },
             {
               "key": 1,
-              "val": "address generation for output buffer"
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
             },
             {
               "key": 2,
-              "val": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
+              "val": "sram_write",
+              "comment": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
             },
             {
               "key": 3,
-              "val": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
+              "val": "sram_read",
+              "comment": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
             }
           ]
         },
@@ -120,19 +128,23 @@
           "verbo_map": [
             {
               "key": 0,
-              "val": "address generation for input buffer"
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
             },
             {
               "key": 1,
-              "val": "address generation for output buffer"
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
             },
             {
               "key": 2,
-              "val": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
+              "val": "sram_write",
+              "comment": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
             },
             {
               "key": 3,
-              "val": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
+              "val": "sram_read",
+              "comment": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
             }
           ]
         },
