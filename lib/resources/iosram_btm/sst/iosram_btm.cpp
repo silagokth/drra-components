@@ -173,9 +173,11 @@ void Iosram_btm::handleREPX(const IOSRAM_BTM_PKG::REPXInstruction &instr) {
 }
 
 void Iosram_btm::readFromIO() {
+  std::string event_name =
+      "dsu_read_from_io_" + std::to_string(current_event_number);
   // Reading data from the IO to the buffer
   next_timing_states[IOSRAM_BTM_PKG::DSU_PORT_SRAM_READ_FROM_IO].addEvent(
-      "dsu_read_from_io_" + std::to_string(current_event_number), 1, [this] {
+      event_name, 1, [this, event_name] {
         sram_read_from_io_address_buffer =
             sram_read_from_io_initial_addr +
             current_timing_states[IOSRAM_BTM_PKG::DSU_PORT_SRAM_READ_FROM_IO]
@@ -189,15 +191,20 @@ void Iosram_btm::readFromIO() {
 
         out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
                    sram_read_from_io_address_buffer, io_data_width);
+        logTraceEvent(event_name, slot_id, true,
+                      {{"address", (int)sram_read_from_io_address_buffer},
+                       {"size", (int)(io_data_width / 8)}});
 
         io_input_link->send(readReq);
       });
 }
 
 void Iosram_btm::writeToIO() {
+  std::string event_name =
+      "dsu_write_to_io_" + std::to_string(current_event_number);
   // Writing buffer data to the IO
   next_timing_states[IOSRAM_BTM_PKG::DSU_PORT_SRAM_WRITE_TO_IO].addEvent(
-      "dsu_write_to_io_" + std::to_string(current_event_number), 9, [this] {
+      event_name, 9, [this, event_name] {
         sram_write_to_io_address_buffer =
             sram_write_to_io_initial_addr +
             current_timing_states[IOSRAM_BTM_PKG::DSU_PORT_SRAM_WRITE_TO_IO]
@@ -213,13 +220,19 @@ void Iosram_btm::writeToIO() {
             "Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
             writeReq->address, writeReq->data.size() * 8,
             formatRawDataToWords(writeReq->data).c_str());
+        logTraceEvent(event_name, slot_id, true,
+                      {{"address", (int)sram_write_to_io_address_buffer},
+                       {"size", (int)to_io_data_buffer.size()},
+                       {"data", formatRawDataToWords(to_io_data_buffer)}});
       });
 }
 
 void Iosram_btm::writeToSRAM() {
+  std::string event_name =
+      "dsu_write_to_sram_" + std::to_string(current_event_number);
   // Writing buffer data to the backend
   next_timing_states[IOSRAM_BTM_PKG::DSU_PORT_IO_WRITE_TO_SRAM].addEvent(
-      "dsu_write_to_sram_" + std::to_string(current_event_number), 8, [this] {
+      event_name, 8, [this, event_name] {
         // Check if the IO responded
         IOReadResponse *ioReadResponse =
             dynamic_cast<IOReadResponse *>(io_input_link->recv());
@@ -250,6 +263,10 @@ void Iosram_btm::writeToSRAM() {
                    io_write_to_sram_address_buffer,
                    from_io_data_buffer.size() * 8,
                    formatRawDataToWords(from_io_data_buffer).c_str());
+        logTraceEvent(event_name, slot_id, true,
+                      {{"address", (int)io_write_to_sram_address_buffer},
+                       {"size", (int)from_io_data_buffer.size()},
+                       {"data", formatRawDataToWords(from_io_data_buffer)}});
 
         // Clear the buffer
         from_io_data_buffer.clear();
@@ -257,9 +274,11 @@ void Iosram_btm::writeToSRAM() {
 }
 
 void Iosram_btm::readFromSRAM() {
+  std::string event_name =
+      "dsu_read_from_sram_" + std::to_string(current_event_number);
   // Reading data from the backend to the buffer
   next_timing_states[IOSRAM_BTM_PKG::DSU_PORT_IO_READ_FROM_SRAM].addEvent(
-      "dsu_read_from_sram_" + std::to_string(current_event_number), 2, [this] {
+      event_name, 2, [this, event_name] {
         io_read_from_sram_address_buffer =
             io_read_from_sram_initial_addr +
             current_timing_states[IOSRAM_BTM_PKG::DSU_PORT_IO_READ_FROM_SRAM]
@@ -273,14 +292,18 @@ void Iosram_btm::readFromSRAM() {
         out.output("Reading from SRAM (addr=%d, size=%dbits, data=%s)\n",
                    io_read_from_sram_address_buffer, io_data_width,
                    formatRawDataToWords(to_io_data_buffer).c_str());
+        logTraceEvent(event_name, slot_id, true,
+                      {{"address", (int)io_read_from_sram_address_buffer},
+                       {"size", (int)(io_data_width / 8)},
+                       {"data", formatRawDataToWords(to_io_data_buffer)}});
       });
 }
 
 void Iosram_btm::readBulk() {
-  out.output("Add event read bulk (port %d prio %d)\n",
-             IOSRAM_BTM_PKG::DSU_PORT_READ_BULK, 1);
+  std::string event_name =
+      "dsu_read_bulk_" + std::to_string(current_event_number);
   next_timing_states[IOSRAM_BTM_PKG::DSU_PORT_READ_BULK].addEvent(
-      "dsu_send_" + std::to_string(current_event_number), 1, [this] {
+      event_name, 1, [this, event_name] {
         read_bulk_address_buffer =
             read_bulk_initial_addr +
             current_timing_states[IOSRAM_BTM_PKG::DSU_PORT_READ_BULK]
@@ -292,6 +315,10 @@ void Iosram_btm::readBulk() {
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,
                    formatRawDataToWords(data).c_str());
+        logTraceEvent(event_name, slot_id, true,
+                      {{"address", (int)read_bulk_address_buffer},
+                       {"size", (int)(io_data_width / 8)},
+                       {"data", formatRawDataToWords(data)}});
         dataEvent->size = io_data_width;
         dataEvent->payload = data;
         data_links[1]->send(dataEvent);
@@ -299,8 +326,10 @@ void Iosram_btm::readBulk() {
 }
 
 void Iosram_btm::writeBulk() {
+  std::string event_name =
+      "dsu_write_bulk_" + std::to_string(current_event_number);
   next_timing_states[IOSRAM_BTM_PKG::DSU_PORT_WRITE_BULK].addEvent(
-      "dsu_receive_" + std::to_string(current_event_number), 9, [this] {
+      event_name, 9, [this, event_name] {
         write_bulk_address_buffer =
             write_bulk_initial_addr +
             current_timing_states[IOSRAM_BTM_PKG::DSU_PORT_WRITE_BULK]
@@ -319,5 +348,9 @@ void Iosram_btm::writeBulk() {
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
                    write_bulk_address_buffer, dataEvent->size,
                    formatRawDataToWords(dataEvent->payload).c_str());
+        logTraceEvent(event_name, slot_id, true,
+                      {{"address", (int)write_bulk_address_buffer},
+                       {"size", (int)(dataEvent->size / 8)},
+                       {"data", formatRawDataToWords(dataEvent->payload)}});
       });
 }
