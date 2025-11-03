@@ -16,8 +16,14 @@
           "comment": "Is initial address static or dynamic?",
           "bitwidth": 1,
           "verbo_map": [
-            { "key": 0, "val": "s" },
-            { "key": 1, "val": "d" }
+            {
+              "key": 0,
+              "val": "s"
+            },
+            {
+              "key": 1,
+              "val": "d"
+            }
           ]
         },
         {
@@ -30,10 +36,26 @@
           "comment": "The port number",
           "bitwidth": 2,
           "verbo_map": [
-            { "key": 0, "val": "Write to RF (WORD)" },
-            { "key": 1, "val": "Read from RF (WORD)" },
-            { "key": 2, "val": "Write to RF (BULK)" },
-            { "key": 3, "val": "Read from RF (BULK)" }
+            {
+              "key": 0,
+              "val": "word_write",
+              "comment": "Write to RF (WORD)"
+            },
+            {
+              "key": 1,
+              "val": "word_read",
+              "comment": "Read from RF (WORD)"
+            },
+            {
+              "key": 2,
+              "val": "bulk_write",
+              "comment": "Write to RF (BULK)"
+            },
+            {
+              "key": 3,
+              "val": "bulk_read",
+              "comment": "Read from RF (BULK)"
+            }
           ]
         }
       ]
@@ -48,10 +70,26 @@
           "comment": "The port number",
           "bitwidth": 2,
           "verbo_map": [
-            { "key": 0, "val": "Write to RF (WORD)" },
-            { "key": 1, "val": "Read from RF (WORD)" },
-            { "key": 2, "val": "Write to RF (BULK)" },
-            { "key": 3, "val": "Read from RF (BULK)" }
+            {
+              "key": 0,
+              "val": "word_write",
+              "comment": "Write to RF (WORD)"
+            },
+            {
+              "key": 1,
+              "val": "word_read",
+              "comment": "Read from RF (WORD)"
+            },
+            {
+              "key": 2,
+              "val": "bulk_write",
+              "comment": "Write to RF (BULK)"
+            },
+            {
+              "key": 3,
+              "val": "bulk_read",
+              "comment": "Read from RF (BULK)"
+            }
           ]
         },
         {
@@ -88,10 +126,26 @@
           "comment": "The port number",
           "bitwidth": 2,
           "verbo_map": [
-            { "key": 0, "val": "Write to RF (WORD)" },
-            { "key": 1, "val": "Read from RF (WORD)" },
-            { "key": 2, "val": "Write to RF (BULK)" },
-            { "key": 3, "val": "Read from RF (BULK)" }
+            {
+              "key": 0,
+              "val": "word_write",
+              "comment": "Write to RF (WORD)"
+            },
+            {
+              "key": 1,
+              "val": "word_read",
+              "comment": "Read from RF (WORD)"
+            },
+            {
+              "key": 2,
+              "val": "bulk_write",
+              "comment": "Write to RF (BULK)"
+            },
+            {
+              "key": 3,
+              "val": "bulk_read",
+              "comment": "Read from RF (BULK)"
+            }
           ]
         },
         {
