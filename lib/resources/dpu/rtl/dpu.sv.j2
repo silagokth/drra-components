@@ -53,6 +53,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign rst_n_out = rst_n;
     assign activate_out = activate;
     assign instr_en_resource_out = instr_en_resource;
+    assign instr_out = instr;
 
     signal_selector #(
         .NUM_SLOTS(NUM_SLOTS),
