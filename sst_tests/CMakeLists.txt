@@ -24,6 +24,12 @@ foreach(source ${SOURCES})
   get_filename_component(EXECUTABLE_NAME ${source} NAME_WE)
   add_executable(${EXECUTABLE_NAME} ${source})
   target_include_directories(${EXECUTABLE_NAME} PRIVATE ${COMMON_INCLUDE_DIRS})
-  target_link_libraries(${EXECUTABLE_NAME} PRIVATE GTest::GTest GTest::Main
-                                                   drra_sst_utils)
+  target_link_libraries(
+    ${EXECUTABLE_NAME}
+    PRIVATE
+    GTest::GTest
+    GTest::Main
+    drra_sst_utils
+    drra_timing_model
+  )
 endforeach()

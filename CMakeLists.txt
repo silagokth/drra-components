@@ -42,8 +42,12 @@ if(USE_SST)
   # Add DRRA SST shared library
   add_library(drra SHARED)
 
-  set(COMMON_INCLUDE_DIRS ${SST_INCLUDE_DIRS} $ENV{SST_ELEMENTS_HOME}/include
-                          ${CMAKE_CURRENT_SOURCE_DIR}/lib/common/sst/include)
+  set(COMMON_INCLUDE_DIRS
+    ${SST_INCLUDE_DIRS}
+    $ENV{SST_ELEMENTS_HOME}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/common/sst/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/common/sst/timing_model/include
+  )
 
   target_include_directories(drra PUBLIC ${COMMON_INCLUDE_DIRS})
   target_link_libraries(drra PRIVATE drra_sst_utils)

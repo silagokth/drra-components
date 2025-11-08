@@ -4,7 +4,7 @@
 #include "instructionEvent.h"
 #include "timingModel.h"
 
-#include <cmath>
+#include <algorithm>
 
 #include <sst/core/link.h>
 #include <sst/core/params.h>
