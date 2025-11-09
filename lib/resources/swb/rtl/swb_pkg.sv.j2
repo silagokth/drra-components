@@ -6,9 +6,82 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "package.j2" %}
   // vesyla_template_end package_macro
 
-  parameter NUM_OPTIONS = 4;
-  parameter FSM_MAX_STATES = 4;
-  parameter FSM_DELAY_WIDTH = 3;
+  parameter OPCODE_SWB = 3'b100;
+  parameter OPCODE_ROUTE = 3'b101;
+  parameter OPCODE_FSM = 3'b010;
+
+  parameter int NUM_OPTIONS = 4;
+  parameter int FSM_MAX_STATES = 4;
+  parameter int FSM_DELAY_WIDTH = 3;
+
+  parameter int NUM_AGUS = 2;
+  parameter int AGU_SWB_INDEX = 0;
+  parameter int AGU_SWB_PORTNUM = 0;
+  parameter int AGU_ROUTE_INDEX = 1;
+  parameter int AGU_ROUTE_PORTNUM = 2;
+
+  parameter int NUM_DIRS = 9;
+  parameter int DIR_NORTH_WEST = 0; // NOTE: not supported
+  parameter int DIR_NORTH      = 1;
+  parameter int DIR_NORTH_EAST = 2; // NOTE: not supported
+  parameter int DIR_WEST       = 3;
+  parameter int DIR_LOCAL      = 4;
+  parameter int DIR_EAST       = 5;
+  parameter int DIR_SOUTH_WEST = 6; // NOTE: not supported
+  parameter int DIR_SOUTH      = 7;
+  parameter int DIR_SOUTH_EAST = 8; // NOTE: not supported
+
+  // AGU RTR params
+  parameter int ADDRESS_WIDTH = $clog2(NUM_OPTIONS);
+  parameter int REP_LEVEL_WIDTH = 4;
+  parameter int REP_DELAY_WIDTH = 12;
+  parameter int REP_ITER_WIDTH = 6;
+  parameter int REP_STEP_WIDTH = 1;
+  parameter int TRANS_LEVEL_WIDTH = 2;
+  parameter int TRANS_DELAY_WIDTH = 14;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+  parameter int INCLUDE_IR_STATES = 1;
+  parameter int INCLUDE_MT_STATES = 1;
+  parameter int INCLUDE_OR_STATES = 1;
+
+  typedef struct {
+    logic [REP_DELAY_WIDTH-1:0] delays [(NUMBER_MT+1)*NUMBER_IR];
+    logic [REP_ITER_WIDTH-1:0]  iters  [(NUMBER_MT+1)*NUMBER_IR];
+    logic [REP_STEP_WIDTH-1:0]  steps  [(NUMBER_MT+1)*NUMBER_IR];
+    logic                       confs  [(NUMBER_MT+1)*NUMBER_IR];
+  } agu_IR_config_t;
+
+  typedef struct {
+    logic [TRANS_DELAY_WIDTH-1:0] delays [NUMBER_MT];
+    logic                         confs  [NUMBER_MT];
+  } agu_MT_config_t;
+
+  typedef struct {
+    logic [REP_DELAY_WIDTH-1:0] delays [NUMBER_OR];
+    logic [REP_ITER_WIDTH-1:0]  iters  [NUMBER_OR];
+    logic [REP_STEP_WIDTH-1:0]  steps  [NUMBER_OR];
+    logic                       confs  [NUMBER_OR];
+  } agu_OR_config_t;
+
+  typedef struct {
+    agu_IR_config_t IR_configs;
+    agu_MT_config_t MT_configs;
+    agu_OR_config_t OR_configs;
+  } agu_config_t;
+
+  typedef struct {
+    logic [$clog2(NUM_SLOTS)-1:0] slot_link [NUM_SLOTS];
+  } swb_config_t;
+
+  typedef struct {
+    logic [NUM_SLOTS-1:0] receive_links [NUM_DIRS];
+  } route_receive_config_t;
+
+  typedef struct {
+    logic [NUM_DIRS-1:0] send_links [NUM_SLOTS];
+  } route_send_config_t;
 
 endpackage
 

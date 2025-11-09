@@ -7,7 +7,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic instruction_valid,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
 
-    output agu_config_t agu_configs[4],
+    output agu_config_t agu_configs[4], // TODO: remove magic number
 
     output logic [3:0] rep_valid_portnum,
     output logic [3:0] repx_valid_portnum,

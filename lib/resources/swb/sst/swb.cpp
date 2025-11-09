@@ -109,7 +109,7 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
   out.output("route (slot=%d, option=%d, sr=%d, source=%d, target=%d)\n",
              instr.slot, instr.option, instr.sr, instr.source, instr.target);
 
-  bool is_receive = instr.sr == SWB_PKG::ROUTE_SR::ROUTE_SR_R;
+  bool is_receive = instr.sr == SWB_PKG::ROUTE_SR::ROUTE_SR_RECEIVE;
   std::vector<uint32_t> targets;
   if (is_receive) {
     // Receive
@@ -155,9 +155,8 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
 }
 
 void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, delay=%d)\n",
+             instr.slot, instr.port, instr.level, instr.iter, instr.delay);
 
   // For now, we only support increasing repetition levels (and no skipping)
   if (instr.level != port_last_rep_level[instr.port] + 1) {
@@ -169,96 +168,70 @@ void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
 
   // add repetition to the timing model
   try {
-    next_timing_states[instr.port].addRepetition(instr.iter, instr.delay,
-                                                 instr.level, instr.step);
+    next_timing_states[instr.port].addRepetition(
+        instr.iter, instr.delay, instr.level,
+        1); // step value is always 1 for SWB
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
   }
 }
 
-void Swb::handleREPX(const SWB_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+void Swb::handleTRANS(const SWB_PKG::TRANSInstruction &instr) {
+  out.output("trans (slot=%d, port=%d, level=%d, delay=%d)\n", instr.slot,
+             instr.port, instr.level, instr.delay);
 
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), instr.slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + instr.port;
-
-  auto repetition_op =
-      next_timing_states[port_num].getRepetitionOperatorFromLevel(instr.level);
-  uint32_t iter = instr.iter << 6 | repetition_op.getIterations();
-  uint32_t step = instr.step << 6 | repetition_op.getStep();
-  uint32_t delay = instr.delay << 6 | repetition_op.getDelay();
-  try {
-    next_timing_states[port_num].adjustRepetition(iter, delay, instr.level,
-                                                  step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
-  }
-}
-
-void Swb::handleFSM(const SWB_PKG::FSMInstruction &instr) {
-  out.output("fsm (slot=%d, port=%d, delay_0=%d, delay_1=%d, delay_2=%d)\n",
-             instr.slot, instr.port, instr.delay_0, instr.delay_1,
-             instr.delay_2);
-
-  std::vector<uint32_t> delays = {instr.delay_0, instr.delay_1, instr.delay_2};
-  if (instr.port == 0) { // inner cell communication
-    if (next_connection_maps[0].size() == 0) {
+  switch (instr.port) {
+  case SWB_PKG::TRANS_PORT_INTRACELL:
+    // If no connections in FSM instr.level, error
+    if (next_connection_maps[instr.level].size() == 0) {
       out.fatal(CALL_INFO, -1, "No inner cell connections in FSM 0\n");
     }
+
+    // Add reset event for the FSM
     next_timing_states[instr.port].addEvent(
-        "fsm_option_slot_reset_" + std::to_string(currentEventNumber), 5,
+        "trans_fsm_reset_" + std::to_string(currentEventNumber), 5,
         [this] { resetOption_swb(); });
     currentEventNumber++;
     out.output("Adding FSM reset event\n");
 
-    for (uint32_t i = 1; i < num_fsms; i++) {
-      out.output("Size of connection_maps[%u]: %lu\n", i,
-                 next_connection_maps[i].size());
-      if (next_connection_maps[i].size() == 0) {
-        break;
-      }
-      next_timing_states[instr.port].addTransition(
-          delays[i - 1],
-          "fsm_option_slot_switch_" + std::to_string(currentEventNumber), 5,
-          [this] { switchToNextOption_swb(); });
-      currentEventNumber++;
-      out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
-    }
-  } else if (instr.port == 2) // outer cell communication
-  {
-    if (next_receiving_routes_maps[0].size() == 0 &&
-        (next_sending_routes_maps[0].size() == 0)) {
+    // Add transitions for FSM
+    next_timing_states[instr.port].addTransition(
+        instr.delay, "trans_fsm_" + std::to_string(currentEventNumber), 5,
+        [this] { switchToNextOption_swb(); });
+    currentEventNumber++;
+
+    out.output("Adding FSM TRANSition from FSM %u to FSM %u\n", instr.level,
+               instr.level + 1);
+
+    break;
+
+  case SWB_PKG::TRANS_PORT_INTERCELL:
+    // If no connections in FSM instr.level, error
+    if (next_receiving_routes_maps[instr.level].size() == 0 &&
+        (next_sending_routes_maps[instr.level].size() == 0)) {
       out.fatal(CALL_INFO, -1, "No outer cell connections in FSM 0\n");
     }
+
+    // Add reset event for the FSM
     next_timing_states[instr.port].addEvent(
-        "fsm_option_slot_reset_" + std::to_string(currentEventNumber), 5,
+        "trans_fsm_reset_" + std::to_string(currentEventNumber), 5,
         [this] { resetOption_route(); });
     currentEventNumber++;
     out.output("Adding FSM reset event\n");
 
-    for (uint32_t i = 1; i < num_fsms; i++) {
-      if ((next_receiving_routes_maps[i].size() == 0) &&
-          (next_sending_routes_maps[i].size() == 0)) {
-        break;
-      }
-      // TODO: verify the timing of this
-      next_timing_states[instr.port].addTransition(
-          delays[i - 1],
-          "fsm_option_route_switch_" + std::to_string(currentEventNumber), 5,
-          [this] { switchToNextOption_route(); });
-      currentEventNumber++;
-      out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
-    }
-  } else
+    // Add transitions for FSM
+    next_timing_states[instr.port].addTransition(
+        instr.delay, "trans_fsm_" + std::to_string(currentEventNumber), 5,
+        [this] { switchToNextOption_route(); });
+    currentEventNumber++;
+    out.output("Adding FSM transition from FSM %u to FSM %u\n", instr.level,
+               instr.level + 1);
+    break;
+
+  default:
     out.fatal(CALL_INFO, -1, "Invalid SWB port (can only be 0 or 2)\n");
+    break;
+  }
 }
 
 void Swb::switchToNextOption_swb() {
@@ -284,10 +257,6 @@ void Swb::resetOption_route() {
 void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   if (dataEvent) {
-    // if (!active_ports[dataEvent->portType]) {
-    //   out.fatal(CALL_INFO, -1, "Received data while inactive\n", slot_id);
-    // }
-
     // Verify if the slot is mapped to another slot
     if (connection_maps[currentFsmOption_swb].count(id)) {
       uint32_t target = connection_maps[currentFsmOption_swb][id];

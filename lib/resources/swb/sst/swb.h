@@ -53,8 +53,7 @@ public:
   void handleSWB(const SWB_PKG::SWBInstruction &instr);
   void handleROUTE(const SWB_PKG::ROUTEInstruction &instr);
   void handleREP(const SWB_PKG::REPInstruction &instr);
-  void handleREPX(const SWB_PKG::REPXInstruction &instr);
-  void handleFSM(const SWB_PKG::FSMInstruction &instr);
+  void handleTRANS(const SWB_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 

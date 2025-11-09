@@ -61,17 +61,13 @@ fn get_timing_model(op: Op) -> String {
                 r.insert(level.parse::<i64>().unwrap(), (iter, delay.to_string()));
             }
             "repx" => {}
-            "fsm" => {
+            "trans" => {
                 let _port = instr_segments.get_value("port");
-                let delay_0 = instr_segments.get_value("delay_0");
-                let delay_1 = instr_segments.get_value("delay_1");
-                let delay_2 = instr_segments.get_value("delay_2");
-                t.insert(0, "0".to_string());
+                let level = instr_segments.get_value("level");
+                let delay = instr_segments.get_value("delay");
+                t.insert(level.parse::<i64>().unwrap(), "0".to_string());
                 t.insert(1, "0".to_string());
-                t.insert(2, "0".to_string());
-                t.insert(0, delay_0);
-                t.insert(1, delay_1);
-                t.insert(2, delay_2);
+                t.insert(level.parse::<i64>().unwrap(), delay);
             }
             _ => {
                 panic!("Unknown instruction kind: {}", instr.kind);

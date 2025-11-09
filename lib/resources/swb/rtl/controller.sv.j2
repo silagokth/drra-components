@@ -1,0 +1,127 @@
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_controller
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    // Instruction interface
+    input logic instruction_valid,
+    input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
+
+    // SWB and ROUTE configurations signals
+    output logic swb_conf_valid,
+    output logic route_in_conf_valid,
+    output logic route_out_conf_valid,
+    output logic [$clog2(NUM_SLOTS)-1:0] swb_conf_link,
+    output logic [$clog2(NUM_DIRS)-1:0]  route_in_conf_link,
+    output logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link,
+
+    // Instruction valid signals
+    output logic [NUM_OPTIONS-1:0] rep_valid,
+    output logic [NUM_OPTIONS-1:0] trans_valid,
+
+    // SWB and ROUTE configurations
+    output swb_config_t swb_configs [NUM_OPTIONS],
+    output route_receive_config_t route_in_configs [NUM_OPTIONS],
+    output route_send_config_t    route_out_configs [NUM_OPTIONS],
+
+    // AGU configurations
+    output agu_config_t agu_configs[NUM_AGUS]
+);
+  // Get opcode
+  logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
+  assign opcode = instruction_payload[
+    INSTR_PAYLOAD_BITWIDTH - 1 : INSTR_PAYLOAD_BITWIDTH - INSTR_OPCODE_BITWIDTH
+  ];
+
+  // Detect instruction
+  logic swb_valid, route_valid, rep_valid_instr, trans_valid_instr;
+  assign swb_valid   = instruction_valid && (opcode == OPCODE_SWB);
+  assign swb_conf_valid = swb_valid;
+  assign route_valid = instruction_valid && (opcode == OPCODE_ROUTE);
+  assign rep_valid_instr   = instruction_valid && (opcode == OPCODE_REP);
+  assign trans_valid_instr = instruction_valid && (opcode == OPCODE_TRANS);
+
+  // Unpack instructions
+  swb_t   swb_instr;
+  route_t route_instr;
+  rep_t   rep_instr;
+  trans_t trans_instr;
+  assign swb_instr   = swb_valid ? unpack_swb(instruction_payload) : '{default: 0};
+  assign route_instr = route_valid ? unpack_route(instruction_payload) : '{default: 0};
+  assign rep_instr   = rep_valid_instr ? unpack_rep(instruction_payload) : '{default: 0};
+  assign trans_instr = trans_valid_instr ? unpack_trans(instruction_payload) : '{default: 0};
+
+  // Assign valid port numbers
+  assign rep_valid   = rep_valid_instr ? (1 << rep_instr._port) : '0;
+  assign trans_valid = trans_valid_instr ? (1 << trans_instr._port) : '0;
+
+  // Assign SWB configurations
+  assign swb_conf_link = swb_instr._source;
+  always_comb begin
+    for (int i = 0; i < NUM_OPTIONS; i++)
+      for (int j = 0; j < NUM_SLOTS; j++)
+        swb_configs[i].slot_link[j] = '0;
+
+    if (swb_valid)
+      swb_configs[swb_instr._option].slot_link[swb_instr._source] = swb_instr._target;
+  end
+
+  // Assign ROUTE configurations
+  assign route_in_conf_link  = route_instr._source;
+  assign route_out_conf_link = route_instr._source;
+  always_comb begin
+    route_in_conf_valid = 0;
+    route_out_conf_valid = 0;
+    for (int i = 0; i < NUM_OPTIONS; i++) begin
+      for (int d = 0; d < NUM_DIRS; d++)
+        route_in_configs[i].receive_links[d] = '0;
+      for (int s = 0; s < NUM_SLOTS; s++)
+        route_out_configs[i].send_links[s] = '0;
+    end
+
+    if (route_valid) begin
+      if (route_instr._sr == ROUTE_SR_SEND) begin  // send
+        route_out_configs[route_instr._option].send_links[route_instr._source] = route_instr._target[NUM_DIRS-1:0];
+        route_out_conf_valid = 1;
+      end else begin  // receive
+        route_in_configs[route_instr._option].receive_links[route_instr._source] = route_instr._target;
+        route_in_conf_valid = 1;
+      end
+    end
+  end
+
+  // Determine which AGU to configure
+  logic agu_conf_enable;
+  always_comb begin
+    agu_conf_enable = '0;
+    if (rep_valid_instr && rep_instr._port == AGU_SWB_PORTNUM)
+      agu_conf_enable = AGU_SWB_INDEX;
+    else if (rep_valid_instr && rep_instr._port == AGU_ROUTE_PORTNUM)
+      agu_conf_enable = AGU_ROUTE_INDEX;
+
+    if (trans_valid_instr && trans_instr._port == AGU_SWB_PORTNUM)
+      agu_conf_enable = AGU_SWB_INDEX;
+    else if (trans_valid_instr && trans_instr._port == AGU_ROUTE_PORTNUM)
+      agu_conf_enable = AGU_ROUTE_INDEX;
+  end
+
+  // Assign AGU configuration
+  always_comb begin
+    for (int i = 0; i < NUM_AGUS; i++) agu_configs[i] = '{default: '0};
+
+    if (rep_valid_instr) begin
+      agu_configs[agu_conf_enable].IR_configs.delays[rep_instr._level] = rep_instr._delay;
+      agu_configs[agu_conf_enable].IR_configs.iters[rep_instr._level]  = rep_instr._iter;
+      agu_configs[agu_conf_enable].IR_configs.steps[rep_instr._level]  = 1; // NOTE: step is always 1 for SWB
+      agu_configs[agu_conf_enable].IR_configs.confs[rep_instr._level]  = '1;
+    end else if (trans_valid_instr) begin
+      agu_configs[agu_conf_enable].MT_configs.delays[trans_instr._level] = trans_instr._delay;
+      agu_configs[agu_conf_enable].MT_configs.confs[trans_instr._level]  = '1;
+    end
+  end
+
+endmodule
+

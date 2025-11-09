@@ -366,7 +366,8 @@ void Sequencer::handle_activation_vector_mode(uint32_t ports, uint32_t param) {
   for (int currentSlot = 0; currentSlot < num_slots; currentSlot++) {
     slotActMask = activationMask & currentMask;
     if (slot_links[currentSlot] != nullptr) {
-      sendActEvent(currentSlot, slotActMask);
+      if (slotActMask != 0)
+        sendActEvent(currentSlot, slotActMask);
     } else {
       if (activationMask != 0) {
         out.fatal(CALL_INFO, -1,

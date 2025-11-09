@@ -3,9 +3,8 @@ package:
 
 sources:
   - ./rtl/agu_RTR.sv
-  - ./rtl/config.sv
+  - ./rtl/agu_RTR_pkg.sv
   - ./rtl/controller.sv
   - ./rtl/counter.sv
   - ./rtl/decoder.sv
-  - ./rtl/tasks.sv
   - ./rtl/register.sv

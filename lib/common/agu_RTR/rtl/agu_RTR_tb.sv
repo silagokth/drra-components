@@ -100,35 +100,14 @@ module agu_RTR_tb #(
 
     // IR0
     @(posedge clk);
-    rep_valid = 1'b1;
-    rep_step_IR[0] = 1;
-    rep_delay_IR[0] = 0;
-    rep_iter_IR[0] = 6'h3f;
-    rep_config_IR[0] = 1'b1;  // L0, S3,  D0, iter2
+    trans_valid = 1'b1;
+    trans_delay[0] = 4;
+    trans_config[0] = 1'b1;
 
     @(posedge clk);
-    rep_valid = 1'b0;
-    rep_step_IR[0] = 0;
-    rep_delay_IR[0] = 0;
-    rep_iter_IR[0] = '0;
-    rep_config_IR[0] = 1'b0;  // L0, S3,  D0, iter2
-
-    // IR1
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);
-    rep_valid = 1'b1;
-    rep_step_IR[1] = 0;
-    rep_delay_IR[1] = 0;
-    rep_iter_IR[1] = 7;
-    rep_config_IR[1] = 1'b1;  // L1, S1,  D0, iter3
-
-    @(posedge clk);
-    rep_valid = 1'b0;
-    rep_step_IR[0] = 0;
-    rep_delay_IR[0] = 0;
-    rep_iter_IR[0] = '0;
-    rep_config_IR[0] = 1'b0;  // L0, S3,  D0, iter2
+    trans_valid = 1'b0;
+    trans_delay[0] = 0;
+    trans_config[0] = 1'b0;
 
     @(posedge clk);
     @(posedge clk);
