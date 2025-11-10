@@ -47,7 +47,12 @@ public:
   Instruction(uint32_t raw_instr, Format fmt,
               std::vector<SegmentRange> &segments_def);
 
+  std::string toString() const;
+  std::string toBinaryString() const;
+  std::string toHexString() const;
+
 private:
+  uint32_t _raw;
   uint32_t getType(uint32_t instr);
   uint32_t getOpcode(uint32_t instr);
   uint32_t getSlot(uint32_t instr);
