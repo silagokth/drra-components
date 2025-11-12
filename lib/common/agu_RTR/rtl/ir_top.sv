@@ -1,8 +1,11 @@
 module ir_top
-  import agu_RTR_pkg::*;
+  import agu_RTR_pkg::rep_config_t;
 #(
     parameter int ADDRESS_WIDTH,
-    parameter int NUMBER_IR
+    parameter int NUMBER_IR,
+    parameter int DELAY_WIDTH,
+    parameter int ITER_WIDTH,
+    parameter int STEP_WIDTH
 ) (
     input  logic                            clk,
     input  logic                            rst_n,
@@ -173,7 +176,10 @@ module ir_top
       assign ir_enable_array[i] = loop_enable[i] && step_enable && level_configured[i];
 
       ir_generator #(
-          .ADDRESS_WIDTH(ADDRESS_WIDTH)
+          .ADDRESS_WIDTH(ADDRESS_WIDTH),
+          .DELAY_WIDTH  (DELAY_WIDTH),
+          .ITER_WIDTH   (ITER_WIDTH),
+          .STEP_WIDTH   (STEP_WIDTH)
       ) ir_gen_inst (
           .clk       (clk),
           .rst_n     (rst_n),

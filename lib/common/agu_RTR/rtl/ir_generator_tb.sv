@@ -26,7 +26,10 @@ module ir_generator_tb
 
   // ===== DUT Instantiation =====
   ir_generator #(
-      .ADDRESS_WIDTH(ADDRESS_WIDTH)
+      .ADDRESS_WIDTH(ADDRESS_WIDTH),
+      .DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .ITER_WIDTH   (REP_ITER_WIDTH),
+      .STEP_WIDTH   (REP_STEP_WIDTH)
   ) dut (
       .clk(clk),
       .rst_n(rst_n),

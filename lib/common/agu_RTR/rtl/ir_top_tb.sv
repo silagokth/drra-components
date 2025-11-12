@@ -29,7 +29,10 @@ module ir_top_tb
   // ===== DUT Instantiation =====
   ir_top #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
-      .NUMBER_IR(NUMBER_IR)
+      .NUMBER_IR(NUMBER_IR),
+      .DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .ITER_WIDTH   (REP_ITER_WIDTH),
+      .STEP_WIDTH   (REP_STEP_WIDTH)
   ) dut (
       .clk(clk),
       .rst_n(rst_n),
@@ -440,13 +443,13 @@ module ir_top_tb
 
     $display("");
     $display("+========================================+");
-    $display("|   TEST SUMMARY                        |");
+    $display("|   TEST SUMMARY                         |");
     $display("+========================================+");
-    $display("|   Total Tests: %3d                    |", test_num);
+    $display("|   Total Tests: %3d                     |", test_num);
     if (error_count == 0) begin
-      $display("|   Status: ALL PASSED                  |");
+      $display("|   Status: ALL PASSED                   |");
     end else begin
-      $display("|   Status: %3d ERRORS                  |", error_count);
+      $display("|   Status: %3d ERRORS                   |", error_count);
     end
     $display("+========================================+");
     $display("");

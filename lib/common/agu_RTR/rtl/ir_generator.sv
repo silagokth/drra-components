@@ -1,7 +1,10 @@
 module ir_generator
-  import agu_RTR_pkg::*;
+  import agu_RTR_pkg::rep_config_t;
 #(
-    parameter int ADDRESS_WIDTH
+    parameter int ADDRESS_WIDTH,
+    parameter int ITER_WIDTH,
+    parameter int DELAY_WIDTH,
+    parameter int STEP_WIDTH
 ) (
     input logic clk,
     input logic rst_n,
@@ -16,13 +19,13 @@ module ir_generator
 );
 
   // Delay counter
-  logic [REP_DELAY_WIDTH-1:0] delay_count;
+  logic [DELAY_WIDTH-1:0] delay_count;
   logic delay_done;
   assign delay_done = (delay_count >= rep_config.delay);
   logic delay_configured;
   assign delay_configured = (rep_config.delay > 0);
   up_counter #(
-      .WIDTH(REP_DELAY_WIDTH)
+      .WIDTH(DELAY_WIDTH)
   ) delay_counter_inst (
       .clk   (clk),
       .rst_n (rst_n),
@@ -32,11 +35,11 @@ module ir_generator
   );
 
   // Iteration counter
-  logic [REP_STEP_WIDTH-1:0] iter_count;
-  logic                      iter_done;
+  logic [ITER_WIDTH-1:0] iter_count;
+  logic                  iter_done;
   assign iter_done = (iter_count >= rep_config.iter - 1);
   up_counter #(
-      .WIDTH(REP_STEP_WIDTH)
+      .WIDTH(ITER_WIDTH)
   ) iter_counter_inst (
       .clk   (clk),
       .rst_n (rst_n),
