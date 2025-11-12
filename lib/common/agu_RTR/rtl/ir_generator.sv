@@ -41,7 +41,7 @@ module ir_generator
       .clk   (clk),
       .rst_n (rst_n),
       .enable(enable && delay_done && !iter_done),
-      .init0 (iter_done && delay_done),
+      .init0 (enable && iter_done && delay_done),
       .count (iter_count)
   );
   assign ir_valid = enable && delay_done;
