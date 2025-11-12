@@ -34,7 +34,9 @@ module ir_generator_tb
       .clk(clk),
       .rst_n(rst_n),
       .enable(enable),
-      .rep_config(rep_config),
+      .iter(rep_config.iter),
+      .delay(rep_config.delay),
+      .step(rep_config.step),
       .ir_addr(ir_addr),
       .ir_valid(ir_valid),
       .ir_done(ir_done)

@@ -181,13 +181,15 @@ module ir_top
           .ITER_WIDTH   (ITER_WIDTH),
           .STEP_WIDTH   (STEP_WIDTH)
       ) ir_gen_inst (
-          .clk       (clk),
-          .rst_n     (rst_n),
-          .enable    (ir_enable_array[i]),
-          .rep_config(rep_configs[i]),
-          .ir_addr   (ir_addr_array[i]),
-          .ir_valid  (ir_valid_array[i]),
-          .ir_done   (ir_done_array[i])
+          .clk     (clk),
+          .rst_n   (rst_n),
+          .enable  (ir_enable_array[i]),
+          .iter    (rep_configs[i].iter),
+          .delay   (rep_configs[i].delay),
+          .step    (rep_configs[i].step),
+          .ir_addr (ir_addr_array[i]),
+          .ir_valid(ir_valid_array[i]),
+          .ir_done (ir_done_array[i])
       );
     end
   endgenerate
