@@ -20,7 +20,7 @@ module fsm #(
     if (!rst_n) begin
       state <= 0;
       activate_reg <= 0;
-      delay_counter <= fsm_delays[0];
+      delay_counter <= 0;
     end else if (activate && !activate_reg) begin
       activate_reg <= 1;
       delay_counter <= fsm_delays[0];
