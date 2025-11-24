@@ -1,0 +1,24 @@
+package:
+  name: fpu
+
+dependencies:
+  fsm: {path: ../../common/fsm}
+
+sources:
+  - ./rtl/fpu_pkg.sv
+  - ./rtl/adder_array.sv
+  - ./rtl/adder_tree.sv
+  - ./rtl/aligner.sv
+  - ./rtl/cross_block_6b_mul.sv
+  - ./rtl/driver2sub.sv
+  - ./rtl/formatter.sv
+  - ./rtl/lzd.sv
+  - ./rtl/mantadder.sv
+  - ./rtl/multiplier_grid.sv
+  - ./rtl/normantissa.sv
+  - ./rtl/shift_exp.sv
+  - ./rtl/topL_botR_block_6b_mul.sv
+  - ./rtl/tree_mantadder.sv
+  - ./rtl/fp_adder.sv
+  - ./rtl/fp_mul.sv
+  - ./rtl/fpu.sv

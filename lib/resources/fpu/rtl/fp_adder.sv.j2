@@ -1,0 +1,284 @@
+// vesyla_template_start module_head
+
+module {{fingerprint}}_fp_adder
+import {{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+      input  logic [ 1:0] src_format,     // Format of input operands
+      input  logic [31:0] op_a,
+      input  logic [31:0] op_b,
+      output logic [31:0] result_o
+      );
+
+logic align_flag_fp32;
+logic align_flag [0:3];
+logic [6:0] exp_diff [0:3];
+
+logic sign_a_fp32_s1, sign_b_fp32_s1;
+logic sign_a_fp16_s1 [0:1], sign_b_fp16_s1 [0:1];
+logic sign_a_fp8_s1  [0:3], sign_b_fp8_s1  [0:3];
+
+// Stage 1:
+always_comb begin
+    sign_a_fp32_s1 = op_a[31];
+    sign_b_fp32_s1 = op_b[31];
+    for (int i = 0; i < 2; i++) begin
+        sign_a_fp16_s1[i] = op_a[i*16 + 15];
+        sign_b_fp16_s1[i] = op_b[i*16 + 15];
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_a_fp8_s1[i] = op_a[i*8 + 7];
+        sign_b_fp8_s1[i] = op_b[i*8 + 7];
+    end
+end
+
+// Stage 2
+logic [23:0] aligned_mant_a_fp32;
+logic [23:0] aligned_mant_b_fp32;
+logic [7:0]  exp_fp32_s2;
+logic [10:0] aligned_mant_a_fp16 [0:1];
+logic [10:0] aligned_mant_b_fp16 [0:1];
+logic [4:0]  exp_fp16_s2 [0:1];
+logic [2:0]  aligned_mant_a_fp8  [0:3];
+logic [2:0]  aligned_mant_b_fp8  [0:3];
+logic [4:0]  exp_fp8_s2  [0:3]; 
+
+logic sign_a_fp32_s2, sign_b_fp32_s2;
+logic sign_a_fp16_s2 [0:1], sign_b_fp16_s2 [0:1];
+logic sign_a_fp8_s2  [0:3], sign_b_fp8_s2  [0:3];
+
+formatter u_formatter (
+    .src_format(src_format),
+    .op_a(op_a),
+    .op_b(op_b),
+    .align_flag_fp32(align_flag_fp32),
+    .align_flag(align_flag),
+    .exp_diff(exp_diff)
+);
+
+aligner_comb u_aligner (
+    .op_a(op_a),
+    .op_b(op_b),
+    .exp_diff(exp_diff),
+    .align_flag_fp32(align_flag_fp32),
+    .align_flag(align_flag),
+    .aligned_mant_a_fp32(aligned_mant_a_fp32),
+    .aligned_mant_b_fp32(aligned_mant_b_fp32),
+    .exp_fp32(exp_fp32_s2),
+    .aligned_mant_a_fp16(aligned_mant_a_fp16),
+    .aligned_mant_b_fp16(aligned_mant_b_fp16),
+    .exp_fp16(exp_fp16_s2),
+    .aligned_mant_a_fp8(aligned_mant_a_fp8),
+    .aligned_mant_b_fp8(aligned_mant_b_fp8),
+    .exp_fp8(exp_fp8_s2)
+);
+
+always_comb begin
+    sign_a_fp32_s2 = sign_a_fp32_s1;
+    sign_b_fp32_s2 = sign_b_fp32_s1;
+    for (int i = 0; i < 2; i++) begin
+        sign_a_fp16_s2[i] = sign_a_fp16_s1[i];
+        sign_b_fp16_s2[i] = sign_b_fp16_s1[i];
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_a_fp8_s2[i] = sign_a_fp8_s1[i];
+        sign_b_fp8_s2[i] = sign_b_fp8_s1[i];
+    end
+end
+
+// Stage 3
+logic t_sign_fp32_s3, sign_fp32_s3;
+logic t_sign_fp16_s3 [0:1], sign_fp16_s3 [0:1];
+logic t_sign_fp8_s3  [0:3], sign_fp8_s3  [0:3];
+
+logic [24:0] t_mant_fp32_s3, mant_fp32_s3;
+logic [11:0] t_mant_fp16_s3 [0:1], mant_fp16_s3 [0:1];
+logic [3:0]  t_mant_fp8_s3  [0:3], mant_fp8_s3  [0:3];
+logic [7:0]  exp_fp32_s3;
+logic [4:0]  exp_fp16_s3 [0:1];
+logic [4:0]  exp_fp8_s3  [0:3]; 
+
+mantadder u_mantadder (
+    .src_format(src_format),
+    .sign_a_fp32(sign_a_fp32_s2),
+    .sign_b_fp32(sign_b_fp32_s2),
+    .sign_a_fp16(sign_a_fp16_s2),
+    .sign_b_fp16(sign_b_fp16_s2),
+    .sign_a_fp8(sign_a_fp8_s2),
+    .sign_b_fp8(sign_b_fp8_s2),
+    .aligned_mant_a_fp32(aligned_mant_a_fp32),
+    .aligned_mant_b_fp32(aligned_mant_b_fp32),
+    .aligned_mant_a_fp16(aligned_mant_a_fp16),
+    .aligned_mant_b_fp16(aligned_mant_b_fp16),
+    .aligned_mant_a_fp8(aligned_mant_a_fp8),
+    .aligned_mant_b_fp8(aligned_mant_b_fp8),
+    .sign_fp32(t_sign_fp32_s3),
+    .sign_fp16(t_sign_fp16_s3),
+    .sign_fp8(t_sign_fp8_s3),
+    .mant_fp32(t_mant_fp32_s3),
+    .mant_fp16(t_mant_fp16_s3),
+    .mant_fp8(t_mant_fp8_s3)
+);
+
+always_comb begin
+    sign_fp32_s3 = t_sign_fp32_s3;
+    mant_fp32_s3 = t_mant_fp32_s3;
+    exp_fp32_s3  = exp_fp32_s2;
+
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s3 [i] = t_sign_fp16_s3 [i];
+        mant_fp16_s3 [i] = t_mant_fp16_s3 [i];
+        exp_fp16_s3  [i] = exp_fp16_s2    [i];
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s3  [i] = t_sign_fp8_s3 [i];
+        mant_fp8_s3  [i] = t_mant_fp8_s3 [i];
+        exp_fp8_s3   [i] = exp_fp8_s2    [i];
+    end
+end
+
+// Stage 4
+logic [7:0]  norm_exp_fp32_s4;
+logic [4:0]  norm_exp_fp16_s4  [0:1];
+logic [4:0]  norm_exp_fp8_s4   [0:3];
+logic [23:0] norm_mant_fp32_s4;
+logic [10:0] norm_mant_fp16_s4 [0:1];
+logic [2:0]  norm_mant_fp8_s4  [0:3];
+
+logic sign_fp32_s4;
+logic sign_fp16_s4 [0:1];
+logic sign_fp8_s4  [0:3];
+
+always_comb begin
+    sign_fp32_s4        = sign_fp32_s3;
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s4[i] = sign_fp16_s3[i];
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s4 [i] = sign_fp8_s3 [i];
+    end
+end
+
+normantissa_comb u_normantissa (
+    .exp_fp32      (exp_fp32_s3),
+    .exp_fp16      (exp_fp16_s3),
+    .exp_fp8       (exp_fp8_s3),
+    .mant_fp32     (mant_fp32_s3),
+    .mant_fp16     (mant_fp16_s3),
+    .mant_fp8      (mant_fp8_s3),
+    .norm_exp_fp32 (norm_exp_fp32_s4),
+    .norm_exp_fp16 (norm_exp_fp16_s4),
+    .norm_exp_fp8  (norm_exp_fp8_s4),
+    .norm_mant_fp32(norm_mant_fp32_s4),
+    .norm_mant_fp16(norm_mant_fp16_s4),
+    .norm_mant_fp8 (norm_mant_fp8_s4)
+);
+
+// Stage 5
+logic [7:0] shift_count_fp32;
+logic [4:0] shift_count_fp16  [0:1];
+logic [4:0] shift_count_fp8   [0:3];
+
+logic [7:0]  norm_exp_fp32_s5;
+logic [4:0]  norm_exp_fp16_s5 [0:1];
+logic [4:0]  norm_exp_fp8_s5  [0:3];
+logic [23:0] norm_mant_fp32_s5;
+logic [10:0] norm_mant_fp16_s5[0:1];
+logic [2:0]  norm_mant_fp8_s5 [0:3];
+
+logic sign_fp32_s5;
+logic sign_fp16_s5 [0:1];
+logic sign_fp8_s5 [0:3];
+
+always_comb begin
+    sign_fp32_s5 = sign_fp32_s4;
+    norm_exp_fp32_s5  = norm_exp_fp32_s4;
+    norm_mant_fp32_s5 = norm_mant_fp32_s4;
+
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s5     [i] = sign_fp16_s4     [i];
+        norm_exp_fp16_s5 [i] = norm_exp_fp16_s4 [i];
+        norm_mant_fp16_s5[i] = norm_mant_fp16_s4[i];
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s5      [i] = sign_fp8_s4     [i];
+        norm_exp_fp8_s5  [i] = norm_exp_fp8_s4 [i];
+        norm_mant_fp8_s5 [i] = norm_mant_fp8_s4[i];
+    end
+end
+
+lzd_comb u_lzd (
+    .norm_mant_fp32  (norm_mant_fp32_s4),
+    .norm_mant_fp16  (norm_mant_fp16_s4),
+    .norm_mant_fp8   (norm_mant_fp8_s4),
+    .norm_exp_fp32   (norm_exp_fp32_s4),
+    .norm_exp_fp16   (norm_exp_fp16_s4),
+    .norm_exp_fp8    (norm_exp_fp8_s4),
+    .shift_count_fp32(shift_count_fp32),
+    .shift_count_fp16(shift_count_fp16),
+    .shift_count_fp8 (shift_count_fp8)
+);
+
+// Stage 6
+logic [7:0]  f_exp_fp32;
+logic [4:0]  f_exp_fp16  [0:1];
+logic [4:0]  f_exp_fp8   [0:3];
+logic [23:0] f_mant_fp32;
+logic [10:0] f_mant_fp16 [0:1];
+logic [2:0]  f_mant_fp8  [0:3];
+
+logic sign_fp32_s6;
+logic sign_fp16_s6 [0:1];
+logic sign_fp8_s6 [0:3];
+
+always_comb begin
+    sign_fp32_s6 = sign_fp32_s5;
+    for (int i = 0; i < 2; i++) begin
+        sign_fp16_s6[i] = sign_fp16_s5[i];
+    end
+    for (int i = 0; i < 4; i++) begin
+        sign_fp8_s6[i]  = sign_fp8_s5[i];
+    end
+end
+
+shift_exp_comb u_shift_exp (
+    .shift_count_fp32 (shift_count_fp32),
+    .shift_count_fp16 (shift_count_fp16),
+    .shift_count_fp8  (shift_count_fp8),
+    .exp_fp32       (norm_exp_fp32_s5),
+    .exp_fp16       (norm_exp_fp16_s5),
+    .exp_fp8        (norm_exp_fp8_s5),
+    .mant_fp32      (norm_mant_fp32_s5),
+    .mant_fp16      (norm_mant_fp16_s5),
+    .mant_fp8       (norm_mant_fp8_s5),
+    .f_exp_fp32     (f_exp_fp32),
+    .f_exp_fp16     (f_exp_fp16),
+    .f_exp_fp8      (f_exp_fp8),
+    .f_mant_fp32    (f_mant_fp32),
+    .f_mant_fp16    (f_mant_fp16),
+    .f_mant_fp8     (f_mant_fp8)
+);
+
+// Stage 7
+always_comb begin
+    case (src_format) 
+        2'b000 : begin
+            result_o = {sign_fp32_s6, f_exp_fp32, f_mant_fp32[22:0]};
+        end
+        2'b001 : begin
+            for (int i = 0; i < 2; i++) begin
+                result_o[i*16 +: 16] = {sign_fp16_s6[i], f_exp_fp16[i], f_mant_fp16[i][9:0]};
+            end
+        end
+        2'b010 : begin
+            for (int i = 0; i < 4; i++) begin
+                result_o[i*8 +: 8] = {sign_fp8_s6[i], f_exp_fp8[i], f_mant_fp8[i][1:0]};
+            end
+        end
+        default: begin
+            result_o = '0;
+        end
+    endcase
+end
+
+endmodule

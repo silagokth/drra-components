@@ -1,0 +1,7 @@
+packages:
+  fsm:
+    revision: null
+    version: null
+    source:
+      Path: ../../common/fsm
+    dependencies: []
