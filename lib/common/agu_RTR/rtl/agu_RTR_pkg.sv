@@ -14,8 +14,9 @@ package agu_RTR_pkg;
 
   typedef struct packed {
     logic [REP_DELAY_WIDTH-1:0] delay;
-    logic [REP_ITER_WIDTH-1:0]  iter;
-    logic [REP_STEP_WIDTH-1:0]  step;
+    logic [REP_ITER_WIDTH-1:0] iter;
+    logic [REP_STEP_WIDTH-1:0] step;
+    logic is_configured;
   } rep_config_t;
 
 endpackage
