@@ -4,6 +4,16 @@ module ir_top_tb
   import agu_RTR_pkg::*;
 ();
 
+  import "DPI-C" context function void cpp_build_pattern(
+    input int iter_configs [],
+    input int delay_configs[],
+    input int num_levels
+  );
+  import "DPI-C" context function int cpp_pop_expected_address();
+  import "DPI-C" context function int cpp_pop_expected_cycle();
+  import "DPI-C" context function int cpp_get_address_queue_size();
+  import "DPI-C" context function int cpp_get_cycle_queue_size();
+
   // Parameters
   localparam int ADDRESS_WIDTH = 16;
   localparam int NUMBER_IR = 4;
@@ -17,6 +27,7 @@ module ir_top_tb
   logic        [ADDRESS_WIDTH-1:0] ir_addr;
   logic                            ir_valid;
   logic                            ir_done;
+  int                              current_cycle;
 
   // Testbench variables
   int                              test_num = 0;
@@ -24,6 +35,7 @@ module ir_top_tb
   int                              addr_count = 0;
   int                              expected_total_addrs;
   logic        [ADDRESS_WIDTH-1:0] addr_queue           [$];
+  int                              cycle_queue          [$];
   logic        [ADDRESS_WIDTH-1:0] expected_addr;
 
   // ===== DUT Instantiation =====
@@ -55,41 +67,54 @@ module ir_top_tb
   // ONLY innermost (IR[0]) addresses are output
   // Outer loops control how many TIMES the inner loop repeats
   task automatic build_expected_innermost_addresses();
-    int repetitions;
+
+    int iter_arr [];
+    int delay_arr[];
+    int val;
+    int cycle;
+
+    iter_arr  = new[NUMBER_IR];
+    delay_arr = new[NUMBER_IR];
+
+    for (int i = 0; i < NUMBER_IR; i++) begin
+      // Default to 1 iteration if 0 (disabled), so the math works
+      iter_arr[i]  = (rep_configs[i].iter == 0) ? 0 : rep_configs[i].iter;
+      delay_arr[i] = rep_configs[i].delay;
+    end
+
+    // Clear SV Queue
     addr_queue.delete();
 
-    // Calculate how many times IR[0] will run
-    // This is the product of all outer loop iterations
-    repetitions = 1;
-    for (int i = 1; i < NUMBER_IR; i++) begin
-      if (rep_configs[i].iter > 0) begin
-        repetitions *= rep_configs[i].iter;
-      end
-    end
+    // Call C++ Timing Model
+    // We assume the C++ model adds loops in order 0..N
+    cpp_build_pattern(iter_arr, delay_arr, NUMBER_IR);
 
-    // IR[0] generates its addresses, repeated 'repetitions' times
-    for (int rep = 0; rep < repetitions; rep++) begin
-      for (int i0 = 0; i0 < rep_configs[0].iter; i0++) begin
-        addr_queue.push_back(i0 * rep_configs[0].step);
-      end
-    end
+    // Retrieve results back into SV Queue
+    expected_total_addrs = cpp_get_address_queue_size();
 
-    expected_total_addrs = addr_queue.size();
+    for (int k = 0; k < expected_total_addrs; k++) begin
+      val   = cpp_pop_expected_address();
+      cycle = cpp_pop_expected_cycle();
+      addr_queue.push_back(val);
+      cycle_queue.push_back(cycle);
+    end
   endtask
 
   // Configure a specific IR level
   task automatic configure_ir(input int level, input int delay, input int iter, input int step);
     rep_configs[level].delay = delay;
-    rep_configs[level].iter  = iter;
-    rep_configs[level].step  = step;
+    rep_configs[level].iter = iter;
+    rep_configs[level].step = step;
+    rep_configs[level].is_configured = 1;
   endtask
 
   // Initialize all IR levels to disabled
   task automatic init_configs();
     for (int i = 0; i < NUMBER_IR; i++) begin
       rep_configs[i].delay = 0;
-      rep_configs[i].iter  = 0;
-      rep_configs[i].step  = 0;
+      rep_configs[i].iter = 0;
+      rep_configs[i].step = 0;
+      rep_configs[i].is_configured = 0;
     end
   endtask
 
@@ -128,6 +153,22 @@ module ir_top_tb
           end
         end
         addr_count++;
+      end
+    end
+  endtask
+
+  task automatic check_cycle(input int cycle, input logic valid);
+    if (valid) begin
+      int expected_cycle;
+      expected_cycle = cycle_queue.pop_front();
+      if (cycle !== expected_cycle) begin
+        $display("  [ERROR] CYCLE MISMATCH at position %0d: Expected=%0d, Got=%0d", addr_count,
+                 expected_cycle, cycle);
+        error_count++;
+      end else begin
+        if (addr_count < 10 || addr_count >= expected_total_addrs - 5) begin
+          $display("      Cycle[%0d]: %0d (PASS)", addr_count, cycle);
+        end
       end
     end
   endtask
@@ -179,6 +220,8 @@ module ir_top_tb
   always @(posedge clk) begin
     if (rst_n && enable) begin
       check_address(ir_addr, ir_valid);
+      check_cycle(current_cycle, ir_valid);
+      current_cycle++;
     end
   end
 
@@ -196,7 +239,8 @@ module ir_top_tb
     $display("+========================================+");
 
     // Reset
-    repeat (5) @(posedge clk);
+    rst_n = 0;
+    @(posedge clk);
     rst_n = 1;
     repeat (2) @(posedge clk);
 
@@ -210,6 +254,7 @@ module ir_top_tb
     $display("  Expected: 0,1,2,3,4");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(200);
     enable = 0;
     verify_completion();
@@ -230,6 +275,7 @@ module ir_top_tb
     $display("  Expected: 0,1,2, 0,1,2, 0,1,2, 0,1,2");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -251,6 +297,7 @@ module ir_top_tb
     $display("  Expected: 0,1, 0,1, 0,1, 0,1, 0,1, 0,1");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -273,6 +320,7 @@ module ir_top_tb
     $display("  Expected: 0,1, 0,1, 0,1, 0,1, 0,1, 0,1, 0,1, 0,1");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(1000);
     enable = 0;
     verify_completion();
@@ -292,6 +340,7 @@ module ir_top_tb
     $display("  Expected: (0,1,2) repeated 2 times with delays");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -311,6 +360,7 @@ module ir_top_tb
     $display("  Expected: (0,1,2,3,4,5,6) repeated 5 times = 35 addresses");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(1000);
     enable = 0;
     verify_completion();
@@ -330,6 +380,7 @@ module ir_top_tb
     $display("  Expected: (0,100,200) repeated 2 times");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -342,15 +393,16 @@ module ir_top_tb
     // TEST 8: Maximum nesting with delays
     // ========================================
     init_configs();
-    configure_ir(0, 3, 3, 1);
-    configure_ir(1, 2, 2, 10);
-    configure_ir(2, 1, 2, 100);
-    configure_ir(3, 1, 2, 1000);
+    configure_ir(0, 3, 3, 1);  // 3 iterations, delay=3
+    configure_ir(1, 2, 2, 10);  // 2 iterations, delay=2
+    configure_ir(2, 1, 2, 100);  // 2 iterations, delay=1
+    configure_ir(3, 1, 2, 1000);  // 2 iterations, delay=1
     build_expected_innermost_addresses();
     print_test_header("Full Nesting with All Delays");
     $display("  Expected: (0,1,2) repeated 2*2*2=8 times = 24 addresses");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(3000);
     enable = 0;
     verify_completion();
@@ -371,6 +423,7 @@ module ir_top_tb
     $display("  Expected: 0,2,4,6, 0,2,4,6, 0,2,4,6");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -390,6 +443,7 @@ module ir_top_tb
     $display("  Expected: (0,0,0,0) repeated 2 times");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -409,6 +463,7 @@ module ir_top_tb
     $display("  Expected: (0,1,2,...,9) repeated 10 times = 100 addresses");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(2000);
     enable = 0;
     verify_completion();
@@ -428,6 +483,7 @@ module ir_top_tb
     $display("  Expected: (0,3,6,9,12) repeated 2 times");
 
     enable = 1;
+    current_cycle = 0;
     wait_for_completion(500);
     enable = 0;
     verify_completion();
@@ -492,11 +548,11 @@ module ir_top_tb
   always @(posedge ir_done) begin
     end_time = $realtime;
     elapsed_time = end_time - start_time;
-    if (expected_total_addrs > 0) begin
-      $display("  Performance: %0d addresses in %0d cycles (%.2f cycles/addr)",
-               expected_total_addrs, total_cycles,
-               real'(total_cycles) / real'(expected_total_addrs));
-    end
+    //if (expected_total_addrs > 0) begin
+    //  $display("  Performance: %0d addresses in %0d cycles (%.2f cycles/addr)",
+    //           expected_total_addrs, total_cycles,
+    //           real'(total_cycles) / real'(expected_total_addrs));
+    //end
   end
 
 endmodule
