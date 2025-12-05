@@ -88,8 +88,8 @@ TimingState &TimingState::buildRepetition(uint64_t iterations, uint64_t delay,
   if (!expression) {
     throw std::runtime_error("Cannot add repetition without an event");
   }
-  delay++;      // delay is always incremented by 1
-  iterations++; // iterations is always incremented by 1
+  delay++; // delay is always incremented by 1
+  // iterations++; // iterations is always incremented by 1
 
   levels_current_iteration.push_back(0);
   levels_total_iterations.push_back(iterations);
