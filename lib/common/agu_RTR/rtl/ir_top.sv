@@ -184,7 +184,7 @@ module ir_top
   // and stays High during subsequent OUTPUTTING states.
   assign ir_valid = is_processing;
 
-  assign ir_done = (state == DONE);
+  assign ir_done = (state_next == DONE);
 
 endmodule
 
