@@ -68,16 +68,19 @@ module ir_top_tb
   // Outer loops control how many TIMES the inner loop repeats
   task automatic build_expected_innermost_addresses();
 
+    int type_arr [];
     int iter_arr [];
     int delay_arr[];
     int val;
     int cycle;
 
+    type_arr  = new[NUMBER_IR];
     iter_arr  = new[NUMBER_IR];
     delay_arr = new[NUMBER_IR];
 
     for (int i = 0; i < NUMBER_IR; i++) begin
       // Default to 1 iteration if 0 (disabled), so the math works
+      type_arr[i]  = 0;  // Not used in this testbench (always repeat)
       iter_arr[i]  = (rep_configs[i].iter == 0) ? 0 : rep_configs[i].iter;
       delay_arr[i] = rep_configs[i].delay;
     end
@@ -87,7 +90,7 @@ module ir_top_tb
 
     // Call C++ Timing Model
     // We assume the C++ model adds loops in order 0..N
-    cpp_build_pattern(iter_arr, delay_arr, NUMBER_IR);
+    cpp_build_pattern(type_arr, iter_arr, delay_arr, NUMBER_IR);
 
     // Retrieve results back into SV Queue
     expected_total_addrs = cpp_get_address_queue_size();
