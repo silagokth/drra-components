@@ -5,6 +5,7 @@ module ir_top_tb
 ();
 
   import "DPI-C" context function void cpp_build_pattern(
+    input int type_configs [],
     input int iter_configs [],
     input int delay_configs[],
     input int num_levels
@@ -68,21 +69,28 @@ module ir_top_tb
   // Outer loops control how many TIMES the inner loop repeats
   task automatic build_expected_innermost_addresses();
 
-    int type_arr [];
-    int iter_arr [];
+    int type_arr[];
+    int iter_arr[];
     int delay_arr[];
     int val;
     int cycle;
+    int stack_counter = 0;
 
-    type_arr  = new[NUMBER_IR];
-    iter_arr  = new[NUMBER_IR];
-    delay_arr = new[NUMBER_IR];
+    type_arr = new[NUMBER_IR + 1];
+    iter_arr = new[NUMBER_IR + 1];
+    delay_arr = new[NUMBER_IR + 1];
 
+    type_arr[0] = 2;  // Event
+    iter_arr[0] = 0;
+    delay_arr[0] = 0;
+    stack_counter++;
     for (int i = 0; i < NUMBER_IR; i++) begin
+      if (!rep_configs[i].is_configured) continue;
       // Default to 1 iteration if 0 (disabled), so the math works
-      type_arr[i]  = 0;  // Not used in this testbench (always repeat)
-      iter_arr[i]  = (rep_configs[i].iter == 0) ? 0 : rep_configs[i].iter;
-      delay_arr[i] = rep_configs[i].delay;
+      type_arr[stack_counter]  = 0;  // Not used in this testbench (always repeat)
+      iter_arr[stack_counter]  = (rep_configs[i].iter == 0) ? 0 : rep_configs[i].iter;
+      delay_arr[stack_counter] = rep_configs[i].delay;
+      stack_counter++;
     end
 
     // Clear SV Queue
@@ -90,7 +98,8 @@ module ir_top_tb
 
     // Call C++ Timing Model
     // We assume the C++ model adds loops in order 0..N
-    cpp_build_pattern(type_arr, iter_arr, delay_arr, NUMBER_IR);
+    cpp_build_pattern(type_arr, iter_arr, delay_arr, stack_counter);
+    stack_counter = 0;
 
     // Retrieve results back into SV Queue
     expected_total_addrs = cpp_get_address_queue_size();
