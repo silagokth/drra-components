@@ -69,7 +69,6 @@ TimingState &TimingState::buildTransition(uint64_t delay,
   if (!expression) {
     throw std::runtime_error("Cannot add transition without an event");
   }
-  delay++; // delay is always incremented by 1
   auto nextEvent = std::make_shared<TimingEvent>(nextEventName, eventCounter++);
   nextEvent->setHandler(handler);
   nextEvent->setPriority(priority);
@@ -89,7 +88,7 @@ TimingState &TimingState::buildRepetition(uint64_t iterations, uint64_t delay,
     throw std::runtime_error("Cannot add repetition without an event");
   }
   delay++; // delay is always incremented by 1
-  // iterations++; // iterations is always incremented by 1
+  //  iterations++; // iterations is always incremented by 1
 
   levels_current_iteration.push_back(0);
   levels_total_iterations.push_back(iterations);
@@ -279,6 +278,8 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
   // Find repetition operator with the same level in the operator queue
   for (auto &op : operator_queue) {
     if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+      printf("Checking repetition operator with level %lu\n",
+             repetition->getLevel());
       if (repetition->getLevel() == level) {
         return *repetition;
       }
@@ -346,7 +347,7 @@ TransitionOperator::TransitionOperator(uint64_t delay,
 uint64_t TransitionOperator::scheduleEvents(TimingState &state,
                                             uint64_t startCycle) const {
   uint64_t fromCycle = from->scheduleEvents(state, startCycle);
-  uint64_t toCycle = to->scheduleEvents(state, fromCycle + delay);
+  uint64_t toCycle = to->scheduleEvents(state, fromCycle + delay + 1);
   return toCycle;
 }
 
