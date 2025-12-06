@@ -12,11 +12,20 @@ package agu_RTR_pkg;
   parameter int REP_ITER_WIDTH = 6;
   parameter int REP_STEP_WIDTH = 6;
 
+  parameter int TRANS_DELAY_WIDTH = 12;
+  parameter int TRANS_ITER_WIDTH = 1;
+  parameter int TRANS_STEP_WIDTH = 1;
+
   typedef struct packed {
     logic [REP_DELAY_WIDTH-1:0] delay;
     logic [REP_ITER_WIDTH-1:0] iter;
     logic [REP_STEP_WIDTH-1:0] step;
     logic is_configured;
   } rep_config_t;
+
+  typedef struct packed {
+    logic [TRANS_DELAY_WIDTH-1:0] delay;
+    logic is_configured;
+  } trans_config_t;
 
 endpackage
