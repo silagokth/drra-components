@@ -1,4 +1,3 @@
-// wrapper.cpp (or tm_wrapper.cpp) -- compile this into timingModel.so
 #include "svdpi.h"
 #include "timingModel.h"
 #include <deque>
@@ -18,10 +17,6 @@ extern "C" {
 void cpp_build_pattern(const svOpenArrayHandle type_h,
                        const svOpenArrayHandle iter_h,
                        const svOpenArrayHandle delay_h, int num_levels) {
-  // Basic sanity print for debugging (remove later)
-  std::cerr << "[DPI] cpp_build_pattern(): num_levels=" << num_levels
-            << std::endl;
-
   expected_addresses.clear();
 
   // Your existing code for building the TimingState...
@@ -33,7 +28,8 @@ void cpp_build_pattern(const svOpenArrayHandle type_h,
   int trans_level = 0;
   int event_count = 0;
   std::map<std::string, int> event_max_iter;
-  std::cerr << "[DPI] Building states..." << std::endl;
+  std::cerr << "[DPI] Building states for " << num_levels << " levels"
+            << std::endl;
   for (int i = 0; i < num_levels; ++i) {
     int type = 0;
     int iter = 0;
@@ -48,13 +44,12 @@ void cpp_build_pattern(const svOpenArrayHandle type_h,
     if (delay_ptr)
       delay = *delay_ptr;
 
-    std::cerr << "[DPI] - " << i << ": type=" << type << " iter=" << iter
-              << " delay=" << delay << std::endl;
+    std::cerr << "[DPI] - LVL " << i;
 
     if (type == 0) {
       if (iter > 0) {
-        std::cerr << "[DPI] " << i << " repetition iter=" << iter
-                  << " delay=" << delay << std::endl;
+        std::cerr << " (repetition) iter=" << iter << " delay=" << delay
+                  << std::endl;
         if (rep_level == 0) {
           event_max_iter["Event_" + std::to_string(event_count - 1)] = iter;
           std::cerr << "[DPI]   event max iter set: Event_" << (event_count - 1)
@@ -68,7 +63,7 @@ void cpp_build_pattern(const svOpenArrayHandle type_h,
         rep_level++;
       }
     } else if (type == 1) {
-      std::cerr << "[DPI] " << i << " transition delay=" << delay << std::endl;
+      std::cerr << " (transition) delay=" << delay << std::endl;
       if (trans_level == 0) {
         TransitionOperator trans(
             delay, "name", [] {}, states[0].getExpression(),
@@ -82,7 +77,7 @@ void cpp_build_pattern(const svOpenArrayHandle type_h,
       }
       trans_level++;
     } else if (type == 2) {
-      std::cerr << "[DPI] " << i << " event delay=" << delay << std::endl;
+      std::cerr << " (event) delay=" << delay << std::endl;
       // state.addEvent("Event_" + std::to_string(event_count), [] {});
       TimingState new_state =
           TimingState::createFromEvent("Event_" + std::to_string(event_count));
@@ -132,7 +127,8 @@ void cpp_build_pattern(const svOpenArrayHandle type_h,
     }
   }
   std::cerr << "[DPI] pattern generated: " << expected_addresses.size()
-            << " addresses" << std::endl;
+            << " addresses\n"
+            << std::endl;
 }
 
 // Pop one address

@@ -11,7 +11,6 @@ module mt_ir_top
 
     // Configuration
     input trans_config_t [NUMBER_MT-1:0] mt_configs,
-    // Note: We need NUMBER_MT+1 configs for the lanes
     input rep_config_t   [NUMBER_IR-1:0] rep_configs[NUMBER_MT+1],
 
     // Outputs
@@ -20,74 +19,78 @@ module mt_ir_top
     output logic                     ir_done
 );
 
-  //-------------------------------------------------------------------------
-  // Internal Signals & Types
-  //-------------------------------------------------------------------------
+  // State machine states
   typedef enum logic [1:0] {
     IDLE,
     RUN_LANE,
     TRANSITION_DELAY,
     DONE
   } mt_state_t;
-
   mt_state_t state, state_next;
 
-  // Arrays for IR Lane connectivity
-  logic                           ir_valid_array       [NUMBER_MT+1];
-  logic                           ir_done_array        [NUMBER_MT+1];
+  logic                           ir_valid_array             [NUMBER_MT+1];
+  logic                           ir_done_array              [NUMBER_MT+1];
+  logic [      ADDRESS_WIDTH-1:0] ir_addr_array              [NUMBER_MT+1];
+  logic                           ir_enable_array            [NUMBER_MT+1];
 
-  logic [      ADDRESS_WIDTH-1:0] ir_addr_array        [NUMBER_MT+1];
-  logic                           ir_enable_array      [NUMBER_MT+1];
-
-  // Control Signals
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr_next;
-
-  // Delay Counter for MT transitions
   logic [                   31:0] transition_cnt;
   logic [                   31:0] transition_cnt_next;
-
-  // Signal to select which pointer to use for data path/enable in the current cycle
   logic [$clog2(NUMBER_MT+1)-1:0] current_mux_ptr;
-
-  // Calculate the maximum configured lane index to know when to stop
   logic [$clog2(NUMBER_MT+1)-1:0] max_lane_index;
 
+  // Calculate number of transitions configured
+  logic [$clog2(NUMBER_MT+1)-1:0] num_transitions_configured;
   always_comb begin
-    // Default to 0 if nothing configured
-    max_lane_index = '0;
-    // Check which lanes are configured based on the rep_configs of that lane
+    num_transitions_configured = '0;
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (rep_configs[k][0].is_configured) begin
-        max_lane_index = k;
+      if (mt_configs[k].is_configured) begin
+        num_transitions_configured = k + 1;
+      end else begin
+        break;
       end
     end
   end
 
-  // Logic to determine if a zero-delay transition is occurring in this cycle
-  logic immediate_advance;
-  assign immediate_advance = (state == RUN_LANE) &&
-                             ir_done_array[active_lane_ptr] &&
-                             (mt_configs[active_lane_ptr].delay == 0) &&
-                             (active_lane_ptr != max_lane_index); // Must not be the last lane
+  // Max Lane Index Calculation
+  logic found_config;
+  always_comb begin
+    max_lane_index = '0;
+    found_config   = 1'b0;
+    for (int k = 0; k <= NUMBER_MT; k++) begin
+      if (rep_configs[k][0].is_configured) begin
+        max_lane_index = k;
+        found_config   = 1'b1;
+      end
+    end
+    if (!found_config) begin
+      max_lane_index = num_transitions_configured;
+    end
+  end
 
-  // Determine the pointer to use for muxing and enabling in the CURRENT cycle.
+  // Check if current step is done
+  logic step_done;
+  logic step_configured;
+  always_comb begin
+    if (active_lane_ptr > max_lane_index) begin
+      step_configured = 1'b0;
+    end else begin
+      step_configured = rep_configs[active_lane_ptr][0].is_configured;
+    end
+  end
+  assign step_done = step_configured ? ir_done_array[active_lane_ptr] : 1'b1;
+
+  // Mux pointer logic
   always_comb begin
     if (state == IDLE && enable) begin
-      // Immediate start: Use Lane 0
       current_mux_ptr = '0;
-      //end else if (immediate_advance) begin
-      //  // Immediate transition: Use the next pointer combinatorially
-      //  current_mux_ptr = active_lane_ptr + 1;
     end else begin
-      // Default: Use the registered pointer (for steady RUN_LANE, DELAY, DONE)
       current_mux_ptr = active_lane_ptr;
     end
   end
 
-  //-------------------------------------------------------------------------
-  // 1. IR Lane Instantiation
-  //-------------------------------------------------------------------------
+  // IR lane instantiation
   genvar i;
   generate
     for (i = 0; i <= NUMBER_MT; i++) begin : gen_ir_lanes
@@ -100,7 +103,7 @@ module mt_ir_top
       ) ir_top_inst (
           .clk        (clk),
           .rst_n      (rst_n),
-          .enable     (ir_enable_array[i]),  // Controlled by FSM/Muxing
+          .enable     (ir_enable_array[i]),
           .rep_configs(rep_configs[i]),
           .ir_addr    (ir_addr_array[i]),
           .ir_valid   (ir_valid_array[i]),
@@ -109,74 +112,76 @@ module mt_ir_top
     end
   endgenerate
 
-  //-------------------------------------------------------------------------
-  // 2. Output Muxing (Data Path)
-  //-------------------------------------------------------------------------
-  // Mux the address and valid signal based on the combinatorially determined active lane
+  // Output muxing
   always_comb begin
-    ir_addr  = ir_addr_array[current_mux_ptr];
-    ir_valid = ir_valid_array[current_mux_ptr];
+    ir_valid = 1'b0;
+    ir_addr  = '0;
 
-    // Output is valid if we are in RUN_LANE, OR if we are in IDLE 
-    // and 'enable' is asserted (for the zero-latency initial output).
+    if (current_mux_ptr <= max_lane_index && rep_configs[current_mux_ptr][0].is_configured) begin
+      ir_addr  = ir_addr_array[current_mux_ptr];
+      ir_valid = ir_valid_array[current_mux_ptr];
+    end else begin
+      // Counter Mode
+      ir_addr  = current_mux_ptr;
+      ir_valid = 1'b1;
+    end
+
     if (!((state == RUN_LANE) || (state == IDLE && enable))) begin
-      ir_valid = 1'b0;  // Mask output if we are not strictly in a running/starting state
+      ir_valid = 1'b0;
     end
   end
 
   assign ir_done = (state_next == DONE);
 
-  //-------------------------------------------------------------------------
-  // 3. Lane Enable Logic (De-Mux)
-  //-------------------------------------------------------------------------
+  // Lane enable logic
   always_comb begin
     for (int k = 0; k <= NUMBER_MT; k++) begin
       ir_enable_array[k] = 1'b0;
     end
-
-    // Only enable the lane determined by current_mux_ptr if we are in an active state
     if ((state == RUN_LANE) || (state == IDLE && enable)) begin
       ir_enable_array[current_mux_ptr] = 1'b1;
     end
   end
 
-  //-------------------------------------------------------------------------
-  // 4. State Machine & Control Logic
-  //-------------------------------------------------------------------------
+  // State machine logic
   always_comb begin
-    // Defaults
     state_next           = state;
     active_lane_ptr_next = active_lane_ptr;
     transition_cnt_next  = transition_cnt;
 
     case (state)
-      // ----------------------------------------------------------------
       IDLE: begin
         active_lane_ptr_next = '0;
         transition_cnt_next  = '0;
+
         if (enable) begin
-          // Output is generated combinatorially via current_mux_ptr in this cycle.
-          // State moves to RUN_LANE in the next cycle.
-          state_next = RUN_LANE;
+          // Check Lane 0 safely
+          if (rep_configs[0][0].is_configured) begin
+            state_next = RUN_LANE;
+          end else begin
+            // Counter Mode logic for Cycle 0
+            if (max_lane_index == 0) begin
+              state_next = DONE;
+            end else if (mt_configs[0].delay > 0) begin
+              state_next = TRANSITION_DELAY;
+              transition_cnt_next = mt_configs[0].delay;
+            end else begin
+              active_lane_ptr_next = 1;
+              state_next = RUN_LANE;
+            end
+          end
         end
       end
 
-      // ----------------------------------------------------------------
       RUN_LANE: begin
-        // Monitor the DONE signal of the current lane
-        if (ir_done_array[active_lane_ptr]) begin
-
-          // Check if this was the last configured lane
-          if (active_lane_ptr == max_lane_index) begin
+        if (step_done) begin
+          if (active_lane_ptr >= max_lane_index) begin
             state_next = DONE;
           end else begin
-            // Prepare for transition to next lane
             if (mt_configs[active_lane_ptr].delay > 0) begin
               state_next = TRANSITION_DELAY;
               transition_cnt_next = mt_configs[active_lane_ptr].delay;
             end else begin
-              // No delay: The current cycle's logic handles the immediate switch,
-              // but the FSM still needs to register the new pointer for the next cycle.
               active_lane_ptr_next = active_lane_ptr + 1;
               state_next = RUN_LANE;
             end
@@ -184,9 +189,7 @@ module mt_ir_top
         end
       end
 
-      // ----------------------------------------------------------------
       TRANSITION_DELAY: begin
-        // Count down the delay
         if (transition_cnt <= 1) begin
           state_next           = RUN_LANE;
           active_lane_ptr_next = active_lane_ptr + 1;
@@ -196,7 +199,6 @@ module mt_ir_top
         end
       end
 
-      // ----------------------------------------------------------------
       DONE: begin
         if (!enable) begin
           state_next = IDLE;
@@ -207,9 +209,7 @@ module mt_ir_top
     endcase
   end
 
-  //-------------------------------------------------------------------------
-  // 5. Sequential Logic
-  //-------------------------------------------------------------------------
+  // Sequential logic
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       state           <= IDLE;
@@ -223,3 +223,4 @@ module mt_ir_top
   end
 
 endmodule
+

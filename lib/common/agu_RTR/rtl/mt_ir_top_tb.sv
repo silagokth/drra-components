@@ -23,7 +23,7 @@ module mt_ir_top_tb
   // --------------------------------------------------------------------------
   localparam int ADDRESS_WIDTH = 16;
   localparam int NUMBER_IR = 4;
-  localparam int NUMBER_MT = 2; // Defines 3 lanes (0, 1, 2)
+  localparam int NUMBER_MT = 3;
   localparam int CLK_PERIOD = 10;
 
   logic                            clk;
@@ -120,6 +120,7 @@ module mt_ir_top_tb
   task automatic build_expected_full_sequence();
     int global_cycle_offset = 0;
     int max_lane_idx = 0;
+    int event_count = 0;
     int mt_config_count = 0;
     int stack_counter = 0;
     int lane_addr_count;
@@ -145,13 +146,12 @@ module mt_ir_top_tb
         mt_config_count++;
       end
     end
-    $display("    Max Configured Lane Index = %0d", max_lane_idx);
-    $display("    Number of MT Transitions = %0d", mt_config_count);
     for (int m = 0; m <= max_lane_idx; m++) begin
       type_arr[stack_counter]  = 2; // Event
       iter_arr[stack_counter]  = 0;
       delay_arr[stack_counter] = 0;
       stack_counter++;
+      event_count++;
       for (int i = 0; i < NUMBER_IR; i++) begin
         if (!rep_configs[m][i].is_configured) continue;
         type_arr[stack_counter]  = 0; // Repetition
@@ -161,9 +161,20 @@ module mt_ir_top_tb
       end
     end
     for (int t = 0; t < mt_config_count; t++) begin
-      $display("    Adding MT Transition %0d with delay %0d", t, mt_configs[t].delay);
+      if (event_count < t + 2) begin
+        if (event_count == t + 1) begin
+          $display("  [WARNING] MT Transition %0d configured, adding event", t);
+          type_arr[stack_counter]  = 2; // Event
+          iter_arr[stack_counter]  = 0;
+          delay_arr[stack_counter] = 0;
+          stack_counter++;
+          event_count++;
+        end else begin
+          $display("  [ERROR] MT Transition %0d configured but no subsequent lane enabled.", t);
+          error_count++;
+        end
+      end
       if (mt_configs[t].is_configured) begin
-        $display("      (Type=Transition, Iter=0, Delay=%0d)", mt_configs[t].delay);
         type_arr[stack_counter]  = 1; // Transition
         iter_arr[stack_counter]  = 0;
         delay_arr[stack_counter] = mt_configs[t].delay;
@@ -192,6 +203,10 @@ module mt_ir_top_tb
     end
 
     expected_total_addrs = addr_queue.size();
+    $display("    Total Expected Addresses: %0d", expected_total_addrs);
+    for (int c=0; c < expected_total_addrs; c++) begin
+      $display("cycle %d addr=%0d", cycle_queue[c], addr_queue[c]);
+    end
   endtask
 
   // --------------------------------------------------------------------------
@@ -275,9 +290,7 @@ module mt_ir_top_tb
     $display("+========================================+");
 
     // Reset
-    @(posedge clk);
-    rst_n = 1;
-    repeat(2) @(posedge clk);
+    @(posedge clk); rst_n = 1;
 
     // ============================================================
     // TEST 1: Single Lane (Lane 0 only)
@@ -297,7 +310,7 @@ module mt_ir_top_tb
     enable = 0;
     verify_final();
 
-    rst_n = 0; @(posedge clk); rst_n = 1; repeat(2) @(posedge clk);
+    rst_n = 0; @(posedge clk); rst_n = 1;
 
     // ============================================================
     // TEST 2: Two Lanes, No Delay
@@ -323,7 +336,7 @@ module mt_ir_top_tb
     enable = 0;
     verify_final();
 
-    rst_n = 0; @(posedge clk); rst_n = 1; repeat(2) @(posedge clk);
+    rst_n = 0; @(posedge clk); rst_n = 1;
 
     // ============================================================
     // TEST 3: Two Lanes, With 5 Cycle Delay
@@ -349,7 +362,7 @@ module mt_ir_top_tb
     enable = 0;
     verify_final();
 
-    rst_n = 0; @(posedge clk); rst_n = 1; repeat(2) @(posedge clk);
+    rst_n = 0; @(posedge clk); rst_n = 1;
 
     // ============================================================
     // TEST 4: Three Lanes (Full Chain) with Mixed Delays
@@ -372,6 +385,72 @@ module mt_ir_top_tb
     // Transitions
     configure_mt_trans(0, 2);  // 0->1 wait 2
     configure_mt_trans(1, 10); // 1->2 wait 10
+
+    build_expected_full_sequence();
+
+    current_cycle = 0;
+    addr_count = 0;
+    enable = 1;
+    wait_for_completion();
+    enable = 0;
+    verify_final();
+
+    rst_n = 0; @(posedge clk); rst_n = 1;
+
+    // ============================================================
+    // TEST 5: Two Lanes, No Repetitions, Just Transitions
+    // ============================================================
+    test_num++;
+    $display("\nTEST %0d: Two Lanes, No Repetitions", test_num);
+    init_configs();
+
+    // Transitions
+    configure_mt_trans(0, 1);  // 0->1 wait 1
+
+    build_expected_full_sequence();
+
+    current_cycle = 0;
+    addr_count = 0;
+    enable = 1;
+    wait_for_completion();
+    enable = 0;
+    verify_final();
+
+    rst_n = 0; @(posedge clk); rst_n = 1;
+
+    // ============================================================
+    // TEST 6: Three Lanes, No Repetitions, Just Transitions
+    // ============================================================
+    test_num++;
+    $display("\nTEST %0d: Three Lanes, No Repetitions", test_num);
+    init_configs();
+
+    // Transitions
+    configure_mt_trans(0, 5);  // 0->1 wait 5
+    configure_mt_trans(1, 3);  // 1->2 wait 3
+
+    build_expected_full_sequence();
+
+    current_cycle = 0;
+    addr_count = 0;
+    enable = 1;
+    wait_for_completion();
+    enable = 0;
+    verify_final();
+
+    rst_n = 0; @(posedge clk); rst_n = 1;
+
+    // ============================================================
+    // TEST 7: Four Lanes, No Repetitions, Just Transitions
+    // ============================================================
+    test_num++;
+    $display("\nTEST %0d: Four Lanes, No Repetitions", test_num);
+    init_configs();
+
+    // Transitions
+    configure_mt_trans(0, 5);  // 0->1 wait 5
+    configure_mt_trans(1, 3);  // 1->2 wait 3
+    configure_mt_trans(2, 20);  // 1->2 wait 3
 
     build_expected_full_sequence();
 
