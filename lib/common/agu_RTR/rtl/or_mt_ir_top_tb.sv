@@ -450,6 +450,26 @@ module or_mt_ir_top_tb
     wait_for_completion();
     enable = 0;
     verify_final();
+    rst_n = 0;
+    @(posedge clk);
+    rst_n = 1;
+
+    // ============================================================
+    // TEST 6: No OR
+    // ============================================================
+    test_num++;
+    $display("\nTEST %0d: No OR (Level 0: 10x)", test_num);
+    init_configs();
+    configure_lane_ir(0, 0, 0, 10, 1);  // Lane 0: 0..9
+
+    build_grand_expected_sequence();
+
+    current_cycle = 0;
+    addr_count = 0;
+    enable = 1;
+    repeat (10) @(posedge clk);
+    enable = 0;
+    verify_final();
 
     $display("\n+========================================+");
     if (error_count == 0) $display("|   STATUS: PASSED                       |");

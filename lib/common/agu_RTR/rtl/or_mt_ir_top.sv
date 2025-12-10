@@ -78,10 +78,15 @@ module or_mt_ir_top
 
   // Max level calculation: Determine the highest active OR level
   logic [$clog2(NUMBER_OR+1)-1:0] max_or_level;
+  logic any_or_configured;
   always_comb begin
     max_or_level = 0;
+    any_or_configured = 1'b0;
     for (int i = 0; i < NUMBER_OR; i++) begin
-      if (or_configs[i].iter > 0) max_or_level = i;
+      if (or_configs[i].iter > 0) begin
+        max_or_level = i;
+        any_or_configured = 1'b1;
+      end
     end
   end
 
@@ -97,8 +102,12 @@ module or_mt_ir_top
   logic all_or_done;
   always_comb begin
     all_or_done = 1'b1;
-    for (int i = 0; i <= max_or_level; i++) begin
-      if (!or_level_at_last[i]) all_or_done = 1'b0;
+    if (!rst_n) begin
+      all_or_done = 1'b0;
+    end else if (any_or_configured) begin
+      for (int i = 0; i <= max_or_level; i++) begin
+        if (!or_level_at_last[i]) all_or_done = 1'b0;
+      end
     end
   end
 
