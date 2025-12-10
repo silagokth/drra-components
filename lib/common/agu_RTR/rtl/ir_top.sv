@@ -71,6 +71,7 @@ module ir_top
     state_next = state;
     delay_count_next = delay_count;
     active_delay_level_next = active_delay_level;
+    ir_done = 1'b0;
 
     for (int i = 0; i < NUMBER_IR; i++) begin
       iter_count_next[i] = iter_count[i];
@@ -127,7 +128,8 @@ module ir_top
 
         // 4. Determine Next State
         if (all_done) begin
-          state_next = DONE;
+          ir_done = 1'b1;
+          state_next = IDLE;
         end else if (need_delay) begin
           state_next = DELAYING;
           delay_count_next = 1; // 1 cycle used by current output
@@ -184,7 +186,7 @@ module ir_top
   // and stays High during subsequent OUTPUTTING states.
   assign ir_valid = is_processing;
 
-  assign ir_done = (state_next == DONE);
+  //assign ir_done = (state_next == DONE);
 
 endmodule
 

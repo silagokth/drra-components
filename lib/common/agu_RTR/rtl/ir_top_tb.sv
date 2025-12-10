@@ -179,7 +179,7 @@ module ir_top_tb
         error_count++;
       end else begin
         if (addr_count < 10 || addr_count >= expected_total_addrs - 5) begin
-          $display("      Cycle[%0d]: %0d (PASS)", addr_count, cycle);
+          $display("      Cycle[%0d]: %0d (PASS)", addr_count - 1, cycle);
         end
       end
     end
@@ -497,6 +497,30 @@ module ir_top_tb
     enable = 1;
     current_cycle = 0;
     wait_for_completion(500);
+    enable = 0;
+    verify_completion();
+    rst_n = 0;
+    @(posedge clk);
+    rst_n = 1;
+    repeat (2) @(posedge clk);
+
+    // ========================================
+    // TEST 13: Single IR level, but keep enable high
+    // ========================================
+    init_configs();
+    configure_ir(0, 0, 4, 1);  // IR[0]: 4 iterations, step=1
+    addr_queue.delete();
+    cycle_queue.delete();
+    for (int i = 0; i < 8; i++) begin
+      cycle_queue.push_back(i);  // Just counting cycles
+      addr_queue.push_back(i % 4);  // Expect 0,1,2,3 repeated
+    end
+    print_test_header("Single IR Level - Keep Enable High");
+    $display("  Expected: 0,1,2,3,0,1,2,3");
+
+    enable = 1;
+    current_cycle = 0;
+    repeat (8) @(posedge clk);  // Wait until it is done
     enable = 0;
     verify_completion();
     rst_n = 0;
