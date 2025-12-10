@@ -15,7 +15,6 @@ exec $GCC $LINKER_FLAGS -o timingModel.so timingModel.o tm_wrapper.o \
   -static-libgcc -static-libstdc++
 
 vlog -svinputport=var -sv \
-                ./counter.sv \
                 ./agu_RTR_pkg.sv \
                 ./ir.sv \
                 ./ir_tb.sv

@@ -14,8 +14,7 @@ exec $GCC -c -fPIC -I../../sst/include -I$QUESTA_HOME/include \
 exec $GCC $LINKER_FLAGS -o timingModel.so timingModel.o tm_wrapper.o \
   -static-libgcc -static-libstdc++
 
-vlog -svinputport=var -sv ./counter.sv \
-                          ./agu_RTR_pkg.sv \
+vlog -svinputport=var -sv ./agu_RTR_pkg.sv \
                           ./ir.sv \
                           ./mt_ir.sv \
                           ./or_mt_ir.sv \
