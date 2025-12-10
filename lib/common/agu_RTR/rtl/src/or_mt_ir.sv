@@ -15,7 +15,7 @@ module or_mt_ir
     input rep_config_t   [NUMBER_OR-1:0] or_configs,
     // MT/IR configs: Passed down to the child
     input trans_config_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_t   [NUMBER_IR-1:0] rep_configs[NUMBER_MT+1],
+    input rep_config_t   [NUMBER_IR-1:0] ir_configs[NUMBER_MT+1],
 
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
@@ -58,14 +58,14 @@ module or_mt_ir
       .NUMBER_IR    (NUMBER_IR),
       .NUMBER_MT    (NUMBER_MT)
   ) mt_ir_inst (
-      .clk        (clk),
-      .rst_n      (rst_n),
-      .enable     (child_enable),  // Controlled by OR State Machine
-      .mt_configs (mt_configs),
-      .rep_configs(rep_configs),
-      .ir_addr    (child_addr),
-      .ir_valid   (child_valid),
-      .ir_done    (child_done)
+      .clk       (clk),
+      .rst_n     (rst_n),
+      .enable    (child_enable),  // Controlled by OR State Machine
+      .mt_configs(mt_configs),
+      .ir_configs(ir_configs),
+      .ir_addr   (child_addr),
+      .ir_valid  (child_valid),
+      .ir_done   (child_done)
   );
 
   // Pass through valid data immediately

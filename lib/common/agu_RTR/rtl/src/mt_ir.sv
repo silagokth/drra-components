@@ -11,7 +11,7 @@ module mt_ir
 
     // Configuration
     input trans_config_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_t   [NUMBER_IR-1:0] rep_configs[NUMBER_MT+1],
+    input rep_config_t   [NUMBER_IR-1:0] ir_configs[NUMBER_MT+1],
 
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
@@ -59,7 +59,7 @@ module mt_ir
     max_lane_index = '0;
     found_config   = 1'b0;
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (rep_configs[k][0].is_configured) begin
+      if (ir_configs[k][0].is_configured) begin
         max_lane_index = k;
         found_config   = 1'b1;
       end
@@ -76,7 +76,7 @@ module mt_ir
     if (active_lane_ptr > max_lane_index) begin
       step_configured = 1'b0;
     end else begin
-      step_configured = rep_configs[active_lane_ptr][0].is_configured;
+      step_configured = ir_configs[active_lane_ptr][0].is_configured;
     end
   end
   assign step_done = step_configured ? ir_done_array[active_lane_ptr] : 1'b1;
@@ -101,13 +101,13 @@ module mt_ir
           .ITER_WIDTH(REP_ITER_WIDTH),
           .STEP_WIDTH(REP_STEP_WIDTH)
       ) ir_inst (
-          .clk        (clk),
-          .rst_n      (rst_n),
-          .enable     (ir_enable_array[i]),
-          .rep_configs(rep_configs[i]),
-          .ir_addr    (ir_addr_array[i]),
-          .ir_valid   (ir_valid_array[i]),
-          .ir_done    (ir_done_array[i])
+          .clk       (clk),
+          .rst_n     (rst_n),
+          .enable    (ir_enable_array[i]),
+          .ir_configs(ir_configs[i]),
+          .ir_addr   (ir_addr_array[i]),
+          .ir_valid  (ir_valid_array[i]),
+          .ir_done   (ir_done_array[i])
       );
     end
   endgenerate
@@ -117,7 +117,7 @@ module mt_ir
     ir_valid = 1'b0;
     ir_addr  = '0;
 
-    if (current_mux_ptr <= max_lane_index && rep_configs[current_mux_ptr][0].is_configured) begin
+    if (current_mux_ptr <= max_lane_index && ir_configs[current_mux_ptr][0].is_configured) begin
       ir_addr  = ir_addr_array[current_mux_ptr];
       ir_valid = ir_valid_array[current_mux_ptr];
     end else begin
@@ -157,7 +157,7 @@ module mt_ir
 
         if (enable) begin
           // Check Lane 0 safely
-          if (rep_configs[0][0].is_configured) begin
+          if (ir_configs[0][0].is_configured) begin
             state_next = RUN_LANE;
           end else begin
             // Counter Mode logic for Cycle 0

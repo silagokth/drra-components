@@ -32,7 +32,7 @@ module mt_ir_tb
 
   // Configuration Signals
   trans_config_t [    NUMBER_MT-1:0] mt_configs;
-  rep_config_t   [    NUMBER_IR-1:0] rep_configs[NUMBER_MT+1];
+  rep_config_t   [    NUMBER_IR-1:0] ir_configs[NUMBER_MT+1];
 
   // Outputs
   logic          [ADDRESS_WIDTH-1:0] ir_addr;
@@ -63,7 +63,7 @@ module mt_ir_tb
       .rst_n      (rst_n),
       .enable     (enable),
       .mt_configs (mt_configs),
-      .rep_configs(rep_configs), // SystemVerilog handles unpacked array mapping here
+      .ir_configs(ir_configs), // SystemVerilog handles unpacked array mapping here
       .ir_addr    (ir_addr),
       .ir_valid   (ir_valid),
       .ir_done    (ir_done)
@@ -85,7 +85,7 @@ module mt_ir_tb
   task automatic init_configs();
     for (int m = 0; m <= NUMBER_MT; m++) begin
       for (int i = 0; i < NUMBER_IR; i++) begin
-        rep_configs[m][i] = '0; // Clear struct
+        ir_configs[m][i] = '0; // Clear struct
       end
     end
     for (int t = 0; t < NUMBER_MT; t++) begin
@@ -101,10 +101,10 @@ module mt_ir_tb
     input int iter,
     input int step
   );
-    rep_configs[lane][level].delay = delay;
-    rep_configs[lane][level].iter = iter;
-    rep_configs[lane][level].step = step;
-    rep_configs[lane][level].is_configured = 1;
+    ir_configs[lane][level].delay = delay;
+    ir_configs[lane][level].iter = iter;
+    ir_configs[lane][level].step = step;
+    ir_configs[lane][level].is_configured = 1;
   endtask
 
   // Configure transition delay (Delay AFTER lane 'trans_idx' finishes)
@@ -140,7 +140,7 @@ module mt_ir_tb
     $display("  Building expected sequence from configurations...");
     max_lane_idx = 0;
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (rep_configs[k][0].is_configured) begin
+      if (ir_configs[k][0].is_configured) begin
         max_lane_idx = k;
       end
       if (k < NUMBER_MT && mt_configs[k].is_configured) begin
@@ -154,10 +154,10 @@ module mt_ir_tb
       stack_counter++;
       event_count++;
       for (int i = 0; i < NUMBER_IR; i++) begin
-        if (!rep_configs[m][i].is_configured) continue;
+        if (!ir_configs[m][i].is_configured) continue;
         type_arr[stack_counter]  = 0; // Repetition
-        iter_arr[stack_counter] = rep_configs[m][i].iter;
-        delay_arr[stack_counter] = rep_configs[m][i].delay;
+        iter_arr[stack_counter] = ir_configs[m][i].iter;
+        delay_arr[stack_counter] = ir_configs[m][i].delay;
         stack_counter++;
       end
     end

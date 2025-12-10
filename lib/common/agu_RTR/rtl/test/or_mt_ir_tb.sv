@@ -34,7 +34,7 @@ module or_mt_ir_tb
   // Configurations
   rep_config_t [NUMBER_OR-1:0] or_configs;
   trans_config_t [NUMBER_MT-1:0] mt_configs;
-  rep_config_t [NUMBER_IR-1:0] rep_configs[NUMBER_MT+1];
+  rep_config_t [NUMBER_IR-1:0] ir_configs[NUMBER_MT+1];
 
   // Outputs
   logic [ADDRESS_WIDTH-1:0] ir_addr;
@@ -75,15 +75,15 @@ module or_mt_ir_tb
       .NUMBER_MT    (NUMBER_MT),
       .NUMBER_OR    (NUMBER_OR)
   ) dut (
-      .clk        (clk),
-      .rst_n      (rst_n),
-      .enable     (enable),
-      .or_configs (or_configs),
-      .mt_configs (mt_configs),
-      .rep_configs(rep_configs),
-      .ir_addr    (ir_addr),
-      .ir_valid   (ir_valid),
-      .ir_done    (ir_done)
+      .clk       (clk),
+      .rst_n     (rst_n),
+      .enable    (enable),
+      .or_configs(or_configs),
+      .mt_configs(mt_configs),
+      .ir_configs(ir_configs),
+      .ir_addr   (ir_addr),
+      .ir_valid  (ir_valid),
+      .ir_done   (ir_done)
   );
 
   // --------------------------------------------------------------------------
@@ -103,7 +103,7 @@ module or_mt_ir_tb
     end
     for (int m = 0; m <= NUMBER_MT; m++) begin
       for (int i = 0; i < NUMBER_IR; i++) begin
-        rep_configs[m][i] = '0;
+        ir_configs[m][i] = '0;
       end
     end
     for (int t = 0; t < NUMBER_MT; t++) begin
@@ -113,10 +113,10 @@ module or_mt_ir_tb
 
   task automatic configure_lane_ir(input int lane, input int level, input int delay, input int iter,
                                    input int step);
-    rep_configs[lane][level].delay = delay;
-    rep_configs[lane][level].iter = iter;
-    rep_configs[lane][level].step = step;
-    rep_configs[lane][level].is_configured = 1;
+    ir_configs[lane][level].delay = delay;
+    ir_configs[lane][level].iter = iter;
+    ir_configs[lane][level].step = step;
+    ir_configs[lane][level].is_configured = 1;
   endtask
 
   task automatic configure_mt_trans(input int trans_idx, input int delay);
@@ -158,7 +158,7 @@ module or_mt_ir_tb
 
     // Determine active lanes
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (rep_configs[k][0].is_configured) max_lane_idx = k;
+      if (ir_configs[k][0].is_configured) max_lane_idx = k;
     end
 
     // Iterate through sequence (Lane -> Trans -> Lane...)
@@ -174,10 +174,10 @@ module or_mt_ir_tb
       stack_counter++;
 
       for (int i = 0; i < NUMBER_IR; i++) begin
-        if (!rep_configs[m][i].is_configured) continue;
+        if (!ir_configs[m][i].is_configured) continue;
         type_arr[stack_counter]  = 0;  // Repetition
-        iter_arr[stack_counter]  = rep_configs[m][i].iter;
-        delay_arr[stack_counter] = rep_configs[m][i].delay;
+        iter_arr[stack_counter]  = ir_configs[m][i].iter;
+        delay_arr[stack_counter] = ir_configs[m][i].delay;
         stack_counter++;
       end
 

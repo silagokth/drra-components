@@ -10,7 +10,7 @@ module ir
     input  logic                            clk,
     input  logic                            rst_n,
     input  logic                            enable,
-    input  rep_config_t [    NUMBER_IR-1:0] rep_configs,
+    input  rep_config_t [    NUMBER_IR-1:0] ir_configs,
     output logic        [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                            ir_valid,
     output logic                            ir_done
@@ -36,7 +36,7 @@ module ir
   always_comb begin
     max_level = 0;
     for (int i = 0; i < NUMBER_IR; i++) begin
-      if (rep_configs[i].iter > 0) max_level = i;
+      if (ir_configs[i].iter > 0) max_level = i;
     end
   end
 
@@ -44,7 +44,7 @@ module ir
   logic level_at_last[NUMBER_IR];
   always_comb begin
     for (int i = 0; i < NUMBER_IR; i++) begin
-      level_at_last[i] = (iter_count[i] >= rep_configs[i].iter - 1);
+      level_at_last[i] = (iter_count[i] >= ir_configs[i].iter - 1);
     end
   end
 
@@ -106,7 +106,7 @@ module ir
         need_delay = 1'b0;
         active_delay_level_next = 0;
         for (int i = 0; i < NUMBER_IR; i++) begin
-          if (level_increments[i] && rep_configs[i].delay > 0 && !level_at_last[i]) begin
+          if (level_increments[i] && ir_configs[i].delay > 0 && !level_at_last[i]) begin
              // Priority to inner loops: only capture if we haven't found one yet
             if (!need_delay) begin
               need_delay = 1'b1;
@@ -142,7 +142,7 @@ module ir
     // DELAYING State Logic
     //---------------------------------------------------------------------
     else if (state == DELAYING) begin
-      if (delay_count >= rep_configs[active_delay_level].delay) begin
+      if (delay_count >= ir_configs[active_delay_level].delay) begin
         state_next = OUTPUTTING;
         delay_count_next = '0;
       end else begin

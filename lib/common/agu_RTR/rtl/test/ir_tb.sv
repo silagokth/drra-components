@@ -24,7 +24,7 @@ module ir_tb
   logic                            clk;
   logic                            rst_n;
   logic                            enable;
-  rep_config_t [    NUMBER_IR-1:0] rep_configs;
+  rep_config_t [    NUMBER_IR-1:0] ir_configs;
   logic        [ADDRESS_WIDTH-1:0] ir_addr;
   logic                            ir_valid;
   logic                            ir_done;
@@ -50,7 +50,7 @@ module ir_tb
       .clk(clk),
       .rst_n(rst_n),
       .enable(enable),
-      .rep_configs(rep_configs),
+      .ir_configs(ir_configs),
       .ir_addr(ir_addr),
       .ir_valid(ir_valid),
       .ir_done(ir_done)
@@ -85,11 +85,11 @@ module ir_tb
     delay_arr[0] = 0;
     stack_counter++;
     for (int i = 0; i < NUMBER_IR; i++) begin
-      if (!rep_configs[i].is_configured) continue;
+      if (!ir_configs[i].is_configured) continue;
       // Default to 1 iteration if 0 (disabled), so the math works
       type_arr[stack_counter]  = 0;  // Not used in this testbench (always repeat)
-      iter_arr[stack_counter]  = (rep_configs[i].iter == 0) ? 0 : rep_configs[i].iter;
-      delay_arr[stack_counter] = rep_configs[i].delay;
+      iter_arr[stack_counter]  = (ir_configs[i].iter == 0) ? 0 : ir_configs[i].iter;
+      delay_arr[stack_counter] = ir_configs[i].delay;
       stack_counter++;
     end
 
@@ -114,19 +114,19 @@ module ir_tb
 
   // Configure a specific IR level
   task automatic configure_ir(input int level, input int delay, input int iter, input int step);
-    rep_configs[level].delay = delay;
-    rep_configs[level].iter = iter;
-    rep_configs[level].step = step;
-    rep_configs[level].is_configured = 1;
+    ir_configs[level].delay = delay;
+    ir_configs[level].iter = iter;
+    ir_configs[level].step = step;
+    ir_configs[level].is_configured = 1;
   endtask
 
   // Initialize all IR levels to disabled
   task automatic init_configs();
     for (int i = 0; i < NUMBER_IR; i++) begin
-      rep_configs[i].delay = 0;
-      rep_configs[i].iter = 0;
-      rep_configs[i].step = 0;
-      rep_configs[i].is_configured = 0;
+      ir_configs[i].delay = 0;
+      ir_configs[i].iter = 0;
+      ir_configs[i].step = 0;
+      ir_configs[i].is_configured = 0;
     end
   endtask
 
@@ -194,8 +194,8 @@ module ir_tb
     // Calculate outer loop repetitions
     outer_repetitions = 1;
     for (int i = 1; i < NUMBER_IR; i++) begin
-      if (rep_configs[i].iter > 0) begin
-        outer_repetitions *= rep_configs[i].iter;
+      if (ir_configs[i].iter > 0) begin
+        outer_repetitions *= ir_configs[i].iter;
       end
     end
 
@@ -204,8 +204,8 @@ module ir_tb
     $display("TEST %0d: %s", test_num, test_name);
     $display("========================================");
     for (int i = 0; i < NUMBER_IR; i++) begin
-      $display("  IR[%0d]: delay=%0d, iter=%0d, step=%0d", i, rep_configs[i].delay,
-               rep_configs[i].iter, rep_configs[i].step);
+      $display("  IR[%0d]: delay=%0d, iter=%0d, step=%0d", i, ir_configs[i].delay,
+               ir_configs[i].iter, ir_configs[i].step);
     end
     $display("  IR[0] will repeat: %0d times", outer_repetitions);
     $display("  Expected total addresses: %0d", expected_total_addrs);
