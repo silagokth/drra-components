@@ -3,8 +3,8 @@ module agu_RTR
 #(
     parameter int ADDRESS_WIDTH = 16,
     parameter int NUMBER_IR     = 4,
-    parameter int NUMBER_MT     = 0,
-    parameter int NUMBER_OR     = 0
+    parameter int NUMBER_MT     = 3,
+    parameter int NUMBER_OR     = 4
 ) (
     input logic clk,
     input logic rst_n,
