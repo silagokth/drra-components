@@ -1,0 +1,8 @@
+package:
+  name: agu_RTR
+
+sources:
+  - ./src/agu_RTR_pkg.sv
+  - ./src/ir.sv
+  - ./src/mt_ir.sv
+  - ./src/or_mt_ir.sv
