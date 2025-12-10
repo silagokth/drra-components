@@ -45,6 +45,7 @@ module mt_ir_top_tb
   int error_count = 0;
   int addr_count = 0;
   int expected_total_addrs;
+  int current_queue_size;
 
   // Validation Queues
   logic [ADDRESS_WIDTH-1:0] addr_queue [$];
@@ -458,6 +459,35 @@ module mt_ir_top_tb
     addr_count = 0;
     enable = 1;
     wait_for_completion();
+    enable = 0;
+    verify_final();
+
+    rst_n = 0; @(posedge clk); rst_n = 1;
+
+    // ============================================================
+    // TEST 8: Two lanes, One Repetition Each, No Delays, keep enable high
+    // ============================================================
+    test_num++;
+    $display("\nTEST %0d: Two Lanes, One Repetition Each, No Delays, keep enable high", test_num);
+    init_configs();
+
+    configure_lane_ir(0, 0, 0, 2, 1); // Lane 0: 2 iterations
+    configure_lane_ir(1, 0, 0, 3, 1); // Lane 1: 3 iterations
+    configure_mt_trans(0, 0);  // 0->1 wait 0
+
+    build_expected_full_sequence();
+    current_queue_size = addr_queue.size();
+    for (int c=0; c < current_queue_size; c++) begin
+      cycle_queue.push_back(current_queue_size + c); // Append same addresses after first run
+      addr_queue.push_back(addr_queue[c]);
+    end
+
+    current_cycle = 0;
+    addr_count = 0;
+    enable = 1;
+    wait_for_completion();
+    @(posedge clk);
+    wait_for_completion(); // Wait again without disabling
     enable = 0;
     verify_final();
 

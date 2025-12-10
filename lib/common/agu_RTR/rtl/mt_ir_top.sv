@@ -131,7 +131,7 @@ module mt_ir_top
     end
   end
 
-  assign ir_done = (state_next == DONE);
+  // assign ir_done = (state_next == DONE);
 
   // Lane enable logic
   always_comb begin
@@ -148,6 +148,7 @@ module mt_ir_top
     state_next           = state;
     active_lane_ptr_next = active_lane_ptr;
     transition_cnt_next  = transition_cnt;
+    ir_done              = 1'b0;
 
     case (state)
       IDLE: begin
@@ -176,7 +177,8 @@ module mt_ir_top
       RUN_LANE: begin
         if (step_done) begin
           if (active_lane_ptr >= max_lane_index) begin
-            state_next = DONE;
+            ir_done = 1'b1;
+            state_next = IDLE;
           end else begin
             if (mt_configs[active_lane_ptr].delay > 0) begin
               state_next = TRANSITION_DELAY;

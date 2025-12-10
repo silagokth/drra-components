@@ -16,7 +16,6 @@ exec $GCC $LINKER_FLAGS -o timingModel.so timingModel.o tm_wrapper.o \
 
 vlog -svinputport=var -sv ./counter.sv \
                           ./agu_RTR_pkg.sv \
-                          ./ir_generator.sv \
                           ./ir_top.sv \
                           ./mt_ir_top.sv \
                           ./mt_ir_top_tb.sv
