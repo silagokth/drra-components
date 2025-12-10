@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module mt_ir_top_tb
+module mt_ir_tb
   import agu_RTR_pkg::*;
 ();
 
@@ -54,7 +54,7 @@ module mt_ir_top_tb
   // --------------------------------------------------------------------------
   // DUT Instantiation
   // --------------------------------------------------------------------------
-  mt_ir_top #(
+  mt_ir #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR    (NUMBER_IR),
       .NUMBER_MT    (NUMBER_MT)
@@ -286,7 +286,7 @@ module mt_ir_top_tb
 
     $display("");
     $display("+========================================+");
-    $display("|   MT_IR_TOP TESTBENCH                  |");
+    $display("|   MT_IR TESTBENCH                      |");
     $display("|   (Multi-Lane Sequence Verification)   |");
     $display("+========================================+");
 

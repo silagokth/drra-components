@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module or_mt_ir_top_tb
+module or_mt_ir_tb
   import agu_RTR_pkg::*;
 ();
 
@@ -69,7 +69,7 @@ module or_mt_ir_top_tb
   // --------------------------------------------------------------------------
   // DUT Instantiation
   // --------------------------------------------------------------------------
-  or_mt_ir_top #(
+  or_mt_ir #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR    (NUMBER_IR),
       .NUMBER_MT    (NUMBER_MT),
@@ -199,7 +199,7 @@ module or_mt_ir_top_tb
       // But we need to account for the +1 cycle implicit in state machine transitions if any.
       // For simplicity, we assume the previous logic: max_cyc is the last active cycle.
       // The next lane starts after this lane finishes.
-      // In mt_ir_top, transition happens AFTER lane done.
+      // In mt_ir, transition happens AFTER lane done.
       if (lane_addr_count > 0) begin
         // If lane generated data, duration is max_cyc + 1 (since cyc is 0-indexed)
         mt_offset += (lane_duration + 1);
@@ -332,8 +332,9 @@ module or_mt_ir_top_tb
     @(posedge clk);
     rst_n = 1;
 
-    $display("\n+========================================+");
-    $display("|   OR_MT_IR_TOP TESTBENCH               |");
+    $display("\n");
+    $display("+========================================+");
+    $display("|   OR_MT_IR TESTBENCH                   |");
     $display("+========================================+");
 
     // ============================================================

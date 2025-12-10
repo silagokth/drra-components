@@ -1,4 +1,4 @@
-module or_mt_ir_top
+module or_mt_ir
   import agu_RTR_pkg::*;
 #(
     parameter int ADDRESS_WIDTH,
@@ -41,7 +41,7 @@ module or_mt_ir_top
   logic child_done;
   logic [ADDRESS_WIDTH-1:0] child_addr;
 
-  // OR Level Counters (Same structure as ir_top)
+  // OR Level Counters (Same structure as ir)
   logic [REP_ITER_WIDTH-1:0] or_iter_count[NUMBER_OR];
   logic [REP_ITER_WIDTH-1:0] or_iter_count_next[NUMBER_OR];
   logic [REP_DELAY_WIDTH-1:0] or_delay_count, or_delay_count_next;
@@ -51,9 +51,9 @@ module or_mt_ir_top
   logic [$clog2(NUMBER_OR)-1:0] active_or_delay_level_next;
 
   // --------------------------------------------------------------------------
-  // Child Instantiation (MT_IR_TOP)
+  // Child Instantiation (MT_IR)
   // --------------------------------------------------------------------------
-  mt_ir_top #(
+  mt_ir #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR    (NUMBER_IR),
       .NUMBER_MT    (NUMBER_MT)
@@ -73,7 +73,7 @@ module or_mt_ir_top
   assign ir_valid = child_valid;
 
   // --------------------------------------------------------------------------
-  // OR Logic: Level Calculations (Adapted from ir_top.sv)
+  // OR Logic: Level Calculations (Adapted from ir.sv)
   // --------------------------------------------------------------------------
 
   // Max level calculation: Determine the highest active OR level
@@ -218,7 +218,7 @@ module or_mt_ir_top
       // Holds child_enable low to reset the child, and waits user-defined cycles.
       // ----------------------------------------------------------------------
       OR_DELAY: begin
-        child_enable = 1'b0;  // Resets mt_ir_top logic to IDLE
+        child_enable = 1'b0;  // Resets mt_ir logic to IDLE
 
         // Check against the configured delay for the active level
         // Even if config delay is 0, we spend this 1 cycle here effectively resetting.

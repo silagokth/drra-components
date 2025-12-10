@@ -1,4 +1,4 @@
-module mt_ir_top
+module mt_ir
   import agu_RTR_pkg::*;
 #(
     parameter int ADDRESS_WIDTH,
@@ -94,13 +94,13 @@ module mt_ir_top
   genvar i;
   generate
     for (i = 0; i <= NUMBER_MT; i++) begin : gen_ir_lanes
-      ir_top #(
+      ir #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .NUMBER_IR(NUMBER_IR),
           .DELAY_WIDTH(REP_DELAY_WIDTH),
           .ITER_WIDTH(REP_ITER_WIDTH),
           .STEP_WIDTH(REP_STEP_WIDTH)
-      ) ir_top_inst (
+      ) ir_inst (
           .clk        (clk),
           .rst_n      (rst_n),
           .enable     (ir_enable_array[i]),

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module ir_top_tb
+module ir_tb
   import agu_RTR_pkg::*;
 ();
 
@@ -40,7 +40,7 @@ module ir_top_tb
   logic        [ADDRESS_WIDTH-1:0] expected_addr;
 
   // ===== DUT Instantiation =====
-  ir_top #(
+  ir #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR(NUMBER_IR),
       .DELAY_WIDTH  (REP_DELAY_WIDTH),
@@ -246,7 +246,7 @@ module ir_top_tb
 
     $display("");
     $display("+========================================+");
-    $display("|   IR_TOP TESTBENCH                     |");
+    $display("|   IR TESTBENCH                         |");
     $display("|   (Innermost Loop Output Only)         |");
     $display("+========================================+");
 
@@ -564,8 +564,8 @@ module ir_top_tb
 
   // ===== Waveform Dump =====
   initial begin
-    $dumpfile("ir_top_tb.vcd");
-    $dumpvars(0, ir_top_tb);
+    $dumpfile("ir_tb.vcd");
+    $dumpvars(0, ir_tb);
   end
 
   // ===== Performance Metrics =====

@@ -1,4 +1,4 @@
-module ir_top
+module ir
   import agu_RTR_pkg::rep_config_t;
 #(
     parameter int ADDRESS_WIDTH,
