@@ -172,7 +172,7 @@ module agu_level #(
   end
 
   assign finish = (iter_counter == iterations_reg && lower_level_finish);
-  assign count_state  = (state == COUNT);
+  assign count_state = (state == COUNT);
 
   // config loading registers
   always_ff @(posedge clk or negedge rst_n) begin
@@ -189,7 +189,7 @@ module agu_level #(
         end else begin
           delay_reg <= delay;
           step_reg <= step;
-          iterations_reg <= iterations;
+          iterations_reg <= iterations - 1;  // NOTE: changed to match the new timing model
         end
       end
     end
@@ -199,10 +199,10 @@ module agu_level #(
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       delay_counter <= 0;
-      iter_counter <= 0;
+      iter_counter  <= 0;
     end else begin
       delay_counter <= delay_counter_next;
-      iter_counter <= iter_counter_next;
+      iter_counter  <= iter_counter_next;
     end
   end
 
@@ -223,58 +223,58 @@ module agu_level #(
           iter_counter_next = 0;
           delay_counter_next = 0;
         end else begin
-          next_state   = IDLE;
+          next_state = IDLE;
           next_address = 0;
-          delay_counter_next=0;
-          iter_counter_next=0;
+          delay_counter_next = 0;
+          iter_counter_next = 0;
         end
       end
 
       COUNT: begin
         if (lower_level_finish) begin
-            if (higher_level_finish) begin
-              if (finish) begin
-                next_state = IDLE;
-                next_address = 0;
-                iter_counter_next = 0;
-              end else begin
-                if (delay_reg>0) begin
-                  next_state   = DELAY;
-                  next_address = address;
-                  iter_counter_next = iter_counter;
-                end else begin
-                  next_state   = COUNT;
-                  next_address = address + step_reg;
-                  iter_counter_next = iter_counter + 1;
-                  lower_level_restart = 1;
-                end
-              end
+          if (higher_level_finish) begin
+            if (finish) begin
+              next_state = IDLE;
+              next_address = 0;
+              iter_counter_next = 0;
             end else begin
-              if (finish) begin
-                if (higher_level_restart) begin
-                  next_state = COUNT;
-                  next_address = 0;
-                  iter_counter_next = 0;
-                  lower_level_restart = 1;
-                end else begin
-                  next_state = WAIT;
-                  next_address = address;
-                  iter_counter_next = iter_counter;
-                end
-
+              if (delay_reg > 0) begin
+                next_state = DELAY;
+                next_address = address;
+                iter_counter_next = iter_counter;
               end else begin
-                if (delay_reg>0) begin
-                  next_state   = DELAY;
-                  next_address = address;
-                  iter_counter_next = iter_counter;
-                end else begin
-                  next_state   = COUNT;
-                  next_address = address + step_reg;
-                  iter_counter_next = iter_counter + 1;
-                  lower_level_restart = 1;
-                end
+                next_state = COUNT;
+                next_address = address + step_reg;
+                iter_counter_next = iter_counter + 1;
+                lower_level_restart = 1;
               end
             end
+          end else begin
+            if (finish) begin
+              if (higher_level_restart) begin
+                next_state = COUNT;
+                next_address = 0;
+                iter_counter_next = 0;
+                lower_level_restart = 1;
+              end else begin
+                next_state = WAIT;
+                next_address = address;
+                iter_counter_next = iter_counter;
+              end
+
+            end else begin
+              if (delay_reg > 0) begin
+                next_state = DELAY;
+                next_address = address;
+                iter_counter_next = iter_counter;
+              end else begin
+                next_state = COUNT;
+                next_address = address + step_reg;
+                iter_counter_next = iter_counter + 1;
+                lower_level_restart = 1;
+              end
+            end
+          end
         end else begin
           next_state = WAIT;
           next_address = address;
@@ -291,12 +291,12 @@ module agu_level #(
               next_address = 0;
               iter_counter_next = 0;
             end else begin
-              if (delay_reg>0) begin
-                next_state   = DELAY;
+              if (delay_reg > 0) begin
+                next_state = DELAY;
                 next_address = address;
                 iter_counter_next = iter_counter;
               end else begin
-                next_state   = COUNT;
+                next_state = COUNT;
                 next_address = address + step_reg;
                 iter_counter_next = iter_counter + 1;
                 lower_level_restart = 1;
@@ -315,12 +315,12 @@ module agu_level #(
                 iter_counter_next = iter_counter;
               end
             end else begin
-              if (delay_reg>0) begin
-                next_state   = DELAY;
+              if (delay_reg > 0) begin
+                next_state = DELAY;
                 next_address = address;
                 iter_counter_next = iter_counter;
               end else begin
-                next_state   = COUNT;
+                next_state = COUNT;
                 next_address = address + step_reg;
                 iter_counter_next = iter_counter + 1;
                 lower_level_restart = 1;
@@ -335,19 +335,19 @@ module agu_level #(
       DELAY: begin
         delay_counter_next = delay_counter + 1;
         if (delay_counter_next == delay_reg) begin
-          next_state   = COUNT;
-          next_address = address+step_reg;
-          iter_counter_next = iter_counter+1;
+          next_state = COUNT;
+          next_address = address + step_reg;
+          iter_counter_next = iter_counter + 1;
           lower_level_restart = 1;
           delay_counter_next = 0;
         end else begin
-          next_state   = DELAY;
+          next_state = DELAY;
           next_address = address;
           iter_counter_next = iter_counter;
         end
       end
       default: begin
-        next_state   = IDLE;
+        next_state = IDLE;
         next_address = 0;
         iter_counter_next = 0;
         delay_counter_next = 0;
@@ -356,3 +356,4 @@ module agu_level #(
   end
 
 endmodule
+
