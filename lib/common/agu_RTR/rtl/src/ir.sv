@@ -1,16 +1,18 @@
 module ir
-  import agu_RTR_pkg::rep_config_t;
+  import agu_RTR_pkg::*;
 #(
     parameter int ADDRESS_WIDTH,
     parameter int NUMBER_IR,
     parameter int DELAY_WIDTH,
-    parameter int ITER_WIDTH,
-    parameter int STEP_WIDTH
+    parameter int ITER_WIDTH
 ) (
     input  logic                            clk,
     input  logic                            rst_n,
     input  logic                            enable,
-    input  rep_config_t [    NUMBER_IR-1:0] ir_configs,
+    input rep_config_class#(
+        .DELAY_WIDTH(DELAY_WIDTH),
+        .ITER_WIDTH (ITER_WIDTH)
+    )::rep_t [NUMBER_IR-1:0] ir_configs,
     output logic        [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                            ir_valid,
     output logic                            ir_done
@@ -189,4 +191,3 @@ module ir
   //assign ir_done = (state_next == DONE);
 
 endmodule
-

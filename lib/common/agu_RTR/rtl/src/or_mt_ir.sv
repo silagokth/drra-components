@@ -4,7 +4,10 @@ module or_mt_ir
     parameter int ADDRESS_WIDTH,
     parameter int NUMBER_IR,
     parameter int NUMBER_MT,
-    parameter int NUMBER_OR  // Number of nesting levels for the Outer Loop
+    parameter int NUMBER_OR,
+    parameter int REP_DELAY_WIDTH,
+    parameter int REP_ITER_WIDTH,
+    parameter int TRANS_DELAY_WIDTH
 ) (
     input logic clk,
     input logic rst_n,
@@ -12,10 +15,16 @@ module or_mt_ir
 
     // Configurations
     // OR configs: Controls the repetition of the whole MT sequence
-    input rep_config_t   [NUMBER_OR-1:0] or_configs,
+    input rep_config_class#(
+        .DELAY_WIDTH(REP_DELAY_WIDTH),
+        .ITER_WIDTH (REP_ITER_WIDTH)
+    )::rep_t [NUMBER_OR-1:0] or_configs,
     // MT/IR configs: Passed down to the child
-    input trans_config_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_t   [NUMBER_IR-1:0] ir_configs[NUMBER_MT+1],
+    input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
+    input rep_config_class#(
+        .DELAY_WIDTH(REP_DELAY_WIDTH),
+        .ITER_WIDTH (REP_ITER_WIDTH)
+    )::rep_t [NUMBER_IR-1:0][NUMBER_MT+1] ir_configs,
 
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
@@ -54,9 +63,12 @@ module or_mt_ir
   // Child Instantiation (MT_IR)
   // --------------------------------------------------------------------------
   mt_ir #(
-      .ADDRESS_WIDTH(ADDRESS_WIDTH),
-      .NUMBER_IR    (NUMBER_IR),
-      .NUMBER_MT    (NUMBER_MT)
+      .ADDRESS_WIDTH    (ADDRESS_WIDTH),
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (NUMBER_MT),
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) mt_ir_inst (
       .clk       (clk),
       .rst_n     (rst_n),

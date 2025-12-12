@@ -3,15 +3,21 @@ module mt_ir
 #(
     parameter int ADDRESS_WIDTH,
     parameter int NUMBER_IR,
-    parameter int NUMBER_MT
+    parameter int NUMBER_MT,
+    parameter int REP_DELAY_WIDTH,
+    parameter int REP_ITER_WIDTH,
+    parameter int TRANS_DELAY_WIDTH
 ) (
     input logic clk,
     input logic rst_n,
     input logic enable,
 
     // Configuration
-    input trans_config_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_t   [NUMBER_IR-1:0] ir_configs[NUMBER_MT+1],
+    input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
+    input rep_config_class#(
+        .DELAY_WIDTH(REP_DELAY_WIDTH),
+        .ITER_WIDTH (REP_ITER_WIDTH)
+    )::rep_t [NUMBER_IR-1:0][NUMBER_MT+1] ir_configs,
 
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
@@ -35,8 +41,8 @@ module mt_ir
 
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr_next;
-  logic [                   31:0] transition_cnt;
-  logic [                   31:0] transition_cnt_next;
+  logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt;
+  logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt_next;
   logic [$clog2(NUMBER_MT+1)-1:0] current_mux_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] max_lane_index;
 
@@ -98,8 +104,7 @@ module mt_ir
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .NUMBER_IR(NUMBER_IR),
           .DELAY_WIDTH(REP_DELAY_WIDTH),
-          .ITER_WIDTH(REP_ITER_WIDTH),
-          .STEP_WIDTH(REP_STEP_WIDTH)
+          .ITER_WIDTH(REP_ITER_WIDTH)
       ) ir_inst (
           .clk       (clk),
           .rst_n     (rst_n),
@@ -225,4 +230,3 @@ module mt_ir
   end
 
 endmodule
-
