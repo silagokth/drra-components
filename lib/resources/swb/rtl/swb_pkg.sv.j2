@@ -6,9 +6,7 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "package.j2" %}
   // vesyla_template_end package_macro
 
-  parameter OPCODE_SWB = 3'b100;
-  parameter OPCODE_ROUTE = 3'b101;
-  parameter OPCODE_FSM = 3'b010;
+  import agu_RTR_pkg::*;
 
   parameter int NUM_OPTIONS = 4;
   parameter int FSM_MAX_STATES = 4;
@@ -46,30 +44,14 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int INCLUDE_MT_STATES = 1;
   parameter int INCLUDE_OR_STATES = 1;
 
-  typedef struct {
-    logic [REP_DELAY_WIDTH-1:0] delays [(NUMBER_MT+1)*NUMBER_IR];
-    logic [REP_ITER_WIDTH-1:0]  iters  [(NUMBER_MT+1)*NUMBER_IR];
-    logic [REP_STEP_WIDTH-1:0]  steps  [(NUMBER_MT+1)*NUMBER_IR];
-    logic                       confs  [(NUMBER_MT+1)*NUMBER_IR];
-  } agu_IR_config_t;
-
-  typedef struct {
-    logic [TRANS_DELAY_WIDTH-1:0] delays [NUMBER_MT];
-    logic                         confs  [NUMBER_MT];
-  } agu_MT_config_t;
-
-  typedef struct {
-    logic [REP_DELAY_WIDTH-1:0] delays [NUMBER_OR];
-    logic [REP_ITER_WIDTH-1:0]  iters  [NUMBER_OR];
-    logic [REP_STEP_WIDTH-1:0]  steps  [NUMBER_OR];
-    logic                       confs  [NUMBER_OR];
-  } agu_OR_config_t;
-
-  typedef struct {
-    agu_IR_config_t IR_configs;
-    agu_MT_config_t MT_configs;
-    agu_OR_config_t OR_configs;
-  } agu_config_t;
+  typedef agu_config_class#(
+    .NUMBER_IR         (NUMBER_IR),
+    .NUMBER_MT         (NUMBER_MT),
+    .NUMBER_OR         (NUMBER_OR),
+    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
+    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
 
   typedef struct {
     logic [$clog2(NUM_SLOTS)-1:0] slot_link [NUM_SLOTS];

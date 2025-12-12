@@ -60,6 +60,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // NOTE: The switchbox only uses 2 AGUs
     // (1 for SWB and 1 for ROUTE)
     agu_config_t agu_configs[NUM_AGUS];
+    logic [NUM_AGUS-1:0] agu_is_configured;
 
     // Controller module (decodes instructions)
     {{name}}_{{fingerprint}}_controller controller_inst (
@@ -97,6 +98,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .agu_enable(agu_enable),
       .agu_address(agu_address),
+      .agu_is_configured(agu_is_configured),
 
       .swb_conf_valid(swb_conf_valid),
       .route_in_conf_valid(route_in_conf_valid),
@@ -122,11 +124,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
         agu_RTR #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
-          .REP_LEVEL_WIDTH(REP_LEVEL_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
           .REP_ITER_WIDTH(REP_ITER_WIDTH),
-          .REP_STEP_WIDTH(REP_STEP_WIDTH),
-          .TRANS_LEVEL_WIDTH(TRANS_LEVEL_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
           .NUMBER_OR(NUMBER_OR),
           .NUMBER_MT(NUMBER_MT),
@@ -137,23 +136,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
           .activation(activate_0[agu_port]),
 
-          .rep_valid(rep_valid[agu_port]),
-          .repx_valid('0), // NOTE: REPX not supported
-          .trans_valid(trans_valid[agu_port]),
+          .agu_config(agu_configs[gen_i]),
 
-          .rep_delay_IR(agu_configs[gen_i].IR_configs.delays),
-          .rep_iter_IR(agu_configs[gen_i].IR_configs.iters),
-          .rep_step_IR(agu_configs[gen_i].IR_configs.steps),
-          .rep_config_IR(agu_configs[gen_i].IR_configs.confs),
-          .trans_delay(agu_configs[gen_i].MT_configs.delays),
-          .trans_config(agu_configs[gen_i].MT_configs.confs),
-          .rep_delay_OR(agu_configs[gen_i].OR_configs.delays),
-          .rep_iter_OR(agu_configs[gen_i].OR_configs.iters),
-          .rep_step_OR(agu_configs[gen_i].OR_configs.steps),
-          .rep_config_OR(agu_configs[gen_i].OR_configs.confs),
-
-          .address_valid(agu_enable[gen_i]),
-          .address(agu_address[gen_i])
+          .addr(agu_address[gen_i]),
+          .addr_valid(agu_enable[gen_i]),
+          .done()
         );
       end
     endgenerate
@@ -161,7 +148,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // SWB word channel routing logic
     always_comb
       for (int i=0; i < NUM_SLOTS; i++)
-        word_channels_out[i] = word_channels_in[curr_swb_configs.slot_link[i]];
+        word_channels_out[curr_swb_configs.slot_link[i]] = word_channels_in[i];
 
     logic [BULK_BITWIDTH-1:0] bulk_local_channel;
 

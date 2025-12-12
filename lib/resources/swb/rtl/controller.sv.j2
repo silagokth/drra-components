@@ -28,7 +28,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output route_send_config_t    route_out_configs [NUM_OPTIONS],
 
     // AGU configurations
-    output agu_config_t agu_configs[NUM_AGUS]
+    output agu_config_t agu_configs[NUM_AGUS],
+    output logic [NUM_AGUS-1:0] agu_is_configured
 );
   // Get opcode
   logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
@@ -108,18 +109,46 @@ import {{name}}_{{fingerprint}}_pkg::*;
       agu_conf_enable = AGU_ROUTE_INDEX;
   end
 
+  // Keep track of current rep lane
+  logic [NUMBER_MT:0] current_lane [NUM_AGUS];
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      for (int i = 0; i < NUM_AGUS; i++) current_lane[i] <= '0;
+    end else begin
+      if (trans_valid_instr) begin
+        assert(current_lane[agu_conf_enable] == trans_instr._level)
+          else $error("Transition level mistmatch in SWB/ROUTE controller at AGU %0d", agu_conf_enable);
+        current_lane[agu_conf_enable] <= current_lane[agu_conf_enable] + 1;
+      end
+    end
+  end
+
   // Assign AGU configuration
   always_comb begin
     for (int i = 0; i < NUM_AGUS; i++) agu_configs[i] = '{default: '0};
 
     if (rep_valid_instr) begin
-      agu_configs[agu_conf_enable].IR_configs.delays[rep_instr._level] = rep_instr._delay;
-      agu_configs[agu_conf_enable].IR_configs.iters[rep_instr._level]  = rep_instr._iter;
-      agu_configs[agu_conf_enable].IR_configs.steps[rep_instr._level]  = 1; // NOTE: step is always 1 for SWB
-      agu_configs[agu_conf_enable].IR_configs.confs[rep_instr._level]  = '1;
+      agu_configs[agu_conf_enable].ir_configs[current_lane[agu_conf_enable]][rep_instr._level] = rep_instr._delay;
+      agu_configs[agu_conf_enable].ir_configs[current_lane[agu_conf_enable]][rep_instr._level].iter  = rep_instr._iter;
+      agu_configs[agu_conf_enable].ir_configs[current_lane[agu_conf_enable]][rep_instr._level].is_configured = 1;
     end else if (trans_valid_instr) begin
-      agu_configs[agu_conf_enable].MT_configs.delays[trans_instr._level] = trans_instr._delay;
-      agu_configs[agu_conf_enable].MT_configs.confs[trans_instr._level]  = '1;
+      agu_configs[agu_conf_enable].mt_configs[current_lane[agu_conf_enable]].delay = trans_instr._delay;
+      agu_configs[agu_conf_enable].mt_configs[current_lane[agu_conf_enable]].is_configured = 1;
+    end
+  end
+
+  // Calculate if AGU is configured
+  always_comb begin
+    for (int i = 0; i < NUM_AGUS; i++) begin
+      agu_is_configured[i] = 0;
+      for (int l = 0; l <= NUMBER_MT; l++) begin
+        if (agu_configs[i].mt_configs[l].is_configured)
+          agu_is_configured[i] = 1;
+        for (int r = 0; r <= NUMBER_IR; r++) begin
+          if (agu_configs[i].ir_configs[l][r].is_configured)
+            agu_is_configured[i] = 1;
+        end
+      end
     end
   end
 

@@ -3,6 +3,7 @@ package:
 
 dependencies:
   fsm: { path: ../../common/fsm }
+  agu_RTR: { path: ../../common/agu_RTR }
 
 sources:
   - ./rtl/swb_pkg.sv
