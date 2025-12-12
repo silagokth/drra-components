@@ -73,16 +73,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
 
   // Configuration signals from controller to AGU_RTR
-  logic [    REP_DELAY_WIDTH-1:0] rep_delay_IR      [(NUMBER_MT+1)*NUMBER_IR];
-  logic [     REP_ITER_WIDTH-1:0] rep_iter_IR       [(NUMBER_MT+1)*NUMBER_IR];
-  logic [     REP_STEP_WIDTH-1:0] rep_step_IR       [(NUMBER_MT+1)*NUMBER_IR];
-  logic                           rep_config_IR     [(NUMBER_MT+1)*NUMBER_IR];
-  logic [  TRANS_DELAY_WIDTH-1:0] trans_delay       [              NUMBER_MT];
-  logic                           trans_config      [              NUMBER_MT];
-  logic [    REP_DELAY_WIDTH-1:0] rep_delay_OR      [              NUMBER_OR];
-  logic [     REP_ITER_WIDTH-1:0] rep_iter_OR       [              NUMBER_OR];
-  logic [     REP_STEP_WIDTH-1:0] rep_step_OR       [              NUMBER_OR];
-  logic                           rep_config_OR     [              NUMBER_OR];
+  agu_config_t agu_config;
 
   logic [      ADDRESS_WIDTH-1:0] address;
   logic                           address_valid;
@@ -93,11 +84,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
   agu_RTR #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
-      .REP_LEVEL_WIDTH(REP_LEVEL_WIDTH),
       .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
-      .REP_STEP_WIDTH(REP_STEP_WIDTH),
-      .TRANS_LEVEL_WIDTH(TRANS_LEVEL_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
       .NUMBER_OR(NUMBER_OR),
       .NUMBER_MT(NUMBER_MT),
@@ -106,21 +94,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .clk(clk),
       .rst_n(rst_n),
       .activation(|activate),
-      .rep_valid(rep_valid),
-      .repx_valid(repx_valid),
-      .rep_delay_IR(rep_delay_IR),
-      .rep_iter_IR(rep_iter_IR),
-      .rep_step_IR(rep_step_IR),
-      .rep_config_IR(rep_config_IR),
-      .trans_valid(trans_valid),
-      .trans_delay(trans_delay),
-      .trans_config(trans_config),
-      .rep_delay_OR(rep_delay_OR),
-      .rep_iter_OR(rep_iter_OR),
-      .rep_step_OR(rep_step_OR),
-      .rep_config_OR(rep_config_OR),
-      .address_valid(address_valid),
-      .address(address)
+      .agu_config(agu_config),
+      .addr_valid(address_valid),
+      .addr(address),
+      .done()
   );
 
   dpu_controller controller_inst (
@@ -133,18 +110,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .address_valid(address_valid),
       .address(address),
 
-      .rep_delay_IR (rep_delay_IR),
-      .rep_iter_IR  (rep_iter_IR),
-      .rep_step_IR  (rep_step_IR),
-      .rep_config_IR(rep_config_IR),
-
-      .trans_delay (trans_delay),
-      .trans_config(trans_config),
-
-      .rep_delay_OR (rep_delay_OR),
-      .rep_iter_OR  (rep_iter_OR),
-      .rep_step_OR  (rep_step_OR),
-      .rep_config_OR(rep_config_OR),
+      .agu_config(agu_config),
 
       .dpu_mode(dpu_mode),
       .immediate(immediate),
