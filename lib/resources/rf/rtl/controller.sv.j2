@@ -35,17 +35,23 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign repx_valid_portnum = repx_valid_instr ? (1 << repx._port) : 4'b0;
 
     // Generate AGU configurations
-    always_comb begin
-      for (int i = 0; i < 4; i++) agu_configs[i] = '{default: '0};
-
-      if (rep_valid_instr) begin
-        agu_configs[rep._port].IR_configs.delays[rep._level] = rep._delay;
-        agu_configs[rep._port].IR_configs.iters[rep._level]  = rep._iter;
-        agu_configs[rep._port].IR_configs.steps[rep._level]  = rep._step;
-        agu_configs[rep._port].IR_configs.confs[rep._level]  = '1;
+    agu_config_t agu_configs_reg[4]; // TODO: remove magic number
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        for (int i = 0; i < 4; i++) begin
+          for (int j = 0; j < NUMBER_IR; j++) begin
+            agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b0;
+          end
+        end
+      end else if (rep_valid_instr) begin
+        agu_configs_reg[rep._port].ir_configs[0][rep._level].delay <= rep._delay;
+        agu_configs_reg[rep._port].ir_configs[0][rep._level].iter <= rep._iter;
+        agu_configs_reg[rep._port].ir_configs[0][rep._level].is_configured <= 1'b1;
       end
     end
+    assign agu_configs = agu_configs_reg;
 
-    // TODO: Add support for REPX and OR-level REP
+    // TODO: Add support for REPX and OR-level REP?
+    // TODO: Add support for TRANS?
 
 endmodule

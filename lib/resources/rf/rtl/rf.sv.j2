@@ -130,11 +130,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       for (i = 0; i < 4; i++) begin : gen_agu
         agu_RTR #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
-          .REP_LEVEL_WIDTH(REP_LEVEL_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
           .REP_ITER_WIDTH(REP_ITER_WIDTH),
-          .REP_STEP_WIDTH(REP_STEP_WIDTH),
-          .TRANS_LEVEL_WIDTH(TRANS_LEVEL_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
           .NUMBER_OR(NUMBER_OR),
           .NUMBER_MT(NUMBER_MT),
@@ -142,22 +139,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
         ) agu_inst (
           .clk(clk),
           .rst_n(rst_n),
+          .enable(1'b1),
           .activation(activate_0[i]),
-          .rep_valid(rep_valid_portnum[i]),
-          .repx_valid(repx_valid_portnum[i]),
-          .rep_delay_IR(agu_configs[i].IR_configs.delays),
-          .rep_iter_IR(agu_configs[i].IR_configs.iters),
-          .rep_step_IR(agu_configs[i].IR_configs.steps),
-          .rep_config_IR(agu_configs[i].IR_configs.confs),
-          .trans_valid('0),
-          .trans_delay(agu_configs[i].MT_configs.delays),
-          .trans_config(agu_configs[i].MT_configs.confs),
-          .rep_delay_OR(agu_configs[i].OR_configs.delays),
-          .rep_iter_OR(agu_configs[i].OR_configs.iters),
-          .rep_step_OR(agu_configs[i].OR_configs.steps),
-          .rep_config_OR(agu_configs[i].OR_configs.confs),
-          .address_valid(agu_enable[i]),
-          .address(agu_address[i])
+          .agu_config(agu_configs[i]),
+          .addr_valid(agu_enable[i]),
+          .addr(agu_address[i]),
+          .done()
         );
       end
     endgenerate
