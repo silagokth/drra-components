@@ -56,7 +56,7 @@ fn get_timing_model(op: Op) -> String {
                 let mut iter = instr_segments.get_value("iter");
                 let _step = instr_segments.get_value("step");
                 let delay = instr_segments.get_value("delay");
-                iter = (iter.parse::<i64>().unwrap() + 1).to_string();
+                iter = (iter.parse::<i64>().unwrap()).to_string();
                 r.insert(
                     level.parse::<i64>().unwrap(),
                     (iter.to_string(), delay.to_string()),
