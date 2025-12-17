@@ -1,19 +1,26 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.22.1)
 project(drra-component-lib)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Add RPATH settings for better portability
-set(CMAKE_INSTALL_PATH "$ORIGIN")
+set(CMAKE_INSTALL_RPATH "$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-# Add static linking flags
-set(CMAKE_EXE_LINKER_FLAGS
-    "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-set(CMAKE_SHARED_LINKER_FLAGS
-    "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+# Compiler feature check
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-static-libstdc++" HAS_STATIC_LIBSTDCPP)
+if(NOT HAS_STATIC_LIBSTDCPP)
+  message(WARNING "Static libstdc++ not available, disabling static linking")
+else()
+  # Add static linking flags
+  set(CMAKE_EXE_LINKER_FLAGS
+      "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+  set(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+endif()
 
 # Create a USE_SST option (default ON)
 option(USE_SST "Compile SST components, needed for SST simulation" ON)
@@ -90,3 +97,12 @@ add_custom_target(
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 add_subdirectory("lib")
+
+install(
+  DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/library/"
+  DESTINATION "lib/drra"
+  FILES_MATCHING USE_SOURCE_PERMISSIONS
+  PATTERN "*")
+install(
+  CODE "message(STATUS \"DRRA library successfully installed to: \$<INSTALL_PREFIX>/lib/drra\")"
+)
