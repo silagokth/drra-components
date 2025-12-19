@@ -1,0 +1,211 @@
+// vesyla_template_start defines
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+// vesyla_template_end defines
+
+// vesyla_template_start module_head
+{% if not already_defined %}
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0
+);
+
+    logic clk, rst_n;
+    assign clk = clk_0;
+    assign rst_n = rst_n_0;
+
+    logic [RF_DEPTH-1:0][WORD_BITWIDTH-1:0] memory, memory_next;
+    logic bulk_w_en, bulk_r_en, word_w_en, word_r_en;
+    logic [BULK_ADDR_WIDTH-1:0] bulk_w_addr, bulk_r_addr;
+    logic [WORD_ADDR_WIDTH-1:0] word_w_addr, word_r_addr;
+    logic [AGU_BITWIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
+
+    assign bulk_w_addr = bulk_w_agu[BULK_ADDR_WIDTH-1:0];
+    assign bulk_r_addr = bulk_r_agu[BULK_ADDR_WIDTH-1:0];
+    assign word_w_addr = word_w_agu[WORD_ADDR_WIDTH-1:0];
+    assign word_r_addr = word_r_agu[WORD_ADDR_WIDTH-1:0];
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            memory <= '{default: 0};
+        end
+        else begin
+            memory <= memory_next;
+        end
+    end
+
+    parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
+    logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
+    always_comb begin
+        memory_next = memory;
+        bulk_data_out_0 = '0;
+        word_data_out_0 = '0;
+        offset_w_addr = '0;
+        offset_r_addr = '0;
+        if (bulk_w_en) begin
+            for (int i=0; i<WORD_PER_BULK; i++) begin
+                offset_w_addr = i;
+                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_PER_BULK +:WORD_PER_BULK];
+            end
+        end
+        if (word_w_en) begin
+            if ((!bulk_w_en) || (bulk_w_addr != word_w_addr[WORD_ADDR_WIDTH-1:WORD_ADDR_WIDTH-1-BULK_ADDR_WIDTH])) begin
+                memory_next[word_w_addr] = word_data_in_0;
+            end
+        end
+        if (bulk_r_en) begin
+            for (int i=0; i<WORD_PER_BULK; i++) begin
+                offset_r_addr = i;
+                bulk_data_out_0[i*WORD_PER_BULK +:WORD_PER_BULK] = memory[{bulk_r_addr, offset_r_addr}];
+            end
+        end
+        if (word_r_en) begin
+            word_data_out_0 = memory[word_r_addr];
+        end
+
+    end
+
+    logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
+    logic [RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0] payload;
+
+    assign opcode = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    
+    dsu_t dsu;
+    rep_t rep;
+    repx_t repx;
+
+    logic [WORD_ADDR_WIDTH-1:0] addr_0_0, addr_0_1;
+    logic [BULK_ADDR_WIDTH-1:0] addr_0_2, addr_0_3;
+    logic dsu_valid;
+    logic rep_valid;
+    logic repx_valid;
+    logic port_enable_0_0, port_enable_0_1, port_enable_0_2, port_enable_0_3;
+    logic [WORD_ADDR_WIDTH-1:0] port_addr_0_0, port_addr_0_1;
+    logic [BULK_ADDR_WIDTH-1:0] port_addr_0_2, port_addr_0_3;
+
+    assign dsu_valid = instr_en_0 && (opcode == 6);
+    assign rep_valid = instr_en_0 && (opcode == 0);
+    assign repx_valid = instr_en_0 && (opcode == 1);
+    assign dsu = dsu_valid ? unpack_dsu(payload) : '{default: 0};
+    assign rep = rep_valid ? unpack_rep(payload) : '{default: 0};
+    assign repx = repx_valid ? unpack_repx(payload) : '{default: 0};
+
+    logic [AGU_BITWIDTH-1:0] step_0_0, step_0_1;
+    logic [AGU_BITWIDTH-1:0] delay_0_0, delay_0_1;
+    logic [AGU_BITWIDTH-1:0] iter_0_0, iter_0_1;
+    logic [AGU_BITWIDTH-1:0] init_addr_0_0, init_addr_0_1;
+
+    logic [AGU_BITWIDTH-1:0] step_0_2, step_0_3;
+    logic [AGU_BITWIDTH-1:0] delay_0_2, delay_0_3;
+    logic [AGU_BITWIDTH-1:0] iter_0_2, iter_0_3;
+    logic [AGU_BITWIDTH-1:0] init_addr_0_2, init_addr_0_3;
+
+    assign step_0_0 = rep._step;
+    assign delay_0_0 = rep._delay;
+    assign iter_0_0 = rep._iter;
+    assign init_addr_0_0 = dsu._init_addr;
+    assign step_0_1 = rep._step;
+    assign delay_0_1 = rep._delay;
+    assign iter_0_1 = rep._iter;
+    assign init_addr_0_1 = dsu._init_addr;
+    assign step_0_2 = rep._step;
+    assign delay_0_2 = rep._delay;
+    assign iter_0_2 = rep._iter;
+    assign init_addr_0_2 = dsu._init_addr;
+    assign step_0_3 = rep._step;
+    assign delay_0_3 = rep._delay;
+    assign iter_0_3 = rep._iter;
+    assign init_addr_0_3 = dsu._init_addr;
+
+    agu #(
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
+      .NUMBER_OF_LEVELS(4)
+    ) agu_0_0 (
+      .clk(clk),
+      .rst_n(rst_n),
+      .activate(activate_0[0]),
+      .load_initial(dsu_valid & dsu._port == 0),
+      .load_level(rep_valid & rep._port == 0),
+      .is_extended(),  // TODO: not supported yet
+      .level_to_load(rep._level[1:0]),
+      .step(step_0_0),
+      .delay(delay_0_0),
+      .iterations(iter_0_0),
+      .initial_address(init_addr_0_0),
+      .address_valid(word_w_en),
+      .address(word_w_agu)
+    );
+
+    agu #(
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
+      .NUMBER_OF_LEVELS(4)
+    ) agu_0_1 (
+      .clk(clk),
+      .rst_n(rst_n),
+      .activate(activate_0[1]),
+      .load_initial(dsu_valid & dsu._port == 1),
+      .load_level(rep_valid & rep._port == 1),
+      .is_extended(),  // TODO: not supported yet
+      .level_to_load(rep._level[1:0]),
+      .step(step_0_1),
+      .delay(delay_0_1),
+      .iterations(iter_0_1),
+      .initial_address(init_addr_0_1),
+      .address_valid(word_r_en),
+      .address(word_r_agu)
+  );
+
+  agu #(
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
+      .NUMBER_OF_LEVELS(4)
+  ) agu_0_2 (
+      .clk(clk),
+      .rst_n(rst_n),
+      .activate(activate_0[2]),
+      .load_initial(dsu_valid & dsu._port == 2),
+      .load_level(rep_valid & rep._port == 2),
+      .is_extended(),  // TODO: not supported yet
+      .level_to_load(rep._level[1:0]),
+      .step(step_0_2),
+      .delay(delay_0_2),
+      .iterations(iter_0_2),
+      .initial_address(init_addr_0_2),
+      .address_valid(bulk_w_en),
+      .address(bulk_w_agu)
+  );
+
+  agu #(
+      .ADDRESS_WIDTH(AGU_BITWIDTH),
+      .NUMBER_OF_LEVELS(4)
+  ) agu_0_3 (
+      .clk(clk),
+      .rst_n(rst_n),
+      .activate(activate_0[3]),
+      .load_initial(dsu_valid & dsu._port == 3),
+      .load_level(rep_valid & rep._port == 3),
+      .is_extended(),  // TODO: not supported yet
+      .level_to_load(rep._level[1:0]),
+      .step(step_0_3),
+      .delay(delay_0_3),
+      .iterations(iter_0_3),
+      .initial_address(init_addr_0_3),
+      .address_valid(bulk_r_en),
+      .address(bulk_r_agu)
+  );
+
+endmodule
+
+// vesyla_template_start module_tail
+{% endif %}
+// vesyla_template_end module_tail

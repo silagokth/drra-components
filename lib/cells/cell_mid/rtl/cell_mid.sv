@@ -1,0 +1,132 @@
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+
+{% for key, value in fingerprint_table | items %}
+`define {{key}} {{key}}_{{value}}
+`define {{key}}_pkg {{key}}_{{value}}_pkg
+{% endfor %}
+
+{% if not already_defined %}
+package {{name}}_{{fingerprint}}_pkg;
+    {% for p in parameters %}
+    parameter {{p}} = {{parameters[p]}};
+    {% endfor %}
+endpackage
+
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+(
+    input logic clk,
+    input logic rst_n,
+    input logic call_in,
+    output logic call_out,
+    input logic ret_in,
+    output logic ret_out,
+    output logic io_en_in,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_in,
+    input logic [IO_DATA_WIDTH-1:0] io_data_in,
+    output logic io_en_out,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
+    output logic [IO_DATA_WIDTH-1:0] io_data_out,
+    input logic [INSTR_DATA_WIDTH-1:0] instr_data_in,
+    input logic [INSTR_ADDR_WIDTH-1:0] instr_addr_in,
+    input logic [INSTR_HOPS_WIDTH-1:0] instr_hops_in,
+    input logic instr_en_in,
+    output logic [INSTR_DATA_WIDTH-1:0] instr_data_out,
+    output logic [INSTR_ADDR_WIDTH-1:0] instr_addr_out,
+    output logic [INSTR_HOPS_WIDTH-1:0] instr_hops_out,
+    output logic instr_en_out,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_n_in,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_e_in,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_s_in,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_n_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_e_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out
+);
+
+  logic [NUM_SLOTS-1:0] resource_clk;
+  logic [NUM_SLOTS-1:0] resource_rst_n;
+  logic [NUM_SLOTS-1:0] instr_valid;
+  logic [NUM_SLOTS-1:0][RESOURCE_INSTR_WIDTH-1:0] instr;
+  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
+
+  logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_in;
+  logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_out;
+  logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_in;
+  logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_out;
+
+    // Controller
+    `{{controller.name}} controller_inst
+    (
+        .clk(clk),
+        .rst_n(rst_n),
+        .call(call_in),
+        {% for i in range(16) %}
+        .instr_valid_{{i}}(instr_valid[{{i}}]),
+        .instr_{{i}}(instr[{{i}}]),
+        .activate_{{i}}(activate[{{i}}]),
+        .clk_{{i}}(resource_clk[{{i}}]),
+        .rst_n_{{i}}(resource_rst_n[{{i}}]),
+        {% endfor %}
+        .instr_load_data_in(instr_data_in),
+        .instr_load_addr_in(instr_addr_in),
+        .instr_load_hops_in(instr_hops_in),
+        .instr_load_en_in(instr_en_in),
+        .instr_load_data_out(instr_data_out),
+        .instr_load_addr_out(instr_addr_out),
+        .instr_load_hops_out(instr_hops_out),
+        .instr_load_en_out(instr_en_out),
+        .ret_out(ret_out),
+        .ret_in(ret_in),
+        .call_out(call_out)
+    );
+
+    {% for res in resources_list %}
+    {% if res.slot==0 %}
+    `{{res.name}} resource_{{res.slot}}_inst
+    (
+      {% for i in range(res.size) %}
+        .clk_{{i}}(resource_clk[{{res.slot + i}}]),
+        .rst_n_{{i}}(resource_rst_n[{{res.slot + i}}]),
+        .instr_en_{{i}}(instr_valid[{{res.slot + i}}]),
+        .instr_{{i}}(instr[{{res.slot + i}}]),
+        .activate_{{i}}(activate[{{ res.slot+i }}]),
+      {% endfor %}
+        .word_channels_in(word_data_out),
+        .word_channels_out(word_data_in),
+        .bulk_intracell_in(bulk_data_out),
+        .bulk_intracell_out(bulk_data_in),
+        .bulk_intercell_n_in(bulk_intercell_n_in),
+        .bulk_intercell_w_in(bulk_intercell_w_in),
+        .bulk_intercell_e_in(bulk_intercell_e_in),
+        .bulk_intercell_s_in(bulk_intercell_s_in),
+        .bulk_intercell_n_out(bulk_intercell_n_out),
+        .bulk_intercell_w_out(bulk_intercell_w_out),
+        .bulk_intercell_e_out(bulk_intercell_e_out),
+        .bulk_intercell_s_out(bulk_intercell_s_out)
+      );
+
+    {% else %}
+
+    `{{res.name}} resource_{{res.slot}}_inst
+    (
+        {% for i in range(res.size) %}
+        .clk_{{i}}(resource_clk[{{res.slot + i}}]),
+        .rst_n_{{i}}(resource_rst_n[{{res.slot + i}}]),
+        .instr_en_{{i}}(instr_valid[{{res.slot+i}}]),
+        .instr_{{i}}(instr[{{res.slot+i}}]),
+        .activate_{{i}}(activate[{{ res.slot+i }}]),
+        .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
+        .word_data_out_{{i}}(word_data_out[{{res.slot+i}}]),
+        .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),
+        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]){% if i < res.size-1 %},{% endif %}
+        {% endfor %}
+    );
+    {% endif %}
+    {% endfor %}
+
+endmodule
+{% endif %}
+

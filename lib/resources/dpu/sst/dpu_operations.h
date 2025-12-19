@@ -24,6 +24,8 @@ void handleMult(Dpu *dpu);
 void handleMultConst(Dpu *dpu);
 void handleLoadIR(Dpu *dpu);
 void handleMAC(Dpu *dpu);
+void handleTanhyp(Dpu *dpu);
+void handleReLU(Dpu *dpu);
 } // namespace Impl
 
 // Utility functions for arithmetic operations

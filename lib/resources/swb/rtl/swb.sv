@@ -1,0 +1,219 @@
+// vesyla_template_start defines
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+// vesyla_template_end defines
+
+// vesyla_template_start module_head
+{% if not already_defined %}
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [FSM_PER_SLOT-1:0] activate_0,
+    input logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_channels_in,
+    output logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_channels_out,
+    input logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_intracell_in,
+    output logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_intracell_out,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_n_in,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_e_in,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_s_in,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_n_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_e_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out
+);
+
+    logic clk, rst_n;
+    assign clk = clk_0;
+    assign rst_n = rst_n_0;
+
+    logic [2:0] opcode;
+    logic [23:0] payload;
+    swb_t swb;
+    route_t route;
+    logic [FSM_PER_SLOT-1:0] reg_activate;
+
+    logic [NUM_OPTIONS-1:0][NUM_SLOTS-1:0][3:0] swb_configs, swb_configs_next;
+    logic [NUM_OPTIONS-1:0][3:0] route_in_src_configs, route_in_src_configs_next;
+    logic [NUM_OPTIONS-1:0][15:0] route_in_dst_configs, route_in_dst_configs_next;
+    logic [NUM_OPTIONS-1:0][3:0] route_out_src_configs, route_out_src_configs_next;
+    logic [NUM_OPTIONS-1:0][15:0] route_out_dst_configs, route_out_dst_configs_next;
+
+    logic [NUM_SLOTS-1:0][3:0] curr_swb_configs, curr_swb_configs_next;
+    logic [3:0] curr_route_in_src_configs, curr_route_in_src_configs_next;
+    logic [15:0] curr_route_in_dst_configs, curr_route_in_dst_configs_next;
+    logic [3:0] curr_route_out_src_configs, curr_route_out_src_configs_next;
+    logic [15:0] curr_route_out_dst_configs, curr_route_out_dst_configs_next;
+
+    logic [3:0] current_route_fsm_option;
+    logic [3:0] fsm_max_init_state;
+    logic [3:0] reg_fsm_max_init_state;
+    logic reset_fsm;
+    assign reset_fsm = 0; // TODO: this should be connected to the agu
+    logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] fsm_delays;
+    logic [FSM_MAX_STATES-2:0][FSM_DELAY_WIDTH-1:0] reg_fsm_delays;
+    fsm_t fsm;
+    fsm #(
+        .FSM_MAX_STATES(FSM_MAX_STATES),
+        .FSM_DELAY_WIDTH(FSM_DELAY_WIDTH)
+    ) fsm_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .activate(reg_activate),
+        .fsm_delays(reg_fsm_delays),
+        .max_init_state(reg_fsm_max_init_state),
+        .reset_fsm(reset_fsm),
+        .state(current_route_fsm_option)
+    );
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            swb_configs <= 0;
+            route_in_src_configs <= 0;
+            route_in_dst_configs <= 0;
+            route_out_src_configs <= 0;
+            route_out_dst_configs <= 0;
+            curr_swb_configs <= 0;
+            curr_route_in_src_configs <= 0;
+            curr_route_in_dst_configs <= 0;
+            curr_route_out_src_configs <= 0;
+            curr_route_out_dst_configs <= 0;
+            reg_fsm_max_init_state <= 0;
+            reg_fsm_delays <= 0;
+            reg_activate <= '0;
+        end else begin
+            swb_configs <= swb_configs_next;
+            route_in_src_configs <= route_in_src_configs_next;
+            route_in_dst_configs <= route_in_dst_configs_next;
+            route_out_src_configs <= route_out_src_configs_next;
+            route_out_dst_configs <= route_out_dst_configs_next;
+            curr_swb_configs <= curr_swb_configs_next;
+            curr_route_in_src_configs <= curr_route_in_src_configs_next;
+            curr_route_in_dst_configs <= curr_route_in_dst_configs_next;
+            curr_route_out_src_configs <= curr_route_out_src_configs_next;
+            curr_route_out_dst_configs <= curr_route_out_dst_configs_next;
+            reg_fsm_max_init_state <= (fsm_max_init_state > reg_fsm_max_init_state) ? fsm_max_init_state : reg_fsm_max_init_state;
+            reg_fsm_delays <= (fsm_delays > reg_fsm_delays) ? fsm_delays : reg_fsm_delays;
+            reg_activate <= (activate_0 > reg_activate) ? activate_0 : reg_activate;
+        end
+    end
+
+    always_comb begin
+      opcode = 0;
+      payload = 0;
+      fsm_delays = '0;
+      fsm_max_init_state = '0;
+      swb_configs_next = swb_configs;
+      route_in_src_configs_next = route_in_src_configs;
+      route_in_dst_configs_next = route_in_dst_configs;
+      route_out_src_configs_next = route_out_src_configs;
+      route_out_dst_configs_next = route_out_dst_configs;
+      curr_swb_configs_next = curr_swb_configs;
+      curr_route_in_src_configs_next = curr_route_in_src_configs;
+      curr_route_in_dst_configs_next = curr_route_in_dst_configs;
+      curr_route_out_src_configs_next = curr_route_out_src_configs;
+      curr_route_out_dst_configs_next = curr_route_out_dst_configs;
+
+      if (reg_activate[0]) begin
+        curr_swb_configs_next = swb_configs[0]; // TODO: connect to its own fsm
+      end
+      if (reg_activate[2]) begin
+        curr_route_in_src_configs_next = route_in_src_configs[current_route_fsm_option];
+        curr_route_in_dst_configs_next = route_in_dst_configs[current_route_fsm_option];
+        curr_route_out_src_configs_next = route_out_src_configs[current_route_fsm_option];
+        curr_route_out_dst_configs_next = route_out_dst_configs[current_route_fsm_option];
+      end
+      if (instr_en_0) begin
+          opcode = instr_0[26:24];
+          payload = instr_0[23:0];
+          case(opcode)
+              OPCODE_SWB: begin
+                      // Switchbox
+                      swb = unpack_swb(payload);
+                      swb_configs_next[swb._option][swb._target] = swb._source;
+                  end
+              OPCODE_ROUTE: begin
+                      // Router
+                      route = unpack_route(payload);
+                      fsm_max_init_state = route._option;
+                      if (route._sr==1'b0) begin // send
+                          route_out_src_configs_next[route._option] = route._source;
+                          route_out_dst_configs_next[route._option] = route._target;
+                      end else begin // receive
+                          route_in_src_configs_next[route._option] = route._source;
+                          route_in_dst_configs_next[route._option] = route._target;
+                      end
+              end
+              OPCODE_FSM: begin
+                // FSM
+                fsm = unpack_fsm(payload);
+                fsm_delays[0] = fsm._delay_0;
+                fsm_delays[1] = fsm._delay_1;
+                fsm_delays[2] = fsm._delay_2;
+              end
+              default: begin
+                      // Do nothing
+              end
+          endcase
+      end
+    end
+
+    logic [BULK_BITWIDTH-1:0] bulk_intercell_c_in, bulk_intercell_c_out;
+    logic [BULK_BITWIDTH-1:0] bulk_intercell_self;
+    always_comb begin
+      bulk_intercell_c_in = 0;
+      bulk_intercell_c_out = 0;
+      bulk_intercell_self = 0;
+      bulk_intercell_e_out = 0;
+      bulk_intercell_n_out = 0;
+      bulk_intercell_w_out = 0;
+      bulk_intercell_s_out = 0;
+
+      for(int i=0; i<NUM_SLOTS; i=i+1) begin
+        word_channels_out[i] = word_channels_in[curr_swb_configs[i]];
+      end
+
+      bulk_intercell_c_out = bulk_intracell_in[curr_route_out_src_configs];
+
+      if (curr_route_out_dst_configs[1]) begin
+        bulk_intercell_n_out = bulk_intercell_c_out;
+      end else if (curr_route_out_dst_configs[3]) begin
+        bulk_intercell_w_out = bulk_intercell_c_out;
+      end else if (curr_route_out_dst_configs[4]) begin
+        bulk_intercell_self = bulk_intercell_c_out;
+      end else if (curr_route_out_dst_configs[5]) begin
+        bulk_intercell_e_out = bulk_intercell_c_out;
+      end else if (curr_route_out_dst_configs[7]) begin
+        bulk_intercell_s_out = bulk_intercell_c_out;
+      end
+
+      if (curr_route_in_src_configs == 1) begin
+        bulk_intercell_c_in = bulk_intercell_n_in;
+      end else if (curr_route_in_src_configs == 3) begin
+        bulk_intercell_c_in = bulk_intercell_w_in;
+      end else if (curr_route_in_src_configs == 4) begin
+        bulk_intercell_c_in = bulk_intercell_self;
+      end else if (curr_route_in_src_configs == 5) begin
+        bulk_intercell_c_in = bulk_intercell_e_in;
+      end else if (curr_route_in_src_configs == 7) begin
+        bulk_intercell_c_in = bulk_intercell_s_in;
+      end
+
+      for(int i=0; i<NUM_SLOTS; i=i+1) begin
+        bulk_intracell_out[i] = 0;
+        if(curr_route_in_dst_configs[i]) begin
+          bulk_intracell_out[i] = bulk_intercell_c_in;
+        end
+      end
+
+    end
+endmodule
+
+// vesyla_template_start module_tail
+{% endif %}
+// vesyla_template_end module_tail

@@ -27,7 +27,10 @@ createHandlers(Dpu *dpu) {
       {DPU_PKG::DPU_MODE::DPU_MODE_MULT_CONST,
        [dpu] { Impl::handleMultConst(dpu); }},
       {DPU_PKG::DPU_MODE::DPU_MODE_LD_IR, [dpu] { Impl::handleLoadIR(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }}};
+      {DPU_PKG::DPU_MODE::DPU_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_TANHYP, [dpu] { Impl::handleTanhyp(dpu); }},
+      {DPU_PKG::DPU_MODE::DPU_MODE_RELU, [dpu] { Impl::handleReLU(dpu); }}
+    };
 }
 
 namespace Impl {
@@ -89,5 +92,21 @@ void handleMAC(Dpu *dpu) {
   });
 }
 
+void handleTanhyp(Dpu *dpu) {
+  dpu->handleOperation("TANHYP", [](int64_t input, int64_t unused) {
+    int64_t val = input;
+
+    if (val > 256) val = 256;
+    if (val < -256) val = -256;
+    return val;
+  });
+}
+
+void handleReLU(Dpu *dpu) {
+  dpu->handleOperation("RELU", [](int64_t input, int64_t unused) {
+    // ReLU standard: max(0, x)
+    return (input > 0) ? input : 0;
+  });
+}
 } // namespace Impl
 } // namespace DPU_Operations

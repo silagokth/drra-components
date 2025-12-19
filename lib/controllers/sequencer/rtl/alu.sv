@@ -1,0 +1,71 @@
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_alu
+import {{name}}_{{fingerprint}}_pkg::*;
+{% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
+// vesyla_template_end module_head
+(
+    input logic signed [SCALAR_REG_WIDTH-1:0] in1,
+    input logic signed [SCALAR_REG_WIDTH-1:0] in2,
+    input logic unsigned [{{calc_mode_bitwidth}}-1:0] mode,
+    output logic signed [SCALAR_REG_WIDTH-1:0] out
+);
+
+  localparam logic signed [SCALAR_REG_WIDTH-1:0] MAX_RESULT = (1 << (SCALAR_REG_WIDTH - 1)) - 1;
+  localparam logic signed [SCALAR_REG_WIDTH-1:0] MIN_RESULT = -MAX_RESULT - 1;
+  logic signed [SCALAR_REG_WIDTH:0] temp_result;
+
+  always_comb begin
+    temp_result = 0;
+    if (mode == 1)
+      temp_result = in1 + in2;
+    else if (mode == 2)
+      temp_result = in1 - in2;
+    else if (mode == 3)
+      temp_result = in1 <<< in2;
+    else if (mode == 4)
+      temp_result = in1 >>> in2;
+    else if (mode == 8)
+      temp_result = in1 & in2;
+    else if (mode == 9)
+      temp_result = in1 | in2;
+    else if (mode == 10)
+      temp_result = ~in1;
+    else if (mode == 11)
+      temp_result = in1 ^ in2;
+    else if (mode == 17)
+      temp_result = in1 == in2;
+    else if (mode == 18)
+      temp_result = in1 != in2;
+    else if (mode == 19)
+      temp_result = in1 > in2;
+    else if (mode == 20)
+      temp_result = in1 >= in2;
+    else if (mode == 21)
+      temp_result = in1 < in2;
+    else if (mode == 22)
+      temp_result = in1 <= in2;
+    else if (mode == 23) begin // addh
+      logic [SCALAR_REG_WIDTH/2-1:0] in1_msb, in2_lsb, sum;
+      in1_msb = in1[SCALAR_REG_WIDTH-1:SCALAR_REG_WIDTH/2];
+      in2_lsb = in2[SCALAR_REG_WIDTH/2-1:0];
+      sum = in1_msb + in2_lsb;
+      temp_result = {sum, in1[SCALAR_REG_WIDTH/2-1:0]};
+    end else if (mode == 32)
+      temp_result = in1 && in2;
+    else if (mode == 33)
+      temp_result = in1 || in2;
+    else if (mode == 34)
+      temp_result = !in1;
+    else
+      temp_result = 0; // default case, should not happen
+
+    // saturate the result
+    if (temp_result > MAX_RESULT) begin
+      out = MAX_RESULT;
+    end else if (temp_result < MIN_RESULT) begin
+      out = MIN_RESULT;
+    end else begin
+      out = temp_result[SCALAR_REG_WIDTH-1:0];
+    end
+  end
+endmodule

@@ -7,15 +7,15 @@
   "custom_properties": [
     {
       "name": "RF_DEPTH",
-      "value": 64
+      "value": 512
     },
     {
       "name": "WORD_ADDR_WIDTH",
-      "value": 6
+      "value": 9
     },
     {
       "name": "BULK_ADDR_WIDTH",
-      "value": 2
+      "value": 5
     }
   ],
   "required_parameters": [
