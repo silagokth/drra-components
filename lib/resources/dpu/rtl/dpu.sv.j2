@@ -126,6 +126,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Calculation logic
   logic accumulator_valid;
   logic signed [BITWIDTH-1:0] acc0, acc0_next;
+  logic signed [BITWIDTH-1:0] acc0_current;
   logic signed [BITWIDTH-1:0] adder_in0;
   logic signed [BITWIDTH-1:0] adder_in1;
   logic signed [BITWIDTH-1:0] adder_out;
@@ -133,18 +134,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
 
+  assign acc0_current = (reset_accumulator | activate) ? '0 : acc0;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       acc0 <= '0;
       accumulator_valid <= 1'b0;
     end else begin
-      if (reset_accumulator | activate) begin
-        acc0 <= '0;
-        accumulator_valid <= 1'b1;
-      end else begin
-        acc0 <= acc0_next;
-        accumulator_valid <= accumulator_valid;
-      end
+      acc0 <= acc0_next;
+      accumulator_valid <= 1'b1;
     end
   end
 
@@ -167,7 +164,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         mult_in1  = in1;
         adder_in0 = mult_out;
         if (accumulator_valid) begin
-          adder_in1 = acc0;
+          adder_in1 = acc0_current;
         end else begin
           adder_in1 = '0;
         end
@@ -178,6 +175,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
         mult_in0 = in0;
         mult_in1 = in1;
         out0 = mult_out;
+      end
+
+      default: begin
+        out0 = '0;
       end
     endcase
   end

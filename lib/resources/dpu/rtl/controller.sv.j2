@@ -103,7 +103,15 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
 
   // Set the output according to the current state
-  assign dpu_mode = address_valid ? mode_memory[address] : mode_memory[0];
+  logic [ADDRESS_WIDTH-1:0] dpu_mode_index;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      dpu_mode_index <= '0;
+    end else if (address_valid) begin
+      dpu_mode_index <= address;
+    end
+  end
+  assign dpu_mode = address_valid ? mode_memory[address] : mode_memory[dpu_mode_index];
   assign immediate = address_valid ? immediate_memory[address] : '0;
 
   assign reset_accumulator = address_valid;
