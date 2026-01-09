@@ -27,6 +27,7 @@ module mt_ir_tb
   localparam int CLK_PERIOD = 10;
   localparam int REP_DELAY_WIDTH = 6;
   localparam int REP_ITER_WIDTH = 6;
+  localparam int REP_STEP_WIDTH = 6;
   localparam int TRANS_DELAY_WIDTH = 12;
 
   typedef agu_config_class#(
@@ -35,6 +36,7 @@ module mt_ir_tb
       .NUMBER_OR        (1),                 // Single OR for this testbench
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   )::rep_config_t rep_config_t;
 
@@ -44,6 +46,7 @@ module mt_ir_tb
       .NUMBER_OR        (1),                 // Single OR for this testbench
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   )::trans_config_t trans_config_t;
 
@@ -81,6 +84,7 @@ module mt_ir_tb
       .NUMBER_MT    (NUMBER_MT),
       .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
       .REP_ITER_WIDTH (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) dut (
       .clk        (clk),
@@ -127,6 +131,7 @@ module mt_ir_tb
   );
     ir_configs[lane][level].delay = delay;
     ir_configs[lane][level].iter = iter;
+    ir_configs[lane][level].step = step;
     ir_configs[lane][level].is_configured = 1;
   endtask
 
@@ -152,6 +157,7 @@ module mt_ir_tb
     int type_arr[];
     int iter_arr[];
     int delay_arr[];
+    int step_arr[];
 
     addr_queue.delete();
     cycle_queue.delete();
@@ -159,6 +165,7 @@ module mt_ir_tb
     type_arr  = new[NUMBER_IR*NUMBER_MT + NUMBER_MT + 1];
     iter_arr  = new[NUMBER_IR*NUMBER_MT + NUMBER_MT + 1];
     delay_arr = new[NUMBER_IR*NUMBER_MT + NUMBER_MT + 1];
+    step_arr  = new[NUMBER_IR*NUMBER_MT + NUMBER_MT + 1];
 
     $display("  Building expected sequence from configurations...");
     max_lane_idx = 0;
@@ -174,6 +181,7 @@ module mt_ir_tb
       type_arr[stack_counter]  = 2; // Event
       iter_arr[stack_counter]  = 0;
       delay_arr[stack_counter] = 0;
+      step_arr[stack_counter]  = 0;
       stack_counter++;
       event_count++;
       for (int i = 0; i < NUMBER_IR; i++) begin
@@ -181,6 +189,7 @@ module mt_ir_tb
         type_arr[stack_counter]  = 0; // Repetition
         iter_arr[stack_counter] = ir_configs[m][i].iter;
         delay_arr[stack_counter] = ir_configs[m][i].delay;
+        step_arr[stack_counter]  = ir_configs[m][i].step;
         stack_counter++;
       end
     end
@@ -191,6 +200,7 @@ module mt_ir_tb
           type_arr[stack_counter]  = 2; // Event
           iter_arr[stack_counter]  = 0;
           delay_arr[stack_counter] = 0;
+          step_arr[stack_counter]  = 0;
           stack_counter++;
           event_count++;
         end else begin
@@ -202,6 +212,7 @@ module mt_ir_tb
         type_arr[stack_counter]  = 1; // Transition
         iter_arr[stack_counter]  = 0;
         delay_arr[stack_counter] = mt_configs[t].delay;
+        step_arr[stack_counter]  = 0;
         stack_counter++;
       end
     end
@@ -401,7 +412,7 @@ module mt_ir_tb
 
     // Lane 1: Nested Loop
     configure_lane_ir(1, 0, 0, 2, 1); // inner
-    configure_lane_ir(1, 1, 0, 2, 10); // outer
+    configure_lane_ir(1, 1, 0, 2, 1); // outer
 
     // Lane 2: Simple 0..2
     configure_lane_ir(2, 0, 0, 3, 1);

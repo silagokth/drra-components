@@ -7,6 +7,7 @@ module agu_RTR
     parameter int NUMBER_OR         = 4,
     parameter int REP_DELAY_WIDTH   = 6,
     parameter int REP_ITER_WIDTH    = 6,
+    parameter int REP_STEP_WIDTH    = 6,
     parameter int TRANS_DELAY_WIDTH = 12
 ) (
     input logic clk,
@@ -20,6 +21,7 @@ module agu_RTR
         .NUMBER_OR        (NUMBER_OR),
         .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
         .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+        .REP_STEP_WIDTH   (REP_STEP_WIDTH),
         .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
     )::agu_config_t agu_config,
 
@@ -53,6 +55,7 @@ module agu_RTR
           .NUMBER_OR        (NUMBER_OR),
           .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
           .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+          .REP_STEP_WIDTH   (REP_STEP_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
       ) u_or_mt_ir (
           .clk       (clk),
@@ -72,6 +75,7 @@ module agu_RTR
           .NUMBER_MT        (NUMBER_MT),
           .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
           .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+          .REP_STEP_WIDTH   (REP_STEP_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
       ) u_mt_ir (
           .clk       (clk),
@@ -88,7 +92,8 @@ module agu_RTR
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .NUMBER_IR    (NUMBER_IR),
           .DELAY_WIDTH  (REP_DELAY_WIDTH),
-          .ITER_WIDTH   (REP_ITER_WIDTH)
+          .ITER_WIDTH   (REP_ITER_WIDTH),
+          .STEP_WIDTH   (REP_STEP_WIDTH)
       ) u_ir (
           .clk       (clk),
           .rst_n     (rst_n),

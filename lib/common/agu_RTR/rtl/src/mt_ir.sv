@@ -6,6 +6,7 @@ module mt_ir
     parameter int NUMBER_MT,
     parameter int REP_DELAY_WIDTH,
     parameter int REP_ITER_WIDTH,
+    parameter int REP_STEP_WIDTH,
     parameter int TRANS_DELAY_WIDTH
 ) (
     input logic clk,
@@ -16,7 +17,8 @@ module mt_ir
     input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
     input rep_config_class#(
         .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH)
+        .ITER_WIDTH (REP_ITER_WIDTH),
+        .STEP_WIDTH (REP_STEP_WIDTH)
     )::rep_t [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs,
 
     // Outputs
@@ -104,7 +106,8 @@ module mt_ir
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .NUMBER_IR(NUMBER_IR),
           .DELAY_WIDTH(REP_DELAY_WIDTH),
-          .ITER_WIDTH(REP_ITER_WIDTH)
+          .ITER_WIDTH(REP_ITER_WIDTH),
+          .STEP_WIDTH(REP_STEP_WIDTH)
       ) ir_inst (
           .clk       (clk),
           .rst_n     (rst_n),
@@ -123,7 +126,7 @@ module mt_ir
     ir_addr  = '0;
 
     if (current_mux_ptr <= max_lane_index && ir_configs[current_mux_ptr][0].is_configured) begin
-      ir_addr  = ir_addr_array[current_mux_ptr];
+      ir_addr  = ir_addr_array[current_mux_ptr] * ir_configs[current_mux_ptr][0].step;
       ir_valid = ir_valid_array[current_mux_ptr];
     end else begin
       // Counter Mode

@@ -4,14 +4,16 @@ module ir
     parameter int ADDRESS_WIDTH,
     parameter int NUMBER_IR,
     parameter int DELAY_WIDTH,
-    parameter int ITER_WIDTH
+    parameter int ITER_WIDTH,
+    parameter int STEP_WIDTH
 ) (
     input  logic                            clk,
     input  logic                            rst_n,
     input  logic                            enable,
     input rep_config_class#(
         .DELAY_WIDTH(DELAY_WIDTH),
-        .ITER_WIDTH (ITER_WIDTH)
+        .ITER_WIDTH (ITER_WIDTH),
+        .STEP_WIDTH (STEP_WIDTH)
     )::rep_t [NUMBER_IR-1:0] ir_configs,
     output logic        [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                            ir_valid,

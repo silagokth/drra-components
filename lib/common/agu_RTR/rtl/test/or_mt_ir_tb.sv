@@ -28,6 +28,7 @@ module or_mt_ir_tb
   localparam int CLK_PERIOD = 10;
   localparam int REP_DELAY_WIDTH = 6;
   localparam int REP_ITER_WIDTH = 6;
+  localparam int REP_STEP_WIDTH = 6;
   localparam int TRANS_DELAY_WIDTH = 12;
 
   logic clk;
@@ -41,6 +42,7 @@ module or_mt_ir_tb
       .NUMBER_OR        (NUMBER_OR),
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   )::agu_config_t agu_config_t;
   agu_config_t agu_config;
@@ -85,6 +87,7 @@ module or_mt_ir_tb
       .NUMBER_OR        (NUMBER_OR),
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) dut (
       .clk       (clk),
@@ -129,6 +132,7 @@ module or_mt_ir_tb
              iter);
     agu_config.ir_configs[lane][level].delay = delay;
     agu_config.ir_configs[lane][level].iter = iter;
+    agu_config.ir_configs[lane][level].step = step;
     agu_config.ir_configs[lane][level].is_configured = 1;
   endtask
 

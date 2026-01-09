@@ -7,6 +7,7 @@ module or_mt_ir
     parameter int NUMBER_OR,
     parameter int REP_DELAY_WIDTH,
     parameter int REP_ITER_WIDTH,
+    parameter int REP_STEP_WIDTH,
     parameter int TRANS_DELAY_WIDTH
 ) (
     input logic clk,
@@ -17,13 +18,15 @@ module or_mt_ir
     // OR configs: Controls the repetition of the whole MT sequence
     input rep_config_class#(
         .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH)
+        .ITER_WIDTH (REP_ITER_WIDTH),
+        .STEP_WIDTH (REP_STEP_WIDTH)
     )::rep_t [NUMBER_OR-1:0] or_configs,
     // MT/IR configs: Passed down to the child
     input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
     input rep_config_class#(
         .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH)
+        .ITER_WIDTH (REP_ITER_WIDTH),
+        .STEP_WIDTH (REP_STEP_WIDTH)
     )::rep_t [NUMBER_IR-1:0][NUMBER_MT:0] ir_configs,
 
     // Outputs
@@ -68,6 +71,7 @@ module or_mt_ir
       .NUMBER_MT        (NUMBER_MT),
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) mt_ir_inst (
       .clk       (clk),

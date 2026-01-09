@@ -21,6 +21,7 @@ module ir_tb
   localparam int CLK_PERIOD = 10;  // 10ns = 100MHz
   localparam int REP_DELAY_WIDTH = 6;
   localparam int REP_ITER_WIDTH = 6;
+  localparam int REP_STEP_WIDTH = 6;
   localparam int TRANS_DELAY_WIDTH = 12;
 
   typedef agu_config_class#(
@@ -29,6 +30,7 @@ module ir_tb
       .NUMBER_OR        (1),                 // Single OR for this testbench
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   )::rep_config_t rep_config_t;
 
@@ -56,7 +58,8 @@ module ir_tb
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR(NUMBER_IR),
       .DELAY_WIDTH  (REP_DELAY_WIDTH),
-      .ITER_WIDTH   (REP_ITER_WIDTH)
+      .ITER_WIDTH   (REP_ITER_WIDTH),
+      .STEP_WIDTH   (REP_STEP_WIDTH)
   ) dut (
       .clk(clk),
       .rst_n(rst_n),

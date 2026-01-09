@@ -9,11 +9,13 @@ package agu_RTR_pkg;
 
   class rep_config_class #(
       parameter int DELAY_WIDTH = 6,
-      parameter int ITER_WIDTH  = 6
+      parameter int ITER_WIDTH  = 6,
+      parameter int STEP_WIDTH  = 6
   );
     typedef struct packed {
       logic [DELAY_WIDTH-1:0] delay;
       logic [ITER_WIDTH-1:0] iter;
+      logic [STEP_WIDTH-1:0] step;
       logic is_configured;
     } rep_t;
   endclass
@@ -33,11 +35,13 @@ package agu_RTR_pkg;
       parameter int NUMBER_OR         = 4,
       parameter int REP_DELAY_WIDTH   = 6,
       parameter int REP_ITER_WIDTH    = 6,
+      parameter int REP_STEP_WIDTH    = 6,
       parameter int TRANS_DELAY_WIDTH = 12
   );
     typedef struct packed {
       logic [REP_DELAY_WIDTH-1:0] delay;
       logic [REP_ITER_WIDTH-1:0]  iter;
+      logic [REP_STEP_WIDTH-1:0]  step;
       logic                       is_configured;
     } rep_config_t;
 
@@ -52,17 +56,5 @@ package agu_RTR_pkg;
       rep_config_t [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
     } agu_config_t;
   endclass
-
-  //typedef struct packed {
-  //  logic [REP_DELAY_WIDTH-1:0] delay;
-  //  logic [REP_ITER_WIDTH-1:0] iter;
-  //  logic [REP_STEP_WIDTH-1:0] step;
-  //  logic is_configured;
-  //} rep_config_t;
-
-  //typedef struct packed {
-  //  logic [TRANS_DELAY_WIDTH-1:0] delay;
-  //  logic is_configured;
-  //} trans_config_t;
 
 endpackage : agu_RTR_pkg
