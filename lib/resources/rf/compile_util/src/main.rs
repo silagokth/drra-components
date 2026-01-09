@@ -110,7 +110,7 @@ fn reshape_instr(op: Op) -> Op {
                     .get_value("level")
                     .parse::<i64>()
                     .expect("Failed to parse level as i64");
-                let mut iter = instr
+                let iter = instr
                     .params
                     .get_value("iter")
                     .parse::<i64>()
@@ -129,10 +129,12 @@ fn reshape_instr(op: Op) -> Op {
                 let mut iterx = 0;
                 let mut delayx = 0;
                 let mut stepx = 0;
+                // TODO: make those values dependent on isa.json
                 if iter > 2i64.pow(6) - 1 {
                     repx_flag = true;
                     iterx = iter / 2i64.pow(6);
-                    iter %= 2i64.pow(6);
+                    // iter %= 2i64.pow(6);
+                    // TODO: check how to support REPX
                 }
                 if delay > 2i64.pow(6) - 1 {
                     repx_flag = true;

@@ -144,7 +144,7 @@ fn reshape_instr(op: Op) -> Op {
                 if iter > 2i64.pow(6) - 1 {
                     repx_flag = true;
                     iterx = iter / 2i64.pow(6);
-                    iter %= 2i64.pow(6);
+                    // iter %= 2i64.pow(6);
                 }
                 if delay > 2i64.pow(6) - 1 {
                     repx_flag = true;

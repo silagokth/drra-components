@@ -95,12 +95,12 @@
         {
           "name": "level",
           "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 4
+          "bitwidth": 3
         },
         {
           "name": "iter",
           "comment": "level-1 iteration - 1.",
-          "bitwidth": 6
+          "bitwidth": 7
         },
         {
           "name": "step",
@@ -151,12 +151,12 @@
         {
           "name": "level",
           "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 4
+          "bitwidth": 3
         },
         {
           "name": "iter",
           "comment": "level-1 iteration - 1.",
-          "bitwidth": 6
+          "bitwidth": 7
         },
         {
           "name": "step",

@@ -25,8 +25,8 @@ getIsaDefinitions() {
            {SegmentRange("option", 2, 22), SegmentRange("sr", 1, 21),
             SegmentRange("source", 4, 17), SegmentRange("target", 16, 1)}},
           {OpCode::REP,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 4, 18),
-            SegmentRange("iter", 6, 12), SegmentRange("delay", 12, 0)}},
+           {SegmentRange("port", 2, 22), SegmentRange("level", 3, 19),
+            SegmentRange("iter", 7, 12), SegmentRange("delay", 12, 0)}},
           {OpCode::TRANS,
            {SegmentRange("port", 2, 22), SegmentRange("level", 2, 20),
             SegmentRange("delay", 14, 6)}}};

@@ -93,12 +93,12 @@
         {
           "name": "level",
           "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 4
+          "bitwidth": 3
         },
         {
           "name": "iter",
           "comment": "Number of iterations - 1 of the current level. As the switchbox does not use the address value, the step size is always 1.",
-          "bitwidth": 6
+          "bitwidth": 7
         },
         {
           "name": "delay",

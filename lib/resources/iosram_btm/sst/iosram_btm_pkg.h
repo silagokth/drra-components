@@ -22,12 +22,12 @@ getIsaDefinitions() {
            {SegmentRange("init_addr_sd", 1, 23),
             SegmentRange("init_addr", 16, 7), SegmentRange("port", 2, 5)}},
           {OpCode::REP,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 4, 18),
-            SegmentRange("iter", 6, 12), SegmentRange("step", 6, 6),
+           {SegmentRange("port", 2, 22), SegmentRange("level", 3, 19),
+            SegmentRange("iter", 7, 12), SegmentRange("step", 6, 6),
             SegmentRange("delay", 6, 0)}},
           {OpCode::REPX,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 4, 18),
-            SegmentRange("iter", 6, 12), SegmentRange("step", 6, 6),
+           {SegmentRange("port", 2, 22), SegmentRange("level", 3, 19),
+            SegmentRange("iter", 7, 12), SegmentRange("step", 6, 6),
             SegmentRange("delay", 6, 0)}}};
   return segmentsDef;
 }
