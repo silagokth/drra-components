@@ -90,6 +90,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     if (rep_valid) begin
       agu_config.ir_configs[current_lane][rep_instr._level].delay = rep_instr._delay;
       agu_config.ir_configs[current_lane][rep_instr._level].iter = rep_instr._iter;
+      agu_config.ir_configs[current_lane][rep_instr._level].step = rep_instr._step;
       agu_config.ir_configs[current_lane][rep_instr._level].is_configured = 1'b1;
     end
     if (trans_valid) begin
