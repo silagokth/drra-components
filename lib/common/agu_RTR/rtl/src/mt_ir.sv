@@ -17,7 +17,7 @@ module mt_ir
     input rep_config_class#(
         .DELAY_WIDTH(REP_DELAY_WIDTH),
         .ITER_WIDTH (REP_ITER_WIDTH)
-    )::rep_t [NUMBER_IR-1:0][NUMBER_MT+1] ir_configs,
+    )::rep_t [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs,
 
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
@@ -166,11 +166,13 @@ module mt_ir
             state_next = RUN_LANE;
           end else begin
             // Counter Mode logic for Cycle 0
-            if (max_lane_index == 0) begin
-              state_next = DONE;
-            end else if (mt_configs[0].delay > 0) begin
+            if (max_lane_index == 0 && ir_done_array[0]) state_next = DONE;
+            else if (mt_configs[0].delay > 0) begin
               state_next = TRANSITION_DELAY;
               transition_cnt_next = mt_configs[0].delay;
+            end else if (!ir_done_array[active_lane_ptr]) begin
+              active_lane_ptr_next = active_lane_ptr;
+              state_next = RUN_LANE;
             end else begin
               active_lane_ptr_next = 1;
               state_next = RUN_LANE;
@@ -182,12 +184,20 @@ module mt_ir
       RUN_LANE: begin
         if (step_done) begin
           if (active_lane_ptr >= max_lane_index) begin
-            ir_done = 1'b1;
-            state_next = IDLE;
+            if (ir_configs[max_lane_index][0].is_configured && !ir_done_array[max_lane_index]) begin
+              ir_done = 1'b0;
+              state_next = RUN_LANE;
+            end else begin
+              ir_done = 1'b1;
+              state_next = IDLE;
+            end
           end else begin
             if (mt_configs[active_lane_ptr].delay > 0) begin
               state_next = TRANSITION_DELAY;
               transition_cnt_next = mt_configs[active_lane_ptr].delay;
+            end else if (!ir_done_array[active_lane_ptr]) begin
+              active_lane_ptr_next = active_lane_ptr;
+              state_next = RUN_LANE;
             end else begin
               active_lane_ptr_next = active_lane_ptr + 1;
               state_next = RUN_LANE;
@@ -201,6 +211,14 @@ module mt_ir
           state_next           = RUN_LANE;
           active_lane_ptr_next = active_lane_ptr + 1;
           transition_cnt_next  = '0;
+
+          // Check if all done
+          if (active_lane_ptr + 1 >= max_lane_index) begin
+            if (ir_done_array[max_lane_index]) begin
+              state_next = IDLE;
+              ir_done    = 1'b1;
+            end
+          end
         end else begin
           transition_cnt_next = transition_cnt - 1'b1;
         end

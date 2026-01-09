@@ -26,15 +26,24 @@ module or_mt_ir_tb
   localparam int NUMBER_MT = 3;
   localparam int NUMBER_OR = 2;
   localparam int CLK_PERIOD = 10;
+  localparam int REP_DELAY_WIDTH = 6;
+  localparam int REP_ITER_WIDTH = 6;
+  localparam int TRANS_DELAY_WIDTH = 12;
 
   logic clk;
   logic rst_n;
   logic enable;
 
   // Configurations
-  rep_config_t [NUMBER_OR-1:0] or_configs;
-  trans_config_t [NUMBER_MT-1:0] mt_configs;
-  rep_config_t [NUMBER_IR-1:0] ir_configs[NUMBER_MT+1];
+  typedef agu_config_class#(
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (NUMBER_MT),
+      .NUMBER_OR        (NUMBER_OR),
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
+  agu_config_t agu_config;
 
   // Outputs
   logic [ADDRESS_WIDTH-1:0] ir_addr;
@@ -70,17 +79,20 @@ module or_mt_ir_tb
   // DUT Instantiation
   // --------------------------------------------------------------------------
   or_mt_ir #(
-      .ADDRESS_WIDTH(ADDRESS_WIDTH),
-      .NUMBER_IR    (NUMBER_IR),
-      .NUMBER_MT    (NUMBER_MT),
-      .NUMBER_OR    (NUMBER_OR)
+      .ADDRESS_WIDTH    (ADDRESS_WIDTH),
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (NUMBER_MT),
+      .NUMBER_OR        (NUMBER_OR),
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) dut (
       .clk       (clk),
       .rst_n     (rst_n),
       .enable    (enable),
-      .or_configs(or_configs),
-      .mt_configs(mt_configs),
-      .ir_configs(ir_configs),
+      .or_configs(agu_config.or_configs),
+      .mt_configs(agu_config.mt_configs),
+      .ir_configs(agu_config.ir_configs),
       .ir_addr   (ir_addr),
       .ir_valid  (ir_valid),
       .ir_done   (ir_done)
@@ -99,34 +111,35 @@ module or_mt_ir_tb
   // --------------------------------------------------------------------------
   task automatic init_configs();
     for (int k = 0; k < NUMBER_OR; k++) begin
-      or_configs[k] = '0;
+      agu_config.or_configs[k] = '0;
     end
     for (int m = 0; m <= NUMBER_MT; m++) begin
       for (int i = 0; i < NUMBER_IR; i++) begin
-        ir_configs[m][i] = '0;
+        agu_config.ir_configs[m][i] = '0;
       end
     end
     for (int t = 0; t < NUMBER_MT; t++) begin
-      mt_configs[t] = '0;
+      agu_config.mt_configs[t] = '0;
     end
   endtask
 
   task automatic configure_lane_ir(input int lane, input int level, input int delay, input int iter,
                                    input int step);
-    ir_configs[lane][level].delay = delay;
-    ir_configs[lane][level].iter = iter;
-    ir_configs[lane][level].step = step;
-    ir_configs[lane][level].is_configured = 1;
+    $display("    Configuring IR: lane=%0d, level=%0d, delay=%0d, iter=%0d", lane, level, delay,
+             iter);
+    agu_config.ir_configs[lane][level].delay = delay;
+    agu_config.ir_configs[lane][level].iter = iter;
+    agu_config.ir_configs[lane][level].is_configured = 1;
   endtask
 
   task automatic configure_mt_trans(input int trans_idx, input int delay);
-    mt_configs[trans_idx].delay = delay;
-    mt_configs[trans_idx].is_configured = 1;
+    agu_config.mt_configs[trans_idx].delay = delay;
+    agu_config.mt_configs[trans_idx].is_configured = 1;
   endtask
 
   task automatic configure_or(input int level, input int iter, input int delay);
-    or_configs[level].iter  = iter;
-    or_configs[level].delay = delay;
+    agu_config.or_configs[level].iter  = iter;
+    agu_config.or_configs[level].delay = delay;
     // Note: or_configs doesn't have explicit 'step' or 'is_configured' in previous definitions,
     // but assuming standard rep_config_t structure, we use iter/delay.
     // If is_configured logic is needed, ensure struct has it.
@@ -158,7 +171,7 @@ module or_mt_ir_tb
 
     // Determine active lanes
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (ir_configs[k][0].is_configured) max_lane_idx = k;
+      if (agu_config.ir_configs[k][0].is_configured) max_lane_idx = k;
     end
 
     // Iterate through sequence (Lane -> Trans -> Lane...)
@@ -174,10 +187,12 @@ module or_mt_ir_tb
       stack_counter++;
 
       for (int i = 0; i < NUMBER_IR; i++) begin
-        if (!ir_configs[m][i].is_configured) continue;
+        if (!agu_config.ir_configs[m][i].is_configured) continue;
+        $display("      Adding IR Config i=%0d, m=%0d: iter=%0d, delay=%0d", i, m,
+                 agu_config.ir_configs[m][i].iter, agu_config.ir_configs[m][i].delay);
         type_arr[stack_counter]  = 0;  // Repetition
-        iter_arr[stack_counter]  = ir_configs[m][i].iter;
-        delay_arr[stack_counter] = ir_configs[m][i].delay;
+        iter_arr[stack_counter]  = agu_config.ir_configs[m][i].iter;
+        delay_arr[stack_counter] = agu_config.ir_configs[m][i].delay;
         stack_counter++;
       end
 
@@ -210,8 +225,8 @@ module or_mt_ir_tb
 
       // 3. Add Transition Delay if not last lane
       if (m < max_lane_idx) begin
-        if (mt_configs[m].is_configured) begin
-          mt_offset += mt_configs[m].delay;
+        if (agu_config.mt_configs[m].is_configured) begin
+          mt_offset += agu_config.mt_configs[m].delay;
         end
       end
     end
@@ -234,14 +249,14 @@ module or_mt_ir_tb
     end
 
     // Recursive Step
-    if (or_configs[level].iter > 0) begin
-      for (int i = 0; i < or_configs[level].iter; i++) begin
+    if (agu_config.or_configs[level].iter > 0) begin
+      for (int i = 0; i < agu_config.or_configs[level].iter; i++) begin
         // Recurse deeper
         simulate_or_recursion(level - 1);
 
         // Add Delay between iterations (but not after the last one of this level)
-        if (i < or_configs[level].iter - 1) begin
-          global_sim_time += or_configs[level].delay;
+        if (i < agu_config.or_configs[level].iter - 1) begin
+          global_sim_time += agu_config.or_configs[level].delay;
         end
       end
     end else begin
@@ -469,6 +484,27 @@ module or_mt_ir_tb
     addr_count = 0;
     enable = 1;
     repeat (10) @(posedge clk);
+    enable = 0;
+    verify_final();
+    rst_n = 0;
+    @(posedge clk);
+    rst_n = 1;
+
+    // ============================================================
+    // TEST 7: No OR, Two IR levels
+    // ============================================================
+    test_num++;
+    $display("\nTEST %0d: No OR (Level 0: 10x)", test_num);
+    init_configs();
+    configure_lane_ir(0, 0, 1, 4, 1);  // Lane 0: 0,1,2,3
+    configure_lane_ir(0, 1, 57, 8, 1);  // Lane 1: 8times, 57 delay
+
+    build_grand_expected_sequence();
+
+    current_cycle = 0;
+    addr_count = 0;
+    enable = 1;
+    wait_for_completion(2000);
     enable = 0;
     verify_final();
 

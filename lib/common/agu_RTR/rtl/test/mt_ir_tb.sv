@@ -25,6 +25,27 @@ module mt_ir_tb
   localparam int NUMBER_IR = 4;
   localparam int NUMBER_MT = 3;
   localparam int CLK_PERIOD = 10;
+  localparam int REP_DELAY_WIDTH = 6;
+  localparam int REP_ITER_WIDTH = 6;
+  localparam int TRANS_DELAY_WIDTH = 12;
+
+  typedef agu_config_class#(
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (1),                 // Single MT for this testbench
+      .NUMBER_OR        (1),                 // Single OR for this testbench
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  )::rep_config_t rep_config_t;
+
+  typedef agu_config_class#(
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (1),                 // Single MT for this testbench
+      .NUMBER_OR        (1),                 // Single OR for this testbench
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  )::trans_config_t trans_config_t;
 
   logic                            clk;
   logic                            rst_n;
@@ -32,7 +53,7 @@ module mt_ir_tb
 
   // Configuration Signals
   trans_config_t [    NUMBER_MT-1:0] mt_configs;
-  rep_config_t   [    NUMBER_IR-1:0] ir_configs[NUMBER_MT+1];
+  rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
 
   // Outputs
   logic          [ADDRESS_WIDTH-1:0] ir_addr;
@@ -57,7 +78,10 @@ module mt_ir_tb
   mt_ir #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR    (NUMBER_IR),
-      .NUMBER_MT    (NUMBER_MT)
+      .NUMBER_MT    (NUMBER_MT),
+      .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) dut (
       .clk        (clk),
       .rst_n      (rst_n),
@@ -103,7 +127,6 @@ module mt_ir_tb
   );
     ir_configs[lane][level].delay = delay;
     ir_configs[lane][level].iter = iter;
-    ir_configs[lane][level].step = step;
     ir_configs[lane][level].is_configured = 1;
   endtask
 
@@ -213,7 +236,7 @@ module mt_ir_tb
   // --------------------------------------------------------------------------
   // Verification Tasks
   // --------------------------------------------------------------------------
-  task automatic wait_for_completion(input int timeout_cycles = 50000);
+  task automatic wait_for_completion(input int timeout_cycles = 50);
     int cnt = 0;
     while (!ir_done && cnt < timeout_cycles) begin
       @(posedge clk);

@@ -49,7 +49,7 @@ package agu_RTR_pkg;
     typedef struct packed {
       rep_config_t [(NUMBER_OR > 0 ? NUMBER_OR : 1)-1:0] or_configs;
       trans_config_t [(NUMBER_MT > 0 ? NUMBER_MT : 1)-1:0] mt_configs;
-      rep_config_t [NUMBER_IR-1:0][NUMBER_MT:0] ir_configs;
+      rep_config_t [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
     } agu_config_t;
   endclass
 

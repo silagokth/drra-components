@@ -93,7 +93,7 @@ module agu_RTR
           .clk       (clk),
           .rst_n     (rst_n),
           .enable    (activation_reg),
-          .ir_configs(agu_config.ir_configs[0]),
+          .ir_configs(agu_config.ir_configs),
           .ir_addr   (addr),
           .ir_valid  (addr_valid),
           .ir_done   (done)

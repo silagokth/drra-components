@@ -19,6 +19,18 @@ module ir_tb
   localparam int ADDRESS_WIDTH = 16;
   localparam int NUMBER_IR = 4;
   localparam int CLK_PERIOD = 10;  // 10ns = 100MHz
+  localparam int REP_DELAY_WIDTH = 6;
+  localparam int REP_ITER_WIDTH = 6;
+  localparam int TRANS_DELAY_WIDTH = 12;
+
+  typedef agu_config_class#(
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (1),                 // Single MT for this testbench
+      .NUMBER_OR        (1),                 // Single OR for this testbench
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  )::rep_config_t rep_config_t;
 
   // DUT signals
   logic                            clk;
@@ -44,8 +56,7 @@ module ir_tb
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR(NUMBER_IR),
       .DELAY_WIDTH  (REP_DELAY_WIDTH),
-      .ITER_WIDTH   (REP_ITER_WIDTH),
-      .STEP_WIDTH   (REP_STEP_WIDTH)
+      .ITER_WIDTH   (REP_ITER_WIDTH)
   ) dut (
       .clk(clk),
       .rst_n(rst_n),
@@ -116,7 +127,6 @@ module ir_tb
   task automatic configure_ir(input int level, input int delay, input int iter, input int step);
     ir_configs[level].delay = delay;
     ir_configs[level].iter = iter;
-    ir_configs[level].step = step;
     ir_configs[level].is_configured = 1;
   endtask
 
@@ -125,7 +135,6 @@ module ir_tb
     for (int i = 0; i < NUMBER_IR; i++) begin
       ir_configs[i].delay = 0;
       ir_configs[i].iter = 0;
-      ir_configs[i].step = 0;
       ir_configs[i].is_configured = 0;
     end
   endtask
@@ -204,8 +213,7 @@ module ir_tb
     $display("TEST %0d: %s", test_num, test_name);
     $display("========================================");
     for (int i = 0; i < NUMBER_IR; i++) begin
-      $display("  IR[%0d]: delay=%0d, iter=%0d, step=%0d", i, ir_configs[i].delay,
-               ir_configs[i].iter, ir_configs[i].step);
+      $display("  IR[%0d]: delay=%0d, iter=%0d", i, ir_configs[i].delay, ir_configs[i].iter);
     end
     $display("  IR[0] will repeat: %0d times", outer_repetitions);
     $display("  Expected total addresses: %0d", expected_total_addrs);

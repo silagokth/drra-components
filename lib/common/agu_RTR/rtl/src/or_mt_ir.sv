@@ -24,7 +24,7 @@ module or_mt_ir
     input rep_config_class#(
         .DELAY_WIDTH(REP_DELAY_WIDTH),
         .ITER_WIDTH (REP_ITER_WIDTH)
-    )::rep_t [NUMBER_IR-1:0][NUMBER_MT+1] ir_configs,
+    )::rep_t [NUMBER_IR-1:0][NUMBER_MT:0] ir_configs,
 
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
