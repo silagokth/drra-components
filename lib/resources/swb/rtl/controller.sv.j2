@@ -140,6 +140,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end else if (rep_valid_instr) begin
       agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]] <= rep_instr._delay;
       agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]].iter  <= rep_instr._iter;
+      agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]].step  <= '0;
       agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]].is_configured <= 1;
     end else if (trans_valid_instr) begin
       agu_configs_reg[agu_conf_enable].mt_configs[current_lane[agu_conf_enable]].delay <= trans_instr._delay;
