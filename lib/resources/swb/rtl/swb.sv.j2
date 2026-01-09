@@ -40,6 +40,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     // SWB and ROUTE configuration signals
     logic swb_conf_valid, route_in_conf_valid, route_out_conf_valid;
+    logic [$clog2(NUM_OPTIONS)-1:0] option_index;
     logic [$clog2(NUM_SLOTS)-1:0] swb_conf_link;
     logic [$clog2(NUM_DIRS)-1:0]  route_in_conf_link;
     logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link;
@@ -73,6 +74,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .swb_conf_valid(swb_conf_valid),
       .route_in_conf_valid(route_in_conf_valid),
       .route_out_conf_valid(route_out_conf_valid),
+      .option_index(option_index),
       .swb_conf_link(swb_conf_link),
       .route_in_conf_link(route_in_conf_link),
       .route_out_conf_link(route_out_conf_link),
@@ -84,7 +86,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .route_in_configs(route_in_src_configs),
       .route_out_configs(route_out_src_configs),
 
-      .agu_configs(agu_configs)
+      .agu_configs(agu_configs),
+      .agu_is_configured(agu_is_configured)
     );
 
     // AGU control signals
@@ -103,6 +106,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .swb_conf_valid(swb_conf_valid),
       .route_in_conf_valid(route_in_conf_valid),
       .route_out_conf_valid(route_out_conf_valid),
+      .option_index(option_index),
 
       .swb_conf_link(swb_conf_link),
       .route_in_conf_link(route_in_conf_link),
@@ -133,6 +137,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         ) agu_inst (
           .clk(clk),
           .rst_n(rst_n),
+          .enable(1'b1),
 
           .activation(activate_0[agu_port]),
 

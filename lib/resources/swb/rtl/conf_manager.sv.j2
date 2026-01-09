@@ -15,6 +15,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   input logic swb_conf_valid,
   input logic route_in_conf_valid,
   input logic route_out_conf_valid,
+  input logic [$clog2(NUM_OPTIONS)-1:0] option_index,
 
   // SWB and ROUTE link indices to configure
   input logic [$clog2(NUM_SLOTS)-1:0] swb_conf_link,
@@ -35,19 +36,20 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Signal to hold current option index (renamed for clarity)
   logic [NUM_AGUS-1:0] option_valid;
   logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] current_option;
-  always_comb begin
+  always_ff @(posedge clk or negedge rst_n) begin
     // Default to not valid
-    option_valid = '0;
-    current_option = '0;
-
-    // Only consider AGUs that are configured
-    for (int i = 0; i < NUM_AGUS; i++) begin
-      if (agu_is_configured[i]) begin
-        option_valid[i] = agu_enable[i];
-        current_option[i] = agu_address[i];
-      end else begin // if AGU not configured, mark always valid with option 0
-        option_valid[i] = 1'b1;
-        current_option[i] = '0;
+    if (!rst_n) begin
+      option_valid <= '0;
+      current_option <= '0;
+    end else begin
+      for (int i = 0; i < NUM_AGUS; i++) begin
+        if (agu_enable[i] && agu_is_configured[i]) begin
+          option_valid[i] <= 1'b1;
+          current_option[i] <= agu_address[i];
+        end else if (!agu_is_configured[i]) begin // if AGU not configured, mark always valid with option 0
+          option_valid[i] <= 1'b1;
+          current_option[i] <= '0;
+        end
       end
     end
   end
@@ -71,19 +73,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end else begin
       // Register configurations if valid else hold previous value
-      if (swb_conf_valid && current_option[AGU_SWB_INDEX] < NUM_OPTIONS)
-        swb_config_reg[current_option[AGU_SWB_INDEX]].slot_link[swb_conf_link] <=
-          swb_configs[current_option[AGU_SWB_INDEX]].slot_link[swb_conf_link];
+      if (swb_conf_valid)
+        swb_config_reg[option_index].slot_link[swb_conf_link] <=
+          swb_configs[option_index].slot_link[swb_conf_link];
 
       // Register route in configurations if valid else hold previous value
-      if (route_in_conf_valid && current_option[AGU_ROUTE_INDEX] < NUM_OPTIONS)
-        route_in_config_reg[current_option[AGU_ROUTE_INDEX]].receive_links[route_in_conf_link] <=
-          route_in_configs[current_option[AGU_ROUTE_INDEX]].receive_links[route_in_conf_link];
+      if (route_in_conf_valid)
+        route_in_config_reg[option_index].receive_links[route_in_conf_link] <=
+          route_in_configs[option_index].receive_links[route_in_conf_link];
 
       // Register route out configurations if valid else hold previous value
-      if (route_out_conf_valid && current_option[AGU_ROUTE_INDEX] < NUM_OPTIONS)
-        route_out_config_reg[current_option[AGU_ROUTE_INDEX]].send_links[route_out_conf_link] <=
-          route_out_configs[current_option[AGU_ROUTE_INDEX]].send_links[route_out_conf_link];
+      if (route_out_conf_valid)
+        route_out_config_reg[option_index].send_links[route_out_conf_link] <=
+          route_out_configs[option_index].send_links[route_out_conf_link];
     end
   end
 
