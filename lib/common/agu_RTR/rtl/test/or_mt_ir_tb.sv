@@ -11,6 +11,7 @@ module or_mt_ir_tb
     input int type_configs [],
     input int iter_configs [],
     input int delay_configs[],
+    input int step_configs [],
     input int num_levels
   );
   import "DPI-C" context function int cpp_pop_expected_address();
@@ -141,7 +142,7 @@ module or_mt_ir_tb
     agu_config.mt_configs[trans_idx].is_configured = 1;
   endtask
 
-  task automatic configure_or(input int level, input int iter, input int delay);
+  task automatic configure_or(input int level, input int iter, input int delay, input int step = 0);
     agu_config.or_configs[level].iter  = iter;
     agu_config.or_configs[level].delay = delay;
     // Note: or_configs doesn't have explicit 'step' or 'is_configured' in previous definitions,
@@ -161,6 +162,7 @@ module or_mt_ir_tb
     int type_arr[];
     int iter_arr[];
     int delay_arr[];
+    int step_arr[];
     int mt_offset = 0;
 
     // Clear cache
@@ -172,6 +174,7 @@ module or_mt_ir_tb
     type_arr = new[NUMBER_IR * NUMBER_MT + NUMBER_MT + 10];
     iter_arr = new[NUMBER_IR * NUMBER_MT + NUMBER_MT + 10];
     delay_arr = new[NUMBER_IR * NUMBER_MT + NUMBER_MT + 10];
+    step_arr = new[NUMBER_IR * NUMBER_MT + NUMBER_MT + 10];
 
     // Determine active lanes
     for (int k = 0; k <= NUMBER_MT; k++) begin
@@ -188,6 +191,7 @@ module or_mt_ir_tb
       type_arr[stack_counter] = 2;  // Event
       iter_arr[stack_counter] = 0;
       delay_arr[stack_counter] = 0;
+      step_arr[stack_counter] = 0;
       stack_counter++;
 
       for (int i = 0; i < NUMBER_IR; i++) begin
@@ -197,10 +201,11 @@ module or_mt_ir_tb
         type_arr[stack_counter]  = 0;  // Repetition
         iter_arr[stack_counter]  = agu_config.ir_configs[m][i].iter;
         delay_arr[stack_counter] = agu_config.ir_configs[m][i].delay;
+        step_arr[stack_counter]  = agu_config.ir_configs[m][i].step;
         stack_counter++;
       end
 
-      cpp_build_pattern(type_arr, iter_arr, delay_arr, stack_counter);
+      cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr, stack_counter);
 
       lane_addr_count = cpp_get_address_queue_size();
 

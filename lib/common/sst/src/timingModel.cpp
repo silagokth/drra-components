@@ -161,11 +161,7 @@ TimingState &TimingState::adjustRepetition(uint64_t iterations, uint64_t delay,
 }
 
 uint64_t TimingState::getRepIncrementForCycle(uint64_t cycle) {
-  uint64_t increment = 0;
-  for (uint64_t i = 0; i < levels_current_iteration.size(); i++) {
-    increment += levels_step[i] * levels_current_iteration[i];
-  }
-  return increment;
+  return getAddressForCycle(cycle);
 }
 
 TimingState &TimingState::build() {
@@ -294,6 +290,28 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
   }
   throw std::runtime_error("Repetition operator with level " +
                            std::to_string(level) + " not found");
+}
+
+uint64_t TimingState::getAddressForCycle(uint64_t cycle) {
+  uint64_t address = 0;
+  for (uint64_t i = 0; i < levels_current_iteration.size(); i++) {
+    address += levels_step[i] * levels_current_iteration[i];
+  }
+  return address;
+}
+
+void TimingState::copyLevelData(const TimingState &other) {
+  this->levels_current_iteration = other.levels_current_iteration;
+  this->levels_total_iterations = other.levels_total_iterations;
+  this->levels_step = other.levels_step;
+}
+
+const std::vector<uint64_t> &TimingState::getLevelsStep() const {
+  return levels_step;
+}
+
+const std::vector<uint64_t> &TimingState::getLevelsTotalIterations() const {
+  return levels_total_iterations;
 }
 
 // TimingEvent implementations

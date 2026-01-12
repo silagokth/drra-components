@@ -78,6 +78,10 @@ public:
   std::string toString() const;
 
   RepetitionOperator getRepetitionOperatorFromLevel(uint64_t level) const;
+  uint64_t getAddressForCycle(uint64_t cycle);
+  void copyLevelData(const TimingState &other);
+  const std::vector<uint64_t> &getLevelsStep() const;
+  const std::vector<uint64_t> &getLevelsTotalIterations() const;
 };
 
 class TimingEvent : public TimingExpression,

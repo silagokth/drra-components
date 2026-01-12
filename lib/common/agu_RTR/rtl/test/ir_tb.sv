@@ -8,6 +8,7 @@ module ir_tb
     input int type_configs [],
     input int iter_configs [],
     input int delay_configs[],
+    input int step_configs [],
     input int num_levels
   );
   import "DPI-C" context function int cpp_pop_expected_address();
@@ -86,6 +87,8 @@ module ir_tb
     int type_arr[];
     int iter_arr[];
     int delay_arr[];
+    int step_arr[];
+
     int val;
     int cycle;
     int stack_counter = 0;
@@ -93,10 +96,12 @@ module ir_tb
     type_arr = new[NUMBER_IR + 1];
     iter_arr = new[NUMBER_IR + 1];
     delay_arr = new[NUMBER_IR + 1];
+    step_arr = new[NUMBER_IR + 1];
 
     type_arr[0] = 2;  // Event
     iter_arr[0] = 0;
     delay_arr[0] = 0;
+    step_arr[0] = 0;
     stack_counter++;
     for (int i = 0; i < NUMBER_IR; i++) begin
       if (!ir_configs[i].is_configured) continue;
@@ -104,6 +109,7 @@ module ir_tb
       type_arr[stack_counter]  = 0;  // Not used in this testbench (always repeat)
       iter_arr[stack_counter]  = (ir_configs[i].iter == 0) ? 0 : ir_configs[i].iter;
       delay_arr[stack_counter] = ir_configs[i].delay;
+      step_arr[stack_counter]  = ir_configs[i].step;
       stack_counter++;
     end
 
@@ -112,7 +118,7 @@ module ir_tb
 
     // Call C++ Timing Model
     // We assume the C++ model adds loops in order 0..N
-    cpp_build_pattern(type_arr, iter_arr, delay_arr, stack_counter);
+    cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr, stack_counter);
     stack_counter = 0;
 
     // Retrieve results back into SV Queue
@@ -130,6 +136,7 @@ module ir_tb
   task automatic configure_ir(input int level, input int delay, input int iter, input int step);
     ir_configs[level].delay = delay;
     ir_configs[level].iter = iter;
+    ir_configs[level].step = step;
     ir_configs[level].is_configured = 1;
   endtask
 
@@ -138,6 +145,7 @@ module ir_tb
     for (int i = 0; i < NUMBER_IR; i++) begin
       ir_configs[i].delay = 0;
       ir_configs[i].iter = 0;
+      ir_configs[i].step = 0;
       ir_configs[i].is_configured = 0;
     end
   endtask
@@ -291,7 +299,7 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 0, 3, 1);  // IR[0]: 3 iterations, step=1
-    configure_ir(1, 0, 4, 10);  // IR[1]: 4 iterations (outer loop)
+    configure_ir(1, 0, 4, 0);  // IR[1]: 4 iterations (outer loop)
     build_expected_innermost_addresses();
     print_test_header("Two-Level Nesting");
     $display("  Expected: IR[0] sequence (0,1,2) repeated 4 times");
@@ -312,8 +320,8 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 0, 2, 1);  // IR[0]: 2 iterations (innermost)
-    configure_ir(1, 0, 2, 10);  // IR[1]: 3 iterations
-    configure_ir(2, 0, 2, 100);  // IR[2]: 2 iterations (outermost)
+    configure_ir(1, 0, 2, 0);  // IR[1]: 3 iterations
+    configure_ir(2, 0, 2, 0);  // IR[2]: 2 iterations (outermost)
     build_expected_innermost_addresses();
     print_test_header("Three-Level Nesting");
     $display("  Expected: IR[0] sequence (0,1) repeated 3*2=6 times");
@@ -334,9 +342,9 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 0, 2, 1);  // IR[0]: innermost, 2 iterations
-    configure_ir(1, 0, 2, 10);  // IR[1]: 2 iterations
-    configure_ir(2, 0, 2, 100);  // IR[2]: 2 iterations
-    configure_ir(3, 0, 2, 1000);  // IR[3]: outermost, 2 iterations
+    configure_ir(1, 0, 2, 0);  // IR[1]: 2 iterations
+    configure_ir(2, 0, 2, 0);  // IR[2]: 2 iterations
+    configure_ir(3, 0, 2, 0);  // IR[3]: outermost, 2 iterations
     build_expected_innermost_addresses();
     print_test_header("Four-Level Nesting");
     $display("  Expected: IR[0] sequence (0,1) repeated 2*2*2=8 times");
@@ -357,7 +365,7 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 2, 3, 1);  // IR[0]: delay=2
-    configure_ir(1, 1, 2, 10);  // IR[1]: delay=1
+    configure_ir(1, 1, 2, 0);  // IR[1]: delay=1
     build_expected_innermost_addresses();
     print_test_header("Two-Level with Delays");
     $display("  Expected: (0,1,2) repeated 2 times with delays");
@@ -377,7 +385,7 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 0, 7, 1);  // IR[0]: 7 iterations
-    configure_ir(1, 0, 5, 20);  // IR[1]: 5 iterations
+    configure_ir(1, 0, 5, 0);  // IR[1]: 5 iterations
     build_expected_innermost_addresses();
     print_test_header("Non-power-of-2 Iterations");
     $display("  Expected: (0,1,2,3,4,5,6) repeated 5 times = 35 addresses");
@@ -393,14 +401,14 @@ module ir_tb
     repeat (2) @(posedge clk);
 
     // ========================================
-    // TEST 7: Large step values (innermost)
+    // TEST 7: IR1 step non-zero (innermost)
     // ========================================
     init_configs();
-    configure_ir(0, 0, 3, 100);  // IR[0]: large step
-    configure_ir(1, 0, 2, 1000);  // IR[1]: outer loop
+    configure_ir(0, 0, 3, 1);  // IR[0]: large step
+    configure_ir(1, 0, 2, 1);  // IR[1]: outer loop
     build_expected_innermost_addresses();
-    print_test_header("Large Step Values");
-    $display("  Expected: (0,100,200) repeated 2 times");
+    print_test_header("Non-zero step at outer level");
+    $display("  Expected: (0,1,2,1,2,3)");
 
     enable = 1;
     current_cycle = 0;
@@ -417,9 +425,9 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 3, 3, 1);  // 3 iterations, delay=3
-    configure_ir(1, 2, 2, 10);  // 2 iterations, delay=2
-    configure_ir(2, 1, 2, 100);  // 2 iterations, delay=1
-    configure_ir(3, 1, 2, 1000);  // 2 iterations, delay=1
+    configure_ir(1, 2, 2, 0);  // 2 iterations, delay=2
+    configure_ir(2, 1, 2, 0);  // 2 iterations, delay=1
+    configure_ir(3, 1, 2, 0);  // 2 iterations, delay=1
     build_expected_innermost_addresses();
     print_test_header("Full Nesting with All Delays");
     $display("  Expected: (0,1,2) repeated 2*2*2=8 times = 24 addresses");
@@ -460,7 +468,7 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 0, 4, 0);  // IR[0]: zero step (0,0,0,0)
-    configure_ir(1, 0, 2, 10);  // IR[1]: repeat 2 times
+    configure_ir(1, 0, 2, 0);  // IR[1]: repeat 2 times
     build_expected_innermost_addresses();
     print_test_header("Zero Step at Inner Level");
     $display("  Expected: (0,0,0,0) repeated 2 times");
@@ -480,7 +488,7 @@ module ir_tb
     // ========================================
     init_configs();
     configure_ir(0, 0, 10, 1);  // IR[0]: 0-9
-    configure_ir(1, 0, 10, 20);  // IR[1]: repeat 10 times
+    configure_ir(1, 0, 10, 0);  // IR[1]: repeat 10 times
     build_expected_innermost_addresses();
     print_test_header("Stress Test - 100 addresses");
     $display("  Expected: (0,1,2,...,9) repeated 10 times = 100 addresses");

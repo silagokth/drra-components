@@ -184,7 +184,14 @@ module ir
   end
 
   // Outputs
-  assign ir_addr = iter_count[0];
+  //assign ir_addr = iter_count[0];
+  always_comb begin
+    ir_addr = '0;
+    for (int i = 0; i < NUMBER_IR; i++) begin
+      if (ir_configs[i].iter > 0)
+        ir_addr = ir_addr + (iter_count[i] * ir_configs[i].step);
+    end
+  end
 
   // Valid is High immediately upon enable (Zero Latency)
   // and stays High during subsequent OUTPUTTING states.

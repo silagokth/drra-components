@@ -11,6 +11,7 @@ module mt_ir_tb
     input int type_configs [],
     input int iter_configs [],
     input int delay_configs[],
+    input int step_configs [],
     input int num_levels
   );
   import "DPI-C" context function int cpp_pop_expected_address();
@@ -218,7 +219,7 @@ module mt_ir_tb
     end
 
     // Call C++ Model for this lane
-    cpp_build_pattern(type_arr, iter_arr, delay_arr, stack_counter);
+    cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr, stack_counter);
     stack_counter = 0;
 
     // Extract results
@@ -412,7 +413,7 @@ module mt_ir_tb
 
     // Lane 1: Nested Loop
     configure_lane_ir(1, 0, 0, 2, 1); // inner
-    configure_lane_ir(1, 1, 0, 2, 1); // outer
+    configure_lane_ir(1, 1, 0, 2, 0); // outer
 
     // Lane 2: Simple 0..2
     configure_lane_ir(2, 0, 0, 3, 1);

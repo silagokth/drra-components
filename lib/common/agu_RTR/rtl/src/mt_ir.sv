@@ -126,7 +126,7 @@ module mt_ir
     ir_addr  = '0;
 
     if (current_mux_ptr <= max_lane_index && ir_configs[current_mux_ptr][0].is_configured) begin
-      ir_addr  = ir_addr_array[current_mux_ptr] * ir_configs[current_mux_ptr][0].step;
+      ir_addr  = ir_addr_array[current_mux_ptr];
       ir_valid = ir_valid_array[current_mux_ptr];
     end else begin
       // Counter Mode
