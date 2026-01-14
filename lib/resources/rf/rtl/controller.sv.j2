@@ -7,7 +7,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic instruction_valid,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
 
-    output agu_config_t agu_configs[4], // TODO: remove magic number
+    output agu_config_t agu_configs[FSM_PER_SLOT],
 
     output logic [3:0] rep_valid_portnum,
     output logic [3:0] repx_valid_portnum,
@@ -34,25 +34,35 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign rep_valid_portnum  = rep_valid_instr  ? (1 << rep._port)  : 4'b0;
     assign repx_valid_portnum = repx_valid_instr ? (1 << repx._port) : 4'b0;
 
+    localparam int DELAY_MSB = REP_DELAY_WIDTH/2;
+    localparam int ITER_MSB = REP_ITER_WIDTH/2;
+    localparam int STEP_MSB = REP_STEP_WIDTH/2;
     // Generate AGU configurations
-    agu_config_t agu_configs_reg[4]; // TODO: remove magic number
+    agu_config_t agu_configs_reg[FSM_PER_SLOT];
     always_ff @(posedge clk or negedge rst_n) begin
       if (!rst_n) begin
         for (int i = 0; i < 4; i++) begin
           for (int j = 0; j < NUMBER_IR; j++) begin
+            agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
+            agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= '0;
+            agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
             agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b0;
           end
         end
       end else if (rep_valid_instr) begin
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].delay <= rep._delay;
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].iter <= rep._iter;
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].step <= rep._step;
+        agu_configs_reg[rep._port].ir_configs[0][rep._level].delay[DELAY_MSB:0] <= rep._delay;
+        agu_configs_reg[rep._port].ir_configs[0][rep._level].iter[ITER_MSB:0] <= rep._iter;
+        agu_configs_reg[rep._port].ir_configs[0][rep._level].step[STEP_MSB:0] <= rep._step;
         agu_configs_reg[rep._port].ir_configs[0][rep._level].is_configured <= 1'b1;
+      end else if (repx_valid_instr) begin
+        agu_configs_reg[repx._port].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB+1] <= repx._delay;
+        agu_configs_reg[repx._port].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB+1] <= repx._iter;
+        agu_configs_reg[repx._port].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB+1] <= repx._step;
       end
     end
     assign agu_configs = agu_configs_reg;
 
-    // TODO: Add support for REPX and OR-level REP?
+    // TODO: Add support for OR-level REP?
     // TODO: Add support for TRANS?
 
 endmodule
