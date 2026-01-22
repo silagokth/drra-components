@@ -1,5 +1,6 @@
 #include "rf.h"
 #include "dataEvent.h"
+#include "timingOperators.h"
 
 using namespace SST;
 

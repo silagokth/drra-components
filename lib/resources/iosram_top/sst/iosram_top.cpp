@@ -3,6 +3,7 @@
 #include "dataEvent.h"
 #include "ioEvents.h"
 #include "iosram_top_pkg.h"
+#include "timingOperators.h"
 
 using namespace SST;
 

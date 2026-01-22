@@ -1,7 +1,10 @@
+#include "timingExpression.h"
 #include "timingModel.h"
+#include "timingOperators.h"
+
 #include <algorithm>
 #include <cstdint>
-#include <stdexcept>
+#include <iostream>
 
 // TimingExpression implementations
 uint64_t TimingExpression::scheduleEvents(TimingState &state,
@@ -19,7 +22,36 @@ TimingState::TimingState() : eventCounter(0), lastScheduledCycle(0) {}
 TimingState::TimingState(std::shared_ptr<TimingExpression> expression)
     : expression(expression), eventCounter(expression->lastEventId() + 1),
       lastScheduledCycle(0) {
-  addEventName(expression->lastEventName());
+  // expression = expression;
+  // eventCounter = 0;
+  // lastScheduledCycle = 0;
+  if (std::dynamic_pointer_cast<TimingEvent>(expression)) {
+    // std::cout << "Adding event name from expression constructor: "
+    //          << std::dynamic_pointer_cast<TimingEvent>(expression)->getName()
+    //          << std::endl;
+    addEventName(std::dynamic_pointer_cast<TimingEvent>(expression)->getName());
+    return;
+  } else if (std::dynamic_pointer_cast<TransitionOperator>(expression)) {
+    // std::cout << "Adding event names from transition operator in expression "
+    //              "constructor"
+    //           << std::endl;
+    auto transition = std::dynamic_pointer_cast<TransitionOperator>(expression);
+    addEventName(transition->getFrom()->lastEventName());
+    addEventName(transition->getTo()->lastEventName());
+    return;
+  } else if (std::dynamic_pointer_cast<RepetitionOperator>(expression)) {
+    // std::cout << "Adding event names from repetition operator in expression "
+    //              "constructor"
+    //           << std::endl;
+    auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(expression);
+    // Recursively add event names from the inner expression
+    TimingState innerState(repetition->getExpression());
+    for (const auto &name : innerState.eventNames) {
+      addEventName(name);
+    }
+    return;
+  }
+  // addEventName(expression->lastEventName());
 }
 
 uint64_t TimingState::getLastScheduledCycle() const {
@@ -34,6 +66,22 @@ TimingState TimingState::createFromEvent(const std::string &name) {
   uint64_t eventCounter = 0;
   auto event = std::make_shared<TimingEvent>(name, eventCounter++);
   return TimingState(std::static_pointer_cast<TimingExpression>(event));
+}
+
+TimingState TimingState::createFromEvent(std::shared_ptr<TimingEvent> event) {
+  uint64_t eventCounter = event->getEventNumber() + 1;
+  return TimingState(std::static_pointer_cast<TimingExpression>(event));
+}
+
+TimingState TimingState::createFromExpression(
+    std::shared_ptr<TimingExpression> expression) {
+  return TimingState(expression);
+}
+
+TimingState &TimingState::addEvent(std::shared_ptr<TimingEvent> event) {
+  addEventName(event->getName());
+  expression = std::static_pointer_cast<TimingExpression>(event);
+  return *this;
 }
 
 TimingState &TimingState::addEvent(const std::string &name,
@@ -69,7 +117,7 @@ TimingState &TimingState::buildTransition(uint64_t delay,
   if (!expression) {
     throw std::runtime_error("Cannot add transition without an event");
   }
-  delay++; // delay is always incremented by 1
+  // delay++; // delay is always incremented by 1
   auto nextEvent = std::make_shared<TimingEvent>(nextEventName, eventCounter++);
   nextEvent->setHandler(handler);
   nextEvent->setPriority(priority);
@@ -175,33 +223,36 @@ TimingState &TimingState::build() {
   }
   auto expression = this->expression;
 
-  // Order operator_queue by putting all transition in beginning
-  uint32_t transition_count = 0;
-  for (uint32_t i = 0; i < operator_queue.size(); i++) {
-    if (std::dynamic_pointer_cast<TransitionOperator>(operator_queue[i])) {
-      if (i != transition_count) {
-        std::swap(operator_queue[i], operator_queue[transition_count]);
-      }
-      transition_count++;
-    }
-  }
+  //// Order operator_queue by putting all transition in beginning
+  // uint32_t transition_count = 0;
+  // for (uint32_t i = 0; i < operator_queue.size(); i++) {
+  //   if (std::dynamic_pointer_cast<TransitionOperator>(operator_queue[i])) {
+  //     if (i != transition_count) {
+  //       std::swap(operator_queue[i], operator_queue[transition_count]);
+  //     }
+  //     transition_count++;
+  //   }
+  // }
 
-  // Order the left repetition operators by level
-  for (uint32_t i = transition_count; i < operator_queue.size(); i++) {
-    for (uint32_t j = i + 1; j < operator_queue.size(); j++) {
-      if (std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[i]) &&
-          std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[j])) {
-        if (std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[i])
-                ->getLevel() >
-            std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[j])
-                ->getLevel()) {
-          std::swap(operator_queue[i], operator_queue[j]);
-        }
-      }
-    }
-  }
+  //// Order the left repetition operators by level
+  // for (uint32_t i = transition_count; i < operator_queue.size(); i++) {
+  //   for (uint32_t j = i + 1; j < operator_queue.size(); j++) {
+  //     if (std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[i]) &&
+  //         std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[j])) {
+  //       if (std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[i])
+  //               ->getLevel() >
+  //           std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[j])
+  //               ->getLevel()) {
+  //         std::swap(operator_queue[i], operator_queue[j]);
+  //       }
+  //     }
+  //   }
+  // }
 
   // Add all operators to the expression
+  // std::cout << operator_queue.size() << " operators to be processed in
+  // build() "
+  //<< std::endl;
   for (auto &op : operator_queue) {
     if (auto transition = std::dynamic_pointer_cast<TransitionOperator>(op)) {
       this->buildTransition(transition->getDelay(),
@@ -217,6 +268,8 @@ TimingState &TimingState::build() {
 
     // Update the timing expression
     expression = this->expression;
+    // std::cout << "Current expression: " << expression->toString() <<
+    // std::endl;
   }
 
   // Schedule events
@@ -274,7 +327,7 @@ void TimingState::addEventName(const std::string &name) {
 
 std::string TimingState::toString() const { return expression->toString(); }
 
-RepetitionOperator
+const RepetitionOperator &
 TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
   // Find repetition operator with the same level in the operator queue
   for (auto &op : operator_queue) {
@@ -295,128 +348,20 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
                            std::to_string(level) + " not found");
 }
 
-// TimingEvent implementations
-TimingEvent::TimingEvent(const std::string &name, uint64_t eventNumber)
-    : name(name), eventNumber(eventNumber) {}
+void TimingState::print(std::ostream &os) {
+  uint64_t lastCycle = getLastScheduledCycle();
 
-uint64_t TimingEvent::scheduleEvents(TimingState &state,
-                                     uint64_t startCycle) const {
-  state.scheduleEvent(shared_from_this(), startCycle);
-  state.updateLastScheduledCycle(startCycle);
-  return startCycle;
-}
-
-std::string TimingEvent::toString() const {
-  return "e" + std::to_string(eventNumber);
-}
-
-std::string TimingEvent::getName() const { return name; }
-
-uint64_t TimingEvent::getEventNumber() const { return eventNumber; }
-
-uint64_t TimingEvent::lastEventId() const { return eventNumber; }
-
-std::string TimingEvent::lastEventName() const { return name; }
-
-void TimingEvent::execute() const {
-  if (handler) {
-    handler();
-  }
-}
-
-void TimingEvent::setHandler(std::function<void()> handler) {
-  this->handler = handler;
-}
-
-std::function<void()> TimingEvent::getHandler() const { return handler; }
-
-void TimingEvent::setPriority(uint8_t priority) { this->priority = priority; }
-
-uint8_t TimingEvent::getPriority() const { return priority; }
-
-// TransitionOperator implementations
-TransitionOperator::TransitionOperator(uint64_t delay,
-                                       std::string nextEventName,
-                                       std::function<void()> handler,
-                                       std::shared_ptr<TimingExpression> from,
-                                       std::shared_ptr<TimingExpression> to)
-    : delay(delay), nextEventName(nextEventName), handler(handler), from(from),
-      to(to) {}
-
-uint64_t TransitionOperator::scheduleEvents(TimingState &state,
-                                            uint64_t startCycle) const {
-  uint64_t fromCycle = from->scheduleEvents(state, startCycle);
-  uint64_t toCycle = to->scheduleEvents(state, fromCycle + delay);
-  return toCycle;
-}
-
-std::string TransitionOperator::toString() const {
-  return "T<" + std::to_string(delay) + ">(" + from->toString() + "," +
-         to->toString() + ")";
-}
-
-uint64_t TransitionOperator::lastEventId() const { return to->lastEventId(); }
-
-std::string TransitionOperator::lastEventName() const {
-  return to->lastEventName();
-}
-
-uint64_t TransitionOperator::getDelay() const { return delay; }
-
-std::string TransitionOperator::getNextEventName() const {
-  return nextEventName;
-}
-
-std::function<void()> TransitionOperator::getHandler() const { return handler; }
-
-std::shared_ptr<TimingExpression> TransitionOperator::getFrom() const {
-  return from;
-}
-
-std::shared_ptr<TimingExpression> TransitionOperator::getTo() const {
-  return to;
-}
-
-// RepetitionOperator implementations
-RepetitionOperator::RepetitionOperator(
-    uint64_t iterations, uint64_t delay, uint64_t level, uint64_t step,
-    std::shared_ptr<TimingExpression> expression)
-    : iterations(iterations), delay(delay), level(level), step(step),
-      expression(expression) {}
-
-uint64_t RepetitionOperator::scheduleEvents(TimingState &state,
-                                            uint64_t startCycle) const {
-  uint64_t lastCycle = startCycle;
-  for (uint64_t i = 0; i < iterations; i++) {
-    lastCycle = expression->scheduleEvents(state, lastCycle);
-    if (i < iterations - 1) {
-      lastCycle += delay;
+  for (uint64_t cycle = 0; cycle <= lastCycle + 1; cycle++) {
+    auto events = getEventsForCycle(cycle);
+    if (events.size() == 0) {
+      os << cycle << ": ---\n";
+    } else {
+      os << cycle << ": ";
+      for (const auto &event : events) {
+        event->execute();
+        os << " (" << event->getName() << ")";
+      }
+      os << "\n";
     }
   }
-  return lastCycle;
-}
-
-std::string RepetitionOperator::toString() const {
-  return "R<" + std::to_string(iterations) + "," + std::to_string(delay) +
-         ">(" + expression->toString() + ")";
-}
-
-uint64_t RepetitionOperator::lastEventId() const {
-  return expression->lastEventId();
-}
-
-std::string RepetitionOperator::lastEventName() const {
-  return expression->lastEventName();
-}
-
-uint64_t RepetitionOperator::getIterations() const { return iterations; }
-
-uint64_t RepetitionOperator::getDelay() const { return delay; }
-
-uint64_t RepetitionOperator::getLevel() const { return level; }
-
-uint64_t RepetitionOperator::getStep() const { return step; }
-
-std::shared_ptr<TimingExpression> RepetitionOperator::getExpression() const {
-  return expression;
 }

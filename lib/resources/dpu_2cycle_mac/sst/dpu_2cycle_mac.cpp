@@ -1,6 +1,7 @@
 #include "dpu_2cycle_mac.h"
 #include "dataEvent.h"
 #include "dpu_operations.h"
+#include "timingOperators.h"
 
 using namespace SST;
 
