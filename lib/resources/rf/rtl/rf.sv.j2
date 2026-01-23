@@ -94,26 +94,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     end
 
-    dsu_t dsu;
-    rep_t rep;
-    repx_t repx;
+    agu_config_t agu_configs [FSM_PER_SLOT];
 
-    agu_config_t agu_configs [4];
-
-    logic [3:0] dsu_valid_portnum;
-    logic [3:0] rep_valid_portnum;
-    logic [3:0] repx_valid_portnum;
-
-    logic [AGU_BITWIDTH-1:0] init_addr_0_0, init_addr_0_1;
-    logic [AGU_BITWIDTH-1:0] init_addr_0_2, init_addr_0_3;
-
-    assign init_addr_0_0 = dsu._init_addr;
-    assign init_addr_0_1 = dsu._init_addr;
-    assign init_addr_0_2 = dsu._init_addr;
-    assign init_addr_0_3 = dsu._init_addr;
-
-    logic [3:0] agu_enable;
-    logic [3:0][AGU_BITWIDTH-1:0] agu_address;
+    logic [FSM_PER_SLOT-1:0] agu_enable;
+    logic [FSM_PER_SLOT-1:0][AGU_BITWIDTH-1:0] agu_address;
 
     assign word_w_en = agu_enable[0];
     assign word_r_en = agu_enable[1];
@@ -157,11 +141,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
 
-      .agu_configs(agu_configs),
-
-      .rep_valid_portnum(rep_valid_portnum),
-      .repx_valid_portnum(repx_valid_portnum),
-      .dsu_valid_portnum(dsu_valid_portnum)
+      .agu_configs(agu_configs)
     );
 
 endmodule

@@ -7,11 +7,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic instruction_valid,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
 
-    output agu_config_t agu_configs[FSM_PER_SLOT],
-
-    output logic [3:0] rep_valid_portnum,
-    output logic [3:0] repx_valid_portnum,
-    output logic [3:0] dsu_valid_portnum
+    output agu_config_t agu_configs[FSM_PER_SLOT]
 );
 
     // Instruction type valid signals
@@ -30,18 +26,15 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign rep = rep_valid_instr ? unpack_rep(instruction_payload) : '{default: 0};
     assign repx = repx_valid_instr ? unpack_repx(instruction_payload) : '{default: 0};
 
-    assign dsu_valid_portnum  = dsu_valid_instr  ? (1 << dsu._port)  : 4'b0;
-    assign rep_valid_portnum  = rep_valid_instr  ? (1 << rep._port)  : 4'b0;
-    assign repx_valid_portnum = repx_valid_instr ? (1 << repx._port) : 4'b0;
-
     localparam int DELAY_MSB = REP_DELAY_WIDTH/2;
     localparam int ITER_MSB = REP_ITER_WIDTH/2;
     localparam int STEP_MSB = REP_STEP_WIDTH/2;
+
     // Generate AGU configurations
     agu_config_t agu_configs_reg[FSM_PER_SLOT];
     always_ff @(posedge clk or negedge rst_n) begin
       if (!rst_n) begin
-        for (int i = 0; i < 4; i++) begin
+        for (int i = 0; i < FSM_PER_SLOT; i++) begin
           for (int j = 0; j < NUMBER_IR; j++) begin
             if (j == 0) begin
               // NOTE: Default configuration of the AGU is return init_addr only
