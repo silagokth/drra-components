@@ -1,0 +1,104 @@
+module {{name}}_{{fingerprint}}_controller
+import {{name}}_{{fingerprint}}_pkg::*;
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic instruction_valid,
+    input logic [$clog2(3)-1:0] instruction_slot,
+    input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
+
+    output agu_config_t agu_configs[NUM_AGUS],
+    output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address
+);
+
+    logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
+    assign opcode = instruction_payload[INSTR_PAYLOAD_BITWIDTH-1:INSTR_PAYLOAD_BITWIDTH - INSTR_OPCODE_BITWIDTH];
+    logic dsu_valid_instr, rep_valid_instr, repx_valid_instr;
+    assign dsu_valid_instr = instruction_valid && (opcode == OPCODE_DSU);
+    assign rep_valid_instr = instruction_valid && (opcode == OPCODE_REP);
+    assign repx_valid_instr = instruction_valid && (opcode == OPCODE_REPX);
+
+    // Unpack instructions
+    dsu_t  dsu;
+    rep_t  rep;
+    repx_t repx;
+    assign dsu = dsu_valid_instr ? unpack_dsu(instruction_payload) : '{default: 0};
+    assign rep = rep_valid_instr ? unpack_rep(instruction_payload) : '{default: 0};
+    assign repx = repx_valid_instr ? unpack_repx(instruction_payload) : '{default: 0};
+
+    // Use 0,   1,   2,   3,   4,   5 as indices for
+    // AGU 0_0, 0_1, 0_2, 0_3, 1_2, 1_3 respectively
+    logic [$clog2(NUM_AGUS)-1:0] agu_index;
+    always_comb begin
+      if (instruction_slot == 0) begin
+        if (dsu_valid_instr) agu_index = dsu._port;
+        else if (rep_valid_instr) agu_index = rep._port;
+        else if (repx_valid_instr) agu_index = repx._port;
+        else agu_index = '0;
+      end else if (instruction_slot == 1) begin
+        if (dsu_valid_instr) agu_index = dsu._port + 2;
+        else if (rep_valid_instr) agu_index = rep._port + 2;
+        else if (repx_valid_instr) agu_index = repx._port + 2;
+        else agu_index = '0;
+      end else begin
+        agu_index = '0;
+      end
+    end
+
+    localparam int DELAY_MSB = REP_DELAY_WIDTH/2;
+    localparam int ITER_MSB = REP_ITER_WIDTH/2;
+    localparam int STEP_MSB = REP_STEP_WIDTH/2;
+
+    // Generate AGU configurations
+    agu_config_t agu_configs_reg[NUM_AGUS];
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        for (int i = 0; i < NUM_AGUS; i++) begin
+          for (int j = 0; j < NUMBER_IR; j++) begin
+            for (int m = 0; m <= NUMBER_MT; m++) begin
+              if (m == 0 && j == 0) begin
+                // NOTE: Default configuration of the AGU is return init_addr only
+                // so, 1 iteration with 0 delay and 0 step
+                agu_configs_reg[i].ir_configs[m][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[m][j].iter[REP_ITER_WIDTH-1:0] <= 1;
+                agu_configs_reg[i].ir_configs[m][j].step[REP_STEP_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[m][j].is_configured <= 1'b1;
+              end else begin
+                agu_configs_reg[i].ir_configs[m][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[m][j].iter[REP_ITER_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[m][j].step[REP_STEP_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[m][j].is_configured <= 1'b0;
+              end
+            end
+          end
+        end
+      end else if (rep_valid_instr) begin
+        agu_configs_reg[agu_index].ir_configs[0][rep._level].delay[DELAY_MSB-1:0] <= rep._delay;
+        agu_configs_reg[agu_index].ir_configs[0][rep._level].iter[ITER_MSB-1:0] <= rep._iter;
+        agu_configs_reg[agu_index].ir_configs[0][rep._level].step[STEP_MSB-1:0] <= rep._step;
+        agu_configs_reg[agu_index].ir_configs[0][rep._level].is_configured <= 1'b1;
+      end else if (repx_valid_instr) begin
+        agu_configs_reg[agu_index].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB] <= repx._delay;
+        agu_configs_reg[agu_index].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB] <= repx._iter;
+        agu_configs_reg[agu_index].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB] <= repx._step;
+      end
+    end
+    assign agu_configs = agu_configs_reg;
+
+    // Register initial addresses for each AGU
+    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        for (int i = 0; i < NUM_AGUS; i++) begin
+          agu_init_address[i] <= '0;
+        end
+      end else if (dsu_valid_instr) begin
+        agu_init_address[agu_index] <= dsu._init_addr;
+      end
+    end
+    assign init_address = agu_init_address;
+
+    // TODO: Add support for OR-level REP?
+    // TODO: Add support for TRANS?
+endmodule

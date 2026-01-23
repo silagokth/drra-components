@@ -141,10 +141,10 @@ fn reshape_instr(op: Op) -> Op {
                 let mut iterx = 0;
                 let mut delayx = 0;
                 let mut stepx = 0;
-                if iter > 2i64.pow(6) - 1 {
+                if iter > 2i64.pow(7) - 1 {
                     repx_flag = true;
-                    iterx = iter / 2i64.pow(6);
-                    // iter %= 2i64.pow(6);
+                    iterx = iter / 2i64.pow(7);
+                    // iter %= 2i64.pow(7);
                 }
                 if delay > 2i64.pow(6) - 1 {
                     repx_flag = true;
