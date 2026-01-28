@@ -13,7 +13,7 @@
       "segments": [
         {
           "name": "option",
-          "comment": "Configuration option where the current route will be stored",
+          "comment": "Configuration option where the DPU mode will be stored.",
           "bitwidth": 2
         },
         {
@@ -164,48 +164,32 @@
       "instr_type": 1,
       "segments": [
         {
-          "name": "port",
-          "comment": "The port number",
+          "name": "option",
+          "comment": "Defines which option to apply the repetition operator.",
           "bitwidth": 2,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "read narrow"
-            },
-            {
-              "key": 1,
-              "val": "read wide"
-            },
-            {
-              "key": 2,
-              "val": "write narrow"
-            },
-            {
-              "key": 3,
-              "val": "write wide"
-            }
-          ]
+          "default_val": 0
         },
         {
           "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 3
+          "comment": "Level of the repetition operator. This can be used to program nested loops. [0]: inner most level, [7]: outer most level.",
+          "bitwidth": 3,
+          "default_val": 0
         },
         {
           "name": "iter",
-          "comment": "level-1 iteration - 1.",
+          "comment": "Number of iterations.",
           "bitwidth": 7
         },
         {
           "name": "step",
-          "comment": "level-1 step",
+          "comment": "Step size between the addresses generated for each iteration.",
           "bitwidth": 6,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
-          "comment": "delay",
+          "comment": "Delay between iterations.",
           "bitwidth": 6
         }
       ]
@@ -216,48 +200,32 @@
       "instr_type": 1,
       "segments": [
         {
-          "name": "port",
-          "comment": "The port number",
+          "name": "option",
+          "comment": "Defines which option to apply the repetition extension.",
           "bitwidth": 2,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "read narrow"
-            },
-            {
-              "key": 1,
-              "val": "read wide"
-            },
-            {
-              "key": 2,
-              "val": "write narrow"
-            },
-            {
-              "key": 3,
-              "val": "write wide"
-            }
-          ]
+          "default_val": 0
         },
         {
           "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 3
+          "comment": "The level of the REP instruction. [0]: inner most level, [7]: outer most level.",
+          "bitwidth": 3,
+          "default_val": 0
         },
         {
           "name": "iter",
-          "comment": "level-1 iteration - 1.",
+          "comment": "Most significant bits to apply to the `iter` value of the repetition operator at `level`.",
           "bitwidth": 7
         },
         {
           "name": "step",
-          "comment": "level-1 step",
+          "comment": "Most significant bits to apply to the `step` value of the repetition operator at `level`.",
           "bitwidth": 6,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
-          "comment": "delay",
+          "comment": "Most significant bits to apply to the `delay` value of the repetition operator at `level`.",
           "bitwidth": 6
         }
       ]
@@ -268,24 +236,14 @@
       "instr_type": 1,
       "segments": [
         {
-          "name": "port",
-          "comment": "Port number",
+          "name": "option",
+          "comment": "Starting option number for the transition. The transition will occur from option to option + 1. If the max value is reached, it wraps around to option 0.",
           "bitwidth": 2
         },
         {
           "name": "delay",
-          "comment": "Delay between configuration options 0 and 1",
-          "bitwidth": 7
-        },
-        {
-          "name": "level",
-          "comment": "Delay between configuration options 1 and 2",
-          "bitwidth": 7
-        },
-        {
-          "name": "delay_2",
-          "comment": "Delay between configuration options 2 and 3",
-          "bitwidth": 7
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 22
         }
       ]
     }

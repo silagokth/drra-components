@@ -10,7 +10,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
 
     input logic address_valid,
-    input logic [6-1:0] address,  // current state
+    input logic [ADDRESS_WIDTH-1:0] address,  // current state
 
     output agu_config_t agu_config,
 
@@ -72,35 +72,31 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
   end
 
-  // Keep track of current rep lane
-  logic [NUMBER_MT:0] current_lane;
+  localparam int DELAY_MSB = REP_DELAY_WIDTH/2;
+  localparam int ITER_MSB = REP_ITER_WIDTH/2;
+  localparam int STEP_MSB = REP_STEP_WIDTH/2;
+  agu_config_t agu_config_reg;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      current_lane <= '0;
+      agu_config_reg <= '0;
+    end else if (rep_valid) begin
+      agu_config_reg.ir_configs[rep_instr._option][rep_instr._level].delay[DELAY_MSB-1:0] <= rep_instr._delay;
+      agu_config_reg.ir_configs[rep_instr._option][rep_instr._level].iter[ITER_MSB-1:0] <= rep_instr._iter;
+      agu_config_reg.ir_configs[rep_instr._option][rep_instr._level].step[STEP_MSB-1:0] <= rep_instr._step;
+      agu_config_reg.ir_configs[rep_instr._option][rep_instr._level].is_configured <= 1'b1;
+    end else if (repx_valid) begin
+      agu_config_reg.ir_configs[repx_instr._option][repx_instr._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB] <= repx_instr._delay;
+      agu_config_reg.ir_configs[repx_instr._option][repx_instr._level].iter[REP_ITER_WIDTH-1:ITER_MSB] <= repx_instr._iter;
+      agu_config_reg.ir_configs[repx_instr._option][repx_instr._level].step[REP_STEP_WIDTH-1:STEP_MSB] <= repx_instr._step;
+    end else if (trans_valid) begin
+      agu_config_reg.mt_configs[trans_instr._option].delay <= trans_instr._delay;
+      agu_config_reg.mt_configs[trans_instr._option].is_configured <= 1'b1;
     end else begin
-      if (trans_valid) begin
-        assert(current_lane == trans_instr._level)
-          else $error("Transition level mistmatch in DPU controller");
-        current_lane <= current_lane + 1;
-      end
-    end
-  end
-
-  always_comb begin
-    if (rep_valid) begin
-      agu_config.ir_configs[current_lane][rep_instr._level].delay = rep_instr._delay;
-      agu_config.ir_configs[current_lane][rep_instr._level].iter = rep_instr._iter;
-      agu_config.ir_configs[current_lane][rep_instr._level].step = rep_instr._step;
-      agu_config.ir_configs[current_lane][rep_instr._level].is_configured = 1'b1;
-    end
-    if (trans_valid) begin
-      agu_config.mt_configs[trans_instr._level].delay = trans_instr._delay;
-      agu_config.mt_configs[trans_instr._level].is_configured = 1'b1;
+      agu_config_reg <= agu_config_reg;
     end
     // TODO: Add similar logic for OR?
-    // TODO: Add support for REPX?
   end
-
+  assign agu_config = agu_config_reg;
 
   // Set the output according to the current state
   logic [ADDRESS_WIDTH-1:0] dpu_mode_index;

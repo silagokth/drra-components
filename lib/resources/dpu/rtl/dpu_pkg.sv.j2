@@ -19,13 +19,13 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int OPCODE_L = 24;
 
   // AGU RTR params
-  parameter int ADDRESS_WIDTH = 6;
-  parameter int REP_LEVEL_WIDTH = 4;
-  parameter int REP_DELAY_WIDTH = 6;
-  parameter int REP_ITER_WIDTH = 6;
-  parameter int REP_STEP_WIDTH = 6;
-  parameter int TRANS_LEVEL_WIDTH = 7;
-  parameter int TRANS_DELAY_WIDTH = 7;
+  parameter int ADDRESS_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int REP_LEVEL_WIDTH = 3;
+  parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
+  parameter int TRANS_OPTION_WIDTH = 2;
+  parameter int TRANS_DELAY_WIDTH = 22;
   parameter int NUMBER_OR = 4;
   parameter int NUMBER_MT = 3;
   parameter int NUMBER_IR = 4;
