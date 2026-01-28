@@ -60,12 +60,12 @@
         },
         {
           "name": "source",
-          "comment": "If `sr=0`, indicates source slot number; if `sr=1`, indicates source direction (0:NW/1:N/2:NE/3:W/4:C/5:E/6:SW/7:S/8:SE).",
+          "comment": "If `sr=0`, indicates source slot number; if `sr=1`, indicates receiving direction (0:NW/1:N/2:NE/3:W/4:C/5:E/6:SW/7:S/8:SE).",
           "bitwidth": 4
         },
         {
           "name": "target",
-          "comment": "If `sr=0`, indicates source direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates source slot number. (1-hot encoded)",
+          "comment": "If `sr=0`, indicates sending direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates destination slot(s) (1-hot encoded)",
           "bitwidth": 16
         }
       ]
