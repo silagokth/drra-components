@@ -43,12 +43,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
       current_option <= '0;
     end else begin
       for (int i = 0; i < NUM_AGUS; i++) begin
-        if (agu_enable[i] && agu_is_configured[i]) begin
+        if (agu_enable[i]) begin
           option_valid[i] <= 1'b1;
           current_option[i] <= agu_address[i];
-        end else if (!agu_is_configured[i]) begin // if AGU not configured, mark always valid with option 0
+        end else begin
           option_valid[i] <= 1'b1;
-          current_option[i] <= '0;
+          current_option[i] <= current_option[i];
         end
       end
     end
