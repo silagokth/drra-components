@@ -24,10 +24,10 @@ DPU_PKG::createInstructionHandlers(Dpu *dpu_obj) {
              REPXInstruction decoded_instr(instruction);
              dpu_obj->handleREPX(decoded_instr);
            }},
-          {(uint32_t)OpCode::FSM, [dpu_obj](uint32_t instr) {
-             auto segment_defs = getIsaDefinitions().at(OpCode::FSM);
+          {(uint32_t)OpCode::TRANS, [dpu_obj](uint32_t instr) {
+             auto segment_defs = getIsaDefinitions().at(OpCode::TRANS);
              Instruction instruction(instr, dpu_obj->format, segment_defs);
-             FSMInstruction decoded_instr(instruction);
-             dpu_obj->handleFSM(decoded_instr);
+             TRANSInstruction decoded_instr(instruction);
+             dpu_obj->handleTRANS(decoded_instr);
            }}};
 }

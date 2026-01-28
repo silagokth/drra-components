@@ -94,17 +94,17 @@ void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
 }
 
 void Dpu::handleREP(const DPU_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
+  out.output("rep (slot=%d, option=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.option, instr.level, instr.iter, instr.step,
              instr.delay);
 
   auto rep = instr;
   // For now, we only support increasing repetition levels (and no skipping)
-  if (rep.level != port_last_rep_level[rep.port] + 1) {
+  if (rep.level != port_last_rep_level[rep.option] + 1) {
     out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              port_last_rep_level[rep.port], rep.level);
+              port_last_rep_level[rep.option], rep.level);
   } else {
-    port_last_rep_level[rep.port] = rep.level;
+    port_last_rep_level[rep.option] = rep.level;
   }
 
   // add repetition to the timing model
@@ -117,9 +117,10 @@ void Dpu::handleREP(const DPU_PKG::REPInstruction &instr) {
 }
 
 void Dpu::handleREPX(const DPU_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+  out.output(
+      "repx (slot=%d, option=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
+      instr.slot, instr.option, instr.level, instr.iter, instr.step,
+      instr.delay);
 
   auto repx = instr;
   auto repetition_op =
@@ -134,19 +135,18 @@ void Dpu::handleREPX(const DPU_PKG::REPXInstruction &instr) {
   }
 }
 
-void Dpu::handleFSM(const DPU_PKG::FSMInstruction &instr) {
-  out.output("fsm (slot=%d, port=%d, delay_0=%d, delay_1=%d, delay_2=%d)\n",
-             instr.slot, instr.port, instr.delay_0, instr.delay_1,
-             instr.delay_2);
+void Dpu::handleTRANS(const DPU_PKG::TRANSInstruction &instr) {
+  out.output("fsm (slot=%d, option=%d, delay=%d)\n", instr.slot, instr.option,
+             instr.delay);
 
   auto fsm = instr;
   // add transition to the timing model
   try {
     next_timing_states[0].addTransition(
-        fsm.delay_0, "event_" + std::to_string(current_event_number),
+        fsm.delay, "event_" + std::to_string(current_event_number),
         [this, fsm] {
-          out.output(" FSM switched to %d\n", fsm.port);
-          current_fsm = fsm.port;
+          out.output(" FSM switched to %d\n", fsm.option);
+          current_fsm = fsm.option;
         });
     current_event_number++;
   } catch (const std::exception &e) {
