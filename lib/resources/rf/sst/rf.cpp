@@ -1,5 +1,6 @@
 #include "rf.h"
 #include "dataEvent.h"
+#include <string>
 
 using namespace SST;
 
@@ -13,6 +14,13 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
     }
   }
   instructionHandlers = RF_PKG::createInstructionHandlers(this);
+
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
+  }
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }
 
 bool Rf::clockTick(SST::Cycle_t currentCycle) {
@@ -164,6 +172,11 @@ void Rf::readWide() {
   dataEvent->payload = data;
 
   data_links[0]->send(dataEvent);
+
+  logTraceEvent("rf_read_wide", slot_id, true, 'X',
+                {{"address", (int)port_agus[DataEvent::PortType::ReadWide]},
+                 {"size", (int)(io_data_width / 8)},
+                 {"data", formatRawDataToWords(data)}});
 }
 
 void Rf::readNarrow() {
@@ -180,7 +193,7 @@ void Rf::readNarrow() {
 
   data_links[0]->send(dataEvent);
 
-  logTraceEvent("rf_read_narrow", 0, true,
+  logTraceEvent("rf_read_narrow", slot_id, true, 'X',
                 {{"address", (int)port_agus[DataEvent::PortType::ReadNarrow]},
                  {"size", (int)(word_bitwidth / 8)},
                  {"data", formatRawDataToWords(data)}});
@@ -226,10 +239,18 @@ void Rf::writeWide() {
   }
   out.print(")\n");
 
-  logTraceEvent("rf_write_wide", 0, true,
+  logTraceEvent("rf_write_wide", slot_id, true, 'X',
                 {{"address", (int)port_agus[DataEvent::PortType::WriteWide]},
                  {"size", (int)(data_event->size / 8)},
                  {"data", formatRawDataToWords(data_event->payload)}});
+
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
+  }
+  logTraceEvent("registers", slot_id, true, 'E', {});
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }
 
 void Rf::writeNarrow() {
@@ -264,4 +285,17 @@ void Rf::writeNarrow() {
              formatRawDataToWords(
                  registers[port_agus[DataEvent::PortType::WriteNarrow]])
                  .c_str());
+
+  logTraceEvent("rf_write_narrow", slot_id, true, 'X',
+                {{"address", (int)port_agus[DataEvent::PortType::WriteNarrow]},
+                 {"size", (int)(word_bitwidth / 8)},
+                 {"data", formatRawDataToWords(data_event->payload)}});
+
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
+  }
+  logTraceEvent("registers", slot_id, true, 'E', {});
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }

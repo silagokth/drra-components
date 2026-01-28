@@ -49,7 +49,7 @@ bool Sequencer::clockTick(SST::Cycle_t currentSSTCycle) {
     }
     uint32_t instruction = assemblyProgram[pc];
     Instruction instrObj(instruction, format);
-    logTraceEvent("instruction", 0, false,
+    logTraceEvent("instruction", 0, false, 'X',
                   {{"pc", static_cast<int>(pc)},
                    {"instruction", instrObj.toString()},
                    {"instruction_bin", instrObj.toBinaryString()},
@@ -100,7 +100,7 @@ void Sequencer::load_assembly_program(std::string assemblyProgramPath) {
 
 void Sequencer::handleHALT(const SEQUENCER_PKG::HALTInstruction &instr) {
   out.output("halt (slot=%d, )\n", instr.slot);
-  logTraceEvent("halt", 0, false, {{"pc", static_cast<int>(pc)}});
+  logTraceEvent("halt", 0, false, 'X', {{"pc", static_cast<int>(pc)}});
   readyToFinish = true;
 }
 
@@ -108,7 +108,7 @@ void Sequencer::handleWAIT(const SEQUENCER_PKG::WAITInstruction &instr) {
   out.output("wait (slot=%d, mode=%d, cycle=%d)\n", instr.slot, instr.mode,
              instr.cycle);
 
-  logTraceEvent("wait", 0, false,
+  logTraceEvent("wait", 0, false, 'X',
                 {{"pc", static_cast<int>(pc)},
                  {"wait_mode", static_cast<int>(instr.mode)},
                  {"wait_cycle", static_cast<int>(instr.cycle)}});
@@ -124,7 +124,7 @@ void Sequencer::handleACT(const SEQUENCER_PKG::ACTInstruction &instr) {
   out.output("act (slot=%d, ports=%d, mode=%d, param=%d)\n", instr.slot,
              instr.ports, instr.mode, instr.param);
 
-  logTraceEvent("activation", 0, false,
+  logTraceEvent("activation", 0, false, 'X',
                 {{"pc", static_cast<int>(pc)},
                  {"action_mode", static_cast<int>(instr.mode)},
                  {"action_ports", static_cast<int>(instr.ports)},
@@ -156,7 +156,7 @@ void Sequencer::handleCALC(const SEQUENCER_PKG::CALCInstruction &instr) {
              instr.slot, instr.mode, instr.operand1, instr.operand2_sd,
              instr.operand2, instr.result);
 
-  logTraceEvent("calculation", 0, false,
+  logTraceEvent("calculation", 0, false, 'X',
                 {{"pc", static_cast<int>(pc)},
                  {"calc_mode", static_cast<int>(instr.mode)},
                  {"calc_operand1", static_cast<int>(instr.operand1)},
@@ -274,7 +274,7 @@ void Sequencer::handleBRN(const SEQUENCER_PKG::BRNInstruction &instr) {
              instr.slot, instr.reg, instr.target_true, instr.target_false);
 
   logTraceEvent(
-      "branch", 0, false,
+      "branch", 0, false, 'X',
       {{"pc", static_cast<int>(pc)},
        {"branch_reg", static_cast<int>(instr.reg)},
        {"branch_target_true", static_cast<int>(instr.target_true)},

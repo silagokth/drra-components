@@ -102,11 +102,11 @@ public:
   }
 
   void logTraceEvent(
-      std::string name, int slot_id, bool isResource = true,
+      std::string name, int slot_id, bool isResource = true, char phase = 'X',
       const std::unordered_map<std::string, std::variant<int, std::string>>
           &args = {}) {
     trace_file.open(trace_name, std::ios::app);
-    TraceEvent trace_event(name, _currentSSTCycle);
+    TraceEvent trace_event(name, _currentSSTCycle, 1, 0, phase);
     trace_event.setThreadId(isResource ? 1 : 2, cell_coordinates[0],
                             cell_coordinates[1], slot_id);
     trace_event.setProcessId(0);

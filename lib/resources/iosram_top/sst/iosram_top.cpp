@@ -56,6 +56,20 @@ Iosram_top::Iosram_top(SST::ComponentId_t id, SST::Params &params)
     backend = new SST::MemHierarchy::Backend::BackingMalloc(sizeBytes);
   }
   out.output("Created backing store (type: %s)\n", backingType.c_str());
+
+  logTraceEvent("memory", slot_id, true, 'B',
+                {{"memory", dumpBackendContent()}});
+}
+
+std::string Iosram_top::dumpBackendContent() {
+  std::string result;
+  std::vector<uint8_t> data;
+  for (uint32_t addr = 0; addr < iosram_depth; addr++) {
+    data.clear();
+    backend->get(addr, io_data_width / 8, data);
+    result += "[" + formatRawDataToWords(data) + "] ";
+  }
+  return result;
 }
 
 bool Iosram_top::clockTick(SST::Cycle_t currentCycle) {
@@ -264,6 +278,11 @@ void Iosram_top::writeToSRAM() {
 
         // Clear the buffer
         from_io_data_buffer.clear();
+
+        // Log memory state
+        logTraceEvent("memory", slot_id, true, 'E', {});
+        logTraceEvent("memory", slot_id, true, 'B',
+                      {{"memory", dumpBackendContent()}});
       });
 }
 
@@ -330,5 +349,10 @@ void Iosram_top::writeBulk() {
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
                    write_bulk_address_buffer, dataEvent->size,
                    formatRawDataToWords(dataEvent->payload).c_str());
+
+        // Log memory state
+        logTraceEvent("memory", slot_id, true, 'E', {});
+        logTraceEvent("memory", slot_id, true, 'B',
+                      {{"memory", dumpBackendContent()}});
       });
 }

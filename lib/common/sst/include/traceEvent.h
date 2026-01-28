@@ -12,8 +12,19 @@ public:
   // Simplified with default values for common cases
   TraceEvent(const std::string &name, long long timestamp,
              long long duration = 1, int process_id = 0, int thread_id = 0)
-      : name_(name), category_("event"), timestamp_(timestamp),
+      : name_(name), category_("event"), phase_('X'), timestamp_(timestamp),
         duration_(duration), process_id_(process_id), thread_id_(thread_id) {}
+
+  // Constructor for duration events (phases B and E)
+  TraceEvent(const std::string &name, long long timestamp, int process_id = 0,
+             int thread_id = 0, char phase = 'B')
+      : name_(name), category_("event"), phase_(phase), timestamp_(timestamp),
+        duration_(1), process_id_(process_id), thread_id_(thread_id) {
+    if (phase != 'B' && phase != 'E' && phase != 'X') {
+      throw std::invalid_argument("Phase must be 'X' (complete), 'B' (begin) "
+                                  "or 'E' (end) for duration events");
+    }
+  }
 
   // Set category (default is "event")
   TraceEvent &setCategory(const std::string &category) {
@@ -81,17 +92,35 @@ public:
   // Export to JSON string (without trailing newline or comma)
   std::string toJson() const {
     std::ostringstream json;
-    json << "{\"name\": \"" << escapeJson(name_) << "\", \"cat\": \""
-         << escapeJson(category_) << "\", \"ph\": \"X\", \"ts\": " << timestamp_
-         << ", \"dur\": " << duration_ << ", \"tid\": ";
+
+    switch (phase_) {
+    case 'X':
+      json << "{\"name\": \"" << escapeJson(name_) << "\", \"cat\": \""
+           << escapeJson(category_)
+           << "\", \"ph\": \"X\", \"ts\": " << timestamp_
+           << ", \"dur\": " << duration_ << ", \"pid\": " << process_id_
+           << ", \"tid\": ";
+      break;
+    case 'B':
+      json << "{\"name\": \"" << escapeJson(name_) << "\", \"cat\": \""
+           << escapeJson(category_) << "\", \"ph\": \"" << phase_
+           << "\", \"ts\": " << timestamp_ + 1 << ", \"pid\": " << process_id_
+           << ", \"tid\": ";
+      break;
+    case 'E':
+      json << "{\"ph\": \"" << phase_ << "\", \"ts\": " << timestamp_
+           << ", \"pid\": " << process_id_ << ", \"tid\": ";
+      break;
+    default:
+      throw std::invalid_argument(&"Invalid phase for TraceEvent: "[phase_]);
+      break;
+    }
 
     if (use_thread_id_str_) {
       json << thread_id_str_;
     } else {
       json << thread_id_;
     }
-
-    json << ", \"pid\": " << process_id_;
 
     if (!args_.empty()) {
       json << ", \"args\": {";
@@ -116,6 +145,7 @@ public:
 private:
   std::string name_;
   std::string category_;
+  char phase_;
   long long timestamp_;
   long long duration_;
   int process_id_;

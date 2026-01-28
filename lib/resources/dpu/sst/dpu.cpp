@@ -176,7 +176,7 @@ void Dpu::handleOperation(std::string name,
              accumulate_register.size() > 0 ? vectorToInt64(accumulate_register)
                                             : 0);
   logTraceEvent(
-      "operation", slot_id, true,
+      "operation", slot_id, true, 'X',
       {{"data0", static_cast<int>(data0)},
        {"data1", static_cast<int>(data1)},
        {"result", static_cast<int>(result)},

@@ -200,7 +200,7 @@ void Iosram_both::readFromIO() {
 
         out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
                    sram_read_from_io_address_buffer, io_data_width);
-        logTraceEvent(event_name, slot_id, true,
+        logTraceEvent(event_name, slot_id, true, 'X',
                       {{"address", (int)sram_read_from_io_address_buffer},
                        {"size", (int)(io_data_width / 8)}});
 
@@ -229,11 +229,22 @@ void Iosram_both::writeToIO() {
             "Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
             writeReq->address, writeReq->data.size() * 8,
             formatRawDataToWords(writeReq->data).c_str());
-        logTraceEvent(event_name, slot_id, true,
+        logTraceEvent(event_name, slot_id, true, 'X',
                       {{"address", (int)sram_write_to_io_address_buffer},
                        {"size", (int)(to_io_data_buffer.size())},
                        {"data", formatRawDataToWords(to_io_data_buffer)}});
       });
+}
+
+std::string Iosram_both::dumpBackendContent() {
+  std::string result;
+  std::vector<uint8_t> data;
+  for (uint32_t addr = 0; addr < iosram_depth; addr++) {
+    data.clear();
+    backend->get(addr, io_data_width / 8, data);
+    result += "[" + formatRawDataToWords(data) + "] ";
+  }
+  return result;
 }
 
 void Iosram_both::writeToSRAM() {
@@ -272,13 +283,18 @@ void Iosram_both::writeToSRAM() {
                    io_write_to_sram_address_buffer,
                    from_io_data_buffer.size() * 8,
                    formatRawDataToWords(from_io_data_buffer).c_str());
-        logTraceEvent(event_name, slot_id, true,
+        logTraceEvent(event_name, slot_id, true, 'X',
                       {{"address", (int)io_write_to_sram_address_buffer},
                        {"size", (int)(from_io_data_buffer.size())},
                        {"data", formatRawDataToWords(from_io_data_buffer)}});
 
         // Clear the buffer
         from_io_data_buffer.clear();
+
+        // Log memory state
+        logTraceEvent("memory", slot_id, true, 'E', {});
+        logTraceEvent("memory", slot_id, true, 'B',
+                      {{"memory", dumpBackendContent()}});
       });
 }
 
@@ -301,7 +317,7 @@ void Iosram_both::readFromSRAM() {
         out.output("Reading from SRAM (addr=%d, size=%dbits, data=%s)\n",
                    io_read_from_sram_address_buffer, io_data_width,
                    formatRawDataToWords(to_io_data_buffer).c_str());
-        logTraceEvent(event_name, slot_id, true,
+        logTraceEvent(event_name, slot_id, true, 'X',
                       {{"address", (int)io_read_from_sram_address_buffer},
                        {"size", (int)(io_data_width / 8)},
                        {"data", formatRawDataToWords(to_io_data_buffer)}});
@@ -324,7 +340,7 @@ void Iosram_both::readBulk() {
         out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
                    read_bulk_address_buffer, io_data_width,
                    formatRawDataToWords(data).c_str());
-        logTraceEvent(event_name, slot_id, true,
+        logTraceEvent(event_name, slot_id, true, 'X',
                       {{"address", (int)read_bulk_address_buffer},
                        {"size", (int)(io_data_width / 8)},
                        {"data", formatRawDataToWords(data)}});
@@ -357,9 +373,14 @@ void Iosram_both::writeBulk() {
         out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
                    write_bulk_address_buffer, dataEvent->size,
                    formatRawDataToWords(dataEvent->payload).c_str());
-        logTraceEvent(event_name, slot_id, true,
+        logTraceEvent(event_name, slot_id, true, 'X',
                       {{"address", (int)write_bulk_address_buffer},
                        {"size", (int)(dataEvent->size / 8)},
                        {"data", formatRawDataToWords(dataEvent->payload)}});
+
+        // Log memory state
+        logTraceEvent("memory", slot_id, true, 'E', {});
+        logTraceEvent("memory", slot_id, true, 'B',
+                      {{"memory", dumpBackendContent()}});
       });
 }

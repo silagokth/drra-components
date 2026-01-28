@@ -43,6 +43,10 @@ public:
   /* Destructor */
   ~Rf() {};
 
+  void complete(unsigned int phase) override {
+    logTraceEvent("registers", slot_id, true, 'E', {});
+  }
+
   bool clockTick(SST::Cycle_t currentCycle) override;
 
   // Instruction format

@@ -128,7 +128,7 @@ public:
       ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
       if (actEvent) {
         handleActivation(actEvent->slot_id, actEvent->ports);
-        logTraceEvent("activation", slot_id, true,
+        logTraceEvent("activation", slot_id, true, 'X',
                       {{"ports", std::to_string(actEvent->ports)}});
         return;
       }
@@ -139,7 +139,7 @@ public:
         instrBuffer = instrEvent->instruction;
         Instruction instruction(instrBuffer);
         decodeInstr(instrBuffer);
-        logTraceEvent("instruction", slot_id, true,
+        logTraceEvent("instruction", slot_id, true, 'X',
                       {{"instruction", instruction.toString()},
                        {"instruction_bin", instruction.toBinaryString()},
                        {"instruction_hex", instruction.toHexString()}});
@@ -262,7 +262,7 @@ protected:
         //            event->getPriority());
         event->execute();
         if (trace_name != "") {
-          logTraceEvent(event->getName(), slot_id, true,
+          logTraceEvent(event->getName(), slot_id, true, 'X',
                         {{"port", (int)port}, {"event", event->getName()}});
         }
         current_timing_states[port].incrementLevels();
