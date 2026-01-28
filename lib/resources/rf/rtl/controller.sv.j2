@@ -7,6 +7,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic instruction_valid,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
 
+    input logic [FSM_PER_SLOT-1:0] agu_done,
+
     output agu_config_t agu_configs[FSM_PER_SLOT]
 );
 
@@ -33,33 +35,36 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Generate AGU configurations
     agu_config_t agu_configs_reg[FSM_PER_SLOT];
     always_ff @(posedge clk or negedge rst_n) begin
-      if (!rst_n) begin
-        for (int i = 0; i < FSM_PER_SLOT; i++) begin
-          for (int j = 0; j < NUMBER_IR; j++) begin
-            if (j == 0) begin
-              // NOTE: Default configuration of the AGU is return init_addr only
-              // so, 1 iteration with 0 delay and 0 step
-              agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
-              agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= 1;
-              agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
-              agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b1;
-            end else begin
-              agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
-              agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= '0;
-              agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
-              agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b0;
+      for (int i = 0; i < FSM_PER_SLOT; i++) begin
+        if (!rst_n || agu_done[i]) begin
+            for (int j = 0; j < NUMBER_IR; j++) begin
+              if (j == 0) begin
+                // NOTE: Default configuration of the AGU is return init_addr only
+                // so, 1 iteration with 0 delay and 0 step
+                agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= 1;
+                agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b1;
+              end else begin
+                agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
+                agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b0;
+              end
             end
-          end
+          end else if (rep_valid_instr && i == rep._port) begin
+          agu_configs_reg[rep._port].ir_configs[0][rep._level].delay[DELAY_MSB:0] <= rep._delay;
+          agu_configs_reg[rep._port].ir_configs[0][rep._level].iter[ITER_MSB:0] <= rep._iter;
+          agu_configs_reg[rep._port].ir_configs[0][rep._level].step[STEP_MSB:0] <= rep._step;
+          agu_configs_reg[rep._port].ir_configs[0][rep._level].is_configured <= 1'b1;
+        end else if (repx_valid_instr && i == repx._port) begin
+          agu_configs_reg[repx._port].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB] <= repx._delay;
+          agu_configs_reg[repx._port].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB] <= repx._iter;
+          agu_configs_reg[repx._port].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB] <= repx._step;
+        end else begin
+          // Keep previous configuration
+          agu_configs_reg[i] <= agu_configs_reg[i];
         end
-      end else if (rep_valid_instr) begin
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].delay[DELAY_MSB:0] <= rep._delay;
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].iter[ITER_MSB:0] <= rep._iter;
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].step[STEP_MSB:0] <= rep._step;
-        agu_configs_reg[rep._port].ir_configs[0][rep._level].is_configured <= 1'b1;
-      end else if (repx_valid_instr) begin
-        agu_configs_reg[repx._port].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB+1] <= repx._delay;
-        agu_configs_reg[repx._port].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB+1] <= repx._iter;
-        agu_configs_reg[repx._port].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB+1] <= repx._step;
       end
     end
     assign agu_configs = agu_configs_reg;

@@ -63,6 +63,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     agu_config_t agu_configs[NUM_AGUS];
     logic [NUM_AGUS-1:0] agu_is_configured;
 
+    // AGU control signals
+    logic [NUM_AGUS-1:0] agu_enable;
+    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
+    logic [NUM_AGUS-1:0] agu_done;
+
     // Controller module (decodes instructions)
     {{name}}_{{fingerprint}}_controller controller_inst (
       .clk(clk),
@@ -70,6 +75,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
+      .agu_done(agu_done),
 
       .swb_conf_valid(swb_conf_valid),
       .route_in_conf_valid(route_in_conf_valid),
@@ -89,10 +95,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .agu_configs(agu_configs),
       .agu_is_configured(agu_is_configured)
     );
-
-    // AGU control signals
-    logic [NUM_AGUS-1:0] agu_enable;
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
 
     // Configuration manager module
     {{name}}_{{fingerprint}}_conf_manager conf_manager_inst (
@@ -146,7 +148,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
           .addr(agu_address[gen_i]),
           .addr_valid(agu_enable[gen_i]),
-          .done()
+          .done(agu_done[gen_i])
         );
       end
     endgenerate

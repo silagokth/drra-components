@@ -9,6 +9,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Instruction interface
     input logic instruction_valid,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
+    input logic [NUM_AGUS-1:0] agu_done,
 
     // SWB and ROUTE configurations signals
     output logic swb_conf_valid,
@@ -135,16 +136,21 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Assign AGU configuration
   agu_config_t agu_configs_reg[NUM_AGUS];
   always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      for (int i = 0; i < NUM_AGUS; i++) agu_configs_reg[i] <= '{default: '0};
-    end else if (rep_valid_instr) begin
-      agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]] <= rep_instr._delay;
-      agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]].iter  <= rep_instr._iter;
-      agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]].step  <= '0;
-      agu_configs_reg[agu_conf_enable].ir_configs[rep_instr._level][current_lane[agu_conf_enable]].is_configured <= 1;
-    end else if (trans_valid_instr) begin
-      agu_configs_reg[agu_conf_enable].mt_configs[current_lane[agu_conf_enable]].delay <= trans_instr._delay;
-      agu_configs_reg[agu_conf_enable].mt_configs[current_lane[agu_conf_enable]].is_configured <= 1;
+    for (int i = 0; i < NUM_AGUS; i++) begin
+      if (!rst_n || agu_done[i]) begin
+        agu_configs_reg[i] <= '{default: '0};
+      end else if (rep_valid_instr && i == agu_conf_enable) begin
+        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]] <= rep_instr._delay;
+        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]].iter  <= rep_instr._iter;
+        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]].step  <= '0;
+        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]].is_configured <= 1;
+      end else if (trans_valid_instr && i == agu_conf_enable) begin
+        agu_configs_reg[i].mt_configs[current_lane[i]].delay <= trans_instr._delay;
+        agu_configs_reg[i].mt_configs[current_lane[i]].is_configured <= 1;
+      end else begin
+        // Keep previous configuration
+        agu_configs_reg[i] <= agu_configs_reg[i];
+      end
     end
   end
   assign agu_configs = agu_configs_reg;

@@ -98,6 +98,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     logic [FSM_PER_SLOT-1:0] agu_enable;
     logic [FSM_PER_SLOT-1:0][AGU_BITWIDTH-1:0] agu_address;
+    logic [FSM_PER_SLOT-1:0] agu_done;
 
     assign word_w_en = agu_enable[0];
     assign word_r_en = agu_enable[1];
@@ -129,7 +130,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
           .agu_config(agu_configs[i]),
           .addr_valid(agu_enable[i]),
           .addr(agu_address[i]),
-          .done()
+          .done(agu_done[i])
         );
       end
     endgenerate
@@ -140,6 +141,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
+
+      .agu_done(agu_done),
 
       .agu_configs(agu_configs)
     );

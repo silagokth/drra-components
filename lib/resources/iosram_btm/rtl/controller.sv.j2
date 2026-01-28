@@ -8,6 +8,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic [$clog2(3)-1:0] instruction_slot,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
 
+    input [NUM_AGUS-1:0] agu_done,
     output agu_config_t agu_configs[NUM_AGUS],
     output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address
 );
@@ -53,8 +54,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Generate AGU configurations
     agu_config_t agu_configs_reg[NUM_AGUS];
     always_ff @(posedge clk or negedge rst_n) begin
-      if (!rst_n) begin
-        for (int i = 0; i < NUM_AGUS; i++) begin
+      for (int i = 0; i < NUM_AGUS; i++) begin
+        if (!rst_n || agu_done[i]) begin
           for (int j = 0; j < NUMBER_IR; j++) begin
             for (int m = 0; m <= NUMBER_MT; m++) begin
               if (m == 0 && j == 0) begin
@@ -72,16 +73,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
               end
             end
           end
+        end else if (rep_valid_instr && i == agu_index) begin
+          agu_configs_reg[agu_index].ir_configs[0][rep._level].delay[DELAY_MSB-1:0] <= rep._delay;
+          agu_configs_reg[agu_index].ir_configs[0][rep._level].iter[ITER_MSB-1:0] <= rep._iter;
+          agu_configs_reg[agu_index].ir_configs[0][rep._level].step[STEP_MSB-1:0] <= rep._step;
+          agu_configs_reg[agu_index].ir_configs[0][rep._level].is_configured <= 1'b1;
+        end else if (repx_valid_instr && i == agu_index) begin
+          agu_configs_reg[agu_index].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB] <= repx._delay;
+          agu_configs_reg[agu_index].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB] <= repx._iter;
+          agu_configs_reg[agu_index].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB] <= repx._step;
+        end else begin
+          // Keep previous configuration
+          agu_configs_reg[i] <= agu_configs_reg[i];
         end
-      end else if (rep_valid_instr) begin
-        agu_configs_reg[agu_index].ir_configs[0][rep._level].delay[DELAY_MSB-1:0] <= rep._delay;
-        agu_configs_reg[agu_index].ir_configs[0][rep._level].iter[ITER_MSB-1:0] <= rep._iter;
-        agu_configs_reg[agu_index].ir_configs[0][rep._level].step[STEP_MSB-1:0] <= rep._step;
-        agu_configs_reg[agu_index].ir_configs[0][rep._level].is_configured <= 1'b1;
-      end else if (repx_valid_instr) begin
-        agu_configs_reg[agu_index].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB] <= repx._delay;
-        agu_configs_reg[agu_index].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB] <= repx._iter;
-        agu_configs_reg[agu_index].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB] <= repx._step;
       end
     end
     assign agu_configs = agu_configs_reg;
