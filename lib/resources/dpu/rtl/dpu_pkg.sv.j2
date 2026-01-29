@@ -20,6 +20,7 @@ package {{name}}_{{fingerprint}}_pkg;
 
   // AGU RTR params
   parameter int ADDRESS_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
   parameter int REP_LEVEL_WIDTH = 3;
   parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
   parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
