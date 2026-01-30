@@ -164,33 +164,21 @@
       "instr_type": 1,
       "segments": [
         {
-          "name": "option",
-          "comment": "Defines which option to apply the repetition operator.",
-          "bitwidth": 2,
-          "default_val": 0
-        },
-        {
-          "name": "level",
-          "comment": "Level of the repetition operator. This can be used to program nested loops. [0]: inner most level, [7]: outer most level.",
-          "bitwidth": 3,
-          "default_val": 0
-        },
-        {
           "name": "iter",
           "comment": "Number of iterations.",
-          "bitwidth": 7
+          "bitwidth": 8
         },
         {
           "name": "step",
           "comment": "Step size between the addresses generated for each iteration.",
-          "bitwidth": 6,
+          "bitwidth": 8,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
           "comment": "Delay between iterations.",
-          "bitwidth": 6
+          "bitwidth": 8
         }
       ]
     },
@@ -200,33 +188,21 @@
       "instr_type": 1,
       "segments": [
         {
-          "name": "option",
-          "comment": "Defines which option to apply the repetition extension.",
-          "bitwidth": 2,
-          "default_val": 0
-        },
-        {
-          "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [7]: outer most level.",
-          "bitwidth": 3,
-          "default_val": 0
-        },
-        {
           "name": "iter",
           "comment": "Most significant bits to apply to the `iter` value of the repetition operator at `level`.",
-          "bitwidth": 7
+          "bitwidth": 8
         },
         {
           "name": "step",
           "comment": "Most significant bits to apply to the `step` value of the repetition operator at `level`.",
-          "bitwidth": 6,
+          "bitwidth": 8,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
           "comment": "Most significant bits to apply to the `delay` value of the repetition operator at `level`.",
-          "bitwidth": 6
+          "bitwidth": 8
         }
       ]
     },
@@ -236,14 +212,9 @@
       "instr_type": 1,
       "segments": [
         {
-          "name": "option",
-          "comment": "Starting option number for the transition. The transition will occur from option to option + 1. If the max value is reached, it wraps around to option 0.",
-          "bitwidth": 2
-        },
-        {
           "name": "delay",
           "comment": "Delay before the transition occurs.",
-          "bitwidth": 22
+          "bitwidth": 24
         }
       ]
     }

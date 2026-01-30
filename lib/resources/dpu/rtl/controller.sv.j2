@@ -80,14 +80,24 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic        use_or_reg;
   logic        or_configured_reg;
 
+  logic [REP_OPTION_WIDTH-1:0] option_to_config = '0;
+  logic [REP_LEVEL_WIDTH-1:0]  level_to_config  = '0;
+  logic [$clog2(NUMBER_MT+1)-1:0] trans_to_config = '0;
+
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n || agu_done) begin
       agu_config_reg    <= '0;
       use_or_reg        <= 1'b0;
       or_configured_reg <= 1'b0;
+      option_to_config  <= '0;
+      level_to_config   <= '0;
+      trans_to_config  <= '0;
+    end else if (dpu_valid) begin
+      option_to_config <= dpu_instr._option;
+      level_to_config  <= '0;
     end else if (rep_valid || repx_valid) begin
-      automatic logic [REP_OPTION_WIDTH-1:0]  opt = rep_valid ? rep_instr._option : repx_instr._option;
-      automatic logic [REP_LEVEL_WIDTH-1:0]   lvl = rep_valid ? rep_instr._level  : repx_instr._level;
+      automatic logic [REP_OPTION_WIDTH-1:0]  opt = option_to_config;
+      automatic logic [REP_LEVEL_WIDTH-1:0]   lvl = level_to_config;
       automatic logic [REP_DELAY_WIDTH/2-1:0] dly = rep_valid ? rep_instr._delay  : repx_instr._delay;
       automatic logic [REP_ITER_WIDTH/2-1:0]  itr = rep_valid ? rep_instr._iter   : repx_instr._iter;
       automatic logic [REP_STEP_WIDTH/2-1:0]  stp = rep_valid ? rep_instr._step   : repx_instr._step;
@@ -104,6 +114,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
         agu_config_reg.or_configs[lvl].is_configured <= 1'b1;
         or_configured_reg <= 1'b1;
+        level_to_config   <= level_to_config + 1;
 
       end else begin
         if (rep_valid) begin // REP: configure lower half
@@ -116,13 +127,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
           agu_config_reg.ir_configs[opt][lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
         end
         agu_config_reg.ir_configs[opt][lvl].is_configured <= 1'b1;
+        level_to_config   <= level_to_config + 1;
       end
 
     // TRANS instruction
     end else if (trans_valid && !or_configured_reg) begin
-      agu_config_reg.mt_configs[trans_instr._option].delay         <= trans_instr._delay;
-      agu_config_reg.mt_configs[trans_instr._option].is_configured <= 1'b1;
+      agu_config_reg.mt_configs[trans_to_config].delay         <= trans_instr._delay;
+      agu_config_reg.mt_configs[trans_to_config].is_configured <= 1'b1;
       use_or_reg <= 1'b1;
+      level_to_config   <= '0;
+      trans_to_config <= trans_to_config + 1;
     end
   end
 

@@ -72,6 +72,10 @@ private:
 
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
+
+  uint32_t current_config_option = 0;
+  int32_t last_config_level = -1;
+  int32_t last_config_trans = -1;
 };
 
 #endif // _DPU_H

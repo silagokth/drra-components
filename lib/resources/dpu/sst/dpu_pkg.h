@@ -13,24 +13,71 @@ namespace DPU_PKG {
 // Supported opcodes from ISA
 enum OpCode { DPU = 3, REP = 0, REPX = 1, TRANS = 2 };
 
+enum DPU_INSTR_DPU {
+  DPU_INSTR_DPU_OPTION_BITWIDTH = 2,
+  DPU_INSTR_DPU_MODE_BITWIDTH = 5,
+  DPU_INSTR_DPU_IMMEDIATE_BITWIDTH = 16
+};
+
+enum DPU_INSTR_REP {
+  DPU_INSTR_REP_ITER_BITWIDTH = 8,
+  DPU_INSTR_REP_STEP_BITWIDTH = 8,
+  DPU_INSTR_REP_DELAY_BITWIDTH = 8
+};
+
+enum DPU_INSTR_REPX {
+  DPU_INSTR_REPX_ITER_BITWIDTH = 8,
+  DPU_INSTR_REPX_STEP_BITWIDTH = 8,
+  DPU_INSTR_REPX_DELAY_BITWIDTH = 8
+};
+
+enum DPU_INSTR_TRANS {
+  DPU_INSTR_TRANS_DELAY_BITWIDTH = 24,
+};
+
 // ISA segment definitions
 inline const std::unordered_map<OpCode, std::vector<SegmentRange>> &
 getIsaDefinitions() {
+  uint32_t INSTR_PAYLOAD_BITWIDTH = 24;
   static const std::unordered_map<OpCode, std::vector<SegmentRange>>
       segmentsDef = {
           {OpCode::DPU,
-           {SegmentRange("option", 2, 22), SegmentRange("mode", 5, 17),
-            SegmentRange("immediate", 16, 1)}},
+           {SegmentRange("option", DPU_INSTR_DPU_OPTION_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_DPU_OPTION_BITWIDTH),
+            SegmentRange("mode", DPU_INSTR_DPU_MODE_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_DPU_OPTION_BITWIDTH -
+                             DPU_INSTR_DPU_MODE_BITWIDTH),
+            SegmentRange("immediate", DPU_INSTR_DPU_IMMEDIATE_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_DPU_OPTION_BITWIDTH -
+                             DPU_INSTR_DPU_MODE_BITWIDTH -
+                             DPU_INSTR_DPU_IMMEDIATE_BITWIDTH)}},
           {OpCode::REP,
-           {SegmentRange("option", 2, 22), SegmentRange("level", 3, 19),
-            SegmentRange("iter", 7, 12), SegmentRange("step", 6, 6),
-            SegmentRange("delay", 6, 0)}},
+           {SegmentRange("iter", DPU_INSTR_REP_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_ITER_BITWIDTH),
+            SegmentRange("step", DPU_INSTR_REP_STEP_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_ITER_BITWIDTH -
+                             DPU_INSTR_REP_STEP_BITWIDTH),
+            SegmentRange("delay", DPU_INSTR_REP_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_ITER_BITWIDTH -
+                             DPU_INSTR_REP_STEP_BITWIDTH -
+                             DPU_INSTR_REP_DELAY_BITWIDTH)}},
           {OpCode::REPX,
-           {SegmentRange("option", 2, 22), SegmentRange("level", 3, 19),
-            SegmentRange("iter", 7, 12), SegmentRange("step", 6, 6),
-            SegmentRange("delay", 6, 0)}},
+           {SegmentRange("iter", DPU_INSTR_REPX_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_ITER_BITWIDTH),
+            SegmentRange("step", DPU_INSTR_REPX_STEP_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_ITER_BITWIDTH -
+                             DPU_INSTR_REPX_STEP_BITWIDTH),
+            SegmentRange("delay", DPU_INSTR_REPX_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_ITER_BITWIDTH -
+                             DPU_INSTR_REPX_STEP_BITWIDTH -
+                             DPU_INSTR_REPX_DELAY_BITWIDTH)}},
           {OpCode::TRANS,
-           {SegmentRange("option", 2, 22), SegmentRange("delay", 22, 0)}}};
+           {SegmentRange("delay", DPU_INSTR_TRANS_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_TRANS_DELAY_BITWIDTH)}}};
   return segmentsDef;
 }
 
@@ -82,35 +129,30 @@ struct DPUInstruction {
   }
 };
 struct REPInstruction {
-  uint32_t slot, option, level, iter, step, delay;
+  uint32_t slot, iter, step, delay;
 
   REPInstruction(const Instruction &instr) {
     slot = instr.slot;
-    option = instr.get("option").value;
-    level = instr.get("level").value;
     iter = instr.get("iter").value;
     step = instr.get("step").value;
     delay = instr.get("delay").value;
   }
 };
 struct REPXInstruction {
-  uint32_t slot, option, level, iter, step, delay;
+  uint32_t slot, iter, step, delay;
 
   REPXInstruction(const Instruction &instr) {
     slot = instr.slot;
-    option = instr.get("option").value;
-    level = instr.get("level").value;
     iter = instr.get("iter").value;
     step = instr.get("step").value;
     delay = instr.get("delay").value;
   }
 };
 struct TRANSInstruction {
-  uint32_t slot, option, delay;
+  uint32_t slot, delay;
 
   TRANSInstruction(const Instruction &instr) {
     slot = instr.slot;
-    option = instr.get("port").value;
     delay = instr.get("delay").value;
   }
 };

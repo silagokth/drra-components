@@ -42,6 +42,8 @@ use std::ops::{Deref, DerefMut};
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
+    let mut current_level = 0;
+    let mut current_trans = 0;
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = "e0".to_string();
@@ -49,32 +51,24 @@ fn get_timing_model(op: Op) -> String {
     for instr in op.body {
         let instr_segments = instr.params;
         match instr.kind.as_str() {
-            "dpu" => {}
+            "dpu" => {
+                current_level = 0;
+                current_trans = 0;
+            }
             "rep" => {
-                let _port = instr_segments.get_value("port");
-                let level = instr_segments.get_value("level");
                 let mut iter = instr_segments.get_value("iter");
                 let _step = instr_segments.get_value("step");
                 let delay = instr_segments.get_value("delay");
                 iter = (iter.parse::<i64>().unwrap()).to_string();
-                r.insert(
-                    level.parse::<i64>().unwrap(),
-                    (iter.to_string(), delay.to_string()),
-                );
+                r.insert(current_level, (iter.to_string(), delay.to_string()));
+                current_level += 1;
             }
             "repx" => {}
             "fsm" => {
-                let _port = instr_segments.get_value("port");
-                let delay_0 = instr_segments.get_value("delay_0");
-                let delay_1 = instr_segments.get_value("delay_1");
-                let delay_2 = instr_segments.get_value("delay_2");
-
-                t.insert(0, "0".to_string());
-                t.insert(1, "0".to_string());
-                t.insert(2, "0".to_string());
-                t.insert(0, delay_0);
-                t.insert(1, delay_1);
-                t.insert(2, delay_2);
+                let delay = instr_segments.get_value("delay");
+                t.insert(current_trans, delay);
+                current_level = 0;
+                current_trans += 1;
             }
             _ => {
                 panic!("Unknown instruction kind: {}", instr.kind);
