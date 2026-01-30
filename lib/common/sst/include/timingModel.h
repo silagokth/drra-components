@@ -32,7 +32,7 @@ private:
   std::vector<uint64_t> levels_total_iterations;
   std::vector<uint64_t> levels_step;
 
-  std::vector<std::shared_ptr<TimingOperator>> operator_queue;
+  std::vector<std::shared_ptr<TimingExpression>> operator_queue;
 
   TimingState &buildRepetition(uint64_t iterations, uint64_t delay);
   TimingState &buildRepetition(uint64_t iterations, uint64_t delay,
@@ -94,6 +94,8 @@ private:
 
 public:
   TimingEvent(const std::string &name, uint64_t eventNumber);
+  TimingEvent(std::shared_ptr<const TimingEvent> other);
+
   uint64_t scheduleEvents(TimingState &state,
                           uint64_t startCycle) const override;
   std::string toString() const override;

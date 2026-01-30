@@ -38,8 +38,8 @@ public:
         active_ports[i * PORTS_PER_SLOT + j] = false;
         active_ports_cycles[i * PORTS_PER_SLOT + j] = 0;
         next_timing_states[i * PORTS_PER_SLOT + j] = TimingState();
-        next_timing_states[i * PORTS_PER_SLOT + j].addEvent("event_0",
-                                                            [this] {});
+        // next_timing_states[i * PORTS_PER_SLOT + j].addEvent("event_0",
+        //                                                     [this] {});
         port_last_rep_level[i * PORTS_PER_SLOT + j] = -1;
       }
     }
@@ -107,7 +107,9 @@ public:
   virtual ~DRRAResource() {}
 
   virtual bool clockTick(Cycle_t currentCycle) override {
+    out.output("Clock tick at cycle %lu\n", currentCycle);
     executeScheduledEventsForCycle(currentCycle);
+    out.output("End of clock tick at cycle %lu\n", currentCycle);
 
     return false;
   }
@@ -187,7 +189,7 @@ protected:
     active_ports[port] = true;
     current_timing_states[port] = next_timing_states[port];
     next_timing_states[port] = TimingState();
-    next_timing_states[port].addEvent("event_0", [this] {});
+    // next_timing_states[port].addEvent("event_0", [this] {});
     current_timing_states[port].build();
     // out.output("port %d timing: %s\n", port,
     //            current_timing_states[port].toString().c_str());
@@ -243,6 +245,7 @@ protected:
                    currentSSTCycle / 10, events_for_cycle.size());
         for (int i = 0; i < events_for_cycle.size(); i++) {
           auto event = events_for_cycle[i];
+          out.print("name %s,", event->getName().c_str());
           auto port = corresponding_ports[i];
           out.print("port %d prio %d", port, event->getPriority());
           if (i != events_for_cycle.size() - 1) {
@@ -258,8 +261,8 @@ protected:
       auto event = events_for_cycle[i];
       auto port = corresponding_ports[i];
       if (event->getPriority() == currentSSTCycle % 10) {
-        // out.output("Executing event port %d prio %d\n", port,
-        //            event->getPriority());
+        out.output("Executing event port %d prio %d\n", port,
+                   event->getPriority());
         event->execute();
         if (trace_name != "") {
           logTraceEvent(event->getName(), slot_id, true, 'X',

@@ -1,6 +1,10 @@
 #include "timingModel.h"
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
+#include <deque>
+#include <iostream>
+#include <memory>
 #include <stdexcept>
 
 // TimingExpression implementations
@@ -38,21 +42,59 @@ TimingState TimingState::createFromEvent(const std::string &name) {
 
 TimingState &TimingState::addEvent(const std::string &name,
                                    std::function<void()> handler) {
-  auto event = std::make_shared<TimingEvent>(name, eventCounter++);
-  event->setHandler(handler);
-  event->setPriority(5);
-  addEventName(name);
-  expression = std::static_pointer_cast<TimingExpression>(event);
-  return *this;
+  return this->addEvent(name, 5, handler);
 }
 
 TimingState &TimingState::addEvent(const std::string &name, uint8_t priority,
                                    std::function<void()> handler) {
-  auto event = std::make_shared<TimingEvent>(name, eventCounter++);
-  event->setHandler(handler);
-  event->setPriority(priority);
-  addEventName(name);
-  expression = std::static_pointer_cast<TimingExpression>(event);
+  std::shared_ptr<TimingEvent> temp_event = nullptr;
+
+  // Find if an event with the same name already exists in the operator queue
+  for (auto &op : operator_queue) {
+    if (auto event = std::dynamic_pointer_cast<TimingEvent>(op)) {
+      if (event->getName() == name) {
+        std::cout << "Merging event handlers for event: " << name << std::endl;
+        temp_event = event;
+        auto existing_handler = event->getHandler();
+        std::function<void()> merged_handler;
+        if (existing_handler && handler) {
+          merged_handler = [existing_handler, handler]() {
+            std::cout << "Executing merged handlers for event." << std::endl;
+            existing_handler();
+            handler();
+          };
+        } else if (existing_handler) {
+          merged_handler = existing_handler;
+        } else if (handler) {
+          merged_handler = handler;
+        }
+        // merged_handler remains empty if both are empty
+        temp_event->setHandler(merged_handler);
+
+        temp_event->setPriority(priority);
+
+        // Replace the old event in the operator queue
+        op = std::make_shared<TimingEvent>(temp_event);
+        break;
+      }
+    }
+  }
+  if (!temp_event) {
+    temp_event = std::make_shared<TimingEvent>(name, eventCounter++);
+    std::function<void()> merged_handler = [handler]() {
+      std::cout << "Executing handler for event." << std::endl;
+      if (handler) {
+        handler();
+      }
+    };
+    temp_event->setHandler(handler);
+    temp_event->setPriority(priority);
+    addEventName(name);
+    this->operator_queue.push_back(std::make_shared<TimingEvent>(temp_event));
+  }
+
+  // Update the expression to point to the new/merged event
+  expression = std::static_pointer_cast<TimingExpression>(temp_event);
   return *this;
 }
 
@@ -88,11 +130,6 @@ TimingState &TimingState::buildRepetition(uint64_t iterations, uint64_t delay,
     throw std::runtime_error("Cannot add repetition without an event");
   }
   delay++; // delay is always incremented by 1
-  //  iterations++; // iterations is always incremented by 1
-
-  levels_current_iteration.push_back(0);
-  levels_total_iterations.push_back(iterations);
-  levels_step.push_back(step);
 
   auto repetition = std::make_shared<RepetitionOperator>(
       iterations, delay, level, step, expression);
@@ -111,7 +148,7 @@ TimingState &TimingState::addTransition(uint64_t delay,
                                         uint8_t priority,
                                         std::function<void()> handler) {
   if (!expression) {
-    throw std::runtime_error("Cannot add repetition without an event");
+    throw std::runtime_error("Cannot add transition without an event");
   }
   this->operator_queue.push_back(std::make_shared<TransitionOperator>(
       delay, nextEventName, handler, expression, expression));
@@ -166,57 +203,92 @@ uint64_t TimingState::getRepIncrementForCycle(uint64_t cycle) {
 
 TimingState &TimingState::build() {
   if (!expression) {
-    throw std::runtime_error("Cannot build timing state without events");
+    this->addEvent("event_0", [] {});
   }
-  auto expression = this->expression;
 
   // Order operator_queue by putting all transition in beginning
   uint32_t transition_count = 0;
+  uint32_t event_count = 0;
   for (uint32_t i = 0; i < operator_queue.size(); i++) {
-    if (std::dynamic_pointer_cast<TransitionOperator>(operator_queue[i])) {
+    if (auto trans =
+            std::dynamic_pointer_cast<TransitionOperator>(operator_queue[i])) {
       if (i != transition_count) {
-        std::swap(operator_queue[i], operator_queue[transition_count]);
+        // std::swap(operator_queue[i], operator_queue[transition_count]);
       }
+      std::cout << "Found transition operator (delay: " << trans->getDelay()
+                << ")" << std::endl;
       transition_count++;
+    } else if (auto event =
+                   std::dynamic_pointer_cast<TimingEvent>(operator_queue[i])) {
+      std::cout << "Found event: " << event->getName() << std::endl;
+      std::cout << "id: " << event->toString() << std::endl;
+      // std::cout << "Executing event handler for event: " << test->getName()
+      //           << std::endl;
+      // test->getHandler()(); // this works, it means it preserves the handler
+      event_count++;
+    } else if (auto rep = std::dynamic_pointer_cast<RepetitionOperator>(
+                   operator_queue[i])) {
+      std::cout << "Found repetition operator (level: " << rep->getLevel()
+                << ", iterations: " << rep->getIterations()
+                << ", delay: " << rep->getDelay()
+                << ", step: " << rep->getStep() << ")" << std::endl;
+    } else {
+      throw std::runtime_error("Unknown operator type in operator queue");
     }
   }
 
-  // Order the left repetition operators by level
-  for (uint32_t i = transition_count; i < operator_queue.size(); i++) {
-    for (uint32_t j = i + 1; j < operator_queue.size(); j++) {
-      if (std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[i]) &&
-          std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[j])) {
-        if (std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[i])
-                ->getLevel() >
-            std::dynamic_pointer_cast<RepetitionOperator>(operator_queue[j])
-                ->getLevel()) {
-          std::swap(operator_queue[i], operator_queue[j]);
-        }
-      }
-    }
+  TimingState temp_state;
+  uint32_t num_events = 0;
+  uint32_t num_transitions = 0;
+  if (std::dynamic_pointer_cast<TimingEvent>(operator_queue[0])) {
+    std::cout << "First operator is an event" << std::endl;
+    temp_state = TimingState(
+        std::static_pointer_cast<TimingExpression>(operator_queue[0]));
   }
 
   // Add all operators to the expression
+  std::deque<std::shared_ptr<TimingExpression>> expressions;
   for (auto &op : operator_queue) {
-    if (auto transition = std::dynamic_pointer_cast<TransitionOperator>(op)) {
-      this->buildTransition(transition->getDelay(),
-                            transition->getNextEventName(),
-                            transition->getHandler());
+    if (auto event = std::dynamic_pointer_cast<TimingEvent>(op)) {
+      expressions.push_back(std::static_pointer_cast<TimingExpression>(event));
+    } else if (auto transition =
+                   std::dynamic_pointer_cast<TransitionOperator>(op)) {
+      std::shared_ptr<TimingExpression> from_expr = expressions.front();
+      expressions.pop_front();
+      std::shared_ptr<TimingExpression> to_expr = expressions.front();
+      expressions.pop_front();
+      std::shared_ptr<TransitionOperator> transition_op =
+          std::make_shared<TransitionOperator>(
+              transition->getDelay(), transition->getNextEventName(),
+              transition->getHandler(), from_expr, to_expr);
+      // Place the new expression back to the front of the queue
+      expressions.push_front(
+          std::static_pointer_cast<TimingExpression>(transition_op));
     } else if (auto repetition =
                    std::dynamic_pointer_cast<RepetitionOperator>(op)) {
-      this->buildRepetition(repetition->getIterations(), repetition->getDelay(),
-                            repetition->getLevel(), repetition->getStep());
+
+      levels_current_iteration.push_back(0);
+      levels_total_iterations.push_back(repetition->getIterations());
+      levels_step.push_back(repetition->getStep());
+
+      std::shared_ptr<TimingExpression> expr = expressions.back();
+      expressions.pop_back();
+      std::shared_ptr<RepetitionOperator> repetition_op =
+          std::make_shared<RepetitionOperator>(
+              repetition->getIterations(), repetition->getDelay() + 1,
+              repetition->getLevel(), repetition->getStep(), expr);
+      expressions.push_back(
+          std::static_pointer_cast<TimingExpression>(repetition_op));
     } else {
       throw std::runtime_error("Unknown operator type");
     }
 
-    // Update the timing expression
-    expression = this->expression;
+    this->expression = expressions.back();
   }
 
   // Schedule events
   updateLastScheduledCycle(
-      expression->scheduleEvents(*this, lastScheduledCycle));
+      this->expression->scheduleEvents(*this, lastScheduledCycle));
 
   return *this;
 }
@@ -317,6 +389,10 @@ const std::vector<uint64_t> &TimingState::getLevelsTotalIterations() const {
 // TimingEvent implementations
 TimingEvent::TimingEvent(const std::string &name, uint64_t eventNumber)
     : name(name), eventNumber(eventNumber) {}
+
+TimingEvent::TimingEvent(std::shared_ptr<const TimingEvent> other)
+    : name(other->name), eventNumber(other->eventNumber),
+      handler(other->handler), priority(other->priority) {}
 
 uint64_t TimingEvent::scheduleEvents(TimingState &state,
                                      uint64_t startCycle) const {
