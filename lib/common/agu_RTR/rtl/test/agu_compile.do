@@ -12,14 +12,18 @@ set LINKER_FLAGS "-shared"
 exec $GCC -c -fPIC -I$ROOT/../../../sst/include -I$QUESTA_HOME/include \
   $ROOT/../../../sst/src/timingModel.cpp -o $ROOT/timingModel.o
 exec $GCC -c -fPIC -I$ROOT/../../../sst/include -I$QUESTA_HOME/include \
+  $ROOT/../../../sst/src/drra_agu.cpp -o $ROOT/drra_agu.o
+exec $GCC -c -fPIC -I$ROOT/../../../sst/include -I$QUESTA_HOME/include \
   $ROOT/tm_wrapper.cpp -o $ROOT/tm_wrapper.o
-exec $GCC $LINKER_FLAGS -o $ROOT/timingModel.so $ROOT/timingModel.o $ROOT/tm_wrapper.o \
+exec $GCC $LINKER_FLAGS -o $ROOT/timingModel.so $ROOT/timingModel.o \
+  $ROOT/tm_wrapper.o $ROOT/drra_agu.o \
   -static-libgcc -static-libstdc++
 
 vlog -svinputport=var -sv "$ROOT/../src/agu_RTR_pkg.sv" \
                           "$ROOT/../src/ir.sv" \
                           "$ROOT/../src/mt_ir.sv" \
                           "$ROOT/../src/or_mt_ir.sv" \
-                          "$ROOT/or_mt_ir_tb.sv"
+                          "$ROOT/../src/agu_RTR.sv" \
+                          "$ROOT/agu_tb.sv"
 
-vsim -sv_lib $ROOT/timingModel work.or_mt_ir_tb -voptargs="+acc" -debugDB
+vsim -sv_lib $ROOT/timingModel work.agu_tb -voptargs="+acc" -debugDB

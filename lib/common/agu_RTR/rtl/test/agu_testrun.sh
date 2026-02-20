@@ -19,4 +19,4 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 vsim "${interactive}" -sv_lib \
   "${script_dir}/timingModel" \
   -work work \
-  -do "set QUESTA_HOME ${QUESTA_HOME}; set ROOT ${script_dir}; do ${script_dir}/or_mt_ir_compile.do; run -all; quit"
+  -do "set QUESTA_HOME ${QUESTA_HOME}; set ROOT ${script_dir}; do ${script_dir}/agu_compile.do; run -all; quit"
