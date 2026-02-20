@@ -1,7 +1,7 @@
 
 package timing_model_pkg;
 
-  import "DPI-C" context function void cpp_build_pattern(
+  import "DPI-C" context function int cpp_build_pattern(
     input int type_configs [],
     input int iter_configs [],
     input int delay_configs[],
@@ -66,11 +66,13 @@ package timing_model_pkg;
       step_q.push_back(0);
     endfunction
 
-    function void build();
-      int type_arr [];
-      int iter_arr [];
+    function int build();
+      int type_arr[];
+      int iter_arr[];
       int delay_arr[];
-      int step_arr [];
+      int step_arr[];
+
+      int max_cycles = 0;
 
       // Convert SV Queues to C++ Arrays for DPI
       type_arr  = new[type_q.size()];
@@ -87,7 +89,7 @@ package timing_model_pkg;
       cycle_queue.delete();
 
       // Call C++ timing model
-      cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr);
+      max_cycles = cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr);
 
       // Retrieve results
       addr_count = cpp_get_address_queue_size();
@@ -98,6 +100,8 @@ package timing_model_pkg;
 
       expression = cpp_get_timing_expression();
       verified_count = 0;
+
+      return max_cycles;
     endfunction
 
     function int verify(int cycle, int address, int valid);

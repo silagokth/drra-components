@@ -36,6 +36,7 @@ module agu_tb
   logic agu_act;
   logic agu_valid;
   logic agu_done;
+  logic pass;
 
   // Testbench State
   int current_cycle;
@@ -77,6 +78,20 @@ module agu_tb
     forever #(ClkPeriod / 2) clk = ~clk;
   end
 
+  // Random seed
+  int seed;
+  initial begin
+    seed = 0;  // default seed
+
+    // Override if +seed= is provided
+    if ($value$plusargs("seed=%d", seed)) begin
+      $display($sformatf("Using provided seed: %0d", seed));
+    end else begin
+      $display($sformatf("Using random seed: %0d", seed));
+    end
+    void'($urandom(seed));
+  end
+
   // --------------------------------------------------------------------------
   // Helper Tasks
   // --------------------------------------------------------------------------
@@ -107,6 +122,16 @@ module agu_tb
     // agu_config.ir_configs[0][0].is_configured = 1;
   endtask
 
+  task automatic add_rep_random();
+    int iter;
+    int step;
+    int delay;
+    iter  = $urandom_range(2, 5);
+    step  = $urandom_range(0, 10);
+    delay = $urandom_range(0, 5);
+    add_rep(iter, step, delay);
+  endtask
+
   task automatic add_rep(input int iter, input int step, input int delay);
     // Add to timing model
     tm.add_repetition(iter, delay, step);
@@ -127,6 +152,12 @@ module agu_tb
 
     // Increment rep level
     current_rep_level++;
+  endtask
+
+  task automatic add_trans_random();
+    int delay;
+    delay = $urandom_range(1, 5);
+    add_trans(delay);
   endtask
 
   task automatic add_trans(input int delay);
@@ -150,9 +181,13 @@ module agu_tb
     repeat (2) @(posedge clk);
   endtask
 
-  task automatic run_test(string name, int timeout = 10000);
-    tm.build();
-    reporter.print_test_header(name, tm.expression, tm.addr_count);
+  task automatic run_test(string name);
+    int timeout;
+
+    pass = 1;
+    timeout = tm.build();
+    reporter.print_test_header(name, tm.expression, tm.addr_count, timeout);
+    timeout += 3;  // extra cycle for activation
 
     enable = 1;
     current_cycle = -1;
@@ -166,6 +201,7 @@ module agu_tb
       begin
         repeat (timeout) @(posedge clk);
         reporter.log_error($sformatf("Timeout after %0d cycles", timeout));
+        pass = 0;
       end
     join_any
     disable fork;
@@ -173,11 +209,16 @@ module agu_tb
     enable = 0;
 
     // Verify completion
-    if (tm.remaining() > 0)
+    if (tm.remaining() > 0) begin
       reporter.log_error($sformatf("%0d addresses not generated", tm.remaining()));
-    if (!agu_done) reporter.log_error("Done signal not asserted");
+      pass = 0;
+    end
+    if (!agu_done) begin
+      reporter.log_error("Done signal not asserted");
+      pass = 0;
+    end
 
-    reporter.log_pass($sformatf("Test completed in %0d cycles", current_cycle));
+    if (pass) reporter.log_pass($sformatf("Test completed in %0d cycles", current_cycle));
     reset_dut();
   endtask
 
@@ -190,11 +231,15 @@ module agu_tb
         continue;
       end
       result = tm.verify(current_cycle, agu_addr, agu_valid);
-      if (result == 0)
+      if (result == 0) begin
+        pass = 0;
         reporter.log_error(
             $sformatf(
             "Mismatch at idx %0d (cycle %0d, addr %0d)", addr_count, current_cycle, agu_addr));
-      else if (result == -1) reporter.log_error($sformatf("Extra address %0d", agu_addr));
+      end else if (result == -1) begin
+        pass = 0;
+        reporter.log_error($sformatf("Extra address %0d", agu_addr));
+      end
       if (agu_valid) addr_count++;
       current_cycle++;
     end
@@ -221,12 +266,12 @@ module agu_tb
           for (int i = 0; i <= n_mt; i++) begin
             add_event();
             // Add IR repetitions
-            for (int j = 0; j < n_ir; j++) add_rep(2, 1, 0);  // or random/varied values
+            for (int j = 0; j < n_ir; j++) add_rep_random();  // or random/varied values
           end
           // Add MT transitions
-          for (int t = 0; t < n_mt; t++) add_trans(5);  // or random/varied values
+          for (int t = 0; t < n_mt; t++) add_trans_random();  // or random/varied values
           // Add OR repetitions
-          for (int r = 0; r < n_or; r++) add_rep(2, 1, 0);  // or random/varied values
+          for (int r = 0; r < n_or; r++) add_rep_random();  // or random/varied values
           run_test($sformatf("Pattern: IR=%0d, MT=%0d, OR=%0d", n_ir, n_mt, n_or));
         end
       end
@@ -238,7 +283,7 @@ module agu_tb
 
   // Timeout watchdog
   initial begin
-    #1000000;
+    #100000000;
     reporter.log_error("[ERROR] Global timeout reached");
     $finish;
   end

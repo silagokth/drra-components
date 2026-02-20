@@ -17,7 +17,8 @@ package tb_utils_pkg;
       $display("+========================================+");
     endfunction
 
-    function void print_test_header(string test_name, string expression, int expected_addrs);
+    function void print_test_header(string test_name, string expression, int expected_addrs,
+                                    int max_cycles = -1);
       test_num++;
       $display("");
       $display("========================================");
@@ -25,6 +26,7 @@ package tb_utils_pkg;
       $display("========================================");
       $display("  Timing expression: %s", expression);
       $display("  Expected total addresses: %0d", expected_addrs);
+      $display("  Expected max cycles: %0d", max_cycles);
       $display("----------------------------------------");
     endfunction
 

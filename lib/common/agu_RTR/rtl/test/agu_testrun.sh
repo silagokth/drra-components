@@ -16,7 +16,9 @@ fi
 # Get current script directory
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+SEED=$RANDOM$RANDOM
+
 vsim "${interactive}" -sv_lib \
   "${script_dir}/timingModel" \
   -work work \
-  -do "set QUESTA_HOME ${QUESTA_HOME}; set ROOT ${script_dir}; do ${script_dir}/agu_compile.do; run -all; quit"
+  -do "set QUESTA_HOME ${QUESTA_HOME}; set ROOT ${script_dir}; set SEED $SEED; do ${script_dir}/agu_compile.do; run -all; quit"

@@ -16,10 +16,10 @@ extern "C" {
 
 // Build pattern called from SV: import "DPI-C" context function void
 // cpp_build_pattern(...)
-void cpp_build_pattern(const svOpenArrayHandle type_h,
-                       const svOpenArrayHandle iter_h,
-                       const svOpenArrayHandle delay_h,
-                       const svOpenArrayHandle step_h, bool debug = false) {
+int cpp_build_pattern(const svOpenArrayHandle type_h,
+                      const svOpenArrayHandle iter_h,
+                      const svOpenArrayHandle delay_h,
+                      const svOpenArrayHandle step_h, bool debug = false) {
   expected_addresses.clear();
 
   DRRA_AGU agu;
@@ -108,6 +108,8 @@ void cpp_build_pattern(const svOpenArrayHandle type_h,
     std::cerr << "[DPI] pattern generated: " << expected_addresses.size()
               << " addresses\n"
               << std::endl;
+
+  return max_cycles;
 }
 
 // Pop one address
