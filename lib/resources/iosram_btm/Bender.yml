@@ -8,3 +8,4 @@ sources:
   - ./rtl/iosram_btm_pkg.sv
   - ./rtl/iosram_btm.sv
   - ./rtl/controller.sv
+  - ./rtl/decoder.sv

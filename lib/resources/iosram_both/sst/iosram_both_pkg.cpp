@@ -18,10 +18,17 @@ IOSRAM_BOTH_PKG::createInstructionHandlers(Iosram_both *iosram_both_obj) {
          REPInstruction decoded_instr(instruction);
          iosram_both_obj->handleREP(decoded_instr);
        }},
-      {(uint32_t)OpCode::REPX, [iosram_both_obj](uint32_t instr) {
+      {(uint32_t)OpCode::REPX,
+       [iosram_both_obj](uint32_t instr) {
          auto segment_defs = getIsaDefinitions().at(OpCode::REPX);
          Instruction instruction(instr, iosram_both_obj->format, segment_defs);
          REPXInstruction decoded_instr(instruction);
          iosram_both_obj->handleREPX(decoded_instr);
+       }},
+      {(uint32_t)OpCode::TRANS, [iosram_both_obj](uint32_t instr) {
+         auto segment_defs = getIsaDefinitions().at(OpCode::TRANS);
+         Instruction instruction(instr, iosram_both_obj->format, segment_defs);
+         TRANSInstruction decoded_instr(instruction);
+         iosram_both_obj->handleTRANS(decoded_instr);
        }}};
 }

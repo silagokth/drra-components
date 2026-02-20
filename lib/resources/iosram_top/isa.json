@@ -12,8 +12,40 @@
       "instr_type": 1,
       "segments": [
         {
+          "name": "option",
+          "comment": "Configuration option where the DSU mode will be stored. There are 4 options per port.",
+          "bitwidth": 2
+        },
+        {
+          "name": "port",
+          "comment": "The port number",
+          "bitwidth": 2,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
+            },
+            {
+              "key": 2,
+              "val": "sram_write",
+              "comment": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
+            },
+            {
+              "key": 3,
+              "val": "sram_read",
+              "comment": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
+            }
+          ]
+        },
+        {
           "name": "init_addr_sd",
-          "comment": "Static (`0`) or dynamic (`1`) initial address",
+          "comment": "Is initial address static or dynamic?",
           "bitwidth": 1,
           "verbo_map": [
             {
@@ -28,35 +60,8 @@
         },
         {
           "name": "init_addr",
-          "comment": "Initial address value",
+          "comment": "Initial address",
           "bitwidth": 16
-        },
-        {
-          "name": "port",
-          "comment": "Port number",
-          "bitwidth": 2,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "input_buffer",
-              "comment": "address generation for input buffer"
-            },
-            {
-              "key": 1,
-              "val": "output_buffer",
-              "comment": "address generation for output buffer"
-            },
-            {
-              "key": 2,
-              "val": "sram_write",
-              "comment": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
-            },
-            {
-              "key": 3,
-              "val": "sram_read",
-              "comment": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
-            }
-          ]
         }
       ]
     },
@@ -67,7 +72,7 @@
       "segments": [
         {
           "name": "port",
-          "comment": "The port number",
+          "comment": "Select which port the repetition applies to.",
           "bitwidth": 2,
           "verbo_map": [
             {
@@ -93,26 +98,21 @@
           ]
         },
         {
-          "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 3
-        },
-        {
           "name": "iter",
-          "comment": "level-1 iteration - 1.",
-          "bitwidth": 7
+          "comment": "Number of iterations.",
+          "bitwidth": 8
         },
         {
           "name": "step",
-          "comment": "level-1 step",
-          "bitwidth": 6,
+          "comment": "Step size between iterations.",
+          "bitwidth": 7,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
-          "comment": "delay",
-          "bitwidth": 6
+          "comment": "Delay between iterations.",
+          "bitwidth": 7
         }
       ]
     },
@@ -123,7 +123,7 @@
       "segments": [
         {
           "name": "port",
-          "comment": "The port number",
+          "comment": "Select which port the repetition extension applies to.",
           "bitwidth": 2,
           "verbo_map": [
             {
@@ -149,26 +149,60 @@
           ]
         },
         {
-          "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 3
-        },
-        {
           "name": "iter",
-          "comment": "level-1 iteration - 1.",
-          "bitwidth": 7
+          "comment": "most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
         },
         {
           "name": "step",
-          "comment": "level-1 step",
-          "bitwidth": 6,
+          "comment": "most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
-          "comment": "delay",
-          "bitwidth": 6
+          "comment": "most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 7
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 2,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "select which port the transition applies to.",
+          "bitwidth": 2,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
+            },
+            {
+              "key": 2,
+              "val": "sram_write",
+              "comment": "if in first slot, address generation for writing to SRAM from input buffer; if in second slot, address generation for writing to SRAM (BULK)"
+            },
+            {
+              "key": 3,
+              "val": "sram_read",
+              "comment": "if in first slot, address generation for read from SRAM to output buffer; if in second slot, address generation for reading from SRAM (BULK)"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 22
         }
       ]
     }

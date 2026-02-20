@@ -42,6 +42,8 @@ use std::ops::{Deref, DerefMut};
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
+    let mut current_rep = 0;
+    let mut current_trans = 0;
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = "e0".to_string();
@@ -49,28 +51,22 @@ fn get_timing_model(op: Op) -> String {
     for instr in op.body {
         let instr_segments = instr.params;
         match instr.kind.as_str() {
-            "dsu" => {}
+            "dsu" => {
+                current_rep = 0;
+                current_trans = 0;
+            }
             "rep" => {
-                let _port = instr_segments.get_value("port");
-                let level = instr_segments.get_value("level");
-                let mut iter = instr_segments.get_value("iter");
-                let _step = instr_segments.get_value("step");
+                let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
-                iter = (iter.parse::<i64>().unwrap()).to_string();
-                r.insert(level.parse::<i64>().unwrap(), (iter, delay.to_string()));
+                r.insert(current_rep, (iter.to_string(), delay.to_string()));
+                current_rep += 1;
             }
             "repx" => {}
             "fsm" => {
-                let _port = instr_segments.get_value("port");
-                let delay_0 = instr_segments.get_value("delay_0");
-                let delay_1 = instr_segments.get_value("delay_1");
-                let delay_2 = instr_segments.get_value("delay_2");
-                t.insert(0, "0".to_string());
-                t.insert(1, "0".to_string());
-                t.insert(2, "0".to_string());
-                t.insert(0, delay_0);
-                t.insert(1, delay_1);
-                t.insert(2, delay_2);
+                let delay = instr_segments.get_value("delay");
+                t.insert(current_trans, delay);
+                current_rep = 0;
+                current_trans += 1;
             }
             _ => {
                 panic!("Unknown instruction kind: {}", instr.kind);
@@ -141,20 +137,20 @@ fn reshape_instr(op: Op) -> Op {
                 let mut iterx = 0;
                 let mut delayx = 0;
                 let mut stepx = 0;
-                if iter > 2i64.pow(7) - 1 {
+                if iter > 2i64.pow(8) - 1 {
                     repx_flag = true;
-                    iterx = iter / 2i64.pow(7);
-                    // iter %= 2i64.pow(7);
+                    iterx = iter / 2i64.pow(8);
+                    iter %= 2i64.pow(8);
                 }
-                if delay > 2i64.pow(6) - 1 {
+                if delay > 2i64.pow(7) - 1 {
                     repx_flag = true;
-                    delayx = delay / 2i64.pow(6);
-                    delay %= 2i64.pow(6);
+                    delayx = delay / 2i64.pow(7);
+                    delay %= 2i64.pow(7);
                 }
-                if step > 2i64.pow(6) - 1 {
+                if step > 2i64.pow(7) - 1 {
                     repx_flag = true;
-                    stepx = step / 2i64.pow(6);
-                    step %= 2i64.pow(6);
+                    stepx = step / 2i64.pow(7);
+                    step %= 2i64.pow(7);
                 }
 
                 if repx_flag {

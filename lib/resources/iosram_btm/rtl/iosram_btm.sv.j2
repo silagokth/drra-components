@@ -107,13 +107,44 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end
 
+    logic dsu_valid;
+    dsu_t dsu_instr;
+    logic rep_valid;
+    rep_t rep_instr;
+    logic repx_valid;
+    repx_t repx_instr;
+    logic trans_valid;
+    trans_t trans_instr;
+
+    {{name}}_{{fingerprint}}_decoder decoder_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .instruction_valid(instruction_valid),
+      .instruction_payload(instruction_payload),
+      .dsu_valid(dsu_valid),
+      .dsu_instr(dsu_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .repx_valid(repx_valid),
+      .repx_instr(repx_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr)
+    );
+
     {{name}}_{{fingerprint}}_controller controller_inst (
       .clk(clk),
       .rst_n(rst_n),
 
-      .instruction_valid(instruction_valid),
       .instruction_slot(instruction_slot),
-      .instruction_payload(instruction_payload),
+
+      .dsu_valid(dsu_valid),
+      .dsu_instr(dsu_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .repx_valid(repx_valid),
+      .repx_instr(repx_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr),
 
       .agu_done(agu_done),
       .agu_configs(agu_configs),

@@ -66,6 +66,7 @@ public:
   void handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr);
   void handleREP(const IOSRAM_TOP_PKG::REPInstruction &instr);
   void handleREPX(const IOSRAM_TOP_PKG::REPXInstruction &instr);
+  void handleTRANS(const IOSRAM_TOP_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 
@@ -107,6 +108,7 @@ private:
 
   int32_t agu_initial_addr = -1;
   uint32_t current_event_number = 0;
+  std::map<uint32_t, size_t> current_option_config;
 };
 
 #endif // _IOSRAM_TOP_H

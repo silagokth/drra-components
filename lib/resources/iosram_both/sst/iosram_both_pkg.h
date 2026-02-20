@@ -11,24 +11,86 @@ class Iosram_both;
 namespace IOSRAM_BOTH_PKG {
 
 // Supported opcodes from ISA
-enum OpCode { DSU = 6, REP = 0, REPX = 1 };
+enum OpCode { DSU = 6, REP = 0, REPX = 1, TRANS = 2 };
+
+enum IOSRAM_BOTH_INSTR_DSU {
+  IOSRAM_BOTH_INSTR_DSU_OPTION_BITWIDTH = 2,
+  IOSRAM_BOTH_INSTR_DSU_PORT_BITWIDTH = 2,
+  IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_SD_BITWIDTH = 1,
+  IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_BITWIDTH = 16
+};
+
+enum IOSRAM_BOTH_INSTR_REP {
+  IOSRAM_BOTH_INSTR_REP_PORT_BITWIDTH = 2,
+  IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH = 8,
+  IOSRAM_BOTH_INSTR_REP_STEP_BITWIDTH = 7,
+  IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH = 7
+};
+
+enum IOSRAM_BOTH_INSTR_REPX {
+  IOSRAM_BOTH_INSTR_REPX_PORT_BITWIDTH = 2,
+  IOSRAM_BOTH_INSTR_REPX_ITER_BITWIDTH = 8,
+  IOSRAM_BOTH_INSTR_REPX_STEP_BITWIDTH = 7,
+  IOSRAM_BOTH_INSTR_REPX_DELAY_BITWIDTH = 7
+};
+
+enum IOSRAM_BOTH_INSTR_TRANS {
+  IOSRAM_BOTH_INSTR_TRANS_PORT_BITWIDTH = 2,
+  IOSRAM_BOTH_INSTR_TRANS_DELAY_BITWIDTH = 22,
+};
 
 // ISA segment definitions
 inline const std::unordered_map<OpCode, std::vector<SegmentRange>> &
 getIsaDefinitions() {
+  uint32_t INSTR_PAYLOAD_BITWIDTH = 24;
   static const std::unordered_map<OpCode, std::vector<SegmentRange>>
       segmentsDef = {
           {OpCode::DSU,
-           {SegmentRange("init_addr_sd", 1, 23),
-            SegmentRange("init_addr", 16, 7), SegmentRange("port", 2, 5)}},
+           {SegmentRange("option", IOSRAM_BOTH_INSTR_DSU_OPTION_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_OPTION_BITWIDTH),
+            SegmentRange("port", IOSRAM_BOTH_INSTR_DSU_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_OPTION_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_PORT_BITWIDTH),
+            SegmentRange(
+                "init_addr_sd", IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_SD_BITWIDTH,
+                INSTR_PAYLOAD_BITWIDTH - IOSRAM_BOTH_INSTR_DSU_OPTION_BITWIDTH -
+                    IOSRAM_BOTH_INSTR_DSU_PORT_BITWIDTH -
+                    IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_SD_BITWIDTH),
+            SegmentRange("init_addr", IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_OPTION_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_PORT_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_SD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_DSU_INIT_ADDR_BITWIDTH + 1)}},
           {OpCode::REP,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 3, 19),
-            SegmentRange("iter", 7, 12), SegmentRange("step", 6, 6),
-            SegmentRange("delay", 6, 0)}},
+           {SegmentRange("port", IOSRAM_BOTH_INSTR_REP_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_REP_PORT_BITWIDTH),
+            SegmentRange("iter", IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_REP_PORT_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH),
+            SegmentRange("step", IOSRAM_BOTH_INSTR_REP_STEP_BITWIDTH,
+                         IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH),
+            SegmentRange("delay", IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH, 0)}},
           {OpCode::REPX,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 3, 19),
-            SegmentRange("iter", 7, 12), SegmentRange("step", 6, 6),
-            SegmentRange("delay", 6, 0)}}};
+           {SegmentRange("port", IOSRAM_BOTH_INSTR_REPX_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_REPX_PORT_BITWIDTH),
+            SegmentRange("iter", IOSRAM_BOTH_INSTR_REPX_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_REPX_PORT_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_REPX_ITER_BITWIDTH + 1),
+            SegmentRange("step", IOSRAM_BOTH_INSTR_REPX_STEP_BITWIDTH,
+                         IOSRAM_BOTH_INSTR_REPX_DELAY_BITWIDTH),
+            SegmentRange("delay", IOSRAM_BOTH_INSTR_REPX_DELAY_BITWIDTH, 0)}},
+          {OpCode::TRANS,
+           {SegmentRange("port", IOSRAM_BOTH_INSTR_TRANS_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             IOSRAM_BOTH_INSTR_TRANS_PORT_BITWIDTH),
+            SegmentRange("delay", IOSRAM_BOTH_INSTR_TRANS_DELAY_BITWIDTH, 0)}}};
   return segmentsDef;
 }
 
@@ -61,36 +123,45 @@ enum REPX_PORT {
 
 // Instruction formats
 struct DSUInstruction {
-  uint32_t slot, init_addr_sd, init_addr, port;
+  uint32_t slot, option, port, init_addr_sd, init_addr;
 
   DSUInstruction(const Instruction &instr) {
     slot = instr.slot;
+    option = instr.get("option").value;
+    port = instr.get("port").value;
     init_addr_sd = instr.get("init_addr_sd").value;
     init_addr = instr.get("init_addr").value;
-    port = instr.get("port").value;
   }
 };
 struct REPInstruction {
-  uint32_t slot, port, level, iter, step, delay;
+  uint32_t slot, port, iter, step, delay;
 
   REPInstruction(const Instruction &instr) {
     slot = instr.slot;
     port = instr.get("port").value;
-    level = instr.get("level").value;
     iter = instr.get("iter").value;
     step = instr.get("step").value;
     delay = instr.get("delay").value;
   }
 };
 struct REPXInstruction {
-  uint32_t slot, port, level, iter, step, delay;
+  uint32_t slot, port, iter, step, delay;
 
   REPXInstruction(const Instruction &instr) {
     slot = instr.slot;
     port = instr.get("port").value;
-    level = instr.get("level").value;
     iter = instr.get("iter").value;
     step = instr.get("step").value;
+    delay = instr.get("delay").value;
+  }
+};
+
+struct TRANSInstruction {
+  uint32_t slot, port, delay;
+
+  TRANSInstruction(const Instruction &instr) {
+    slot = instr.slot;
+    port = instr.get("port").value;
     delay = instr.get("delay").value;
   }
 };
@@ -100,4 +171,4 @@ createInstructionHandlers(Iosram_both *iosram_both_obj);
 
 } // namespace IOSRAM_BOTH_PKG
 
-#endif // _IOSRAM_BOTH_PKG_H
+#endif // _RF_PKG_H
