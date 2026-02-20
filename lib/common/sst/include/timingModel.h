@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -28,6 +30,7 @@ private:
   std::shared_ptr<TimingExpression> expression;
   uint64_t eventCounter;
   uint64_t lastScheduledCycle;
+  std::map<uint64_t, uint64_t> generatedAddresses;
   std::vector<uint64_t> levels_current_iteration;
   std::vector<uint64_t> levels_total_iterations;
   std::vector<uint64_t> levels_step;
@@ -44,7 +47,17 @@ private:
 
 public:
   TimingState();
+  ~TimingState() = default;
+  TimingState(const TimingState &other);
   TimingState(std::shared_ptr<TimingExpression> expression);
+  TimingState(const TimingState &fromState, const TimingState &toState,
+              std::shared_ptr<TransitionOperator> transition);
+  TimingState(std::shared_ptr<TransitionOperator> transition);
+
+  // Operator overloads for chaining
+  TimingState &operator=(const TimingState &other);
+
+  void moveTransitionsToEnd();
 
   uint64_t currentCycle = 0;
   std::map<uint64_t, std::set<std::shared_ptr<const TimingEvent>>>
@@ -54,19 +67,22 @@ public:
   uint64_t getLastScheduledCycle() const;
   void updateLastScheduledCycle(uint64_t cycle);
   static TimingState createFromEvent(const std::string &name);
-  TimingState &addEvent(const std::string &name, std::function<void()> handler);
-  TimingState &addEvent(const std::string &name, uint8_t priority,
-                        std::function<void()> handler);
-  TimingState &addTransition(uint64_t delay, const std::string &nextEventName,
-                             std::function<void()> handler);
-  TimingState &addTransition(uint64_t delay, const std::string &nextEventName,
-                             uint8_t priority, std::function<void()> handler);
+
+  void printOperatorQueue() const;
+
+  TimingState &addEvent(
+      const std::string &name = "", std::function<void()> handler = [] {},
+      uint8_t priority = 5);
   TimingState &addRepetition(uint64_t iterations, uint64_t delay);
   TimingState &addRepetition(uint64_t iterations, uint64_t delay,
                              uint64_t level, uint64_t step);
   TimingState &adjustRepetition(uint64_t iterations, uint64_t delay,
                                 uint64_t level, uint64_t step);
-  uint64_t getRepIncrementForCycle(uint64_t cycle);
+  TimingState &addTransition(std::shared_ptr<TransitionOperator> transition);
+  TimingState &addTransition(
+      uint64_t delay = 0, const std::string &nextEventName = "",
+      std::function<void()> handler = [] {}, uint8_t priority = 5);
+
   void incrementLevels(void);
   TimingState &build();
   std::shared_ptr<TimingExpression> getExpression() const;
@@ -78,7 +94,7 @@ public:
   std::string toString() const;
 
   RepetitionOperator getRepetitionOperatorFromLevel(uint64_t level) const;
-  uint64_t getAddressForCycle(uint64_t cycle);
+  int64_t getAddressForCycle(uint64_t cycle);
   void copyLevelData(const TimingState &other);
   const std::vector<uint64_t> &getLevelsStep() const;
   const std::vector<uint64_t> &getLevelsTotalIterations() const;
