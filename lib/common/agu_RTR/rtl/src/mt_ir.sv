@@ -129,8 +129,7 @@ module mt_ir
       ir_addr  = ir_addr_array[current_mux_ptr];
       ir_valid = ir_valid_array[current_mux_ptr];
     end else begin
-      // Counter Mode
-      ir_addr  = current_mux_ptr;
+      ir_addr  = '0;
       ir_valid = 1'b1;
     end
 
