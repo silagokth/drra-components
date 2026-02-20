@@ -11,3 +11,5 @@ sources:
   - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
   - ./rtl/controller.sv
+  - ./rtl/mode_selector.sv
+  - ./rtl/decoder.sv

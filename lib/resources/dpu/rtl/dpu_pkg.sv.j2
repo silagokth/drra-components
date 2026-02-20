@@ -19,8 +19,11 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int OPCODE_L = 24;
 
   // AGU RTR params
-  parameter int ADDRESS_WIDTH = $clog2(FSM_MAX_STATES);
-  parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int NUM_AGUS = 2;
+  parameter int AGU_DPU_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_RST_ADDR_WIDTH = 1;
+  parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+  // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
   parameter int REP_LEVEL_WIDTH = 3;
   parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
   parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
@@ -30,9 +33,6 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int NUMBER_OR = 4;
   parameter int NUMBER_MT = 3;
   parameter int NUMBER_IR = 4;
-  parameter int INCLUDE_IR_STATES = 1;
-  parameter int INCLUDE_MT_STATES = 1;
-  parameter int INCLUDE_OR_STATES = 1;
 
   typedef agu_config_class#(
     .NUMBER_IR         (NUMBER_IR),

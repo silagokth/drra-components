@@ -6,68 +6,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic clk,
     input logic rst_n,
 
-    input logic instruction_valid,
-    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+    input logic [NUM_AGUS-1:0] agu_done,
 
-    input logic address_valid,
-    input logic [ADDRESS_WIDTH-1:0] address,  // current state
-    input logic agu_done,
+    input logic evt_valid,
+    input evt_t evt_instr,
+    input logic rep_valid,
+    input rep_t rep_instr,
+    input logic repx_valid,
+    input repx_t repx_instr,
+    input logic trans_valid,
+    input trans_t trans_instr,
 
-    output agu_config_t agu_config,
-
-    output logic [     DPU_MODE_WIDTH-1:0] dpu_mode,
-    output logic [DPU_IMMEDIATE_WIDTH-1:0] immediate,
-    output logic                           reset_accumulator,
-
-    output logic rep_valid,
-    output logic repx_valid,
-    output logic trans_valid
+    output agu_config_t agu_configs [NUM_AGUS]
 );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Instruction Decoding
-  // ─────────────────────────────────────────────────────────────────────────
-  logic [OPCODE_WIDTH-1:0] opcode;
-  assign opcode = instruction[OPCODE_H:OPCODE_L];
-
-  logic dpu_valid;
-  assign rep_valid   = instruction_valid && (opcode == OPCODE_REP);
-  assign repx_valid  = instruction_valid && (opcode == OPCODE_REPX);
-  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
-  assign dpu_valid   = instruction_valid && (opcode == OPCODE_DPU);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Instruction Unpacking
-  // ─────────────────────────────────────────────────────────────────────────
-  dpu_t   dpu_instr;
-  rep_t   rep_instr;
-  repx_t  repx_instr;
-  trans_t trans_instr;
-  assign dpu_instr   = dpu_valid   ? unpack_dpu(instruction)   :'0;
-  assign rep_instr   = rep_valid   ? unpack_rep(instruction)   :'0;
-  assign repx_instr  = repx_valid  ? unpack_repx(instruction)  :'0;
-  assign trans_instr = trans_valid ? unpack_trans(instruction) :'0;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // DPU Mode/Immediate Memory (per FSM state)
-  // ─────────────────────────────────────────────────────────────────────────
-  localparam int NUM_FSM_STATES = $clog2(FSM_MAX_STATES);
-
-  logic [NUM_FSM_STATES-1:0][DPU_MODE_WIDTH-1:0]      mode_memory;
-  logic [NUM_FSM_STATES-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
-  logic [NUM_FSM_STATES-1:0]                          fsm_max_init_state;
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      mode_memory        <= '0;
-      immediate_memory   <= '0;
-      fsm_max_init_state <= '0;
-    end else if (dpu_valid) begin
-      mode_memory[dpu_instr._option]      <= dpu_instr._mode;
-      immediate_memory[dpu_instr._option] <= dpu_instr._immediate;
-      fsm_max_init_state                  <= dpu_instr._option;
-    end
-  end
 
   // ─────────────────────────────────────────────────────────────────────────
   // AGU Configuration
@@ -76,87 +27,103 @@ import {{name}}_{{fingerprint}}_pkg::*;
   localparam int ITER_HI  = REP_ITER_WIDTH/2;
   localparam int STEP_HI  = REP_STEP_WIDTH/2;
 
-  agu_config_t agu_config_reg;
-  logic        use_or_reg;
-  logic        or_configured_reg;
+  agu_config_t agu_configs_reg    [NUM_AGUS];
+  logic        use_or_reg        [NUM_AGUS];
+  logic        or_configured_reg [NUM_AGUS];
 
-  logic [REP_OPTION_WIDTH-1:0] option_to_config = '0;
-  logic [REP_LEVEL_WIDTH-1:0]  level_to_config  = '0;
-  logic [$clog2(NUMBER_MT+1)-1:0] trans_to_config = '0;
+  logic [$clog2(NUM_AGUS)-1:0]    agu_config_index;
+  logic [$clog2(NUMBER_MT+1)-1:0] current_lane_index  [NUM_AGUS];
+  logic [$clog2(NUMBER_IR)-1:0]   current_rep_level   [NUM_AGUS];
+  logic [$clog2(NUMBER_MT+1)-1:0] current_trans_index [NUM_AGUS];
 
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n || agu_done) begin
-      agu_config_reg    <= '0;
-      use_or_reg        <= 1'b0;
-      or_configured_reg <= 1'b0;
-      option_to_config  <= '0;
-      level_to_config   <= '0;
-      trans_to_config  <= '0;
-    end else if (dpu_valid) begin
-      option_to_config <= dpu_instr._option;
-      level_to_config  <= '0;
-    end else if (rep_valid || repx_valid) begin
-      automatic logic [REP_OPTION_WIDTH-1:0]  opt = option_to_config;
-      automatic logic [REP_LEVEL_WIDTH-1:0]   lvl = level_to_config;
-      automatic logic [REP_DELAY_WIDTH/2-1:0] dly = rep_valid ? rep_instr._delay  : repx_instr._delay;
-      automatic logic [REP_ITER_WIDTH/2-1:0]  itr = rep_valid ? rep_instr._iter   : repx_instr._iter;
-      automatic logic [REP_STEP_WIDTH/2-1:0]  stp = rep_valid ? rep_instr._step   : repx_instr._step;
+  // Combinational signals derived from instructions
+  logic [$clog2(NUM_AGUS)-1:0]       evt_port;
+  logic [$clog2(NUMBER_MT+1)-1:0]    rep_opt;
+  logic [$clog2(NUMBER_IR)-1:0]      rep_lvl;
+  logic [REP_DELAY_WIDTH/2-1:0]      rep_dly;
+  logic [REP_ITER_WIDTH/2-1:0]       rep_itr;
+  logic [REP_STEP_WIDTH/2-1:0]       rep_stp;
 
-      if (use_or_reg) begin
-        if (rep_valid) begin // REP: configure lower half
-          agu_config_reg.or_configs[lvl].delay[DELAY_HI-1:0] <= dly;
-          agu_config_reg.or_configs[lvl].iter[ITER_HI-1:0]   <= itr;
-          agu_config_reg.or_configs[lvl].step[STEP_HI-1:0]   <= stp;
-        end else begin // REPX: configure upper half
-          agu_config_reg.or_configs[lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
-          agu_config_reg.or_configs[lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
-          agu_config_reg.or_configs[lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
-        end
-        agu_config_reg.or_configs[lvl].is_configured <= 1'b1;
-        or_configured_reg <= 1'b1;
-        level_to_config   <= level_to_config + 1;
-
-      end else begin
-        if (rep_valid) begin // REP: configure lower half
-          agu_config_reg.ir_configs[opt][lvl].delay[DELAY_HI-1:0] <= dly;
-          agu_config_reg.ir_configs[opt][lvl].iter[ITER_HI-1:0]   <= itr;
-          agu_config_reg.ir_configs[opt][lvl].step[STEP_HI-1:0]   <= stp;
-        end else begin // REPX: configure upper half
-          agu_config_reg.ir_configs[opt][lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
-          agu_config_reg.ir_configs[opt][lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
-          agu_config_reg.ir_configs[opt][lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
-        end
-        agu_config_reg.ir_configs[opt][lvl].is_configured <= 1'b1;
-        level_to_config   <= level_to_config + 1;
-      end
-
-    // TRANS instruction
-    end else if (trans_valid && !or_configured_reg) begin
-      agu_config_reg.mt_configs[trans_to_config].delay         <= trans_instr._delay;
-      agu_config_reg.mt_configs[trans_to_config].is_configured <= 1'b1;
-      use_or_reg <= 1'b1;
-      level_to_config   <= '0;
-      trans_to_config <= trans_to_config + 1;
-    end
+  always_comb begin
+    evt_port = evt_instr._port;
+    rep_opt   = current_lane_index[agu_config_index];
+    rep_lvl   = current_rep_level[agu_config_index];
+    rep_dly   = rep_valid ? rep_instr._delay : repx_instr._delay;
+    rep_itr   = rep_valid ? rep_instr._iter  : repx_instr._iter;
+    rep_stp   = rep_valid ? rep_instr._step  : repx_instr._step;
   end
-
-  assign agu_config = agu_config_reg;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // DPU Output Logic
-  // ─────────────────────────────────────────────────────────────────────────
-  logic [ADDRESS_WIDTH-1:0] dpu_mode_index;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      dpu_mode_index <= '0;
-    end else if (address_valid)
-      dpu_mode_index <= address;
+      agu_configs_reg    <= '{default: '0};
+      use_or_reg        <= '{default: 1'b0};
+      or_configured_reg <= '{default: 1'b0};
+      agu_config_index  <= '0;
+      current_lane_index  <= '{default: '1};
+      current_rep_level   <= '{default: '0};
+      current_trans_index   <= '{default: '0};
+    end else begin
+      for (int i = 0; i < FSM_PER_SLOT; i++) begin
+        if (agu_done[i]) begin
+          agu_configs_reg[i]     <= '0;
+          use_or_reg[i]          <= 1'b0;
+          or_configured_reg[i]   <= 1'b0;
+          current_lane_index[i]  <= '1;
+          current_rep_level[i]   <= '0;
+          current_trans_index[i] <= '0;
+        end
+      end
+
+      if (evt_valid) begin
+        agu_config_index <= evt_port;
+        current_lane_index[evt_port] <= current_lane_index[evt_port] + 1;
+        current_rep_level[evt_port]  <= '0;
+
+        agu_configs_reg[evt_port].ir_configs[0][0].iter <= 1;
+        agu_configs_reg[evt_port].ir_configs[0][0].is_configured <= 1'b1;
+
+      end else if (rep_valid || repx_valid) begin
+        if (use_or_reg[agu_config_index]) begin
+          if (rep_valid) begin // REP: configure lower half
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+          end else begin // REPX: configure upper half
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+          end
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].is_configured <= 1'b1;
+          or_configured_reg[agu_config_index] <= 1'b1;
+
+        end else begin
+          if (rep_valid) begin // REP: configure lower half
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+          end else begin // REPX: configure upper half
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+          end
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
+        end
+
+        current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+
+      // TRANS instruction
+      end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
+        agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
+        agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
+        use_or_reg[agu_config_index] <= 1'b1;
+
+        current_rep_level[agu_config_index]   <= '0;
+        current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
+      end
+    end
   end
 
-  assign dpu_mode          = address_valid ? mode_memory[address] : mode_memory[dpu_mode_index];
-  assign immediate         = address_valid ? immediate_memory[address] : '0;
-  assign reset_accumulator = address_valid;
+  assign agu_configs = agu_configs_reg;
 
 endmodule
 

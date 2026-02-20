@@ -11,28 +11,35 @@ class Dpu;
 namespace DPU_PKG {
 
 // Supported opcodes from ISA
-enum OpCode { DPU = 3, REP = 0, REPX = 1, TRANS = 2 };
+enum OpCode { EVT = 0, REP = 1, REPX = 2, TRANS = 3, DPU = 4 };
 
-enum DPU_INSTR_DPU {
-  DPU_INSTR_DPU_OPTION_BITWIDTH = 2,
-  DPU_INSTR_DPU_MODE_BITWIDTH = 5,
-  DPU_INSTR_DPU_IMMEDIATE_BITWIDTH = 16
+enum DPU_ISNTR_EVT {
+  DPU_INSTR_EVT_PORT_BITWIDTH = 1,
 };
 
 enum DPU_INSTR_REP {
+  DPU_INSTR_REP_PORT_BITWIDTH = 1,
   DPU_INSTR_REP_ITER_BITWIDTH = 8,
-  DPU_INSTR_REP_STEP_BITWIDTH = 8,
+  DPU_INSTR_REP_STEP_BITWIDTH = 7,
   DPU_INSTR_REP_DELAY_BITWIDTH = 8
 };
 
 enum DPU_INSTR_REPX {
+  DPU_INSTR_REPX_PORT_BITWIDTH = 1,
   DPU_INSTR_REPX_ITER_BITWIDTH = 8,
-  DPU_INSTR_REPX_STEP_BITWIDTH = 8,
+  DPU_INSTR_REPX_STEP_BITWIDTH = 1,
   DPU_INSTR_REPX_DELAY_BITWIDTH = 8
 };
 
 enum DPU_INSTR_TRANS {
-  DPU_INSTR_TRANS_DELAY_BITWIDTH = 24,
+  DPU_INSTR_TRANS_PORT_BITWIDTH = 1,
+  DPU_INSTR_TRANS_DELAY_BITWIDTH = 23,
+};
+
+enum DPU_INSTR_DPU {
+  DPU_INSTR_DPU_CONFIG_BITWIDTH = 2,
+  DPU_INSTR_DPU_MODE_BITWIDTH = 5,
+  DPU_INSTR_DPU_IMMEDIATE_BITWIDTH = 16
 };
 
 // ISA segment definitions
@@ -41,47 +48,73 @@ getIsaDefinitions() {
   uint32_t INSTR_PAYLOAD_BITWIDTH = 24;
   static const std::unordered_map<OpCode, std::vector<SegmentRange>>
       segmentsDef = {
-          {OpCode::DPU,
-           {SegmentRange("option", DPU_INSTR_DPU_OPTION_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH -
-                             DPU_INSTR_DPU_OPTION_BITWIDTH),
-            SegmentRange("mode", DPU_INSTR_DPU_MODE_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH -
-                             DPU_INSTR_DPU_OPTION_BITWIDTH -
-                             DPU_INSTR_DPU_MODE_BITWIDTH),
-            SegmentRange("immediate", DPU_INSTR_DPU_IMMEDIATE_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH -
-                             DPU_INSTR_DPU_OPTION_BITWIDTH -
-                             DPU_INSTR_DPU_MODE_BITWIDTH -
-                             DPU_INSTR_DPU_IMMEDIATE_BITWIDTH)}},
+          {OpCode::EVT,
+           {
+               SegmentRange("port", DPU_INSTR_EVT_PORT_BITWIDTH,
+                            INSTR_PAYLOAD_BITWIDTH -
+                                DPU_INSTR_EVT_PORT_BITWIDTH),
+           }},
           {OpCode::REP,
-           {SegmentRange("iter", DPU_INSTR_REP_ITER_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_ITER_BITWIDTH),
+           {SegmentRange("port", DPU_INSTR_REP_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_PORT_BITWIDTH),
+            SegmentRange("iter", DPU_INSTR_REP_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_PORT_BITWIDTH -
+                             DPU_INSTR_REP_ITER_BITWIDTH),
             SegmentRange("step", DPU_INSTR_REP_STEP_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_ITER_BITWIDTH -
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_PORT_BITWIDTH -
+                             DPU_INSTR_REP_ITER_BITWIDTH -
                              DPU_INSTR_REP_STEP_BITWIDTH),
             SegmentRange("delay", DPU_INSTR_REP_DELAY_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_ITER_BITWIDTH -
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REP_PORT_BITWIDTH -
+                             DPU_INSTR_REP_ITER_BITWIDTH -
                              DPU_INSTR_REP_STEP_BITWIDTH -
                              DPU_INSTR_REP_DELAY_BITWIDTH)}},
           {OpCode::REPX,
-           {SegmentRange("iter", DPU_INSTR_REPX_ITER_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_ITER_BITWIDTH),
+           {SegmentRange("port", DPU_INSTR_REPX_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_PORT_BITWIDTH),
+            SegmentRange("iter", DPU_INSTR_REPX_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_PORT_BITWIDTH -
+                             DPU_INSTR_REPX_ITER_BITWIDTH),
             SegmentRange("step", DPU_INSTR_REPX_STEP_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_ITER_BITWIDTH -
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_PORT_BITWIDTH -
+                             DPU_INSTR_REPX_ITER_BITWIDTH -
                              DPU_INSTR_REPX_STEP_BITWIDTH),
             SegmentRange("delay", DPU_INSTR_REPX_DELAY_BITWIDTH,
-                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_ITER_BITWIDTH -
+                         INSTR_PAYLOAD_BITWIDTH - DPU_INSTR_REPX_PORT_BITWIDTH -
+                             DPU_INSTR_REPX_ITER_BITWIDTH -
                              DPU_INSTR_REPX_STEP_BITWIDTH -
                              DPU_INSTR_REPX_DELAY_BITWIDTH)}},
           {OpCode::TRANS,
-           {SegmentRange("delay", DPU_INSTR_TRANS_DELAY_BITWIDTH,
+           {SegmentRange("port", DPU_INSTR_TRANS_PORT_BITWIDTH,
                          INSTR_PAYLOAD_BITWIDTH -
-                             DPU_INSTR_TRANS_DELAY_BITWIDTH)}}};
+                             DPU_INSTR_TRANS_PORT_BITWIDTH),
+            SegmentRange("delay", DPU_INSTR_TRANS_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_TRANS_PORT_BITWIDTH -
+                             DPU_INSTR_TRANS_DELAY_BITWIDTH)}},
+          {OpCode::DPU,
+           {SegmentRange("config", DPU_INSTR_DPU_CONFIG_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_DPU_CONFIG_BITWIDTH),
+            SegmentRange("mode", DPU_INSTR_DPU_MODE_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_DPU_CONFIG_BITWIDTH -
+                             DPU_INSTR_DPU_MODE_BITWIDTH),
+            SegmentRange("immediate", DPU_INSTR_DPU_IMMEDIATE_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             DPU_INSTR_DPU_CONFIG_BITWIDTH -
+                             DPU_INSTR_DPU_MODE_BITWIDTH -
+                             DPU_INSTR_DPU_IMMEDIATE_BITWIDTH)}},
+      };
   return segmentsDef;
 }
 
 // ISA verbo mappings
+enum EVT_PORT {
+  EVT_PORT_DPU = 0,
+  EVT_PORT_RST = 1,
+};
+
 enum DPU_MODE {
   DPU_MODE_IDLE = 0,
   DPU_MODE_ADD = 1,
@@ -118,42 +151,57 @@ enum DPU_MODE {
 };
 
 // Instruction formats
-struct DPUInstruction {
-  uint32_t slot, option, mode, immediate;
+struct EVTInstruction {
+  uint32_t slot, port;
 
-  DPUInstruction(const Instruction &instr) {
+  EVTInstruction(const Instruction &instr) {
     slot = instr.slot;
-    option = instr.get("option").value;
-    mode = instr.get("mode").value;
-    immediate = instr.get("immediate").value;
+    port = instr.get("port").value;
   }
 };
+
 struct REPInstruction {
-  uint32_t slot, iter, step, delay;
+  uint32_t slot, port, iter, step, delay;
 
   REPInstruction(const Instruction &instr) {
     slot = instr.slot;
+    port = instr.get("port").value;
     iter = instr.get("iter").value;
     step = instr.get("step").value;
     delay = instr.get("delay").value;
   }
 };
+
 struct REPXInstruction {
-  uint32_t slot, iter, step, delay;
+  uint32_t slot, port, iter, step, delay;
 
   REPXInstruction(const Instruction &instr) {
     slot = instr.slot;
+    port = instr.get("port").value;
     iter = instr.get("iter").value;
     step = instr.get("step").value;
     delay = instr.get("delay").value;
   }
 };
+
 struct TRANSInstruction {
-  uint32_t slot, delay;
+  uint32_t slot, port, delay;
 
   TRANSInstruction(const Instruction &instr) {
     slot = instr.slot;
+    port = instr.get("port").value;
     delay = instr.get("delay").value;
+  }
+};
+
+struct DPUInstruction {
+  uint32_t slot, config, mode, immediate;
+
+  DPUInstruction(const Instruction &instr) {
+    slot = instr.slot;
+    config = instr.get("config").value;
+    mode = instr.get("mode").value;
+    immediate = instr.get("immediate").value;
   }
 };
 

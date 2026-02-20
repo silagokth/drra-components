@@ -29,98 +29,127 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_1
 );
 
-  logic clk, rst_n, activate;
+  // Useless output
+  assign word_data_out_1 = 0;
+  assign bulk_data_out_0 = 0;
+  assign bulk_data_out_1 = 0;
+
+  logic clk, rst_n;
   assign clk = clk_0;
   assign rst_n = rst_n_0;
-  assign activate = activate_0[0];
-  logic activate_prev, activate_stretched;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) activate_prev <= 1'b0;
-    else activate_prev <= activate;
-  end
-  assign activate_stretched = activate | activate_prev;
+
+  logic [NUM_AGUS-1:0] agu_activate;
+  assign agu_activate[0] = activate_0[0];
+  assign agu_activate[1] = activate_0[1];
 
   logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
   logic instruction_valid;
   assign instruction = instr_0;
   assign instruction_valid = instr_en_0;
 
-  // useless output
-  assign word_data_out_1 = 0;
-  assign bulk_data_out_0 = 0;
-  assign bulk_data_out_1 = 0;
-
-  // assign inputs
+  // Assign inputs
   logic [WORD_BITWIDTH-1:0] in0, in1, out0;
   assign in0 = word_data_in_0;
   assign in1 = word_data_in_1;
-
-  // NOTE: removed this always_ff to reduce latency
-  // as the inputs are directly from RF outputs
-  // in future, we may want to merge dpu and rf (paul)
-  // register inputs
-  //always_ff @(posedge clk or negedge rst_n) begin
-  //  if (!rst_n) begin
-  //    in0 <= 0;
-  //    in1 <= 0;
-  //  end else begin
-  //    in0 <= word_data_in_0;
-  //    in1 <= word_data_in_1;
-  //  end
-  //end
 
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
   logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
 
   // Configuration signals from controller to AGU_RTR
-  agu_config_t agu_config;
+  agu_config_t agu_configs [NUM_AGUS];
 
-  logic [      ADDRESS_WIDTH-1:0] address;
-  logic                           address_valid;
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
+  logic [NUM_AGUS-1:0]                    agu_valid;
+  logic [NUM_AGUS-1:0]                    agu_done;
+  logic                                   reset_accumulator;
+  assign reset_accumulator = agu_valid[1];
 
-  logic                           reset_accumulator;
+  genvar idx;
+  generate
+    for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
+      localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+      agu_RTR #(
+          .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
+          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+          .REP_ITER_WIDTH(REP_ITER_WIDTH),
+          .REP_STEP_WIDTH(REP_STEP_WIDTH),
+          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+          .NUMBER_OR(NUMBER_OR),
+          .NUMBER_MT(NUMBER_MT),
+          .NUMBER_IR(NUMBER_IR)
+      ) agu_RTR_inst (
+          .clk(clk),
+          .rst_n(rst_n),
+          .enable(1'b1),
+          .activation(agu_activate[idx]),
+          .agu_config(agu_configs[idx]),
+          .addr_valid(agu_valid[idx]),
+          .addr(agu_address[idx]),
+          .done(agu_done[idx])
+      );
+    end
+  endgenerate
 
-  logic rep_valid, repx_valid, trans_valid;
+  logic dpu_valid;
+  dpu_t dpu_instr;
+  logic evt_valid;
+  evt_t evt_instr;
+  logic rep_valid;
+  rep_t rep_instr;
+  logic repx_valid;
+  repx_t repx;
+  logic trans_valid;
+  trans_t trans_instr;
 
-  agu_RTR #(
-      .ADDRESS_WIDTH(ADDRESS_WIDTH),
-      .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-      .REP_ITER_WIDTH(REP_ITER_WIDTH),
-      .REP_STEP_WIDTH(REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
-      .NUMBER_OR(NUMBER_OR),
-      .NUMBER_MT(NUMBER_MT),
-      .NUMBER_IR(NUMBER_IR)
-  ) agu_RTR_inst (
-      .clk(clk),
-      .rst_n(rst_n),
-      .enable(1'b1),
-      .activation(|activate),
-      .agu_config(agu_config),
-      .addr_valid(address_valid),
-      .addr(address),
-      .done()
+  dpu_decoder decoder_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+
+    .instruction_valid(instruction_valid),
+    .instruction(instruction),
+
+    .dpu_valid(dpu_valid),
+    .dpu_instr(dpu_instr),
+    .evt_valid(evt_valid),
+    .evt_instr(evt_instr),
+    .rep_valid(rep_valid),
+    .rep_instr(rep_instr),
+    .repx_valid(repx_valid),
+    .repx_instr(repx_instr),
+    .trans_valid(trans_valid),
+    .trans_instr(trans_instr)
   );
 
   dpu_controller controller_inst (
-      .clk  (clk),
-      .rst_n(rst_n),
+    .clk  (clk),
+    .rst_n(rst_n),
 
-      .instruction_valid(instruction_valid),
-      .instruction(instruction),
+    .agu_done(agu_done),
 
-      .address_valid(address_valid),
-      .address(address),
+    .evt_valid(evt_valid),
+    .evt_instr(evt_instr),
+    .rep_valid(rep_valid),
+    .rep_instr(rep_instr),
+    .repx_valid(repx_valid),
+    .repx_instr(repx_instr),
+    .trans_valid(trans_valid),
+    .trans_instr(trans_instr),
 
-      .agu_config(agu_config),
+    .agu_configs(agu_configs)
+  );
 
-      .dpu_mode(dpu_mode),
-      .immediate(immediate),
-      .reset_accumulator(reset_accumulator),
+  dpu_mode_selector mode_selector_inst (
+    .clk(clk),
+    .rst_n(rst_n),
 
-      .rep_valid  (rep_valid),
-      .repx_valid (repx_valid),
-      .trans_valid(trans_valid)
+    .dpu_valid(dpu_valid),
+    .dpu_instr(dpu_instr),
+
+    .dpu_agu_valid(agu_valid[0]),
+    .dpu_agu_address(agu_address[0]),
+
+    .dpu_mode(dpu_mode),
+    .immediate(immediate)
   );
 
   // Calculation logic
@@ -134,7 +163,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
 
-  assign acc0_current = (reset_accumulator | activate) ? '0 : acc0;
+  assign acc0_current = (reset_accumulator | agu_activate[1]) ? '0 : acc0;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       acc0 <= '0;
