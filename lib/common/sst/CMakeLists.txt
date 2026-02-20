@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
+if (USE_SST)
+  message(STATUS "SST support enabled")
+else()
+  message(STATUS "SST support disabled")
+  return()
+endif()
+
 # Set the project name
 project(drra_sst_utils)
 
