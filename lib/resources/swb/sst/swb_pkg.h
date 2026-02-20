@@ -11,39 +11,183 @@ class Swb;
 namespace SWB_PKG {
 
 // Supported opcodes from ISA
-enum OpCode { SWB = 4, ROUTE = 5, REP = 0, TRANS = 2 };
+enum OpCode { EVT = 0, REP = 1, REPX = 2, TRANS = 3, SWB = 4, ROUTE = 5 };
+
+enum SWB_ISNTR_EVT {
+  SWB_INSTR_EVT_PORT_BITWIDTH = 1,
+};
+
+enum SWB_INSTR_REP {
+  SWB_INSTR_REP_PORT_BITWIDTH = 1,
+  SWB_INSTR_REP_ITER_BITWIDTH = 8,
+  SWB_INSTR_REP_STEP_BITWIDTH = 7,
+  SWB_INSTR_REP_DELAY_BITWIDTH = 8
+};
+
+enum SWB_INSTR_REPX {
+  SWB_INSTR_REPX_PORT_BITWIDTH = 1,
+  SWB_INSTR_REPX_ITER_BITWIDTH = 8,
+  SWB_INSTR_REPX_STEP_BITWIDTH = 7,
+  SWB_INSTR_REPX_DELAY_BITWIDTH = 8
+};
+
+enum SWB_INSTR_TRANS {
+  SWB_INSTR_TRANS_PORT_BITWIDTH = 1,
+  SWB_INSTR_TRANS_DELAY_BITWIDTH = 23,
+};
+
+enum SWB_INSTR_SWB {
+  SWB_INSTR_SWB_OPTION_BITWIDTH = 2,
+  SWB_INSTR_SWB_CHANNEL_BITWIDTH = 4,
+  SWB_INSTR_SWB_SOURCE_BITWIDTH = 4,
+  SWB_INSTR_SWB_TARGET_BITWIDTH = 4
+};
+
+enum SWB_INSTR_ROUTE {
+  SWB_INSTR_ROUTE_OPTION_BITWIDTH = 2,
+  SWB_INSTR_ROUTE_SR_BITWIDTH = 1,
+  SWB_INSTR_ROUTE_SOURCE_BITWIDTH = 4,
+  SWB_INSTR_ROUTE_TARGET_BITWIDTH = 16
+};
 
 // ISA segment definitions
 inline const std::unordered_map<OpCode, std::vector<SegmentRange>> &
 getIsaDefinitions() {
+  uint32_t INSTR_PAYLOAD_BITWIDTH = 24;
   static const std::unordered_map<OpCode, std::vector<SegmentRange>>
       segmentsDef = {
-          {OpCode::SWB,
-           {SegmentRange("option", 2, 22), SegmentRange("channel", 4, 18),
-            SegmentRange("source", 4, 14), SegmentRange("target", 4, 10)}},
-          {OpCode::ROUTE,
-           {SegmentRange("option", 2, 22), SegmentRange("sr", 1, 21),
-            SegmentRange("source", 4, 17), SegmentRange("target", 16, 1)}},
+          {OpCode::EVT,
+           {SegmentRange("port", SWB_INSTR_EVT_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_EVT_PORT_BITWIDTH)}},
           {OpCode::REP,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 3, 19),
-            SegmentRange("iter", 7, 12), SegmentRange("delay", 12, 0)}},
+           {SegmentRange("port", SWB_INSTR_REP_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REP_PORT_BITWIDTH),
+            SegmentRange("iter", SWB_INSTR_REP_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REP_PORT_BITWIDTH -
+                             SWB_INSTR_REP_ITER_BITWIDTH),
+            SegmentRange("step", SWB_INSTR_REP_STEP_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REP_PORT_BITWIDTH -
+                             SWB_INSTR_REP_ITER_BITWIDTH -
+                             SWB_INSTR_REP_STEP_BITWIDTH),
+            SegmentRange("delay", SWB_INSTR_REP_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REP_PORT_BITWIDTH -
+                             SWB_INSTR_REP_ITER_BITWIDTH -
+                             SWB_INSTR_REP_STEP_BITWIDTH -
+                             SWB_INSTR_REP_DELAY_BITWIDTH)}},
+          {OpCode::REPX,
+           {SegmentRange("port", SWB_INSTR_REPX_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REPX_PORT_BITWIDTH),
+            SegmentRange("iter", SWB_INSTR_REPX_ITER_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REPX_PORT_BITWIDTH -
+                             SWB_INSTR_REPX_ITER_BITWIDTH),
+            SegmentRange("step", SWB_INSTR_REPX_STEP_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REPX_PORT_BITWIDTH -
+                             SWB_INSTR_REPX_ITER_BITWIDTH -
+                             SWB_INSTR_REPX_STEP_BITWIDTH),
+            SegmentRange("delay", SWB_INSTR_REPX_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH - SWB_INSTR_REPX_PORT_BITWIDTH -
+                             SWB_INSTR_REPX_ITER_BITWIDTH -
+                             SWB_INSTR_REPX_STEP_BITWIDTH -
+                             SWB_INSTR_REPX_DELAY_BITWIDTH)}},
           {OpCode::TRANS,
-           {SegmentRange("port", 2, 22), SegmentRange("level", 2, 20),
-            SegmentRange("delay", 14, 6)}}};
+           {SegmentRange("port", SWB_INSTR_TRANS_PORT_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_TRANS_PORT_BITWIDTH),
+            SegmentRange("delay", SWB_INSTR_TRANS_DELAY_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_TRANS_PORT_BITWIDTH -
+                             SWB_INSTR_TRANS_DELAY_BITWIDTH)}},
+          {OpCode::SWB,
+           {SegmentRange("option", SWB_INSTR_SWB_OPTION_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_SWB_OPTION_BITWIDTH),
+            SegmentRange("channel", SWB_INSTR_SWB_CHANNEL_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_SWB_OPTION_BITWIDTH -
+                             SWB_INSTR_SWB_CHANNEL_BITWIDTH),
+            SegmentRange("source", SWB_INSTR_SWB_SOURCE_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_SWB_OPTION_BITWIDTH -
+                             SWB_INSTR_SWB_CHANNEL_BITWIDTH -
+                             SWB_INSTR_SWB_SOURCE_BITWIDTH),
+            SegmentRange("target", SWB_INSTR_SWB_TARGET_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_SWB_OPTION_BITWIDTH -
+                             SWB_INSTR_SWB_CHANNEL_BITWIDTH -
+                             SWB_INSTR_SWB_SOURCE_BITWIDTH -
+                             SWB_INSTR_SWB_TARGET_BITWIDTH)}},
+          {OpCode::ROUTE,
+           {SegmentRange("option", SWB_INSTR_ROUTE_OPTION_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_ROUTE_OPTION_BITWIDTH),
+            SegmentRange("sr", SWB_INSTR_ROUTE_SR_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_ROUTE_OPTION_BITWIDTH -
+                             SWB_INSTR_ROUTE_SR_BITWIDTH),
+            SegmentRange("source", SWB_INSTR_ROUTE_SOURCE_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_ROUTE_OPTION_BITWIDTH -
+                             SWB_INSTR_ROUTE_SR_BITWIDTH -
+                             SWB_INSTR_ROUTE_SOURCE_BITWIDTH),
+            SegmentRange("target", SWB_INSTR_ROUTE_TARGET_BITWIDTH,
+                         INSTR_PAYLOAD_BITWIDTH -
+                             SWB_INSTR_ROUTE_OPTION_BITWIDTH -
+                             SWB_INSTR_ROUTE_SR_BITWIDTH -
+                             SWB_INSTR_ROUTE_SOURCE_BITWIDTH -
+                             SWB_INSTR_ROUTE_TARGET_BITWIDTH)}}};
   return segmentsDef;
 }
 
 // ISA verbo mappings
+const uint32_t PORT_INTRACELL = 0;
+const uint32_t PORT_INTERCELL = 1;
 enum ROUTE_SR { ROUTE_SR_SEND = 0, ROUTE_SR_RECEIVE = 1 };
-enum REP_PORT {
-  REP_PORT_READ_NARROW = 0,
-  REP_PORT_READ_WIDE = 1,
-  REP_PORT_WRITE_NARROW = 2,
-  REP_PORT_WRITE_WIDE = 3
+enum EVT_PORT {
+  EVT_PORT_INTRACELL = PORT_INTRACELL,
+  EVT_PORT_INTERCELL = PORT_INTERCELL
 };
-enum TRANS_PORT { TRANS_PORT_INTRACELL = 0, TRANS_PORT_INTERCELL = 2 };
 
 // Instruction formats
+struct EVTInstruction {
+  uint32_t slot, port;
+
+  EVTInstruction(const Instruction &instr) {
+    slot = instr.slot;
+    port = instr.get("port").value;
+  }
+};
+struct REPInstruction {
+  uint32_t slot, port, iter, step, delay;
+
+  REPInstruction(const Instruction &instr) {
+    slot = instr.slot;
+    port = instr.get("port").value;
+    iter = instr.get("iter").value;
+    step = instr.get("step").value;
+    delay = instr.get("delay").value;
+  }
+};
+struct REPXInstruction {
+  uint32_t slot, port, iter, step, delay;
+
+  REPXInstruction(const Instruction &instr) {
+    slot = instr.slot;
+    port = instr.get("port").value;
+    iter = instr.get("iter").value;
+    step = instr.get("step").value;
+    delay = instr.get("delay").value;
+  }
+};
+struct TRANSInstruction {
+  uint32_t slot, port, delay;
+
+  TRANSInstruction(const Instruction &instr) {
+    slot = instr.slot;
+    port = instr.get("port").value;
+    delay = instr.get("delay").value;
+  }
+};
 struct SWBInstruction {
   uint32_t slot, option, channel, source, target;
 
@@ -64,27 +208,6 @@ struct ROUTEInstruction {
     sr = instr.get("sr").value;
     source = instr.get("source").value;
     target = instr.get("target").value;
-  }
-};
-struct REPInstruction {
-  uint32_t slot, port, level, iter, delay;
-
-  REPInstruction(const Instruction &instr) {
-    slot = instr.slot;
-    port = instr.get("port").value;
-    level = instr.get("level").value;
-    iter = instr.get("iter").value;
-    delay = instr.get("delay").value;
-  }
-};
-struct TRANSInstruction {
-  uint32_t slot, port, level, delay;
-
-  TRANSInstruction(const Instruction &instr) {
-    slot = instr.slot;
-    port = instr.get("port").value;
-    level = instr.get("level").value;
-    delay = instr.get("delay").value;
   }
 };
 

@@ -42,6 +42,8 @@ use std::ops::{Deref, DerefMut};
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
+    let mut current_level = [0, 0];
+    let mut current_trans = [0, 0];
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = "e0".to_string();
@@ -49,25 +51,28 @@ fn get_timing_model(op: Op) -> String {
     for instr in op.body {
         let instr_segments = instr.params;
         match instr.kind.as_str() {
-            "swb" => {}
-            "route" => {}
+            "swb" | "route" => {}
+            "evt" => {
+                let port = instr_segments.get_value("port").parse::<usize>().unwrap();
+                current_level[port] = 0;
+                current_trans[port] = 0;
+            }
             "rep" => {
-                let _port = instr_segments.get_value("port");
-                let level = instr_segments.get_value("level");
+                let port = instr_segments.get_value("port").parse::<usize>().unwrap();
                 let mut iter = instr_segments.get_value("iter");
                 let _step = instr_segments.get_value("step");
                 let delay = instr_segments.get_value("delay");
                 iter = (iter.parse::<i64>().unwrap()).to_string();
-                r.insert(level.parse::<i64>().unwrap(), (iter, delay.to_string()));
+                r.insert(current_level[port], (iter, delay.to_string()));
+                current_level[port] += 1;
             }
             "repx" => {}
             "trans" => {
-                let _port = instr_segments.get_value("port");
-                let level = instr_segments.get_value("level");
+                let port = instr_segments.get_value("port").parse::<usize>().unwrap();
                 let delay = instr_segments.get_value("delay");
-                t.insert(level.parse::<i64>().unwrap(), "0".to_string());
-                t.insert(1, "0".to_string());
-                t.insert(level.parse::<i64>().unwrap(), delay);
+                t.insert(current_trans[port], delay);
+                current_level[port] = 0;
+                current_trans[port] += 1;
             }
             _ => {
                 panic!("Unknown instruction kind: {}", instr.kind);
@@ -114,11 +119,6 @@ fn reshape_instr(op: Op) -> Op {
                     .get_value("port")
                     .parse::<i64>()
                     .expect("Failed to parse port as i64");
-                let _level = instr
-                    .params
-                    .get_value("level")
-                    .parse::<i64>()
-                    .expect("Failed to parse level as i64");
                 let mut iter = instr
                     .params
                     .get_value("iter")
@@ -138,20 +138,20 @@ fn reshape_instr(op: Op) -> Op {
                 let mut iterx = 0;
                 let mut delayx = 0;
                 let mut stepx = 0;
-                if iter > 2i64.pow(6) - 1 {
+                if iter > 2i64.pow(8) - 1 {
                     repx_flag = true;
-                    iterx = iter / 2i64.pow(6);
-                    // iter %= 2i64.pow(6);
+                    iterx = iter / 2i64.pow(8);
+                    iter %= 2i64.pow(8);
                 }
-                if delay > 2i64.pow(6) - 1 {
+                if step > 2i64.pow(7) - 1 {
                     repx_flag = true;
-                    delayx = delay / 2i64.pow(6);
-                    delay %= 2i64.pow(6);
+                    stepx = step / 2i64.pow(7);
+                    step %= 2i64.pow(7);
                 }
-                if step > 2i64.pow(6) - 1 {
+                if delay > 2i64.pow(8) - 1 {
                     repx_flag = true;
-                    stepx = step / 2i64.pow(6);
-                    step %= 2i64.pow(6);
+                    delayx = delay / 2i64.pow(8);
+                    delay %= 2i64.pow(8);
                 }
 
                 if repx_flag {

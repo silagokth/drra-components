@@ -71,71 +71,129 @@
       ]
     },
     {
-      "name": "rep",
+      "name": "evt",
       "opcode": 0,
       "instr_type": 1,
       "segments": [
         {
           "name": "port",
-          "comment": "The port number",
-          "bitwidth": 2,
+          "comment": "Selects whether the event is applied intracell (0) or intercell (1).",
+          "bitwidth": 1,
           "verbo_map": [
             {
               "key": 0,
               "val": "intracell"
             },
             {
-              "key": 2,
+              "key": 1,
+              "val": "intercell"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rep",
+      "opcode": 1,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Selects whether the repetition is applied intracell (0) or intercell (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "intracell"
+            },
+            {
+              "key": 1,
               "val": "intercell"
             }
           ]
         },
         {
-          "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 3
+          "name": "iter",
+          "comment": "Number of iterations.",
+          "bitwidth": 8
         },
         {
-          "name": "iter",
-          "comment": "Number of iterations - 1 of the current level. As the switchbox does not use the address value, the step size is always 1.",
-          "bitwidth": 7
+          "name": "step",
+          "comment": "Step size between iterations.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
         },
         {
           "name": "delay",
           "comment": "Delay between iterations.",
-          "bitwidth": 12
+          "bitwidth": 8
         }
       ]
     },
     {
-      "name": "trans",
+      "name": "repx",
       "opcode": 2,
       "instr_type": 1,
       "segments": [
         {
           "name": "port",
-          "comment": "Selects whether the transition is intracell (0) or intercell (2).",
-          "bitwidth": 2,
+          "comment": "Selects whether the repetition extension is applied intracell (0) or intercell (1).",
+          "bitwidth": 1,
           "verbo_map": [
             {
               "key": 0,
               "val": "intracell"
             },
             {
-              "key": 2,
+              "key": 1,
               "val": "intercell"
             }
           ]
         },
         {
-          "name": "level",
-          "comment": "Starting level of the transition. The transition will occur from this level to the level (i.e., level+1).",
-          "bitwidth": 2
+          "name": "iter",
+          "comment": "Most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 3,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Selects whether the transition is applied intracell (0) or intercell (2).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "intracell"
+            },
+            {
+              "key": 1,
+              "val": "intercell"
+            }
+          ]
         },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",
-          "bitwidth": 14
+          "bitwidth": 23
         }
       ]
     }

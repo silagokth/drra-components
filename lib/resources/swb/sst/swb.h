@@ -50,10 +50,12 @@ public:
 
   // Instruction format
   using DRRAResource::format;
+  void handleEVT(const SWB_PKG::EVTInstruction &instr);
+  void handleREP(const SWB_PKG::REPInstruction &instr);
+  void handleREPX(const SWB_PKG::REPXInstruction &instr);
+  void handleTRANS(const SWB_PKG::TRANSInstruction &instr);
   void handleSWB(const SWB_PKG::SWBInstruction &instr);
   void handleROUTE(const SWB_PKG::ROUTEInstruction &instr);
-  void handleREP(const SWB_PKG::REPInstruction &instr);
-  void handleTRANS(const SWB_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 
@@ -90,6 +92,10 @@ private:
 
   // Cell links
   std::vector<Link *> cell_links;
+
+  std::vector<uint32_t> current_config_option = {0, 0};
+  std::vector<uint32_t> current_rep_level = {0, 0};
+  std::vector<uint32_t> last_config_trans = {0, 0};
 
   uint32_t currentFsmOption_swb = 0;
   uint32_t currentFsmOption_route = 0;

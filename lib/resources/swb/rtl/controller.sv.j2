@@ -21,8 +21,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link,
 
     // Instruction valid signals
-    output logic [NUM_OPTIONS-1:0] rep_valid,
-    output logic [NUM_OPTIONS-1:0] trans_valid,
+    output logic [NUM_OPTIONS-1:0] rep_valid_port,
+    output logic [NUM_OPTIONS-1:0] trans_valid_port,
 
     // SWB and ROUTE configurations
     output swb_config_t swb_configs [NUM_OPTIONS],
@@ -33,65 +33,63 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output agu_config_t agu_configs[NUM_AGUS],
     output logic [NUM_AGUS-1:0] agu_is_configured
 );
-  // Get opcode
-  logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
-  assign opcode = instruction_payload[
-    INSTR_PAYLOAD_BITWIDTH - 1 : INSTR_PAYLOAD_BITWIDTH - INSTR_OPCODE_BITWIDTH
-  ];
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction Decoding
+  // ─────────────────────────────────────────────────────────────────────────
+  logic [OPCODE_WIDTH-1:0] opcode;
+  assign opcode = instruction_payload[OPCODE_H:OPCODE_L];
 
-  // Detect instruction
-  logic swb_valid, route_valid, rep_valid_instr, trans_valid_instr;
+  logic swb_valid;
+  logic route_valid;
+  logic rep_valid;
+  logic repx_valid;
+  logic trans_valid;
   assign swb_valid   = instruction_valid && (opcode == OPCODE_SWB);
   assign route_valid = instruction_valid && (opcode == OPCODE_ROUTE);
-  assign rep_valid_instr   = instruction_valid && (opcode == OPCODE_REP);
-  assign trans_valid_instr = instruction_valid && (opcode == OPCODE_TRANS);
+  assign rep_valid   = instruction_valid && (opcode == OPCODE_REP);
+  assign repx_valid  = instruction_valid && (opcode == OPCODE_REPX);
+  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
 
-  // Unpack instructions
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction Unpacking
+  // ─────────────────────────────────────────────────────────────────────────
   swb_t   swb_instr;
   route_t route_instr;
   rep_t   rep_instr;
+  repx_t  repx_instr;
   trans_t trans_instr;
-  assign swb_instr   = swb_valid ? unpack_swb(instruction_payload) : '{default: 0};
+  assign swb_instr   = swb_valid   ? unpack_swb(instruction_payload)   : '{default: 0};
   assign route_instr = route_valid ? unpack_route(instruction_payload) : '{default: 0};
-  assign rep_instr   = rep_valid_instr ? unpack_rep(instruction_payload) : '{default: 0};
-  assign trans_instr = trans_valid_instr ? unpack_trans(instruction_payload) : '{default: 0};
+  assign rep_instr   = rep_valid   ? unpack_rep(instruction_payload)   : '{default: 0};
+  assign repx_instr  = repx_valid  ? unpack_repx(instruction_payload)  : '{default: 0};
+  assign trans_instr = trans_valid ? unpack_trans(instruction_payload) : '{default: 0};
 
-  // Assign valid port numbers
-  assign rep_valid   = rep_valid_instr ? (1 << rep_instr._port) : '0;
-  assign trans_valid = trans_valid_instr ? (1 << trans_instr._port) : '0;
+  assign rep_valid_port   = rep_valid ? (1 << rep_instr._port) : repx_valid ? (1 << repx_instr._port) : '0;
+  assign trans_valid_port = trans_valid ? (1 << trans_instr._port) : '0;
 
-  // Assign SWB&ROUTE configurations
-  assign swb_conf_link = swb_instr._source;
+  // ─────────────────────────────────────────────────────────────────────────
+  // SWB and ROUTE Configuration
+  // ─────────────────────────────────────────────────────────────────────────
+  assign swb_conf_link       = swb_instr._source;
   assign route_in_conf_link  = route_instr._source;
   assign route_out_conf_link = route_instr._source;
+
   always_comb begin
     option_index = '0;
 
-    // SWB default assignments
-    swb_conf_valid = 0;
-    for (int i = 0; i < NUM_OPTIONS; i++)
-      for (int j = 0; j < NUM_SLOTS; j++)
-        swb_configs[i].slot_link[j] = '0;
-
-    // ROUTE default assignments
-    route_in_conf_valid = 0;
+    swb_conf_valid       = 0;
+    route_in_conf_valid  = 0;
     route_out_conf_valid = 0;
-    for (int i = 0; i < NUM_OPTIONS; i++) begin
-      for (int d = 0; d < NUM_DIRS; d++)
-        route_in_configs[i].receive_links[d] = '0;
-      for (int s = 0; s < NUM_SLOTS; s++)
-        route_out_configs[i].send_links[s] = '0;
-    end
 
-    // SWB configuration
+    swb_configs       = '{default: '{default: '0}};
+    route_in_configs  = '{default: '{default: '0}};
+    route_out_configs = '{default: '{default: '0}};
+
     if (swb_valid) begin
       swb_configs[swb_instr._option].slot_link[swb_instr._source] = swb_instr._target;
       swb_conf_valid = 1;
       option_index = swb_instr._option;
-    end
-
-    // ROUTE configuration
-    else if (route_valid) begin
+    end else if (route_valid) begin
       if (route_instr._sr == ROUTE_SR_SEND) begin  // send
         route_out_configs[route_instr._option].send_links[route_instr._source] = route_instr._target[NUM_DIRS-1:0];
         route_out_conf_valid = 1;
@@ -104,61 +102,101 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
   end
 
-  // Determine which AGU to configure
-  logic agu_conf_enable;
-  always_comb begin
-    agu_conf_enable = '0;
-    if (rep_valid_instr && rep_instr._port == AGU_SWB_PORTNUM)
-      agu_conf_enable = AGU_SWB_INDEX;
-    else if (rep_valid_instr && rep_instr._port == AGU_ROUTE_PORTNUM)
-      agu_conf_enable = AGU_ROUTE_INDEX;
+  // ─────────────────────────────────────────────────────────────────────────
+  // AGU configuration
+  // ─────────────────────────────────────────────────────────────────────────
+  localparam int DELAY_HI = REP_DELAY_WIDTH/2;
+  localparam int ITER_HI  = REP_ITER_WIDTH/2;
+  localparam int STEP_HI  = REP_STEP_WIDTH/2;
 
-    if (trans_valid_instr && trans_instr._port == AGU_SWB_PORTNUM)
-      agu_conf_enable = AGU_SWB_INDEX;
-    else if (trans_valid_instr && trans_instr._port == AGU_ROUTE_PORTNUM)
-      agu_conf_enable = AGU_ROUTE_INDEX;
-  end
+  agu_config_t agu_configs_reg   [NUM_AGUS];
+  logic        use_or_reg        [NUM_AGUS];
+  logic        or_configured_reg [NUM_AGUS];
 
-  // Keep track of current rep lane
-  logic [NUMBER_MT:0] current_lane [NUM_AGUS];
+  logic [REP_OPTION_WIDTH-1:0]      current_option [NUM_AGUS];
+  logic [$clog2(NUM_LEVELS)-1:0] current_level  [NUM_AGUS];
+  logic [NUMBER_MT:0]               current_lane   [NUM_AGUS];
+  logic                             current_port;
+
+  assign current_port =
+    rep_valid   ? rep_instr._port   :
+    repx_valid  ? repx_instr._port  :
+    trans_valid ? trans_instr._port :
+                 '0;
+
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      for (int i = 0; i < NUM_AGUS; i++) current_lane[i] <= '0;
-    end else begin
-      if (trans_valid_instr) begin
-        assert(current_lane[agu_conf_enable] == trans_instr._level)
-          else $error("Transition level mistmatch in SWB/ROUTE controller at AGU %0d", agu_conf_enable);
-        current_lane[agu_conf_enable] <= current_lane[agu_conf_enable] + 1;
+      agu_configs_reg   <= '{default: '{default: '0}};
+      use_or_reg        <= '{default: 1'b0};
+      or_configured_reg <= '{default: 1'b0};
+      current_option    <= '{default: '0};
+      current_level     <= '{default: '0};
+      current_lane      <= '{default: '0};
+    end else if (|agu_done) begin
+      for (int i = 0; i < NUM_AGUS; i++)
+        if (agu_done[i]) begin
+          agu_configs_reg[i]   <= '{default: '0};
+          use_or_reg[i]        <= 1'b0;
+          or_configured_reg[i] <= 1'b0;
+          current_option[i]    <= '0;
+          current_level[i]     <= '0;
+          current_lane[i]      <= '0;
+        end
+    end else if (swb_valid || route_valid) begin
+      automatic int opt = swb_valid ? swb_instr._option : route_instr._option;
+      current_option[current_port] <= opt;
+      current_level[current_port]  <= '0;
+    end else if (rep_valid || repx_valid) begin
+      automatic logic [REP_OPTION_WIDTH-1:0]  opt = current_option[current_port];
+      automatic logic [$clog2(NUM_LEVELS)-1:0]   lvl = current_level[current_port];
+      automatic logic [REP_DELAY_WIDTH/2-1:0] dly = rep_valid ? rep_instr._delay  : repx_instr._delay;
+      automatic logic [REP_ITER_WIDTH/2-1:0]  itr = rep_valid ? rep_instr._iter   : repx_instr._iter;
+      automatic logic [REP_STEP_WIDTH/2-1:0]  stp = rep_valid ? rep_instr._step   : repx_instr._step;
+
+      if (use_or_reg[current_port]) begin
+        if (rep_valid) begin // REP: configure lower half
+          agu_configs_reg[current_port].or_configs[lvl].delay[DELAY_HI-1:0] <= dly;
+          agu_configs_reg[current_port].or_configs[lvl].iter[ITER_HI-1:0]   <= itr;
+          agu_configs_reg[current_port].or_configs[lvl].step[STEP_HI-1:0]   <= stp;
+        end else begin // REPX: configure upper half
+          agu_configs_reg[current_port].or_configs[lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
+          agu_configs_reg[current_port].or_configs[lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
+          agu_configs_reg[current_port].or_configs[lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
+        end
+        agu_configs_reg[current_port].or_configs[lvl].is_configured <= 1'b1;
+        or_configured_reg[current_port] <= 1'b1;
+        current_level[current_port]  <= current_level[current_port] + 1;
+      end else begin
+        if (rep_valid) begin // REP: configure lower half
+          agu_configs_reg[current_port].ir_configs[opt][lvl].delay[DELAY_HI-1:0] <= dly;
+          agu_configs_reg[current_port].ir_configs[opt][lvl].iter[ITER_HI-1:0]   <= itr;
+          agu_configs_reg[current_port].ir_configs[opt][lvl].step[STEP_HI-1:0]   <= stp;
+        end else begin // REPX: configure upper half
+          agu_configs_reg[current_port].ir_configs[opt][lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
+          agu_configs_reg[current_port].ir_configs[opt][lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
+          agu_configs_reg[current_port].ir_configs[opt][lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
+        end
+        agu_configs_reg[current_port].ir_configs[opt][lvl].is_configured <= 1'b1;
+        current_level[current_port]  <= current_level[current_port] + 1;
       end
+
+    // TRANS instruction
+    end else if (trans_valid && !or_configured_reg[current_port]) begin
+      agu_configs_reg[current_port].mt_configs[current_lane[current_port]].delay         <= trans_instr._delay;
+      agu_configs_reg[current_port].mt_configs[current_lane[current_port]].is_configured <= 1'b1;
+      use_or_reg[current_port] <= 1'b1;
+      current_level[current_port]  <= '0;
+      current_lane[current_port] <= current_lane[current_port] + 1;
     end
   end
 
-  // Assign AGU configuration
-  agu_config_t agu_configs_reg[NUM_AGUS];
-  always_ff @(posedge clk or negedge rst_n) begin
-    for (int i = 0; i < NUM_AGUS; i++) begin
-      if (!rst_n || agu_done[i]) begin
-        agu_configs_reg[i] <= '{default: '0};
-      end else if (rep_valid_instr && i == agu_conf_enable) begin
-        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]] <= rep_instr._delay;
-        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]].iter  <= rep_instr._iter;
-        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]].step  <= '0;
-        agu_configs_reg[i].ir_configs[rep_instr._level][current_lane[i]].is_configured <= 1;
-      end else if (trans_valid_instr && i == agu_conf_enable) begin
-        agu_configs_reg[i].mt_configs[current_lane[i]].delay <= trans_instr._delay;
-        agu_configs_reg[i].mt_configs[current_lane[i]].is_configured <= 1;
-      end else begin
-        // Keep previous configuration
-        agu_configs_reg[i] <= agu_configs_reg[i];
-      end
-    end
-  end
   assign agu_configs = agu_configs_reg;
 
   // Calculate if AGU is configured
   always_comb begin
+    agu_is_configured = '0;
+
     for (int i = 0; i < NUM_AGUS; i++) begin
-      agu_is_configured[i] = 0;
       for (int l = 0; l <= NUMBER_MT; l++) begin
         if (agu_configs_reg[i].mt_configs[l].is_configured)
           agu_is_configured[i] = 1;

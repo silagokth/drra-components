@@ -85,8 +85,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .route_in_conf_link(route_in_conf_link),
       .route_out_conf_link(route_out_conf_link),
 
-      .rep_valid(rep_valid),
-      .trans_valid(trans_valid),
+      .rep_valid_port(rep_valid),
+      .trans_valid_port(trans_valid),
 
       .swb_configs(swb_configs),
       .route_in_configs(route_in_src_configs),
@@ -126,8 +126,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     genvar gen_i;
     generate
       for (gen_i = 0; gen_i < NUM_AGUS; gen_i++) begin : gen_agu
-        int agu_port = (gen_i == AGU_SWB_INDEX) ? AGU_SWB_PORTNUM : AGU_ROUTE_PORTNUM;
-
         agu_RTR #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
@@ -142,7 +140,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
           .rst_n(rst_n),
           .enable(1'b1),
 
-          .activation(activate_0[agu_port]),
+          .activation(activate_0[gen_i]),
 
           .agu_config(agu_configs[gen_i]),
 
