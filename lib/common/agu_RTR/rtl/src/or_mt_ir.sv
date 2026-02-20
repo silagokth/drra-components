@@ -85,8 +85,15 @@ module or_mt_ir
   );
 
   // Pass through valid data immediately
-  assign ir_addr  = child_addr;
   assign ir_valid = child_valid;
+  always_comb begin
+    ir_addr = child_addr;
+    for (int o = 0; o < NUMBER_OR; o++) begin
+      if (or_iter_count[o] > 0) begin
+        ir_addr += or_iter_count[o] * or_configs[o].step;
+      end
+    end
+  end
 
   // --------------------------------------------------------------------------
   // OR Logic: Level Calculations (Adapted from ir.sv)
