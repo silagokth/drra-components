@@ -17,10 +17,17 @@ RF_PKG::createInstructionHandlers(Rf *rf_obj) {
              REPInstruction decoded_instr(instruction);
              rf_obj->handleREP(decoded_instr);
            }},
-          {(uint32_t)OpCode::REPX, [rf_obj](uint32_t instr) {
+          {(uint32_t)OpCode::REPX,
+           [rf_obj](uint32_t instr) {
              auto segment_defs = getIsaDefinitions().at(OpCode::REPX);
              Instruction instruction(instr, rf_obj->format, segment_defs);
              REPXInstruction decoded_instr(instruction);
              rf_obj->handleREPX(decoded_instr);
+           }},
+          {(uint32_t)OpCode::TRANS, [rf_obj](uint32_t instr) {
+             auto segment_defs = getIsaDefinitions().at(OpCode::TRANS);
+             Instruction instruction(instr, rf_obj->format, segment_defs);
+             TRANSInstruction decoded_instr(instruction);
+             rf_obj->handleTRANS(decoded_instr);
            }}};
 }

@@ -11,11 +11,12 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter AGU_BITWIDTH = 16;
 
   // AGU RTR params
+  parameter int NUM_AGUS = 4;
   parameter int ADDRESS_WIDTH = $clog2(RF_DEPTH);
   parameter int REP_LEVEL_WIDTH = 3;
-  parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
-  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
   parameter int TRANS_LEVEL_WIDTH = 7;
   parameter int TRANS_DELAY_WIDTH = 7;
   parameter int NUMBER_OR = 0;

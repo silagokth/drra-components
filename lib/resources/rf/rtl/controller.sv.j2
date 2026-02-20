@@ -15,61 +15,129 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Instruction type valid signals
     logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
     assign opcode = instruction_payload[INSTR_PAYLOAD_BITWIDTH-1:INSTR_PAYLOAD_BITWIDTH - INSTR_OPCODE_BITWIDTH];
-    logic dsu_valid_instr, rep_valid_instr, repx_valid_instr;
-    assign dsu_valid_instr = instruction_valid && (opcode == OPCODE_DSU);
-    assign rep_valid_instr = instruction_valid && (opcode == OPCODE_REP);
-    assign repx_valid_instr = instruction_valid && (opcode == OPCODE_REPX);
+
+    logic dsu_valid, rep_valid, repx_valid, trans_valid;
+    assign dsu_valid = instruction_valid && (opcode == OPCODE_DSU);
+    assign rep_valid = instruction_valid && (opcode == OPCODE_REP);
+    assign repx_valid = instruction_valid && (opcode == OPCODE_REPX);
+    assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
 
     // Unpack instructions
-    dsu_t  dsu;
-    rep_t  rep;
-    repx_t repx;
-    assign dsu = dsu_valid_instr ? unpack_dsu(instruction_payload) : '{default: 0};
-    assign rep = rep_valid_instr ? unpack_rep(instruction_payload) : '{default: 0};
-    assign repx = repx_valid_instr ? unpack_repx(instruction_payload) : '{default: 0};
+    dsu_t  dsu_instr;
+    rep_t  rep_instr;
+    repx_t repx_instr;
+    trans_t trans_instr;
+    assign dsu_instr = dsu_valid ? unpack_dsu(instruction_payload) : '{default: 0};
+    assign rep_instr = rep_valid ? unpack_rep(instruction_payload) : '{default: 0};
+    assign repx_instr = repx_valid ? unpack_repx(instruction_payload) : '{default: 0};
+    assign trans_instr = trans_valid ? unpack_trans(instruction_payload) : '{default: 0};
 
-    localparam int DELAY_MSB = REP_DELAY_WIDTH/2;
-    localparam int ITER_MSB = REP_ITER_WIDTH/2;
-    localparam int STEP_MSB = REP_STEP_WIDTH/2;
+    // ─────────────────────────────────────────────────────────────────────────
+    // AGU Configuration
+    // ─────────────────────────────────────────────────────────────────────────
+    localparam int DELAY_HI = REP_DELAY_WIDTH/2;
+    localparam int ITER_HI  = REP_ITER_WIDTH/2;
+    localparam int STEP_HI  = REP_STEP_WIDTH/2;
 
-    // Generate AGU configurations
-    agu_config_t agu_configs_reg[FSM_PER_SLOT];
+    agu_config_t agu_configs_reg    [FSM_PER_SLOT];
+    logic        use_or_reg        [FSM_PER_SLOT];
+    logic        or_configured_reg [FSM_PER_SLOT];
+
+    logic [$clog2(FSM_PER_SLOT)-1:0]  agu_config_index;
+    logic [$clog2(NUMBER_MT+1)-1:0]   current_lane_index  [FSM_PER_SLOT];
+    logic [$clog2(NUMBER_IR)-1:0]     current_rep_level   [FSM_PER_SLOT];
+    logic [$clog2(NUMBER_MT+1)-1:0]   current_trans_index [FSM_PER_SLOT];
+
+    // Combinational signals derived from instructions
+    logic [$clog2(NUM_AGUS)-1:0]       dsu_port;
+    logic [$clog2(NUMBER_MT+1)-1:0]    rep_opt;
+    logic [$clog2(NUMBER_IR)-1:0]      rep_lvl;
+    logic [REP_DELAY_WIDTH/2-1:0]      rep_dly;
+    logic [REP_ITER_WIDTH/2-1:0]       rep_itr;
+    logic [REP_STEP_WIDTH/2-1:0]       rep_stp;
+
+    always_comb begin
+      dsu_port = dsu_instr._port;
+      rep_opt  = current_lane_index[agu_config_index];
+      rep_lvl  = current_rep_level[agu_config_index];
+      rep_dly  = rep_valid ? rep_instr._delay : repx_instr._delay;
+      rep_itr  = rep_valid ? rep_instr._iter  : repx_instr._iter;
+      rep_stp  = rep_valid ? rep_instr._step  : repx_instr._step;
+    end
+
     always_ff @(posedge clk or negedge rst_n) begin
-      for (int i = 0; i < FSM_PER_SLOT; i++) begin
-        if (!rst_n || agu_done[i]) begin
-            for (int j = 0; j < NUMBER_IR; j++) begin
-              if (j == 0) begin
-                // NOTE: Default configuration of the AGU is return init_addr only
-                // so, 1 iteration with 0 delay and 0 step
-                agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
-                agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= 1;
-                agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
-                agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b1;
-              end else begin
-                agu_configs_reg[i].ir_configs[0][j].delay[REP_DELAY_WIDTH-1:0] <= '0;
-                agu_configs_reg[i].ir_configs[0][j].iter[REP_ITER_WIDTH-1:0] <= '0;
-                agu_configs_reg[i].ir_configs[0][j].step[REP_STEP_WIDTH-1:0] <= '0;
-                agu_configs_reg[i].ir_configs[0][j].is_configured <= 1'b0;
-              end
+      if (!rst_n) begin
+        agu_configs_reg    <= '{default: '0};
+        use_or_reg        <= '{default: 1'b0};
+        or_configured_reg <= '{default: 1'b0};
+        agu_config_index  <= '0;
+        current_lane_index  <= '{default: '1};
+        current_rep_level   <= '{default: '0};
+        current_trans_index <= '{default: '0};
+      end else begin
+        for (int i = 0; i < FSM_PER_SLOT; i++) begin
+          if (agu_done[i]) begin
+            agu_configs_reg[i]     <= '0;
+            use_or_reg[i]          <= 1'b0;
+            or_configured_reg[i]   <= 1'b0;
+            current_lane_index[i]  <= '1;
+            current_rep_level[i]   <= '0;
+            current_trans_index[i] <= '0;
+          end
+        end
+
+        // DSU instruction: select AGU and advance lane
+        if (dsu_valid) begin
+          agu_config_index <= dsu_port;
+          current_lane_index[dsu_port] <= current_lane_index[dsu_port] + 1;
+          current_rep_level[dsu_port]  <= '0;
+
+          // NOTE: Default configuration of the AGU is return init_addr only
+          agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
+          agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
+
+        // REP / REPX instruction
+        end else if (rep_valid || repx_valid) begin
+          if (use_or_reg[agu_config_index]) begin
+            if (rep_valid) begin // REP: configure lower half
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+            end else begin // REPX: configure upper half
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
             end
-          end else if (rep_valid_instr && i == rep._port) begin
-          agu_configs_reg[rep._port].ir_configs[0][rep._level].delay[DELAY_MSB:0] <= rep._delay;
-          agu_configs_reg[rep._port].ir_configs[0][rep._level].iter[ITER_MSB:0] <= rep._iter;
-          agu_configs_reg[rep._port].ir_configs[0][rep._level].step[STEP_MSB:0] <= rep._step;
-          agu_configs_reg[rep._port].ir_configs[0][rep._level].is_configured <= 1'b1;
-        end else if (repx_valid_instr && i == repx._port) begin
-          agu_configs_reg[repx._port].ir_configs[0][repx._level].delay[REP_DELAY_WIDTH-1:DELAY_MSB] <= repx._delay;
-          agu_configs_reg[repx._port].ir_configs[0][repx._level].iter[REP_ITER_WIDTH-1:ITER_MSB] <= repx._iter;
-          agu_configs_reg[repx._port].ir_configs[0][repx._level].step[REP_STEP_WIDTH-1:STEP_MSB] <= repx._step;
-        end else begin
-          // Keep previous configuration
-          agu_configs_reg[i] <= agu_configs_reg[i];
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].is_configured <= 1'b1;
+            or_configured_reg[agu_config_index] <= 1'b1;
+
+          end else begin
+            if (rep_valid) begin // REP: configure lower half
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+            end else begin // REPX: configure upper half
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+            end
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
+          end
+
+          current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+
+        // TRANS instruction: configure mode transition and switch to OR-level
+        end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
+          agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
+          agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
+          use_or_reg[agu_config_index] <= 1'b1;
+
+          current_rep_level[agu_config_index]   <= '0;
+          current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
         end
       end
     end
-    assign agu_configs = agu_configs_reg;
 
-    // TODO: Add support for OR-level REP?
-    // TODO: Add support for TRANS?
+    assign agu_configs = agu_configs_reg;
 
 endmodule

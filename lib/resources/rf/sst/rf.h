@@ -54,6 +54,7 @@ public:
   void handleDSU(const RF_PKG::DSUInstruction &instr);
   void handleREP(const RF_PKG::REPInstruction &instr);
   void handleREPX(const RF_PKG::REPXInstruction &instr);
+  void handleTRANS(const RF_PKG::TRANSInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
@@ -72,6 +73,7 @@ private:
   void writeNarrow();
 
   uint32_t current_event_number = 0;
+  std::map<uint32_t, size_t> current_option_config;
   std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
@@ -79,8 +81,7 @@ private:
 
   void updatePortAGUs(uint32_t port) {
     port_agus[port] = port_agus_init[port] +
-                      current_timing_states[port].getRepIncrementForCycle(
-                          getPortActiveCycle(port));
+                      agus[port].getAddressForCycle(getPortActiveCycle(port));
     if (port_agus[port] >= register_file_size) {
       out.fatal(CALL_INFO, -1, "Invalid AGU address (greater than RF size)\n");
     }
