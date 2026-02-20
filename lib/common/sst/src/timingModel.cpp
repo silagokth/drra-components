@@ -780,7 +780,7 @@ uint64_t RepetitionOperator::scheduleEvents(TimingState &state,
   for (uint64_t i = 0; i < iterations; i++) {
     lastCycle = expression->scheduleEvents(state, lastCycle);
     if (i < iterations - 1) {
-      lastCycle += delay;
+      lastCycle += delay + 1;
     }
   }
   return lastCycle;
