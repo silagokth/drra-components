@@ -37,6 +37,8 @@ use std::collections::HashMap;
 use std::env;
 use std::ops::{Deref, DerefMut};
 
+include!("isa_config.rs");
+
 /*******************************************************************************
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
@@ -138,20 +140,20 @@ fn reshape_instr(op: Op) -> Op {
                 let mut iterx = 0;
                 let mut delayx = 0;
                 let mut stepx = 0;
-                if iter > 2i64.pow(8) - 1 {
+                if iter > 2i64.pow(ITER_BITWIDTH) - 1 {
                     repx_flag = true;
-                    iterx = iter / 2i64.pow(8);
-                    iter %= 2i64.pow(8);
+                    iterx = iter / 2i64.pow(ITER_BITWIDTH);
+                    iter %= 2i64.pow(ITER_BITWIDTH);
                 }
-                if step > 2i64.pow(7) - 1 {
+                if step > 2i64.pow(STEP_BITWIDTH) - 1 {
                     repx_flag = true;
-                    stepx = step / 2i64.pow(7);
-                    step %= 2i64.pow(7);
+                    stepx = step / 2i64.pow(STEP_BITWIDTH);
+                    step %= 2i64.pow(STEP_BITWIDTH);
                 }
-                if delay > 2i64.pow(8) - 1 {
+                if delay > 2i64.pow(DELAY_BITWIDTH) - 1 {
                     repx_flag = true;
-                    delayx = delay / 2i64.pow(8);
-                    delay %= 2i64.pow(8);
+                    delayx = delay / 2i64.pow(DELAY_BITWIDTH);
+                    delay %= 2i64.pow(DELAY_BITWIDTH);
                 }
 
                 if repx_flag {

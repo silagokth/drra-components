@@ -42,6 +42,10 @@ function(cargo_build FOLDER)
   file(COPY "${FOLDER}/."
        DESTINATION "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}")
 
+  # Copy ../isa.json to the directory
+  file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/isa.json"
+       DESTINATION "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}")
+
   # Modify the Cargo.toml file DURING CMAKE CONFIGURATION
   file(READ "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}/Cargo.toml"
        CARGO_TOML_CONTENT)
