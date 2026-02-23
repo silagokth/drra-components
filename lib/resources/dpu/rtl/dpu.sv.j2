@@ -9,7 +9,8 @@ module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
-    input  logic clk,
+
+    input  logic clk_0,
     output logic clk_out,
     input  logic rst_n,
     output  logic rst_n_out,
@@ -51,18 +52,27 @@ import {{name}}_{{fingerprint}}_pkg::*;
   assign instr_en_resource_out = instr_en_resource;
   assign instr_out = instr;
 
-  signal_selector #(
-      .NUM_SLOTS(NUM_SLOTS),
-      .RESOURCE_SLOTS(2),
-      .FSM_PER_SLOT(FSM_PER_SLOT)
-  ) signal_selector_0 (
-      .resource_address(resource_address),
-      .activate_resource(activate),
-      .instr_valid_resource(instr_en_resource),
-      .instr_valid(instr_en_x),
-      .activate(activate_x),
-      .resource_address_out(resource_address_out)
-  );
+    clock_buffer #(RESOURCE_SLOTS) clock_buffer (.clk(clk_0), .clk_out(clk_out));
+    assign rst_n_out = rst_n;
+    assign activate_out = activate;
+    assign instr_en_resource_out = instr_en_resource;
+    assign instr_out = instr;
+
+    logic clk;
+    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
+
+    signal_selector #(
+        .NUM_SLOTS(NUM_SLOTS),
+        .RESOURCE_SLOTS(2),
+        .FSM_PER_SLOT(FSM_PER_SLOT)
+    ) signal_selector_0 (
+        .resource_address(resource_address),
+        .activate_resource(activate),
+        .instr_valid_resource(instr_en_resource),
+        .instr_valid(instr_en_x),
+        .activate(activate_x),
+        .resource_address_out(resource_address_out)
+    );
 
   // Useless output
   assign word_data_out_1 = 0;
