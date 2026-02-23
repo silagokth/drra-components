@@ -16,7 +16,11 @@ endpackage
 module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
 (
-    input logic clk,
+    input logic clk_swb,
+    input logic clk_resource,
+    output logic clk_out_swb,
+    output logic clk_out_resource,
+    
     input logic rst_n,
     input logic call_in,
     output logic call_out,
@@ -58,7 +62,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_resource [NUM_SLOTS-1:0];     // Per-FSM activation bits for slot {{i}}
   logic [$clog2(NUM_SLOTS)-1:0] resource_address [NUM_SLOTS-1:0];
 
-  logic clk_feedthrough_swb;
   logic rst_n_feedthrough_swb;
   logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus_swb; // Shared instruction bus
   logic instr_valid_swb;                     // Valid when sending to slot {{i}}
@@ -68,7 +71,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Controller
     `{{controller.name}} controller_inst
     (
-        .clk(clk),
+        .clk_0(clk_resource),
         .rst_n(rst_n),
         .call(call_in),
         .instr_bus_resource(instr_bus[0]), 
@@ -77,7 +80,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .instr_valid_resource(instr_valid_resource[0]),                     
         .activate_resource(activate_resource[0]),     
         .resource_address(resource_address[0]),
-        .clk_feedthrough_swb(clk_feedthrough_swb),
         .rst_n_feedthrough_swb(rst_n_feedthrough_swb),
         .instr_bus_swb(instr_bus_swb), 
         .instr_valid_swb(instr_valid_swb),                     
@@ -100,7 +102,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     `{{res.name}} resource_{{res.slot}}_inst
     (
       {% for i in range(res.size) %}
-        .clk_{{i}}(clk_feedthrough_swb),
+        .clk_{{i}}(clk_swb),
+        .clk_out(clk_out_swb),
         .rst_n_{{i}}(rst_n_feedthrough_swb),
         .instr_en_{{i}}(instr_valid_swb),
         .instr_{{i}}(instr_bus_swb),
@@ -130,7 +133,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),
         .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]), {% if i < res.size-1 %}{% endif %}
         {% endfor %}
-        .clk(clk_feedthrough_resource[{{res.slot}}-1]),
+        .clk_0(clk_feedthrough_resource[{{res.slot}}-1]),
         .rst_n(rst_n_feedthrough_resource[{{res.slot}}-1]),
         .clk_out(clk_feedthrough_resource[{{res.slot+res.size}}-1]),
         .rst_n_out(rst_n_feedthrough_resource[{{res.slot+res.size}}-1]),
@@ -154,6 +157,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     );
     {% endif %}
     {% endfor %}
+
+    assign clk_out_resource = clk_feedthrough_resource[NUM_SLOTS-1];
 
 endmodule
 {% endif %}

@@ -70,7 +70,7 @@ module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
 (
     // Clock and reset
-    input  logic clk,
+    input  logic clk_0,
     input  logic rst_n,
 
     // Call/return handshake with caller
@@ -86,7 +86,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_resource,     // Per-FSM activation bits for slot {{i}}
     output logic [$clog2(NUM_SLOTS)-1:0] resource_address,
 
-    output logic clk_feedthrough_swb,
     output logic rst_n_feedthrough_swb,
     output logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus_swb, // Shared instruction bus
     output logic instr_valid_swb,                     // Valid when sending to slot {{i}}
@@ -127,15 +126,17 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign instr_valid_resource = resource_instr_valid;
     assign activate_resource = resource_activate;
     assign instr_bus_resource = instr;
-    assign clk_feedthrough_resource = clk;
+    clock_buffer #(1) clock_buffer (.clk(clk_0), .clk_out(clk_feedthrough_resource));
     assign rst_n_feedthrough_resource = rst_n;
     assign resource_address = 'b1;
+
+    logic clk;
+    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
 
     // Assign output wires connecting to swb 
     assign instr_valid_swb = resource_instr_valid[0];
     assign activate_swb = resource_activate[0];
     assign instr_bus_swb = instr;
-    assign clk_feedthrough_swb = clk;
     assign rst_n_feedthrough_swb = rst_n;
 
 

@@ -10,7 +10,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
 
-    input  logic clk,
+    input  logic clk_0,
     output logic clk_out,
     input  logic rst_n,
     output  logic rst_n_out,
@@ -49,11 +49,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign activate_0 = activate_x[0];
     assign activate_1 = activate_x[1];
 
-    assign clk_out = clk; 
+    clock_buffer #(RESOURCE_SLOTS) clock_buffer (.clk(clk_0), .clk_out(clk_out));
     assign rst_n_out = rst_n;
     assign activate_out = activate;
     assign instr_en_resource_out = instr_en_resource;
     assign instr_out = instr;
+
+    logic clk;
+    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
 
     signal_selector #(
         .NUM_SLOTS(NUM_SLOTS),
