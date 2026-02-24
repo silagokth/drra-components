@@ -75,9 +75,8 @@ endif()
 
 # The project version number.
 execute_process(
-  COMMAND
-    bash -c
-    "git describe --tags --exact-match 2>/dev/null || git describe --always --tags"
+  COMMAND bash -c "git describe --tags --exact-match 2>/dev/null || "
+          "git describe --always --tags"
   OUTPUT_VARIABLE DRRA_COMPONENTS_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
@@ -103,6 +102,5 @@ install(
   DESTINATION "lib/drra"
   FILES_MATCHING USE_SOURCE_PERMISSIONS
   PATTERN "*")
-install(
-  CODE "message(STATUS \"DRRA library successfully installed to: \$<INSTALL_PREFIX>/lib/drra\")"
-)
+set(INSTALL_MSG [=["DRRA library successfully installed to: "]=])
+install(CODE "message(STATUS ${INSTALL_MSG} \$<INSTALL_PREFIX>/lib/drra)")
