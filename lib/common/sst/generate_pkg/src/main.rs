@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::process;
 
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
