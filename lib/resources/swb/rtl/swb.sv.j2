@@ -62,12 +62,26 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     assign call_out = call_in;
     assign ret_out = ret_in;
-    assign io_en_in_out = io_en_in_in;
-    assign io_en_out_out = io_en_out_in;
-    assign io_addr_in_out = io_addr_in_in;
-    assign io_addr_out_out = io_addr_out_in;
-    assign io_data_in_out = io_data_in_in;
-    assign io_data_out_out = io_data_out_in;
+    
+    //assign io_addr_in_out = io_addr_in_in; --> reversing this because it is reversed at cell level as well
+    always_ff @(posedge clk or negedge rst_n) begin
+      if(!rst_n) begin
+         io_addr_in_in <= '0;
+         io_addr_out_out <= '0;
+         io_data_in_out <= '0;
+         io_data_out_out <= '0;
+         io_en_in_out <= '0;
+         io_en_out_out <= '0;
+      else begin
+         io_addr_in_in <= io_addr_in_out;
+         io_addr_out_out <= io_addr_out_in;
+         io_data_in_out <= io_data_in_in;
+         io_data_out_out <= io_data_out_in;
+         io_en_in_out <= io_en_in_in;
+         io_en_out_out <= io_en_out_in;
+      end
+    end      
+    
     assign instr_en_out = instr_en_in;
     assign instr_data_out = instr_data_in;
     assign instr_addr_out = instr_addr_in;
