@@ -82,24 +82,24 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
   agus[port_num].setInitialAddress(instr.init_addr);
 
   switch (port_num) {
-  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_SRAM_READ_FROM_IO:
+  case DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO:
     readFromIO();
     break;
-  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_SRAM_WRITE_TO_IO:
+  case DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO:
     out.fatal(CALL_INFO, -1,
               "Invalid DSU mode IOSRAM Top should not write to IO\n");
     writeToIO();
     break;
-  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
+  case DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
     writeToSRAM();
     break;
-  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_IO_READ_FROM_SRAM:
+  case DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM:
     readFromSRAM();
     break;
-  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_WRITE_BULK:
+  case DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK:
     writeBulk();
     break;
-  case IOSRAM_TOP_PKG::DSU_PORT::DSU_PORT_READ_BULK:
+  case DSU_RELATIVE_PORT::DSU_PORT_READ_BULK:
     readBulk();
     break;
 
@@ -183,12 +183,13 @@ void Iosram_top::readFromIO() {
   std::string event_name =
       "dsu_read_from_io_" + std::to_string(current_event_number);
   // Reading data from the IO to the buffer
-  agus[IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ_FROM_IO].addEvent(
+  agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO].addEvent(
       event_name,
       [this, event_name] {
         sram_read_from_io_address_buffer =
-            agus[IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ_FROM_IO].getAddressForCycle(
-                getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ_FROM_IO));
+            agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO]
+                .getAddressForCycle(getPortActiveCycle(
+                    DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO));
 
         IOReadRequest *readReq = new IOReadRequest();
         readReq->address = sram_read_from_io_address_buffer;
@@ -210,12 +211,13 @@ void Iosram_top::writeToIO() {
   std::string event_name =
       "dsu_write_to_io_" + std::to_string(current_event_number);
   // Writing buffer data to the IO
-  agus[IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE_TO_IO].addEvent(
+  agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO].addEvent(
       event_name,
       [this, event_name] {
         sram_write_to_io_address_buffer =
-            agus[IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE_TO_IO].getAddressForCycle(
-                getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE_TO_IO));
+            agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO]
+                .getAddressForCycle(getPortActiveCycle(
+                    DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO));
 
         IOWriteRequest *writeReq = new IOWriteRequest();
         writeReq->address = sram_write_to_io_address_buffer;
@@ -249,7 +251,7 @@ void Iosram_top::writeToSRAM() {
   std::string event_name =
       "dsu_write_to_sram_" + std::to_string(current_event_number);
   // Writing buffer data to the backend
-  agus[IOSRAM_TOP_PKG::DSU_PORT_IO_WRITE_TO_SRAM].addEvent(
+  agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].addEvent(
       event_name,
       [this, event_name] {
         // Check if the IO responded
@@ -270,8 +272,9 @@ void Iosram_top::writeToSRAM() {
 
         // Calculate the SRAM address
         io_write_to_sram_address_buffer =
-            agus[IOSRAM_TOP_PKG::DSU_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
-                getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_IO_WRITE_TO_SRAM));
+            agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM]
+                .getAddressForCycle(getPortActiveCycle(
+                    DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM));
 
         // Write data to the backend (SRAM)
         backend->set(io_write_to_sram_address_buffer,
@@ -300,12 +303,13 @@ void Iosram_top::readFromSRAM() {
   std::string event_name =
       "dsu_read_from_sram_" + std::to_string(current_event_number);
   // Reading data from the backend to the buffer
-  agus[IOSRAM_TOP_PKG::DSU_PORT_IO_READ_FROM_SRAM].addEvent(
+  agus[DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM].addEvent(
       event_name,
       [this, event_name] {
         io_read_from_sram_address_buffer =
-            agus[IOSRAM_TOP_PKG::DSU_PORT_IO_READ_FROM_SRAM].getAddressForCycle(
-                getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_IO_READ_FROM_SRAM));
+            agus[DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM]
+                .getAddressForCycle(getPortActiveCycle(
+                    DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM));
 
         to_io_data_buffer.clear();
         backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
@@ -325,12 +329,12 @@ void Iosram_top::readFromSRAM() {
 void Iosram_top::readBulk() {
   std::string event_name =
       "dsu_read_bulk_" + std::to_string(current_event_number);
-  agus[IOSRAM_TOP_PKG::DSU_PORT_READ_BULK].addEvent(
+  agus[DSU_RELATIVE_PORT::DSU_PORT_READ_BULK].addEvent(
       event_name,
       [this, event_name] {
         read_bulk_address_buffer =
-            agus[IOSRAM_TOP_PKG::DSU_PORT_READ_BULK].getAddressForCycle(
-                getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_READ_BULK));
+            agus[DSU_RELATIVE_PORT::DSU_PORT_READ_BULK].getAddressForCycle(
+                getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK));
         DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
         vector<uint8_t> data;
         backend->get(read_bulk_address_buffer, io_data_width / 8, data);
@@ -351,12 +355,12 @@ void Iosram_top::readBulk() {
 void Iosram_top::writeBulk() {
   std::string event_name =
       "dsu_write_bulk_" + std::to_string(current_event_number);
-  agus[IOSRAM_TOP_PKG::DSU_PORT_WRITE_BULK].addEvent(
+  agus[DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK].addEvent(
       event_name,
       [this, event_name] {
         write_bulk_address_buffer =
-            agus[IOSRAM_TOP_PKG::DSU_PORT_WRITE_BULK].getAddressForCycle(
-                getPortActiveCycle(IOSRAM_TOP_PKG::DSU_PORT_WRITE_BULK));
+            agus[DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK].getAddressForCycle(
+                getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK));
 
         // Check if some data was received
         DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());

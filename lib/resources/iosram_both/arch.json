@@ -1,5 +1,6 @@
 {
   "kind": "iosram_both",
+  "type": "resource",
   "size": 4,
   "io_input": true,
   "io_output": true,

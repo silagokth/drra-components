@@ -1,4 +1,4 @@
-function(cargo_build FOLDER)
+function(ensure_corrosion)
   if(NOT DEFINED CORROSION_FETCHED OR NOT CORROSION_FETCHED)
     if(NOT EXISTS "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion/CMakeLists.txt")
       message(STATUS "Fetching Corrosion")
@@ -28,6 +28,10 @@ function(cargo_build FOLDER)
          "${CMAKE_SOURCE_DIR}/cmake/modules/corrosion/cmake")
     include(Corrosion)
   endif()
+endfunction()
+
+function(cargo_build FOLDER)
+  ensure_corrosion()
 
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_COMPONENTS_LIBRARY_DIR})
 

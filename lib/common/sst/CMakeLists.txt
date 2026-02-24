@@ -7,6 +7,14 @@ else()
   return()
 endif()
 
+# Build the generate_pkg executable
+ensure_corrosion()
+corrosion_import_crate(
+  MANIFEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/generate_pkg/Cargo.toml
+  PROFILE release
+)
+set(CORROSION_TARGET_NAME "generate_pkg")
+
 # Set the project name
 project(drra_sst_utils)
 

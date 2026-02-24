@@ -1,5 +1,6 @@
 {
   "kind": "sequencer",
+  "type": "controller",
   "size": 16,
   "io_input": false,
   "io_output": false,

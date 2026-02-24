@@ -138,6 +138,13 @@ function(sst_build)
     set(oneValueArgs OVERRIDE_SOURCE_NAME)
     set(multiValueArgs)
 
+    # Get isa and arch path
+    set(ISA_JSON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../isa.json")
+    set(ARCH_JSON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../arch.json")
+
+    # Get template path
+    set(JINJA_TEMPLATE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../common/sst/template")
+
     cmake_parse_arguments(SST_BUILD "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -148,9 +155,13 @@ function(sst_build)
       get_filename_component(component_name "${last_path}" NAME)
     endif()
 
+    if(EXISTS "${ISA_JSON_PATH}" AND EXISTS "${ARCH_JSON_PATH}")
+        sst_generate_source(${component_name} . ${JINJA_TEMPLATE_PATH} ${ISA_JSON_PATH} ${ARCH_JSON_PATH})
+    endif()
+
     file(GLOB COMPONENT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
          ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
-    add_library(${component_name} OBJECT ${COMPONENT_SOURCES})
+    add_library(${component_name} OBJECT ${GENERATED_HEADER} ${GENERATED_SOURCE} ${COMPONENT_SOURCES})
     set_property(TARGET ${component_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     target_link_libraries(${component_name} PRIVATE drra_sst_utils)
@@ -160,4 +171,33 @@ function(sst_build)
 
     target_sources(drra PRIVATE $<TARGET_OBJECTS:${component_name}>)
   endif()
+endfunction()
+
+function(sst_generate_source component_name dest_folder jinja_template isa_path arch_path)
+  set(header "${dest_folder}/${component_name}_pkg.h")
+  set(source "${dest_folder}/${component_name}_pkg.cpp")
+
+  add_custom_command(
+    OUTPUT ${header}
+    COMMAND $<TARGET_FILE:generate_pkg>
+            "${isa_path}" "${arch_path}"
+            "${jinja_template}/component_pkg.h.jinja" "${header}"
+    DEPENDS ${isa_path} ${arch_path}
+            ${jinja_template}/component_pkg.h.jinja
+            generate_pkg
+    COMMENT "Generating header for ${component_name}"
+  )
+  add_custom_command(
+    OUTPUT ${source}
+    COMMAND $<TARGET_FILE:generate_pkg>
+            "${isa_path}" "${arch_path}"
+            "${jinja_template}/component_pkg.cpp.jinja" "${source}"
+    DEPENDS ${isa_path} ${arch_path}
+            ${jinja_template}/component_pkg.cpp.jinja
+            generate_pkg
+    COMMENT "Generating source for ${component_name}"
+  )
+
+  set(GENERATED_HEADER ${header} PARENT_SCOPE)
+  set(GENERATED_SOURCE ${source} PARENT_SCOPE)
 endfunction()

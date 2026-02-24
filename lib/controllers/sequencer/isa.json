@@ -42,7 +42,21 @@
         {
           "name": "mode",
           "comment": "Activation mode. `0`: activates `ports` starting from slot `param`; `1`: activates ports `param` in each slot that is enabled in `ports`; `2`: activates the predefined 64-bit map of ports stored in the sequencer's scalar register number `param`",
-          "bitwidth": 4
+          "bitwidth": 4,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "contiguous"
+            },
+            {
+              "key": 1,
+              "val": "port_index"
+            },
+            {
+              "key": 2,
+              "val": "map"
+            }
+          ]
         },
         {
           "name": "param",

@@ -82,25 +82,27 @@ bool Swb::clockTick(SST::Cycle_t currentCycle) {
   bool result = DRRAResource::clockTick(currentCycle);
 
   if (currentCycle % 10 == 5) {
-    if (isPortActive(SWB_PKG::PORT_INTRACELL)) {
-      int64_t agu_address = agus[SWB_PKG::PORT_INTRACELL].getAddressForCycle(
-          getPortActiveCycle(SWB_PKG::PORT_INTRACELL));
+    if (isPortActive(SWB_PKG::REP_PORT_INTRACELL)) {
+      int64_t agu_address =
+          agus[SWB_PKG::REP_PORT_INTRACELL].getAddressForCycle(
+              getPortActiveCycle(SWB_PKG::REP_PORT_INTRACELL));
       if (agu_address >= 0 && agu_address != currentFsmOption_swb) {
         currentFsmOption_swb = agu_address;
         out.output("SWB switched to SWB configuration #%u\n",
                    currentFsmOption_swb);
       }
     }
-    if (isPortActive(SWB_PKG::PORT_INTERCELL)) {
+    if (isPortActive(SWB_PKG::REP_PORT_INTERCELL)) {
       out.output("Checking AGU for intercell port at cycle %lu\n",
                  currentCycle / 10);
-      int64_t agu_address = agus[SWB_PKG::PORT_INTERCELL].getAddressForCycle(
-          getPortActiveCycle(SWB_PKG::PORT_INTERCELL));
+      int64_t agu_address =
+          agus[SWB_PKG::REP_PORT_INTERCELL].getAddressForCycle(
+              getPortActiveCycle(SWB_PKG::REP_PORT_INTERCELL));
       out.output("AGU address for intercell port: %ld\n", agu_address);
       // print agu expression
-      out.output(
-          "AGU expression: %s\n",
-          agus[SWB_PKG::PORT_INTERCELL].getTimingExpressionString().c_str());
+      out.output("AGU expression: %s\n", agus[SWB_PKG::REP_PORT_INTERCELL]
+                                             .getTimingExpressionString()
+                                             .c_str());
       if (agu_address >= 0 && agu_address != currentFsmOption_route) {
         currentFsmOption_route = agu_address;
         out.output("SWB switched to ROUTE configuration #%u\n",
@@ -182,12 +184,13 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
 
 void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
   out.output("evt (slot=%d, port=%s)\n", instr.slot,
-             instr.port == SWB_PKG::PORT_INTRACELL ? "intracell" : "intercell");
+             instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
+                                                       : "intercell");
 
   // add event to the timing model
   std::string event_name =
       "evt_" + std::to_string(instr.slot) + "_" +
-      (instr.port == SWB_PKG::PORT_INTRACELL ? "intracell" : "intercell");
+      (instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell" : "intercell");
   agus[instr.port].addEvent(
       event_name,
       [this, event_name] {
@@ -198,7 +201,8 @@ void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
 
 void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
   out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port == SWB_PKG::PORT_INTRACELL ? "intracell" : "intercell",
+             instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
+                                                       : "intercell",
              instr.iter, instr.step, instr.delay);
 
   // add repetition to the timing model
@@ -206,10 +210,10 @@ void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
 }
 
 void Swb::handleREPX(const SWB_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot,
-             instr.port == SWB_PKG::PORT_INTRACELL ? "intracell" : "intercell",
-             instr.iter, instr.step, instr.delay);
+  out.output(
+      "repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
+      instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell" : "intercell",
+      instr.iter, instr.step, instr.delay);
 
   auto repx = instr;
   auto repetition_op = agus[instr.port].getLastRepetitionOperator();

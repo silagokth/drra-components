@@ -131,15 +131,15 @@ void Sequencer::handleACT(const SEQUENCER_PKG::ACTInstruction &instr) {
                  {"action_param", static_cast<int>(instr.param)}});
 
   switch (instr.mode) {
-  case SEQUENCER_PKG::ACT_MODE_CONTINUOUS_PORT:
+  case SEQUENCER_PKG::ACT_MODE_CONTIGUOUS:
     handle_continuous_port_mode(instr.ports, instr.param);
     break;
 
-  case SEQUENCER_PKG::ACT_MODE_ALL_PORT_X:
+  case SEQUENCER_PKG::ACT_MODE_PORT_INDEX:
     handle_all_port_X_mode(instr.ports, instr.param);
     break;
 
-  case SEQUENCER_PKG::ACT_MODE_ACTIVATION_VECTOR:
+  case SEQUENCER_PKG::ACT_MODE_MAP:
     handle_activation_vector_mode(instr.ports, instr.param);
     break;
 
