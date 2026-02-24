@@ -26,8 +26,53 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [BULK_BITWIDTH-1:0] bulk_intercell_n_out,
     output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out,
     output logic [BULK_BITWIDTH-1:0] bulk_intercell_e_out,
-    output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out,
+
+    input logic call_in,
+    output logic call_out,
+    input logic ret_in,
+    output logic ret_out,
+    input logic io_en_in_in,
+    output logic io_en_in_out,
+    input logic io_en_out_in,
+    output logic io_en_out_out,
+
+    input logic [IO_ADDR_WIDTH-1:0] io_addr_in_in,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_in_out,
+    input logic [IO_ADDR_WIDTH-1:0] io_addr_out_in,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_out_out,
+
+    input logic [IO_DATA_WIDTH-1:0] io_data_in_in,
+    output logic [IO_DATA_WIDTH-1:0] io_data_in_out,
+    input logic [IO_DATA_WIDTH-1:0] io_data_out_in,
+    output logic [IO_DATA_WIDTH-1:0] io_data_out_out,
+
+    input logic [INSTR_DATA_WIDTH-1:0] instr_data_in,
+    input logic [INSTR_ADDR_WIDTH-1:0] instr_addr_in,
+    input logic [INSTR_HOPS_WIDTH-1:0] instr_hops_in,
+    input logic instr_en_in,
+    output logic [INSTR_DATA_WIDTH-1:0] instr_data_out,
+    output logic [INSTR_ADDR_WIDTH-1:0] instr_addr_out,
+    output logic [INSTR_HOPS_WIDTH-1:0] instr_hops_out,
+    output logic instr_en_out,
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in_in,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in_out
+    
 );
+
+    assign call_out = call_in;
+    assign ret_out = ret_in;
+    assign io_en_in_out = io_en_in_in;
+    assign io_en_out_out = io_en_out_in;
+    assign io_addr_in_out = io_addr_in_in;
+    assign io_addr_out_out = io_addr_out_in;
+    assign io_data_in_out = io_data_in_in;
+    assign io_data_out_out = io_data_out_in;
+    assign instr_en_out = instr_en_in;
+    assign instr_data_out = instr_data_in;
+    assign instr_addr_out = instr_addr_in;
+    assign instr_hops_out = instr_hops_in;
+    
 
     logic clk, rst_n;
     clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));

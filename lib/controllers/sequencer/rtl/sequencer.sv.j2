@@ -105,8 +105,15 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     output logic ret_out,
     input logic ret_in,
-    output logic call_out
+    output logic call_out,
+
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out_in,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out_out
 );
+
+    // Passthroughs
+    assign bulk_intercell_w_in_out = bulk_intercell_w_in_in;
+    assign bulk_intercell_w_out_out = bulk_intercell_w_out_in;
 
     // Scalar registers
     logic [SCALAR_REG_WIDTH-1:0] regs [NUM_SCALAR_REGS-1:0];
