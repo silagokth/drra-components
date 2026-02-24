@@ -182,36 +182,6 @@ protected:
   std::unordered_map<uint32_t, std::function<void(uint32_t)>>
       instructionHandlers;
 
-  // TODO: remove this once all components are updated
-  uint32_t getInstrType(uint32_t instr) {
-    return getInstrField(instr, instrTypeBitwidth,
-                         instrBitwidth - instrTypeBitwidth);
-  }
-
-  uint32_t getInstrOpcode(uint32_t instr) {
-    return getInstrField(instr, instrOpcodeWidth,
-                         instrBitwidth - instrTypeBitwidth - instrOpcodeWidth);
-  }
-
-  uint32_t getInstrSlot(uint32_t instr) {
-    return getInstrField(instr, instrSlotWidth,
-                         instrBitwidth - instrTypeBitwidth - instrOpcodeWidth -
-                             instrSlotWidth);
-  }
-
-  uint32_t isResourceInstruction(uint32_t instr) {
-    return getInstrType(instr) == 1;
-  }
-
-  uint32_t isControlInstruction(uint32_t instr) {
-    return getInstrType(instr) == 0;
-  }
-
-  uint32_t getInstrField(uint32_t instr, uint32_t fieldWidth,
-                         uint32_t fieldOffset) {
-    return (instr & ((1 << fieldWidth) - 1) << fieldOffset) >> fieldOffset;
-  }
-
   std::string formatRawDataToWords(std::vector<uint8_t> raw_data) {
     std::string formatted_data = "[";
     size_t word_size = word_bitwidth / 8;

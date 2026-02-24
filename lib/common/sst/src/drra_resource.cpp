@@ -197,8 +197,6 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
   if (currentSSTCycle % 10 == 1) {
     for (auto &port : active_ports) { // for each port
       if (isPortActive(port.first)) { // if port is active
-        // TODO: remove this (replace by just using the address from AGU to
-        // change config)
         auto events =
             getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
 

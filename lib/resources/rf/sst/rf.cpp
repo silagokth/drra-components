@@ -58,7 +58,6 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
     agus[dsu.port].addEvent(
         event_name,
         [this, event_name] {
-          // TODO: check if this still works
           updatePortAGUs(DataEvent::PortType::ReadNarrow);
           readNarrow();
         },
@@ -161,7 +160,6 @@ void Rf::handleTRANS(const RF_PKG::TRANSInstruction &instr) {
   // Add transition to the timing model
   try {
     agus[instr.port].addTransition(instr.delay);
-    // TODO: check if we need this:
     current_event_number++;
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
