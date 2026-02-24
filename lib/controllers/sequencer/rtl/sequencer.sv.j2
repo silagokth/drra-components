@@ -107,6 +107,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic ret_in,
     output logic call_out,
 
+    input logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in_in,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in_out,
     input logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out_in,
     output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out_out
 );

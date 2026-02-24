@@ -37,8 +37,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic io_en_out_in,
     output logic io_en_out_out,
 
-    input logic [IO_ADDR_WIDTH-1:0] io_addr_in_in,
-    output logic [IO_ADDR_WIDTH-1:0] io_addr_in_out,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_in_in,
+    input logic [IO_ADDR_WIDTH-1:0] io_addr_in_out,
     input logic [IO_ADDR_WIDTH-1:0] io_addr_out_in,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_out_out,
 
@@ -60,6 +60,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     
 );
 
+
+    logic clk, rst_n;
+    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
+    assign rst_n = rst_n_0;
+    clock_buffer #(NUM_SLOTS) clock_buffer (.clk(clk_0), .clk_out(clk_out));
+
     assign call_out = call_in;
     assign ret_out = ret_in;
     
@@ -72,7 +78,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
          io_data_out_out <= '0;
          io_en_in_out <= '0;
          io_en_out_out <= '0;
-      else begin
+      end else begin
          io_addr_in_in <= io_addr_in_out;
          io_addr_out_out <= io_addr_out_in;
          io_data_in_out <= io_data_in_in;
@@ -86,12 +92,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign instr_data_out = instr_data_in;
     assign instr_addr_out = instr_addr_in;
     assign instr_hops_out = instr_hops_in;
-    
-
-    logic clk, rst_n;
-    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
-    assign rst_n = rst_n_0;
-    clock_buffer #(NUM_SLOTS) clock_buffer (.clk(clk_0), .clk_out(clk_out));
 
     logic [2:0] opcode;
     logic [23:0] payload;

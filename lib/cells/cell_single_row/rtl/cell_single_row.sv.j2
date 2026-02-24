@@ -70,10 +70,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic call_swb;
   logic ret_swb;
   
-  logic [INSTR_DATA_WIDTH-1:0] instr_data_out_swb,
-  logic [INSTR_ADDR_WIDTH-1:0] instr_addr_out_swb,
-  logic [INSTR_HOPS_WIDTH-1:0] instr_hops_out_swb,
-  logic instr_en_out_swb,
+  logic [INSTR_DATA_WIDTH-1:0] instr_data_out_swb;
+  logic [INSTR_ADDR_WIDTH-1:0] instr_addr_out_swb;
+  logic [INSTR_HOPS_WIDTH-1:0] instr_hops_out_swb;
+  logic instr_en_out_swb;
   
   logic io_en_in_swb;
   logic [IO_ADDR_WIDTH-1:0] io_addr_in_swb;
@@ -116,7 +116,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .bulk_intercell_w_out_out(bulk_intercell_w_out),
         .ret_out(ret_swb),
         .ret_in(ret_in),
-        .call_out(call_swb),
+        .call_out(call_swb)
     );
 
     {% for res in resources_list %}
