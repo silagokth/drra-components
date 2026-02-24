@@ -61,12 +61,5 @@ fn combine_json(isa_json: &str, arch_json: &str) -> serde_json::Result<Value> {
     let mut combined = arch_content.as_object().unwrap().clone();
     combined.insert("isa".to_string(), isa_content);
 
-    // Write combined JSON to a file for debugging
-    fs::write(
-        "combined.json",
-        serde_json::to_string_pretty(&combined).unwrap(),
-    )
-    .expect("Failed to write combined JSON to file");
-
     Ok(Value::Object(combined))
 }
