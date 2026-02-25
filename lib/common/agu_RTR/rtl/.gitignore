@@ -1,0 +1,10 @@
+*.o
+*.so
+
+*.vcd
+*.dbg
+*.wlf
+*.vstf
+transcript
+
+Bender.lock

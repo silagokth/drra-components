@@ -1,5 +1,6 @@
 {
   "kind": "sequencer",
+  "type": "controller",
   "size": 16,
   "io_input": false,
   "io_output": false,
@@ -18,7 +19,7 @@
     },
     {
       "name": "IRAM_DEPTH",
-      "value": 64
+      "value": 256
     }
   ],
   "required_parameters": [

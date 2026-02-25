@@ -2,11 +2,14 @@ package:
   name: dpu
 
 dependencies:
-  fsm: {path: ../../common/fsm}
-  signal_selector: {path: ../../common/signal_selector}
+  signal_selector: { path: ../../common/signal_selector }
+  agu_RTR: { path: ../../common/agu_RTR }
 
 sources:
   - ./rtl/dpu_pkg.sv
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
+  - ./rtl/controller.sv
+  - ./rtl/mode_selector.sv
+  - ./rtl/decoder.sv

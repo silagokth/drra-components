@@ -29,6 +29,18 @@ module fabric_tb;
   logic ret_all;
   assign ret_all = &ret;
 
+  int   cycle_count = 0;
+  logic start_counting = 0;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (~rst_n) begin
+      cycle_count <= 0;
+    end else if (start_counting) begin
+      cycle_count <= cycle_count + 1;
+    end else begin
+      cycle_count <= cycle_count;
+    end
+  end
+
   int fd;
   int r, c;
   int index;
@@ -77,6 +89,7 @@ module fabric_tb;
       call[i] = 1;
     end
     start_time = $realtime;
+    start_counting = 1;
     @(negedge clk)
     for (int i = 0; i < ROWS; i++) begin
       call[i] = 0;
@@ -91,6 +104,11 @@ module fabric_tb;
     // record simulation time
     @(negedge clk) end_time = $realtime;
     $display("Simulation ends! Total cycles = %d", (end_time - start_time) / 10);
+
+    // write the number of cycles to a file
+    fd = $fopen("rtl_sim_cycles.txt", "w+");
+    $fwrite(fd, "%d\n", cycle_count);
+    $fclose(fd);
 
     // display all the output buffer and write it to a file
     $display("Output Buffers:");

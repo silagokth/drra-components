@@ -2,9 +2,9 @@ package:
   name: rf
 
 dependencies:
-  agu: {path: ../../common/agu}
-  signal_selector: {path: ../../common/signal_selector}
+  signal_selector: { path: ../../common/signal_selector }
 
 sources:
   - ./rtl/rf_pkg.sv
   - ./rtl/rf.sv
+  - ./rtl/controller.sv

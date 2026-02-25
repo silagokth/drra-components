@@ -6,12 +6,69 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "package.j2" %}
   // vesyla_template_end package_macro
 
-  parameter OPCODE_SWB = 3'b100;
-  parameter OPCODE_ROUTE = 3'b101;
-  parameter OPCODE_FSM = 3'b010;
-  parameter NUM_OPTIONS = 4;
-  parameter FSM_MAX_STATES = 4;
-  parameter FSM_DELAY_WIDTH = 3;
+  import agu_RTR_pkg::*;
+
+  parameter int NUM_OPTIONS = 4;
+  parameter int FSM_MAX_STATES = 4;
+  parameter int FSM_DELAY_WIDTH = 3;
+  parameter int OPCODE_WIDTH = 4;
+  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter int OPCODE_H = 26;
+  parameter int OPCODE_L = 24;
+
+  parameter int NUM_AGUS = 2;
+  parameter int AGU_SWB_INDEX = 0;
+  parameter int AGU_SWB_PORTNUM = 0;
+  parameter int AGU_ROUTE_INDEX = 1;
+  parameter int AGU_ROUTE_PORTNUM = 2;
+
+  parameter int NUM_DIRS = 9;
+  parameter int DIR_NORTH_WEST = 0; // NOTE: not supported
+  parameter int DIR_NORTH      = 1;
+  parameter int DIR_NORTH_EAST = 2; // NOTE: not supported
+  parameter int DIR_WEST       = 3;
+  parameter int DIR_LOCAL      = 4;
+  parameter int DIR_EAST       = 5;
+  parameter int DIR_SOUTH_WEST = 6; // NOTE: not supported
+  parameter int DIR_SOUTH      = 7;
+  parameter int DIR_SOUTH_EAST = 8; // NOTE: not supported
+
+  // AGU RTR params
+  parameter int ADDRESS_WIDTH = $clog2(NUM_OPTIONS);
+  parameter int REP_OPTION_WIDTH = $clog2(NUM_OPTIONS);
+  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = 23;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+  parameter int NUM_LEVELS = NUMBER_IR + NUMBER_OR;
+  parameter int INCLUDE_IR_STATES = 1;
+  parameter int INCLUDE_MT_STATES = 1;
+  parameter int INCLUDE_OR_STATES = 1;
+
+  typedef agu_config_class#(
+    .NUMBER_IR         (NUMBER_IR),
+    .NUMBER_MT         (NUMBER_MT),
+    .NUMBER_OR         (NUMBER_OR),
+    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
+    .REP_STEP_WIDTH    (REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
+
+  typedef struct {
+    logic [$clog2(NUM_SLOTS)-1:0] slot_link [NUM_SLOTS];
+  } swb_config_t;
+
+  typedef struct {
+    logic [NUM_SLOTS-1:0] receive_links [NUM_DIRS];
+  } route_receive_config_t;
+
+  typedef struct {
+    logic [NUM_DIRS-1:0] send_links [NUM_SLOTS];
+  } route_send_config_t;
 
 endpackage
 

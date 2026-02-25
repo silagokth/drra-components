@@ -1,18 +1,35 @@
 #include "dpu.h"
 #include "dataEvent.h"
 #include "dpu_operations.h"
+#include "dpu_pkg.h"
 
 using namespace SST;
 
 Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   fsmHandlers.resize(num_fsms);
+  imm_buffers.resize(num_fsms);
   dpuHandlers = DPU_Operations::createHandlers(this);
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
+  // initialize current configuration options to 0
+  for (int i = 0; i < 2; i++) {
+    current_config_option[i] = 0;
+    port_last_rep_level[i] = -1;
+  }
 }
 
 bool Dpu::clockTick(SST::Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
+  bool result = DRRAResource::clockTick(currentCycle);
+
+  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
+    for (const auto &port : portsToActivate) {
+      activatePortsForSlot(port.first, port.second);
+      current_config_option[port.first] = 0;
+    }
+    portsToActivate.clear();
+    last_config_level = -1;
+    last_config_trans = -1;
+  }
 
   // Deal with data events
   for (int i = 0; i < resource_size; i++) {
@@ -26,13 +43,29 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
   if (currentCycle % 10 == 9) {
     for (const auto &port : active_ports) {
       if (isPortActive(port.first)) {
-        fsmHandlers[current_fsm]();
-        break;
+        if (port.first == 0) {
+          int64_t agu_address =
+              agus[0].getAddressForCycle(getPortActiveCycle(0));
+          if (agu_address >= 0 && agu_address != current_fsm) {
+            current_fsm = agu_address;
+            out.output(" FSM switched to FSM #%u\n", current_fsm);
+          }
+
+          out.output("Executing DPU operation for port %u\n", port.first);
+          out.output(" Current FSM: %u\n", current_fsm);
+          out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+          fsmHandlers[current_fsm]();
+          break;
+        }
       }
     }
   }
 
-  return false;
+  return result;
+}
+
+void Dpu::handleActivation(uint32_t slot_id, uint32_t ports) {
+  portsToActivate[slot_id] = ports;
 }
 
 void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
@@ -58,84 +91,93 @@ void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
 }
 
 void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
-  out.output("dpu (slot=%d, option=%d, mode=%d, immediate=%d)\n", instr.slot,
-             instr.option, instr.mode, instr.immediate);
+  out.output("dpu (slot=%d, config=%d, mode=%d, immediate=%d)\n", instr.slot,
+             instr.config, instr.mode, instr.immediate);
 
-  // replace the data buffer with the immediate value if needed
+  // Add the immediate value to the imm_buffers if the mode requires it
   if (instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_ADD_CONST ||
       instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_SUBT_ABS ||
       instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_MULT_CONST ||
       instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_MAX_MIN_CONST ||
       instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_LD_IR) {
-    data_buffers[1] = uint64ToVector(instr.immediate);
+    imm_buffers[instr.config] = uint64ToVector(instr.immediate);
   }
 
-  // Add the reset event
-  next_timing_states[current_fsm].addEvent(
-      "dpu_reset_" + std::to_string(current_event_number), 5,
-      [this] { accumulate_register.clear(); });
-
-  // Add the event handler
-  fsmHandlers[current_fsm] =
+  // Add the event handler to the config index
+  fsmHandlers[instr.config] =
       DPU_Operations::getDPUHandler(this, (DPU_PKG::DPU_MODE)instr.mode);
 }
 
+void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
+  out.output("evt (slot=%d, port=%d)\n", instr.slot, instr.port);
+
+  switch (instr.port) {
+  case DPU_PKG::EVT_PORT::EVT_PORT_DPU:
+    agus[DPU_PKG::EVT_PORT::EVT_PORT_DPU].addEvent(
+        "dpu_event_" +
+            std::to_string(
+                current_config_option[DPU_PKG::EVT_PORT::EVT_PORT_DPU]),
+        [this] {});
+    break;
+  case DPU_PKG::EVT_PORT::EVT_PORT_RST:
+    agus[DPU_PKG::EVT_PORT::EVT_PORT_RST].addEvent(
+        "dpu_reset_" +
+            std::to_string(
+                current_config_option[DPU_PKG::EVT_PORT::EVT_PORT_RST]),
+        [this] {
+          out.output(" DPU accumulate register cleared\n");
+          accumulate_register.clear();
+        });
+    break;
+  default:
+    out.fatal(CALL_INFO, -1, "Invalid EVT port: %d\n", instr.port);
+    break;
+  };
+}
+
 void Dpu::handleREP(const DPU_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
+  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
+             instr.port == 0 ? "dpu" : "rst", instr.iter, instr.step,
              instr.delay);
 
   auto rep = instr;
-  // For now, we only support increasing repetition levels (and no skipping)
-  if (rep.level != port_last_rep_level[rep.port] + 1) {
-    out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              port_last_rep_level[rep.port], rep.level);
-  } else {
-    port_last_rep_level[rep.port] = rep.level;
-  }
 
-  // add repetition to the timing model
+  // Add repetition to the timing model
   try {
-    next_timing_states[0].addRepetition(rep.iter, rep.delay, rep.level,
-                                        rep.step);
+    agus[instr.port].addRepetition(rep.iter, rep.delay, rep.step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
   }
 }
 
 void Dpu::handleREPX(const DPU_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port == 0 ? "dpu" : "rst", instr.iter,
+             instr.step, instr.delay);
 
   auto repx = instr;
-  auto repetition_op =
-      next_timing_states[0].getRepetitionOperatorFromLevel(repx.level);
-  uint32_t iter = repx.iter << 6 | repetition_op.getIterations();
-  uint32_t step = repx.step << 6 | repetition_op.getStep();
-  uint32_t delay = repx.delay << 6 | repetition_op.getDelay();
+  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+  uint32_t iter = repx.iter << DPU_PKG::DPU_INSTR_REP_ITER_BITWIDTH |
+                  repetition_op.getIterations();
+  uint32_t step = repx.step << DPU_PKG::DPU_INSTR_REP_STEP_BITWIDTH |
+                  repetition_op.getStep();
+  uint32_t delay = repx.delay << DPU_PKG::DPU_INSTR_REP_DELAY_BITWIDTH |
+                   repetition_op.getDelay();
+
   try {
-    next_timing_states[0].adjustRepetition(iter, delay, repx.level, step);
+    agus[instr.port].adjustRepetition(iter, delay, step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
   }
 }
 
-void Dpu::handleFSM(const DPU_PKG::FSMInstruction &instr) {
-  out.output("fsm (slot=%d, port=%d, delay_0=%d, delay_1=%d, delay_2=%d)\n",
-             instr.slot, instr.port, instr.delay_0, instr.delay_1,
-             instr.delay_2);
+void Dpu::handleTRANS(const DPU_PKG::TRANSInstruction &instr) {
+  out.output("trans (slot=%d, port=%s, delay=%d)\n", instr.slot,
+             instr.port == 0 ? "dpu" : "rst", instr.delay);
 
-  auto fsm = instr;
-  // add transition to the timing model
+  // Add transition to the timing model
   try {
-    next_timing_states[0].addTransition(
-        fsm.delay_0, "event_" + std::to_string(current_event_number),
-        [this, fsm] {
-          out.output(" FSM switched to %d\n", fsm.port);
-          current_fsm = fsm.port;
-        });
-    current_event_number++;
+    agus[instr.port].addTransition(instr.delay);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
   }
@@ -162,4 +204,12 @@ void Dpu::handleOperation(std::string name,
              name.c_str(), data0, data1, result,
              accumulate_register.size() > 0 ? vectorToInt64(accumulate_register)
                                             : 0);
+  logTraceEvent(
+      "operation", slot_id, true, 'X',
+      {{"data0", static_cast<int>(data0)},
+       {"data1", static_cast<int>(data1)},
+       {"result", static_cast<int>(result)},
+       {"accumulator", static_cast<int>(accumulate_register.size() > 0
+                                            ? vectorToInt64(accumulate_register)
+                                            : 0)}});
 }
