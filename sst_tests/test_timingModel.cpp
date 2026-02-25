@@ -1,4 +1,6 @@
 #include "timingModel.h"
+#include "timingOperators.h"
+#include <ctime>
 #include <gtest/gtest.h>
 
 // Initialize static member
@@ -54,7 +56,7 @@ TEST(TimingModelTest, FindEventByNameTest) {
 
 TEST(TimingModelTest, TransitionOperator) {
   TimingState state = TimingState::createFromEvent("Event1");
-  state.addTransition(4, "Event2", [] {}); // delay is 5 cycles (4 + 1)
+  state.addTransition(4, "Event2", [] {}); // delay is 4 cycles between events
   state.build();                           // Schedule events
 
   // Check Event1 at cycle 0
@@ -130,12 +132,12 @@ TEST(TimingModelTest, ComplexPatternToString) {
   state.addRepetition(1, 9, 1, 0);
   state.build();
 
-  EXPECT_EQ(state.toString(), "R<2,10>(R<2,10>(T<3>(T<2>(e0,e1),e2)))");
+  EXPECT_EQ(state.toString(), "R<2,10>(T<2>(R<2,10>(T<1>(e0,e1)),e2))");
 }
 
 TEST(TimingModelTest, RepetitionTesting) {
   TimingState state = TimingState::createFromEvent("e0");
-  state.addTransition(1, "e1", [] {});
+  state.addTransition(2, "e1", [] {});
   state.addRepetition(1, 3);
   state.addRepetition(1, 1, 1, 0);
   state.build();
@@ -152,7 +154,49 @@ TEST(TimingModelTest, AdjustRepetition) {
   EXPECT_EQ(state.toString(), "R<3,3>(e0)");
 }
 
+void manual_test() {
+  TimingState state = TimingState();
+  auto e0 = std::make_shared<TimingEvent>(
+      "e0", 1,
+      [] {
+        std::cout << "e0 " << std::time(0);
+        // sleep(1);
+      },
+      5);
+  auto r_e0 = std::make_shared<RepetitionOperator>(4, 1, 0, 0, e0);
+  auto e1 = std::make_shared<TimingEvent>(
+      "e1", 2,
+      [] {
+        std::cout << "e1 " << std::time(0);
+        // sleep(1);
+      },
+      5);
+  auto r_e1 = std::make_shared<RepetitionOperator>(4, 1, 2, 2, e1);
+  auto t_e0_e1 =
+      std::make_shared<TransitionOperator>(4, "e1", [] {}, r_e0, r_e1);
+  TimingState state_from_expr = TimingState::createFromExpression(t_e0_e1);
+  std::cout << "State from expression:\n" << state_from_expr.toString() << "\n";
+
+  // state.addEvent("e0", [] {
+  //   std::cout << std::time(0);
+  //   // sleep(1);
+  // });
+  // state.addRepetition(3, 0); // 0 1 2 3
+  //// state.addRepetition(1, 0, 1, 0); // 0 1
+
+  // state.addTransition(0, "e1", [] { std::cout << "t " << std::time(0); });
+  // state.addRepetition(3, 1, 2, 2);
+  //// state.addRepetition(1, 0, 3, 2);
+
+  state = state_from_expr;
+  state.build();
+
+  std::cout << state.toString() << "\n";
+  state.print(std::cout);
+}
+
 int main(int argc, char **argv) {
+  // manual_test();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
