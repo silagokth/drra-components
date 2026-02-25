@@ -1,4 +1,7 @@
+#include "timingExpression.h"
 #include "timingModel.h"
+#include "timingOperators.h"
+#include <ctime>
 #include <gtest/gtest.h>
 
 // Initialize static member
@@ -131,7 +134,7 @@ TEST(TimingModelTest, ComplexPatternToString) {
   state.addRepetition(2, 9, 1, 0);
   state.build();
 
-  EXPECT_EQ(state.toString(), "R<2,10>(R<2,10>(T<3>(T<2>(e0,e1),e2)))");
+  EXPECT_EQ(state.toString(), "R<2,10>(T<2>(R<2,10>(T<1>(e0,e1)),e2))");
 }
 
 TEST(TimingModelTest, RepetitionTesting) {

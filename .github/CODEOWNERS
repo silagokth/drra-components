@@ -4,8 +4,8 @@
 *.vhd.j2 @jagjordi @NosratiNooshin @SabaYs
 *.vhd @jagjordi @NosratiNooshin @SabaYs
 Bender.yml @jagjordi @NosratiNooshin @SabaYs
-*.h @PaulDelestrac @herenvarno
-*.hpp @PaulDelestrac @herenvarno
-*.c @PaulDelestrac @herenvarno
-*.cpp @PaulDelestrac @herenvarno 
-*.rs @PaulDelestrac @herenvarno
+*.h @PaulDelestrac
+*.hpp @PaulDelestrac
+*.c @PaulDelestrac
+*.cpp @PaulDelestrac
+*.rs @PaulDelestrac

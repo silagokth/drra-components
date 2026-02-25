@@ -1,6 +1,7 @@
 #include "swb.h"
 #include "dataEvent.h"
 #include "swb_pkg.h"
+#include "timingOperators.h"
 
 using namespace SST;
 

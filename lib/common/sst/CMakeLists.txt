@@ -30,8 +30,13 @@ if(NOT SST_INCLUDE_DIR)
   message(FATAL_ERROR ${ERROR_MSG})
 endif()
 
+# Compile timing model
+add_subdirectory(timing_model)
+
 # Add the executable
 file(GLOB SOURCES src/*.cpp src/*.c)
 add_library(drra_sst_utils STATIC ${SOURCES})
 set_property(TARGET drra_sst_utils PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(drra_sst_utils PRIVATE ./include/ ${SST_INCLUDE_DIR})
+target_include_directories(
+  drra_sst_utils PRIVATE ./include/ ./timing_model/include ${SST_INCLUDE_DIR})
+target_link_libraries(drra_sst_utils PRIVATE drra_timing_model)
