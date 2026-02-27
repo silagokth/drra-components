@@ -1,4 +1,6 @@
+#include "timingExpression.h"
 #include "timingModel.h"
+#include "timingOperators.h"
 
 class DRRA_AGU {
 private:
