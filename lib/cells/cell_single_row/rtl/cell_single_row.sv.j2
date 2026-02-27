@@ -1,11 +1,6 @@
 `define {{name}} {{name}}_{{fingerprint}}
 `define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 
-{% for key, value in fingerprint_table | items %}
-`define {{key}} {{key}}_{{value}}
-`define {{key}}_pkg {{key}}_{{value}}_pkg
-{% endfor %}
-
 {% if not already_defined %}
 package {{name}}_{{fingerprint}}_pkg;
     {% for p in parameters %}
@@ -20,7 +15,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic clk_resource,
     output logic clk_out_swb,
     output logic clk_out_resource,
-    
     input logic rst_n,
     input logic call_in,
     output logic call_out,
@@ -99,7 +93,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     {% for res in resources_list %}
     {% if res.slot==0 %}
-    `{{res.name}} resource_{{res.slot}}_inst
+    `{{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
     (
       {% for i in range(res.size) %}
         .clk_{{i}}(clk_swb),
@@ -125,7 +119,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     {% else %}
 
-    `{{res.name}} resource_{{res.slot}}_inst
+    `{{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
     (
         {% for i in range(res.size) %}
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
