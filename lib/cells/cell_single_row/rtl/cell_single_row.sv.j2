@@ -63,7 +63,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
 
     // Controller
-    `{{controller.name}} controller_inst
+    {{controller.name}} controller_inst
     (
         .clk_0(clk_resource),
         .rst_n(rst_n),
@@ -93,7 +93,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     {% for res in resources_list %}
     {% if res.slot==0 %}
-    `{{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
+    {{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
     (
       {% for i in range(res.size) %}
         .clk_{{i}}(clk_swb),
@@ -119,7 +119,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     {% else %}
 
-    `{{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
+    {{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
     (
         {% for i in range(res.size) %}
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
