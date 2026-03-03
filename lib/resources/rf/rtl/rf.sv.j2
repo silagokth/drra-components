@@ -10,19 +10,54 @@ import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
     input  logic clk_0,
-    input  logic rst_n_0,
-    input  logic instr_en_0,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
-    input  logic [3:0] activate_0,
+    output logic clk_out,
+    input  logic rst_n,
+    output logic rst_n_out,
+    input [$clog2(NUM_SLOTS)-1:0] resource_address,
+    output [$clog2(NUM_SLOTS)-1:0] resource_address_out,
+    input  logic [NUM_SLOTS-1:0] instr_en_resource,
+    output  logic [NUM_SLOTS-1:0] instr_en_resource_out,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr,
+    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_out,
+    input  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate,
+    output logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_out,
     input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
     output logic [WORD_BITWIDTH-1:0] word_data_out_0,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_0
 );
 
-    logic clk, rst_n;
-    assign clk = clk_0;
-    assign rst_n = rst_n_0;
+    parameter RESOURCE_SLOTS = 1;
+    clock_buffer #(RESOURCE_SLOTS) clock_buffer (.clk(clk_0), .clk_out(clk_out));
+    assign rst_n_out = rst_n;
+    assign instr_out = instr;
+    assign activate_out = activate;
+    assign instr_en_resource_out = instr_en_resource;
+
+    logic clk;
+    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
+
+    logic instr_en_x [RESOURCE_SLOTS-1:0];
+    logic [FSM_PER_SLOT-1:0] activate_x [RESOURCE_SLOTS-1:0];
+    
+    logic instr_en_0;
+    logic [FSM_PER_SLOT-1:0] activate_0;
+    assign instr_en_0 = instr_en_x[0];
+    assign activate_0 = activate_x[0];
+
+
+    signal_selector #(
+        .NUM_SLOTS(NUM_SLOTS),
+        .RESOURCE_SLOTS(RESOURCE_SLOTS),
+        .FSM_PER_SLOT(FSM_PER_SLOT)
+    ) signal_selector_0 (
+        .resource_address(resource_address),
+        .activate_resource(activate),
+        .instr_valid_resource(instr_en_resource),
+        .instr_valid(instr_en_x),
+        .activate(activate_x),
+        .resource_address_out(resource_address_out)
+    );
 
     logic [RF_DEPTH-1:0][WORD_BITWIDTH-1:0] memory, memory_next;
     logic bulk_w_en, bulk_r_en, word_w_en, word_r_en;
@@ -78,8 +113,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
     logic [RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0] payload;
 
-    assign opcode = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
     
     dsu_t dsu;
     rep_t rep;

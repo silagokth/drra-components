@@ -1,11 +1,6 @@
 `define {{name}} {{name}}_{{fingerprint}}
 `define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 
-{% for key, value in fingerprint_table | items %}
-`define {{key}} {{key}}_{{value}}
-`define {{key}}_pkg {{key}}_{{value}}_pkg
-{% endfor %}
-
 {% if not already_defined %}
 package {{name}}_{{fingerprint}}_pkg;
     {% for p in parameters %}
@@ -16,7 +11,10 @@ endpackage
 module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
 (
-    input logic clk,
+    input logic clk_swb,
+    input logic clk_resource,
+    output logic clk_out_swb,
+    output logic clk_out_resource,
     input logic rst_n,
     input logic call_in,
     output logic call_out,
@@ -46,95 +44,162 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out
 );
 
-  logic [NUM_SLOTS-1:0] resource_clk;
-  logic [NUM_SLOTS-1:0] resource_rst_n;
-  logic [NUM_SLOTS-1:0] instr_valid;
-  logic [NUM_SLOTS-1:0][RESOURCE_INSTR_WIDTH-1:0] instr;
-  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
-
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_in;
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_out;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_in;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_out;
 
+  logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus [NUM_SLOTS-1:0]; // Shared instruction bus
+  logic clk_feedthrough_resource [NUM_SLOTS-1:0];
+  logic rst_n_feedthrough_resource [NUM_SLOTS-1:0];
+  logic [NUM_SLOTS-1:0] instr_valid_resource [NUM_SLOTS-1:0];                     // Valid when sending to slot {{i}}
+  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_resource [NUM_SLOTS-1:0];     // Per-FSM activation bits for slot {{i}}
+  logic [$clog2(NUM_SLOTS)-1:0] resource_address [NUM_SLOTS-1:0];
+
+  logic rst_n_feedthrough_swb;
+  logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus_swb; // Shared instruction bus
+  logic instr_valid_swb;                     // Valid when sending to slot {{i}}
+  logic [FSM_PER_SLOT-1:0] activate_swb;     // Per-FSM activation bits for slot {{i}}
+
+  logic call_swb;
+  logic ret_swb;
+  
+  logic [INSTR_DATA_WIDTH-1:0] instr_data_out_swb;
+  logic [INSTR_ADDR_WIDTH-1:0] instr_addr_out_swb;
+  logic [INSTR_HOPS_WIDTH-1:0] instr_hops_out_swb;
+  logic instr_en_out_swb;
+  
+  logic io_en_in_swb;
+  logic [IO_ADDR_WIDTH-1:0] io_addr_in_swb;
+  logic [IO_DATA_WIDTH-1:0] io_data_in_swb;
+  logic io_en_out_swb;
+  logic [IO_ADDR_WIDTH-1:0] io_addr_out_swb;
+  logic [IO_DATA_WIDTH-1:0] io_data_out_swb;
+
+  logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in_ctrl;
+  logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out_ctrl;
+
+
     // Controller
-    `{{controller.name}} controller_inst
+    {{controller.name}} controller_inst
     (
-        .clk(clk),
+        .clk_0(clk_resource),
         .rst_n(rst_n),
         .call(call_in),
-        {% for i in range(16) %}
-        .instr_valid_{{i}}(instr_valid[{{i}}]),
-        .instr_{{i}}(instr[{{i}}]),
-        .activate_{{i}}(activate[{{i}}]),
-        .clk_{{i}}(resource_clk[{{i}}]),
-        .rst_n_{{i}}(resource_rst_n[{{i}}]),
-        {% endfor %}
+        .instr_bus_resource(instr_bus[0]), 
+        .clk_feedthrough_resource(clk_feedthrough_resource[0]),
+        .rst_n_feedthrough_resource(rst_n_feedthrough_resource[0]),
+        .instr_valid_resource(instr_valid_resource[0]),                     
+        .activate_resource(activate_resource[0]),     
+        .resource_address(resource_address[0]),
+        .rst_n_feedthrough_swb(rst_n_feedthrough_swb),
+        .instr_bus_swb(instr_bus_swb), 
+        .instr_valid_swb(instr_valid_swb),                     
+        .activate_swb(activate_swb),     
         .instr_load_data_in(instr_data_in),
         .instr_load_addr_in(instr_addr_in),
         .instr_load_hops_in(instr_hops_in),
         .instr_load_en_in(instr_en_in),
-        .instr_load_data_out(instr_data_out),
-        .instr_load_addr_out(instr_addr_out),
-        .instr_load_hops_out(instr_hops_out),
-        .instr_load_en_out(instr_en_out),
-        .ret_out(ret_out),
+        .instr_load_data_out(instr_data_out_swb),
+        .instr_load_addr_out(instr_addr_out_swb),
+        .instr_load_hops_out(instr_hops_out_swb),
+        .instr_load_en_out(instr_en_out_swb),
+        .bulk_intercell_w_in_in(bulk_intercell_w_in),
+        .bulk_intercell_w_in_out(bulk_intercell_w_in_ctrl),
+        .bulk_intercell_w_out_in(bulk_intercell_w_out_ctrl),
+        .bulk_intercell_w_out_out(bulk_intercell_w_out),
+        .ret_out(ret_swb),
         .ret_in(ret_in),
-        .call_out(call_out)
+        .call_out(call_swb)
     );
 
     {% for res in resources_list %}
     {% if res.slot==0 %}
-    `{{res.name}} resource_{{res.slot}}_inst
+    {{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
     (
       {% for i in range(res.size) %}
-        .clk_{{i}}(resource_clk[{{res.slot + i}}]),
-        .rst_n_{{i}}(resource_rst_n[{{res.slot + i}}]),
-        .instr_en_{{i}}(instr_valid[{{res.slot + i}}]),
-        .instr_{{i}}(instr[{{res.slot + i}}]),
-        .activate_{{i}}(activate[{{ res.slot+i }}]),
+        .clk_{{i}}(clk_swb),
+        .clk_out(clk_out_swb),
+        .rst_n_{{i}}(rst_n_feedthrough_swb),
+        .instr_en_{{i}}(instr_valid_swb),
+        .instr_{{i}}(instr_bus_swb),
+        .activate_{{i}}(activate_swb),
       {% endfor %}
+        .call_in(call_swb),
+        .call_out(call_out),
+        .ret_in(ret_swb),
+        .ret_out(ret_out),
+        .io_en_in_in(io_en_in),
+        .io_en_in_out(io_en_in_swb),
+        .io_en_out_in(io_en_out_swb),
+        .io_en_out_out(io_en_out),
+        .io_addr_in_in(io_addr_in),
+        .io_addr_in_out(io_addr_in_swb),
+        .io_addr_out_in(io_addr_out_swb),
+        .io_addr_out_out(io_addr_out),
+        .io_data_in_in(io_data_in),
+        .io_data_in_out(io_data_in_swb),
+        .io_data_out_in(io_data_out_swb),
+        .io_data_out_out(io_data_out),
+        .instr_data_in(instr_data_out_swb),
+        .instr_addr_in(instr_addr_out_swb),
+        .instr_hops_in(instr_hops_out_swb),
+        .instr_en_in(instr_en_out_swb),
+        .instr_data_out(instr_data_out),
+        .instr_addr_out(instr_addr_out),
+        .instr_hops_out(instr_hops_out),
+        .instr_en_out(instr_en_out),
+
         .word_channels_in(word_data_out),
         .word_channels_out(word_data_in),
         .bulk_intracell_in(bulk_data_out),
         .bulk_intracell_out(bulk_data_in),
         .bulk_intercell_n_in(bulk_intercell_n_in),
-        .bulk_intercell_w_in(bulk_intercell_w_in),
+        .bulk_intercell_w_in(bulk_intercell_w_in_ctrl),
         .bulk_intercell_e_in(bulk_intercell_e_in),
         .bulk_intercell_s_in(bulk_intercell_s_in),
         .bulk_intercell_n_out(bulk_intercell_n_out),
-        .bulk_intercell_w_out(bulk_intercell_w_out),
+        .bulk_intercell_w_out(bulk_intercell_w_out_ctrl),
         .bulk_intercell_e_out(bulk_intercell_e_out),
         .bulk_intercell_s_out(bulk_intercell_s_out)
       );
 
     {% else %}
 
-    `{{res.name}} resource_{{res.slot}}_inst
+    {{res.name}}_{{res.fingerprint}} resource_{{res.slot}}_inst
     (
         {% for i in range(res.size) %}
-        .clk_{{i}}(clk),
-        .rst_n_{{i}}(rst_n),
-        .instr_en_{{i}}(instr_valid[{{ res.slot+i }}]),
-        .instr_{{i}}(instr),
-        .activate_{{i}}(activate[{{ res.slot+i }}]),
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
         .word_data_out_{{i}}(word_data_out[{{res.slot+i}}]),
         .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),
-        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]){% if i < res.size-1 %},{% endif %}
+        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]), {% if i < res.size-1 %}{% endif %}
         {% endfor %}
+        .clk_0(clk_feedthrough_resource[{{res.slot}}-1]),
+        .rst_n(rst_n_feedthrough_resource[{{res.slot}}-1]),
+        .clk_out(clk_feedthrough_resource[{{res.slot+res.size}}-1]),
+        .rst_n_out(rst_n_feedthrough_resource[{{res.slot+res.size}}-1]),
+        .instr_en_resource(instr_valid_resource[{{res.slot}}-1]),
+        .instr_en_resource_out(instr_valid_resource[{{res.slot+res.size}}-1]),
+        .instr(instr_bus[{{res.slot}}-1]),
+        .instr_out(instr_bus[{{res.slot+res.size}}-1]),
+        .activate(activate_resource[{{res.slot}}-1]),
+        .activate_out(activate_resource[{{res.slot+res.size}}-1]),
+        .resource_address(resource_address[{{res.slot}}-1]),
+        .resource_address_out(resource_address[{{res.slot+res.size}}-1])
         {% if res.io_input %},
-        .io_en_in(io_en_in),
-        .io_addr_in(io_addr_in),
-        .io_data_in(io_data_in)
+        .io_en_in(io_en_in_swb),
+        .io_addr_in(io_addr_in_swb),
+        .io_data_in(io_data_in_swb)
         {% endif %}{% if res.io_output %},
-        .io_en_out(io_en_out),
-        .io_addr_out(io_addr_out),
-        .io_data_out(io_data_out)
+        .io_en_out(io_en_out_swb),
+        .io_addr_out(io_addr_out_swb),
+        .io_data_out(io_data_out_swb)
         {% endif %}
     );
     {% endif %}
     {% endfor %}
+
+    assign clk_out_resource = clk_feedthrough_resource[NUM_SLOTS-1];
 
 endmodule
 {% endif %}

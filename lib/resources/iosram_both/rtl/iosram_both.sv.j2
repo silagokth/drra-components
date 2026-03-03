@@ -10,37 +10,31 @@ import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
     input  logic clk_0,
-    input  logic rst_n_0,
-    input  logic instr_en_0,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
-    input  logic [3:0] activate_0,
+    output logic clk_out,
+    input  logic rst_n,
+    output  logic rst_n_out,
+
+    input [$clog2(NUM_SLOTS)-1:0] resource_address,
+    output [$clog2(NUM_SLOTS)-1:0] resource_address_out,
+    input  logic [NUM_SLOTS-1:0] instr_en_resource,
+    output  logic [NUM_SLOTS-1:0] instr_en_resource_out,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr,
+    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_out,
+    input  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate,
+    output logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_out,
+
     input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
     output logic [WORD_BITWIDTH-1:0] word_data_out_0,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
-    input  logic clk_1,
-    input  logic rst_n_1,
-    input  logic instr_en_1,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
-    input  logic [3:0] activate_1,
     input  logic [WORD_BITWIDTH-1:0] word_data_in_1,
     output logic [WORD_BITWIDTH-1:0] word_data_out_1,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_1,
-    input  logic clk_2,
-    input  logic rst_n_2,
-    input  logic instr_en_2,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_2,
-    input  logic [3:0] activate_2,
     input  logic [WORD_BITWIDTH-1:0] word_data_in_2,
     output logic [WORD_BITWIDTH-1:0] word_data_out_2,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_2,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_2,
-    input  logic clk_3,
-    input  logic rst_n_3,
-    input  logic instr_en_3,
-    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_3,
-    input  logic [3:0] activate_3,
     input  logic [WORD_BITWIDTH-1:0] word_data_in_3,
     output logic [WORD_BITWIDTH-1:0] word_data_out_3,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_3,
@@ -62,27 +56,68 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign bulk_data_out_2 = 0;
     assign bulk_data_out_3 = 0;
 
-    logic clk, rst_n;
-    assign clk = clk_0;
-    assign rst_n = rst_n_0;
+    parameter RESOURCE_SLOTS = 4;
+    logic instr_en_x [RESOURCE_SLOTS-1:0];
+    logic [FSM_PER_SLOT-1:0] activate_x [RESOURCE_SLOTS-1:0];
+
+    
+    logic instr_en_0;
+    logic instr_en_1;
+    logic instr_en_2;
+    logic instr_en_3;
+    logic [FSM_PER_SLOT-1:0] activate_0;
+    logic [FSM_PER_SLOT-1:0] activate_1;
+    logic [FSM_PER_SLOT-1:0] activate_2;
+    logic [FSM_PER_SLOT-1:0] activate_3;
+    assign instr_en_0 = instr_en_x[0];
+    assign instr_en_1 = instr_en_x[1];
+    assign instr_en_2 = instr_en_x[2];
+    assign instr_en_3 = instr_en_x[3];
+    assign activate_0 = activate_x[0];
+    assign activate_1 = activate_x[1];
+    assign activate_2 = activate_x[2];
+    assign activate_3 = activate_x[3];
+
+    clock_buffer #(RESOURCE_SLOTS) clock_buffer (.clk(clk_0), .clk_out(clk_out));
+    assign rst_n_out = rst_n;
+    assign activate_out = activate;
+    assign instr_en_resource_out = instr_en_resource;
+    assign instr_out = instr;
+
+    logic clk;
+    clock_buffer #(1) clock_local_buffer (.clk(clk_0), .clk_out(clk));
+
+    signal_selector #(
+        .NUM_SLOTS(NUM_SLOTS),
+        .RESOURCE_SLOTS(4),
+        .FSM_PER_SLOT(FSM_PER_SLOT)
+    ) signal_selector_0 (
+        .resource_address(resource_address),
+        .activate_resource(activate),
+        .instr_valid_resource(instr_en_resource),
+        .instr_valid(instr_en_x),
+        .activate(activate_x),
+        .resource_address_out(resource_address_out)
+    );
+
 
     logic [INSTR_OPCODE_BITWIDTH-1:0] opcode_0_0, opcode_0_2, opcode_1_3;
     logic [INSTR_OPCODE_BITWIDTH-1:0] opcode_0_1, opcode_0_3, opcode_1_2;
     logic [RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0] payload_0_0, payload_0_2, payload_1_3;
     logic [RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0] payload_0_1, payload_0_3, payload_1_2;
 
-    assign opcode_0_0 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_0_0 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_0_2 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_0_2 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_1_3 = instr_1[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_1_3 = instr_1[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_0_1 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_0_1 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_0_3 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_0_3 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_1_2 = instr_1[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_1_2 = instr_1[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_0_0 = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_0_0 = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_0_2 = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_0_2 = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_1_3 = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_1_3 = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_0_1 = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_0_1 = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_0_3 = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_0_3 = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
+    assign opcode_1_2 = instr[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
+    assign payload_1_2 = instr[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
     
     dsu_t dsu_0_0, dsu_0_2, dsu_1_3;
     rep_t rep_0_0, rep_0_2, rep_1_3;

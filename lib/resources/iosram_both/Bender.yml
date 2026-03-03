@@ -3,6 +3,9 @@ package:
 
 dependencies:
   sram: {path: ../../common/sram}
+  signal_selector: {path: ../../common/signal_selector}
+  clock_buffer: {path: ../../common/clock_buffer}
+  agu: {path: ../../common/agu}
 
 sources:
   - ./rtl/iosram_both_pkg.sv

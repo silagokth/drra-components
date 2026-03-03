@@ -1,0 +1,10 @@
+package:
+  name: clock_buffer
+
+sources:
+  - target: gf22
+    files:
+      - ./rtl/clock_buffer.gf22.sv
+  - target: sim
+    files:
+      - ./rtl/clock_buffer.sim.sv

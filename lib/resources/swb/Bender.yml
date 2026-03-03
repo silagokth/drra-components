@@ -3,6 +3,7 @@ package:
 
 dependencies:
   fsm: {path: ../../common/fsm}
+  clock_buffer: {path: ../../common/clock_buffer}
 
 sources:
   - ./rtl/swb_pkg.sv
