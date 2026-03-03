@@ -3,8 +3,6 @@
 #include "instructionEvent.h"
 #include "timingModel.h"
 
-#include <cmath>
-
 #include <sst/core/link.h>
 #include <sst/core/params.h>
 
@@ -38,11 +36,27 @@ public:
       }
       out.print(")\n");
     }
+
+    // Write metadata to trace file
+    trace_file.open(trace_name, std::ios::app);
+    trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
+                  "\"tid\": 2"
+               << std::setw(3) << std::setfill('0') << cell_coordinates[0]
+               << std::setw(3) << std::setfill('0') << cell_coordinates[1]
+               << std::setw(3) << std::setfill('0') << 0
+               << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
+    trace_file.close();
   }
 
   virtual ~DRRAController() {
-    // Open trace file to modify the last line
     if (cell_coordinates[0] == 0 && cell_coordinates[1] == 0) {
+      // Write the cycle count to a file
+      std::ofstream cycle_file;
+      cycle_file.open("instr_sim_cycles.txt", std::ios::out | std::ios::trunc);
+      cycle_file << _currentSSTCycle / 10 << std::endl;
+      cycle_file.close();
+
+      // Open trace file to modify the last line
       trace_file.open(trace_name, std::ios::app);
       // Find the last comma and remove it
       std::ifstream trace_file_read(trace_name);

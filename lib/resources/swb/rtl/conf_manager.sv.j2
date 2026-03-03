@@ -1,0 +1,107 @@
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_conf_manager
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+  input logic clk,
+  input logic rst_n,
+
+  // AGU address interface
+  input logic [NUM_AGUS-1:0] agu_enable,
+  input logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address,
+  input logic [NUM_AGUS-1:0] agu_is_configured,
+
+  // SWB and ROUTE selection
+  input logic swb_conf_valid,
+  input logic route_in_conf_valid,
+  input logic route_out_conf_valid,
+  input logic [$clog2(NUM_OPTIONS)-1:0] option_index,
+
+  // SWB and ROUTE link indices to configure
+  input logic [$clog2(NUM_SLOTS)-1:0] swb_conf_link,
+  input logic [$clog2(NUM_DIRS)-1:0]  route_in_conf_link,
+  input logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link,
+
+  // SWB and ROUTE configurations
+  input swb_config_t swb_configs [NUM_OPTIONS],
+  input route_receive_config_t route_in_configs [NUM_OPTIONS],
+  input route_send_config_t    route_out_configs [NUM_OPTIONS],
+
+  // Output current configurations
+  output swb_config_t current_swb_config,
+  output route_receive_config_t current_route_in_config,
+  output route_send_config_t    current_route_out_config
+);
+
+  // Signal to hold current option index (renamed for clarity)
+  logic [NUM_AGUS-1:0] option_valid;
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] current_option;
+  always_ff @(posedge clk or negedge rst_n) begin
+    // Default to not valid
+    if (!rst_n) begin
+      option_valid <= '0;
+      current_option <= '0;
+    end else begin
+      for (int i = 0; i < NUM_AGUS; i++) begin
+        if (agu_enable[i]) begin
+          option_valid[i] <= 1'b1;
+          current_option[i] <= agu_address[i];
+        end else begin
+          option_valid[i] <= 1'b1;
+          current_option[i] <= current_option[i];
+        end
+      end
+    end
+  end
+
+  // Signals to hold all configurations
+  swb_config_t swb_config_reg [NUM_OPTIONS];
+  route_receive_config_t route_in_config_reg [NUM_OPTIONS];
+  route_send_config_t    route_out_config_reg [NUM_OPTIONS];
+
+  // Update configurations on valid address
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      // Reset all configurations
+      for (int i = 0; i < NUM_OPTIONS; i++) begin
+        for (int j = 0; j < NUM_SLOTS; j++)
+          swb_config_reg[i].slot_link[j] <= '{default: 0};
+        for (int d = 0; d < NUM_DIRS; d++)
+          route_in_config_reg[i].receive_links[d] <= '{default: 0};
+        for (int s = 0; s < NUM_SLOTS; s++)
+          route_out_config_reg[i].send_links[s] <= '{default: 0};
+      end
+    end else begin
+      // Register configurations if valid else hold previous value
+      if (swb_conf_valid)
+        swb_config_reg[option_index].slot_link[swb_conf_link] <=
+          swb_configs[option_index].slot_link[swb_conf_link];
+
+      // Register route in configurations if valid else hold previous value
+      if (route_in_conf_valid)
+        route_in_config_reg[option_index].receive_links[route_in_conf_link] <=
+          route_in_configs[option_index].receive_links[route_in_conf_link];
+
+      // Register route out configurations if valid else hold previous value
+      if (route_out_conf_valid)
+        route_out_config_reg[option_index].send_links[route_out_conf_link] <=
+          route_out_configs[option_index].send_links[route_out_conf_link];
+    end
+  end
+
+  // Assign current configurations based on current option
+  always_comb begin
+    current_swb_config        = '{default: 0};
+    current_route_in_config   = '{default: 0};
+    current_route_out_config  = '{default: 0};
+
+    if (option_valid[AGU_SWB_INDEX] && current_option[AGU_SWB_INDEX] < NUM_OPTIONS)
+      current_swb_config        = swb_config_reg[current_option[AGU_SWB_INDEX]];
+    if (option_valid[AGU_ROUTE_INDEX] && current_option[AGU_ROUTE_INDEX] < NUM_OPTIONS) begin
+      current_route_in_config   = route_in_config_reg[current_option[AGU_ROUTE_INDEX]];
+      current_route_out_config  = route_out_config_reg[current_option[AGU_ROUTE_INDEX]];
+    end
+  end
+
+endmodule
+

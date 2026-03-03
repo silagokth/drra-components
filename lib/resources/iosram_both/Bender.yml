@@ -2,8 +2,12 @@ package:
   name: iosram_both
 
 dependencies:
-  sram: {path: ../../common/sram}
+  sram: { path: ../../common/sram }
+  signal_selector: { path: ../../common/signal_selector }
+  clock_buffer: {path: ../../common/clock_buffer}
 
 sources:
   - ./rtl/iosram_both_pkg.sv
   - ./rtl/iosram_both.sv
+  - ./rtl/controller.sv
+  - ./rtl/decoder.sv

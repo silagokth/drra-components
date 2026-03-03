@@ -52,19 +52,36 @@ public:
       delete backend;
   };
 
+  void complete(unsigned int phase) override {
+    logTraceEvent("memory", slot_id, true, 'E', {});
+  }
+
   bool clockTick(SST::Cycle_t currentCycle) override;
+  void handleActivation(uint32_t slot_id, uint32_t ports) override;
+
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   // Instruction format
   using DRRAResource::format;
   void handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr);
   void handleREP(const IOSRAM_TOP_PKG::REPInstruction &instr);
   void handleREPX(const IOSRAM_TOP_PKG::REPXInstruction &instr);
+  void handleTRANS(const IOSRAM_TOP_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 
 private:
+  enum DSU_RELATIVE_PORT {
+    DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_TOP_PKG::DSU_PORT_INPUT_BUFFER,
+    DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_TOP_PKG::DSU_PORT_OUTPUT_BUFFER,
+    DSU_PORT_IO_WRITE_TO_SRAM = IOSRAM_TOP_PKG::DSU_PORT_SRAM_WRITE,
+    DSU_PORT_IO_READ_FROM_SRAM = IOSRAM_TOP_PKG::DSU_PORT_SRAM_READ,
+    DSU_PORT_WRITE_BULK = 6,
+    DSU_PORT_READ_BULK = 7
+  };
   std::string access_time;
 
+  std::string dumpBackendContent();
   SST::MemHierarchy::Backend::Backing *backend = nullptr;
   ScratchBackendConvertor *backendConvertor = nullptr;
 
@@ -99,6 +116,7 @@ private:
 
   int32_t agu_initial_addr = -1;
   uint32_t current_event_number = 0;
+  std::map<uint32_t, size_t> current_option_config;
 };
 
 #endif // _IOSRAM_TOP_H

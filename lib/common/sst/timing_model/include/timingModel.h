@@ -7,8 +7,6 @@
 #include <memory>
 #include <string>
 
-class TimingState;
-
 class TimingEvent : public TimingExpression,
                     public std::enable_shared_from_this<TimingEvent> {
 private:
@@ -19,8 +17,8 @@ private:
 
 public:
   TimingEvent(const std::string &name, uint64_t eventNumber);
-  TimingEvent(const std::string &name, uint64_t eventNumber,
-              std::function<void()> handler, uint8_t priority);
+  TimingEvent(std::shared_ptr<const TimingEvent> other);
+
   uint64_t scheduleEvents(TimingState &state,
                           uint64_t startCycle) const override;
   std::string toString() const override;

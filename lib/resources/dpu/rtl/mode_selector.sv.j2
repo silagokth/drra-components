@@ -1,0 +1,51 @@
+// vesyla_template_start module_head
+module dpu_mode_selector
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+  input logic clk,
+  input logic rst_n,
+
+  input logic dpu_valid,
+  input dpu_t dpu_instr,
+
+  input logic dpu_agu_valid,
+  input logic [AGU_DPU_ADDR_WIDTH-1:0] dpu_agu_address,
+
+  output logic [     DPU_MODE_WIDTH-1:0] dpu_mode,
+  output logic [DPU_IMMEDIATE_WIDTH-1:0] immediate
+
+);
+  localparam int NUM_FSM_STATES = $clog2(FSM_MAX_STATES);
+  logic [AGU_DPU_ADDR_WIDTH-1:0] dpu_mode_index;
+  logic [NUM_FSM_STATES-1:0][DPU_MODE_WIDTH-1:0]      mode_memory;
+  logic [NUM_FSM_STATES-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DPU mode index registration
+  // ─────────────────────────────────────────────────────────────────────────
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      dpu_mode_index <= '0;
+    end else if (dpu_agu_valid) begin
+      dpu_mode_index <= dpu_agu_address;
+    end
+  end
+
+  // ────────────────────────────────────────────────────────────────────────
+  // DPU mode and immediate memory update logic
+  // ────────────────────────────────────────────────────────────────────────
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      mode_memory        <= '0;
+      immediate_memory   <= '0;
+    end else if (dpu_valid) begin
+      mode_memory[dpu_instr._config]      <= dpu_instr._mode;
+      immediate_memory[dpu_instr._config] <= dpu_instr._immediate;
+    end
+  end
+
+  assign dpu_mode  = dpu_agu_valid ? mode_memory[dpu_agu_address] : mode_memory[dpu_mode_index];
+  assign immediate = dpu_agu_valid ? immediate_memory[dpu_agu_address] : '0;
+
+endmodule

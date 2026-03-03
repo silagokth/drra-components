@@ -1,0 +1,8 @@
+[package]
+name = "generate_pkg"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+minijinja = "2.16.0"
+serde_json = "1.0.64"

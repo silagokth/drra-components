@@ -1,10 +1,9 @@
 #pragma once
+
 #include "timingExpression.h"
 
 #include <cstdint>
-#include <functional>
 #include <memory>
-#include <string>
 
 class TimingOperator : public TimingExpression {
 public:
@@ -36,8 +35,6 @@ public:
   std::string toString() const override;
   uint64_t lastEventId() const override;
   std::string lastEventName() const override;
-
-  // TimingState toTimingState() const;
 };
 
 class RepetitionOperator : public TimingOperator {

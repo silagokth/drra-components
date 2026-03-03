@@ -1,10 +1,19 @@
+  parameter int RESOURCE_SLOTS = {{ size }};
   {% for p in parameters %}
-  parameter {{p}} = {{parameters[p]}};
+  parameter int {{p}} = {{parameters[p]}};
   {% endfor %}
 
   {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
   {% for instr in isa.instructions %}
+  parameter int OPCODE_{{instr.name | upper }} = {{instr.opcode}};
   {% if instr.segments is defined and instr.segments|length > 0 %}
+    {% for segment in instr.segments %}
+      {% if segment.verbo_map is defined and segment.verbo_map | length > 0 %}
+        {% for map in segment.verbo_map %}
+  parameter int {{ instr.name | upper }}_{{ segment.name | upper }}_{{ map.val | replace(' ', '_') | replace('(', '') | replace(')', '') | upper }} = {{ map.key }};
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
   typedef struct packed {
       {% for segment in instr.segments %}
       {% if segment.bitwidth == 1 %}

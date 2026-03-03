@@ -1,16 +1,19 @@
 #include "timingModel.h"
+
+#include <cassert>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
+#include <sys/types.h>
 
 // TimingEvent implementations
 TimingEvent::TimingEvent(const std::string &name, uint64_t eventNumber)
     : name(name), eventNumber(eventNumber) {}
 
-TimingEvent::TimingEvent(const std::string &name, uint64_t eventNumber,
-                         std::function<void()> handler, uint8_t priority)
-    : name(name), eventNumber(eventNumber), handler(handler),
-      priority(priority) {}
+TimingEvent::TimingEvent(std::shared_ptr<const TimingEvent> other)
+    : name(other->name), eventNumber(other->eventNumber),
+      handler(other->handler), priority(other->priority) {}
 
 uint64_t TimingEvent::scheduleEvents(TimingState &state,
                                      uint64_t startCycle) const {
