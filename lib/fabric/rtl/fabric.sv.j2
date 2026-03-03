@@ -78,7 +78,6 @@ import fabric_pkg::*;
         .clk_resource(clk_feedthrough_resource[{{r}}][{{c}}]),
         .clk_out_swb(clk_feedthrough_swb[{{r}}+1][{{c}}]),
         .clk_out_resource(clk_feedthrough_resource[{{r}}+1][{{c}}]),
-        .clk(clk),
         .rst_n(rst_n),
         .call_in(call_net[{{r}}][{{c}}]),
         .call_out(call_net[{{r}}][{{c + 1}}]),
