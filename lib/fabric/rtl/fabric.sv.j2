@@ -73,7 +73,7 @@ import fabric_pkg::*;
     {% set r=cell.coordinates.row %}
     {% set c=cell.coordinates.col %}
 
-    `{{cell.cell.name}}_{{cell.cell.fingerprint}} cell_{{r}}_{{c}}_inst (
+    {{cell.cell.name}}_{{cell.cell.fingerprint}} cell_{{r}}_{{c}}_inst (
         .clk_swb(clk_feedthrough_swb[{{r}}][{{c}}]),
         .clk_resource(clk_feedthrough_resource[{{r}}][{{c}}]),
         .clk_out_swb(clk_feedthrough_swb[{{r}}+1][{{c}}]),
