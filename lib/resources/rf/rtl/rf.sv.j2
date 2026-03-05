@@ -113,7 +113,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     genvar i;
     generate
       for (i = 0; i < 4; i++) begin : gen_agu
-        agu_RTR #(
+        agu_rtr #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
           .REP_ITER_WIDTH(REP_ITER_WIDTH),

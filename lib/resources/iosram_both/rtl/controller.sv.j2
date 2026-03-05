@@ -55,7 +55,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     rep_stp  = rep_valid ? rep_instr._step  : repx_instr._step;
   end
 
-  always_ff @(posedge clk or negedge rst_n) begin : agu_config_process
+  always_ff @(posedge clk or negedge rst_n) begin : ff_agu_config_process
     if (!rst_n) begin
       agu_configs_reg     <= '{default: '0};
       use_or_reg          <= '{default: 1'b0};

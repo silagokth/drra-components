@@ -1,5 +1,5 @@
 package:
-  name: agu_RTR
+  name: agu_rtr
 
 sources:
   - ./rtl/src/agu_RTR_pkg.sv

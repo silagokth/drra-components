@@ -126,7 +126,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     genvar gen_i;
     generate
       for (gen_i = 0; gen_i < NUM_AGUS; gen_i++) begin : gen_agu
-        agu_RTR #(
+        agu_rtr #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
           .REP_ITER_WIDTH(REP_ITER_WIDTH),

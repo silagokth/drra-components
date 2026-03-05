@@ -68,7 +68,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   generate
     for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
       localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
-      agu_RTR #(
+      agu_rtr #(
           .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
           .REP_ITER_WIDTH(REP_ITER_WIDTH),
@@ -77,7 +77,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
           .NUMBER_OR(NUMBER_OR),
           .NUMBER_MT(NUMBER_MT),
           .NUMBER_IR(NUMBER_IR)
-      ) agu_RTR_inst (
+      ) agu_rtr_inst (
           .clk(clk),
           .rst_n(rst_n),
           .enable(1'b1),

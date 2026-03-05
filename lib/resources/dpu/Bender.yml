@@ -3,7 +3,7 @@ package:
 
 dependencies:
   fsm: { path: ../../common/fsm }
-  agu_RTR: { path: ../../common/agu_RTR }
+  agu_rtr: { path: ../../common/agu_RTR }
 
 sources:
   - ./rtl/dpu_pkg.sv

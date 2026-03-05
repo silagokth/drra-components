@@ -158,7 +158,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     generate
       for (i = 0; i < NUM_AGUS; i++) begin : gen_agu
         localparam int AGU_ADDR_WIDTH = (i == 0 || i == 1) ? IO_ADDR_WIDTH : SRAM_ADDR_WIDTH;
-        agu_RTR #(
+        agu_rtr #(
           .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
           .REP_ITER_WIDTH(REP_ITER_WIDTH),
