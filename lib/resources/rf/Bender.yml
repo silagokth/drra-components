@@ -2,8 +2,9 @@ package:
   name: rf
 
 dependencies:
-  agu: {path: ../../common/agu}
+  agu: { path: ../../common/agu }
 
 sources:
   - ./rtl/rf_pkg.sv
   - ./rtl/rf.sv
+  - ./rtl/controller.sv

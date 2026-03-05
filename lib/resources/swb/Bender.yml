@@ -2,8 +2,11 @@ package:
   name: swb
 
 dependencies:
-  fsm: {path: ../../common/fsm}
+  fsm: { path: ../../common/fsm }
+  agu_rtr: { path: ../../common/agu_RTR }
 
 sources:
   - ./rtl/swb_pkg.sv
   - ./rtl/swb.sv
+  - ./rtl/controller.sv
+  - ./rtl/conf_manager.sv

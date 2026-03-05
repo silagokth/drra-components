@@ -16,11 +16,7 @@ module sram #(
     output logic [WIDTH-1:0] q_b
 );
 
-  logic [DEPTH-1:0][WIDTH-1:0] memory;
-
-  initial begin
-    memory = '{default: '0};
-  end
+  logic [DEPTH-1:0][WIDTH-1:0] memory = '{default: '0};
 
   always_ff @(posedge clk) begin
     if (!enable_a_n && !write_enable_a_n) begin

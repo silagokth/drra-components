@@ -3,12 +3,13 @@
 
 #include <fstream>
 
-#include <cmath>
 #include <sst/core/component.h>
 #include <sst/core/link.h>
 #include <sst/core/params.h>
+#include <variant>
 
 #include "instruction.h"
+#include "traceEvent.h"
 
 using namespace SST;
 
@@ -92,11 +93,32 @@ public:
 
   // SST clock handler
   bool clockTickBase(Cycle_t currentCycle) {
+    _currentSSTCycle = currentCycle;
     if (currentCycle % 10 == 0) {
       out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle / 10);
     }
     bool result = clockTick(currentCycle);
     return result;
+  }
+
+  void logTraceEvent(
+      std::string name, int slot_id, bool isResource = true, char phase = 'X',
+      const std::unordered_map<std::string, std::variant<int, std::string>>
+          &args = {}) {
+    trace_file.open(trace_name, std::ios::app);
+    TraceEvent trace_event(name, _currentSSTCycle, 1, 0, phase);
+    trace_event.setThreadId(isResource ? 1 : 2, cell_coordinates[0],
+                            cell_coordinates[1], slot_id);
+    trace_event.setProcessId(0);
+    for (const auto &arg : args) {
+      if (std::holds_alternative<int>(arg.second)) {
+        trace_event.addArg(arg.first, std::get<int>(arg.second));
+      } else if (std::holds_alternative<std::string>(arg.second)) {
+        trace_event.addArg(arg.first, std::get<std::string>(arg.second));
+      }
+    }
+    trace_file << trace_event.toJsonLine();
+    trace_file.close();
   }
 
   // SST event handler
@@ -134,6 +156,7 @@ protected:
   DRRAOutput out;
   std::string clock;
   Cycle_t printFrequency;
+  Cycle_t _currentSSTCycle = 0;
 
   std::string trace_name = "";
   std::ofstream trace_file;
@@ -158,36 +181,6 @@ protected:
   // Instruction handlers
   std::unordered_map<uint32_t, std::function<void(uint32_t)>>
       instructionHandlers;
-
-  // TODO: remove this once all components are updated
-  uint32_t getInstrType(uint32_t instr) {
-    return getInstrField(instr, instrTypeBitwidth,
-                         instrBitwidth - instrTypeBitwidth);
-  }
-
-  uint32_t getInstrOpcode(uint32_t instr) {
-    return getInstrField(instr, instrOpcodeWidth,
-                         instrBitwidth - instrTypeBitwidth - instrOpcodeWidth);
-  }
-
-  uint32_t getInstrSlot(uint32_t instr) {
-    return getInstrField(instr, instrSlotWidth,
-                         instrBitwidth - instrTypeBitwidth - instrOpcodeWidth -
-                             instrSlotWidth);
-  }
-
-  uint32_t isResourceInstruction(uint32_t instr) {
-    return getInstrType(instr) == 1;
-  }
-
-  uint32_t isControlInstruction(uint32_t instr) {
-    return getInstrType(instr) == 0;
-  }
-
-  uint32_t getInstrField(uint32_t instr, uint32_t fieldWidth,
-                         uint32_t fieldOffset) {
-    return (instr & ((1 << fieldWidth) - 1) << fieldOffset) >> fieldOffset;
-  }
 
   std::string formatRawDataToWords(std::vector<uint8_t> raw_data) {
     std::string formatted_data = "[";

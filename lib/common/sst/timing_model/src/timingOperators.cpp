@@ -1,28 +1,18 @@
 #include "timingOperators.h"
-#include "timingExpression.h"
-#include <cstdint>
-#include <functional>
-// #include <iostream>
-#include <memory>
-#include <string>
+
+// TransitionOperator implementations
 TransitionOperator::TransitionOperator(uint64_t delay,
                                        std::string nextEventName,
                                        std::function<void()> handler,
                                        std::shared_ptr<TimingExpression> from,
                                        std::shared_ptr<TimingExpression> to)
     : delay(delay), nextEventName(nextEventName), handler(handler), from(from),
-      to(to) {
-  // from->parent_expression =
-  //     std::static_pointer_cast<TimingExpression>(shared_from_this());
-}
+      to(to) {}
 
 uint64_t TransitionOperator::scheduleEvents(TimingState &state,
                                             uint64_t startCycle) const {
-  // std::cout << "Scheduling TransitionOperator: " << toString() << std::endl;
   uint64_t fromCycle = from->scheduleEvents(state, startCycle);
   uint64_t toCycle = to->scheduleEvents(state, fromCycle + delay + 1);
-  // std::cout << "TransitionOperator scheduled at cycle " << toCycle <<
-  // std::endl;
   return toCycle;
 }
 
@@ -62,19 +52,19 @@ RepetitionOperator::RepetitionOperator(
 
 uint64_t RepetitionOperator::scheduleEvents(TimingState &state,
                                             uint64_t startCycle) const {
-  // std::cout << "Scheduling RepetitionOperator: " << toString() << std::endl;
   uint64_t lastCycle = startCycle;
   for (uint64_t i = 0; i < iterations; i++) {
     lastCycle = expression->scheduleEvents(state, lastCycle);
-    if (i < iterations - 1)
-      lastCycle += delay;
+    if (i < iterations - 1) {
+      lastCycle += delay + 1;
+    }
   }
   return lastCycle;
 }
 
 std::string RepetitionOperator::toString() const {
-  return "R<" + std::to_string(iterations) + "," + std::to_string(delay) +
-         ">(" + expression->toString() + ")";
+  return "R<" + std::to_string(iterations) + "," + std::to_string(step) + "," +
+         std::to_string(delay) + ">(" + expression->toString() + ")";
 }
 
 uint64_t RepetitionOperator::lastEventId() const {

@@ -50,154 +50,150 @@
           "verbo_map": [
             {
               "key": 0,
-              "val": "s"
+              "val": "send"
             },
             {
               "key": 1,
-              "val": "r"
+              "val": "receive"
             }
           ]
         },
         {
           "name": "source",
-          "comment": "If `sr=0`, indicates source slot number; if `sr=1`, indicates source direction (0:NW/1:N/2:NE/3:W/4:C/5:E/6:SW/7:S/8:SE).",
+          "comment": "If `sr=0`, indicates source slot number; if `sr=1`, indicates receiving direction (0:NW/1:N/2:NE/3:W/4:C/5:E/6:SW/7:S/8:SE).",
           "bitwidth": 4
         },
         {
           "name": "target",
-          "comment": "If `sr=0`, indicates source direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates source slot number. (1-hot encoded)",
+          "comment": "If `sr=0`, indicates sending direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates destination slot(s) (1-hot encoded)",
           "bitwidth": 16
         }
       ]
     },
     {
-      "name": "rep",
+      "name": "evt",
       "opcode": 0,
       "instr_type": 1,
       "segments": [
         {
           "name": "port",
-          "comment": "The port number",
-          "bitwidth": 2,
+          "comment": "Selects whether the event is applied intracell (0) or intercell (1).",
+          "bitwidth": 1,
           "verbo_map": [
             {
               "key": 0,
-              "val": "read narrow"
+              "val": "intracell"
             },
             {
               "key": 1,
-              "val": "read wide"
-            },
-            {
-              "key": 2,
-              "val": "write narrow"
-            },
-            {
-              "key": 3,
-              "val": "write wide"
+              "val": "intercell"
             }
           ]
-        },
-        {
-          "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 4
-        },
-        {
-          "name": "iter",
-          "comment": "level-1 iteration - 1.",
-          "bitwidth": 6
-        },
-        {
-          "name": "step",
-          "comment": "level-1 step",
-          "bitwidth": 6,
-          "default_val": 1,
-          "is_signed": true
-        },
-        {
-          "name": "delay",
-          "comment": "delay",
-          "bitwidth": 6
         }
       ]
     },
     {
-      "name": "repx",
+      "name": "rep",
       "opcode": 1,
       "instr_type": 1,
       "segments": [
         {
           "name": "port",
-          "comment": "The port number",
-          "bitwidth": 2,
+          "comment": "Selects whether the repetition is applied intracell (0) or intercell (1).",
+          "bitwidth": 1,
           "verbo_map": [
             {
               "key": 0,
-              "val": "read narrow"
+              "val": "intracell"
             },
             {
               "key": 1,
-              "val": "read wide"
-            },
-            {
-              "key": 2,
-              "val": "write narrow"
-            },
-            {
-              "key": 3,
-              "val": "write wide"
+              "val": "intercell"
             }
           ]
         },
         {
-          "name": "level",
-          "comment": "The level of the REP instruction. [0]: inner most level, [15]: outer most level.",
-          "bitwidth": 4
-        },
-        {
           "name": "iter",
-          "comment": "level-1 iteration - 1.",
-          "bitwidth": 6
+          "comment": "Number of iterations.",
+          "bitwidth": 8
         },
         {
           "name": "step",
-          "comment": "level-1 step",
-          "bitwidth": 6,
+          "comment": "Step size between iterations.",
+          "bitwidth": 7,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
-          "comment": "delay",
-          "bitwidth": 6
+          "comment": "Delay between iterations.",
+          "bitwidth": 8
         }
       ]
     },
     {
-      "name": "fsm",
+      "name": "repx",
       "opcode": 2,
       "instr_type": 1,
       "segments": [
         {
           "name": "port",
-          "comment": "The port number",
-          "bitwidth": 2
+          "comment": "Selects whether the repetition extension is applied intracell (0) or intercell (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "intracell"
+            },
+            {
+              "key": 1,
+              "val": "intercell"
+            }
+          ]
         },
         {
-          "name": "delay_0",
-          "comment": "Delay between state 0 and 1.",
-          "bitwidth": 7
+          "name": "iter",
+          "comment": "Most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
         },
         {
-          "name": "delay_1",
-          "comment": "Delay between state 1 and 2.",
-          "bitwidth": 7
+          "name": "step",
+          "comment": "Most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
         },
         {
-          "name": "delay_2",
-          "comment": "Delay between state 2 and 3.",
-          "bitwidth": 7
+          "name": "delay",
+          "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 3,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Selects whether the transition is applied intracell (0) or intercell (2).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "intracell"
+            },
+            {
+              "key": 1,
+              "val": "intercell"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 23
         }
       ]
     }

@@ -6,20 +6,41 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "package.j2" %}
   // vesyla_template_end package_macro
 
-  parameter FSM_MAX_STATES = 4;
-  parameter FSM_DELAY_WIDTH = 3;
-  parameter DPU_MODE_WIDTH = 6;
-  parameter DPU_IMMEDIATE_WIDTH = 8;
-  parameter OPCODE_WIDTH = 4;
-  parameter BITWIDTH = 16;
-  parameter INSTRUCTION_PAYLOAD_WIDTH = 27;
-  parameter OPCODE_H = 26;
-  parameter OPCODE_L = 24;
-  parameter OPCODE_DPU = 3;
-  parameter OPCODE_FSM = 2;
-  parameter DPU_MODE_ADD = 1;
-  parameter DPU_MODE_MUL = 7;
-  parameter DPU_MODE_MAC = 10;
+  import agu_rtr_pkg::*;
 
+  parameter int FSM_MAX_STATES = 4;
+  parameter int FSM_DELAY_WIDTH = 3;
+  parameter int DPU_MODE_WIDTH = 6;
+  parameter int DPU_IMMEDIATE_WIDTH = 8;
+  parameter int OPCODE_WIDTH = 4;
+  parameter int BITWIDTH = 16;
+  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter int OPCODE_H = 26;
+  parameter int OPCODE_L = 24;
+
+  // AGU RTR params
+  parameter int NUM_AGUS = 2;
+  parameter int AGU_DPU_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_RST_ADDR_WIDTH = 1;
+  parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+  // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int REP_LEVEL_WIDTH = 3;
+  parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
+  parameter int TRANS_OPTION_WIDTH = 2;
+  parameter int TRANS_DELAY_WIDTH = 22;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+
+  typedef agu_config_class#(
+    .NUMBER_IR         (NUMBER_IR),
+    .NUMBER_MT         (NUMBER_MT),
+    .NUMBER_OR         (NUMBER_OR),
+    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
+    .REP_STEP_WIDTH    (REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
 endpackage
-

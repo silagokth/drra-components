@@ -1,0 +1,137 @@
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_controller
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic [$clog2(3)-1:0] instruction_slot,
+
+    input logic dsu_valid,
+    input dsu_t dsu_instr,
+    input logic rep_valid,
+    input rep_t rep_instr,
+    input logic repx_valid,
+    input repx_t repx_instr,
+    input logic trans_valid,
+    input trans_t trans_instr,
+
+    input [NUM_AGUS-1:0] agu_done,
+    output agu_config_t agu_configs[NUM_AGUS],
+    output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address
+);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AGU Configuration
+  // ─────────────────────────────────────────────────────────────────────────
+  localparam int DELAY_HI = REP_DELAY_WIDTH/2;
+  localparam int ITER_HI  = REP_ITER_WIDTH/2;
+  localparam int STEP_HI  = REP_STEP_WIDTH/2;
+
+  agu_config_t agu_configs_reg     [NUM_AGUS];
+  logic        use_or_reg         [NUM_AGUS];
+  logic        or_configured_reg  [NUM_AGUS];
+
+  logic [$clog2(NUM_AGUS)-1:0]    agu_config_index;
+  logic [$clog2(NUMBER_MT+1)-1:0] current_lane_index  [NUM_AGUS];
+  logic [$clog2(NUMBER_IR)-1:0]   current_rep_level   [NUM_AGUS];
+  logic [$clog2(NUMBER_MT+1)-1:0] current_trans_index [NUM_AGUS];
+
+  // Combinational signals derived from instructions
+  logic [$clog2(NUM_AGUS)-1:0]       dsu_port;
+  logic [$clog2(NUMBER_MT+1)-1:0]    rep_opt;
+  logic [$clog2(NUMBER_IR)-1:0]      rep_lvl;
+  logic [REP_DELAY_WIDTH/2-1:0]      rep_dly;
+  logic [REP_ITER_WIDTH/2-1:0]       rep_itr;
+  logic [REP_STEP_WIDTH/2-1:0]       rep_stp;
+
+  always_comb begin
+    dsu_port = (instruction_slot == 0) ? dsu_instr._port : dsu_instr._port + 2;
+    rep_opt  = current_lane_index[agu_config_index];
+    rep_lvl  = current_rep_level[agu_config_index];
+    rep_dly  = rep_valid ? rep_instr._delay : repx_instr._delay;
+    rep_itr  = rep_valid ? rep_instr._iter  : repx_instr._iter;
+    rep_stp  = rep_valid ? rep_instr._step  : repx_instr._step;
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin : ff_agu_config_process
+    if (!rst_n) begin
+      agu_configs_reg     <= '{default: '0};
+      use_or_reg          <= '{default: 1'b0};
+      or_configured_reg   <= '{default: 1'b0};
+      agu_config_index    <= '0;
+      current_lane_index  <= '{default: '1};
+      current_rep_level   <= '{default: '0};
+      current_trans_index <= '{default: '0};
+    end else if (|agu_done) begin
+      for (int i = 0; i < NUM_AGUS; i++) begin
+        if (agu_done[i]) begin
+          agu_configs_reg[i]     <= '0;
+          use_or_reg[i]          <= 1'b0;
+          or_configured_reg[i]   <= 1'b0;
+          current_lane_index[i]  <= '1;
+          current_rep_level[i]   <= '0;
+          current_trans_index[i] <= '0;
+        end
+      end
+    end else if (dsu_valid) begin
+      agu_config_index <= dsu_port;
+      current_lane_index[dsu_port] <= current_lane_index[dsu_port] + 1;
+      current_rep_level[dsu_port]  <= '0;
+
+      // NOTE: Default configuration of the AGU is return init_addr only
+      agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
+      agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
+    end else if (rep_valid || repx_valid) begin
+
+      if (use_or_reg[agu_config_index]) begin
+        if (rep_valid) begin
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+        end else begin
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+        end
+        agu_configs_reg[agu_config_index].or_configs[rep_lvl].is_configured <= 1'b1;
+        or_configured_reg[agu_config_index] <= 1'b1;
+
+      end else begin
+        if (rep_valid) begin
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+        end else begin
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+        end
+        agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
+      end
+
+      current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+
+    end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
+      agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
+      agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
+      use_or_reg[agu_config_index] <= 1'b1;
+
+      current_rep_level[agu_config_index]   <= '0;
+      current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
+    end
+  end
+
+  assign agu_configs = agu_configs_reg;
+
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      agu_init_address <= '0;
+    end else if (dsu_valid) begin
+      agu_init_address[dsu_port] <= dsu_instr._init_addr;
+    end
+  end
+  assign init_address = agu_init_address;
+endmodule

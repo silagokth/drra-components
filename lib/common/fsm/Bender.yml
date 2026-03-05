@@ -1,5 +1,0 @@
-package:
-  name: fsm
-
-sources:
-  - ./rtl/fsm.sv

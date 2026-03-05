@@ -1,6 +1,7 @@
 #include "rf.h"
 #include "dataEvent.h"
-#include "timingOperators.h"
+#include "rf_pkg.h"
+#include <string>
 
 using namespace SST;
 
@@ -14,49 +15,83 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
     }
   }
   instructionHandlers = RF_PKG::createInstructionHandlers(this);
+
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
+  }
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }
 
 bool Rf::clockTick(SST::Cycle_t currentCycle) {
-  return DRRAResource::clockTick(currentCycle);
+  bool result = DRRAResource::clockTick(currentCycle);
+  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
+    for (const auto &port : portsToActivate) {
+      activatePortsForSlot(port.first, port.second);
+    }
+    portsToActivate.clear();
+  }
+  return result;
+}
+
+void Rf::handleActivation(uint32_t slot_id, uint32_t ports) {
+  portsToActivate[slot_id] = ports;
 }
 
 void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
-  out.output("dsu (slot=%d, init_addr_sd=%d, init_addr=%d, port=%d)\n",
-             instr.slot, instr.init_addr_sd, instr.init_addr, instr.port);
+  out.output(
+      "dsu (slot=%d, option=%d, port=%d, init_addr_sd=%d, init_addr=%d)\n",
+      instr.slot, instr.option, instr.port, instr.init_addr_sd,
+      instr.init_addr);
 
   auto dsu = instr;
 
   port_agus_init[dsu.port] = dsu.init_addr;
+  current_option_config[instr.port] = dsu.option;
 
   // Add the event handler
+  std::string event_name;
   switch (dsu.port) {
   case DataEvent::PortType::ReadNarrow:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_read_narrow_" + std::to_string(current_event_number), 1, [this] {
+    event_name = "dsu_read_narrow_" + std::to_string(current_event_number);
+    agus[dsu.port].addEvent(
+        event_name,
+        [this, event_name] {
           updatePortAGUs(DataEvent::PortType::ReadNarrow);
           readNarrow();
-        });
+        },
+        1);
     break;
   case DataEvent::PortType::ReadWide:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_read_wide_" + std::to_string(current_event_number), 1, [this] {
+    event_name = "dsu_read_wide_" + std::to_string(current_event_number);
+    agus[dsu.port].addEvent(
+        event_name,
+        [this, event_name] {
           updatePortAGUs(DataEvent::PortType::ReadWide);
           readWide();
-        });
+        },
+        1);
     break;
   case DataEvent::PortType::WriteNarrow:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_write_narrow_" + std::to_string(current_event_number), 9, [this] {
+    event_name = "dsu_write_narrow_" + std::to_string(current_event_number);
+    agus[dsu.port].addEvent(
+        event_name,
+        [this, event_name] {
           updatePortAGUs(DataEvent::PortType::WriteNarrow);
           writeNarrow();
-        });
+        },
+        9);
     break;
   case DataEvent::PortType::WriteWide:
-    next_timing_states[dsu.port].addEvent(
-        "dsu_write_wide_" + std::to_string(current_event_number), 9, [this] {
+    event_name = "dsu_write_wide_" + std::to_string(current_event_number);
+    agus[dsu.port].addEvent(
+        event_name,
+        [this, event_name] {
           updatePortAGUs(DataEvent::PortType::WriteWide);
           writeWide();
-        });
+        },
+        9);
     break;
 
   default:
@@ -68,9 +103,8 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
 }
 
 void Rf::handleREP(const RF_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+  out.output("rep (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n", instr.slot,
+             instr.port, instr.iter, instr.step, instr.delay);
 
   auto rep = instr;
   uint32_t port_num = 0;
@@ -82,27 +116,17 @@ void Rf::handleREP(const RF_PKG::REPInstruction &instr) {
   }
   port_num = port_num * 4 + rep.port;
 
-  // For now, we only support increasing repetition levels (and no skipping)
-  if (rep.level != port_last_rep_level[port_num] + 1) {
-    out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              port_last_rep_level[port_num], rep.level);
-  } else {
-    port_last_rep_level[port_num] = rep.level;
-  }
-
-  // add repetition to the timing model
+  // Add repetition to the timing model
   try {
-    next_timing_states[port_num].addRepetition(rep.iter, rep.delay, rep.level,
-                                               rep.step);
+    agus[port_num].addRepetition(rep.iter, rep.delay, rep.step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
   }
 }
 
 void Rf::handleREPX(const RF_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+  out.output("repx (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
 
   auto repx = instr;
   uint32_t port_num = 0;
@@ -114,16 +138,31 @@ void Rf::handleREPX(const RF_PKG::REPXInstruction &instr) {
   }
   port_num = port_num * 4 + repx.port;
 
-  auto repetition_op =
-      next_timing_states[port_num].getRepetitionOperatorFromLevel(repx.level);
-  uint32_t iter = repx.iter << 6 | repetition_op.getIterations();
-  uint32_t step = repx.step << 6 | repetition_op.getStep();
-  uint32_t delay = repx.delay << 6 | repetition_op.getDelay();
+  auto repetition_op = agus[port_num].getLastRepetitionOperator();
+  uint32_t iter = repx.iter << RF_PKG::RF_INSTR_REPX_ITER_BITWIDTH |
+                  repetition_op.getIterations();
+  uint32_t step = repx.step << RF_PKG::RF_INSTR_REPX_STEP_BITWIDTH |
+                  repetition_op.getStep();
+  uint32_t delay = repx.delay << RF_PKG::RF_INSTR_REPX_DELAY_BITWIDTH |
+                   repetition_op.getDelay();
+
   try {
-    next_timing_states[port_num].adjustRepetition(iter, delay, repx.level,
-                                                  step);
+    agus[port_num].adjustRepetition(iter, delay, step);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
+
+void Rf::handleTRANS(const RF_PKG::TRANSInstruction &instr) {
+  out.output("trans (slot=%d, port=%s, delay=%d)\n", instr.slot,
+             instr.port == 0 ? "dpu" : "rst", instr.delay);
+
+  // Add transition to the timing model
+  try {
+    agus[instr.port].addTransition(instr.delay);
+    current_event_number++;
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
   }
 }
 
@@ -153,6 +192,11 @@ void Rf::readWide() {
   dataEvent->payload = data;
 
   data_links[0]->send(dataEvent);
+
+  logTraceEvent("rf_read_wide", slot_id, true, 'X',
+                {{"address", (int)port_agus[DataEvent::PortType::ReadWide]},
+                 {"size", (int)(io_data_width / 8)},
+                 {"data", formatRawDataToWords(data)}});
 }
 
 void Rf::readNarrow() {
@@ -168,6 +212,11 @@ void Rf::readNarrow() {
              formatRawDataToWords(data).c_str());
 
   data_links[0]->send(dataEvent);
+
+  logTraceEvent("rf_read_narrow", slot_id, true, 'X',
+                {{"address", (int)port_agus[DataEvent::PortType::ReadNarrow]},
+                 {"size", (int)(word_bitwidth / 8)},
+                 {"data", formatRawDataToWords(data)}});
 }
 
 void Rf::writeWide() {
@@ -209,6 +258,19 @@ void Rf::writeWide() {
     }
   }
   out.print(")\n");
+
+  logTraceEvent("rf_write_wide", slot_id, true, 'X',
+                {{"address", (int)port_agus[DataEvent::PortType::WriteWide]},
+                 {"size", (int)(data_event->size / 8)},
+                 {"data", formatRawDataToWords(data_event->payload)}});
+
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
+  }
+  logTraceEvent("registers", slot_id, true, 'E', {});
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }
 
 void Rf::writeNarrow() {
@@ -243,4 +305,17 @@ void Rf::writeNarrow() {
              formatRawDataToWords(
                  registers[port_agus[DataEvent::PortType::WriteNarrow]])
                  .c_str());
+
+  logTraceEvent("rf_write_narrow", slot_id, true, 'X',
+                {{"address", (int)port_agus[DataEvent::PortType::WriteNarrow]},
+                 {"size", (int)(word_bitwidth / 8)},
+                 {"data", formatRawDataToWords(data_event->payload)}});
+
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
+  }
+  logTraceEvent("registers", slot_id, true, 'E', {});
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }
