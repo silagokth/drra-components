@@ -1,4 +1,4 @@
-package agu_RTR_pkg;
+package agu_rtr_pkg;
   parameter int BASE_STATES = 1;  // IDLE state
   parameter int GEN_STATES = 1;  // GENERATE state
   parameter int IR_STATES = 4;
@@ -57,4 +57,4 @@ package agu_RTR_pkg;
     } agu_config_t;
   endclass
 
-endpackage : agu_RTR_pkg
+endpackage : agu_rtr_pkg

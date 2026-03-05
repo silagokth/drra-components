@@ -1,5 +1,5 @@
-module agu_RTR
-  import agu_RTR_pkg::*;
+module agu_rtr
+  import agu_rtr_pkg::*;
 #(
     parameter int ADDRESS_WIDTH     = 16,
     parameter int NUMBER_IR         = 4,
@@ -30,9 +30,9 @@ module agu_RTR
     output logic                     done
 );
   initial begin
-    if (NUMBER_IR == 0) $error("agu_RTR: NUMBER_IR cannot be 0");
+    if (NUMBER_IR == 0) $error("agu_rtr: NUMBER_IR cannot be 0");
     if (NUMBER_OR != 0 && NUMBER_MT == 0)
-      $error("agu_RTR: NUMBER_MT cannot be 0 if NUMBER_OR is not 0");
+      $error("agu_rtr: NUMBER_MT cannot be 0 if NUMBER_OR is not 0");
   end
 
   logic activation_reg;
@@ -57,7 +57,7 @@ module agu_RTR
           .REP_ITER_WIDTH   (REP_ITER_WIDTH),
           .REP_STEP_WIDTH   (REP_STEP_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-      ) u_or_mt_ir (
+      ) or_mt_ir_inst (
           .clk       (clk),
           .rst_n     (rst_n),
           .enable    (activation_reg),
@@ -77,7 +77,7 @@ module agu_RTR
           .REP_ITER_WIDTH   (REP_ITER_WIDTH),
           .REP_STEP_WIDTH   (REP_STEP_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-      ) u_mt_ir (
+      ) mt_ir_inst (
           .clk       (clk),
           .rst_n     (rst_n),
           .enable    (activation_reg),
@@ -94,7 +94,7 @@ module agu_RTR
           .DELAY_WIDTH  (REP_DELAY_WIDTH),
           .ITER_WIDTH   (REP_ITER_WIDTH),
           .STEP_WIDTH   (REP_STEP_WIDTH)
-      ) u_ir (
+      ) ir_inst (
           .clk       (clk),
           .rst_n     (rst_n),
           .enable    (activation_reg),

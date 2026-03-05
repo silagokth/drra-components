@@ -1,5 +1,5 @@
 module mt_ir
-  import agu_RTR_pkg::*;
+  import agu_rtr_pkg::*;
 #(
     parameter int ADDRESS_WIDTH,
     parameter int NUMBER_IR,

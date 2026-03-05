@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module agu_tb
-  import agu_RTR_pkg::*;
+  import agu_rtr_pkg::*;
   import timing_model_pkg::*;
   import tb_utils_pkg::*;
 ();
@@ -52,7 +52,7 @@ module agu_tb
   TestReporter reporter;
 
   // DUT
-  agu_RTR #(
+  agu_rtr #(
       .ADDRESS_WIDTH    (AddressWidth),
       .NUMBER_IR        (NumberIr),
       .NUMBER_MT        (NumberMt),
