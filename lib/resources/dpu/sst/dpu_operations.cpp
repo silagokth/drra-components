@@ -59,13 +59,15 @@ void handleSubtAbs(Dpu *dpu) {
 }
 
 void handleMult(Dpu *dpu) {
-  dpu->handleOperation("MULT",
-                       [](int64_t a, int64_t b) { return mul_sat(a, b); });
+  dpu->handleOperation("MULT", [dpu](int64_t a, int64_t b) {
+    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
+  });
 }
 
 void handleMultConst(Dpu *dpu) {
-  dpu->handleOperation("MULT_CONST",
-                       [](int64_t a, int64_t b) { return mul_sat(a, b); });
+  dpu->handleOperation("MULT_CONST", [dpu](int64_t a, int64_t b) {
+    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
+  });
 }
 
 void handleLoadIR(Dpu *dpu) {
@@ -83,7 +85,9 @@ void handleMAC(Dpu *dpu) {
 
     // This assumes vectorToInt64 and int64ToVector are accessible
     // You might need to move these to dpu_pkg.h or make them public
-    int64_t result = add_sat(dpu->vectorToInt64(acc_reg), mul_sat(a, b));
+    int64_t result = add_sat(
+        dpu->vectorToInt64(acc_reg),
+        mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
     acc_reg = dpu->int64ToVector(result);
     return result;
   });
