@@ -1,0 +1,190 @@
+// vesyla_template_start defines
+`define {{name}} {{fingerprint}}
+`define {{name}}_pkg {{fingerprint}}_pkg
+// vesyla_template_end defines
+
+// vesyla_template_start module_head
+{% if not already_defined %}
+module {{fingerprint}}
+import {{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk_0,
+    input logic rst_n_0,
+    input logic instr_en_0,
+    input logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input logic [3:0] activate_0,
+    input logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
+    input logic clk_1,
+    input logic rst_n_1,
+    input logic instr_en_1,
+    input logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
+    input logic [3:0] activate_1,
+    input logic [WORD_BITWIDTH-1:0] word_data_in_1,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_1,
+    input logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_1
+);
+
+logic clk, rst_n;
+assign clk = clk_0;
+assign rst_n = rst_n_0;
+
+logic [NUM_AGUS-1:0] agu_activate;
+assign agu_activate[0] = activate_0[0];
+assign agu_activate[1] = activate_0[1];
+
+logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+logic instruction_valid;
+assign instruction = instr_0;
+assign instruction_valid = instr_en_0;
+
+logic [VPU_IMMEDIATE_WIDTH-1:0] immediate;
+logic [     VPU_MODE_WIDTH-1:0] vpu_mode;
+
+agu_config_t agu_configs [NUM_AGUS];
+
+logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
+logic [NUM_AGUS-1:0]                    agu_valid;
+logic [NUM_AGUS-1:0]                    agu_done;
+logic                                   reset_accumulator;
+assign reset_accumulator = agu_valid[1];
+
+genvar idx;
+generate
+  for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
+    localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_VPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+    agu_rtr #(
+        .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
+        .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+        .REP_ITER_WIDTH(REP_ITER_WIDTH),
+        .REP_STEP_WIDTH(REP_STEP_WIDTH),
+        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+        .NUMBER_OR(NUMBER_OR),
+        .NUMBER_MT(NUMBER_MT),
+        .NUMBER_IR(NUMBER_IR)
+    ) agu_rtr_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(1'b1),
+        .activation(agu_activate[idx]),
+        .agu_config(agu_configs[idx]),
+        .addr_valid(agu_valid[idx]),
+        .addr(agu_address[idx]),
+        .done(agu_done[idx])
+    );
+  end
+endgenerate
+
+logic vpu_valid;
+vpu_t vpu_instr;
+logic evt_valid;
+evt_t evt_instr;
+logic rep_valid;
+rep_t rep_instr;
+logic repx_valid;
+repx_t repx;
+logic trans_valid;
+trans_t trans_instr;
+
+vpu_decoder decoder_inst (
+  .clk(clk),
+  .rst_n(rst_n),
+
+  .instruction_valid(instruction_valid),
+  .instruction(instruction),
+
+  .vpu_valid(vpu_valid),
+  .vpu_instr(vpu_instr),
+  .evt_valid(evt_valid),
+  .evt_instr(evt_instr),
+  .rep_valid(rep_valid),
+  .rep_instr(rep_instr),
+  .repx_valid(repx_valid),
+  .repx_instr(repx_instr),
+  .trans_valid(trans_valid),
+  .trans_instr(trans_instr)
+);
+
+vpu_controller controller_inst (
+  .clk  (clk),
+  .rst_n(rst_n),
+
+  .agu_done(agu_done),
+
+  .evt_valid(evt_valid),
+  .evt_instr(evt_instr),
+  .rep_valid(rep_valid),
+  .rep_instr(rep_instr),
+  .repx_valid(repx_valid),
+  .repx_instr(repx_instr),
+  .trans_valid(trans_valid),
+  .trans_instr(trans_instr),
+
+  .agu_configs(agu_configs)
+);
+
+vpu_mode_selector mode_selector_inst (
+  .clk(clk),
+  .rst_n(rst_n),
+
+  .vpu_valid(vpu_valid),
+  .vpu_instr(vpu_instr),
+
+  .vpu_agu_valid(agu_valid[0]),
+  .vpu_agu_address(agu_address[0]),
+
+  .vpu_mode(vpu_mode),
+  .immediate(immediate)
+);
+
+// Accumulator
+logic accumulator_valid;
+logic signed [BULK_BITWIDTH-1:0] acc0, acc0_next;
+logic signed [BULK_BITWIDTH-1:0] acc0_current;
+assign acc0_current = (reset_accumulator | agu_activate[1]) ? '0 : acc0;
+always_ff @(posedge clk or negedge rst_n) begin : ff_accumulator
+  if (!rst_n) begin
+    acc0 <= '0;
+    accumulator_valid <= 1'b0;
+  end else begin
+    acc0 <= acc0_next;
+    accumulator_valid <= 1'b1;
+  end
+end
+
+vpu_alu_wrapper alu_wrapper_inst (
+  .clk(clk),
+  .rst_n(rst_n),
+  .word_in0(word_data_in_0),
+  .word_in1(word_data_in_1),
+  .bulk_in0(bulk_data_in_0),
+  .bulk_in1(bulk_data_in_1),
+  .immediate(immediate),
+  .acc_current(acc0_current),
+  .acc_next(acc0_next),
+  .acc_valid(accumulator_valid),
+  .vpu_mode(vpu_mode),
+  .word_out(word_data_out_0),
+  .bulk_out(bulk_data_out_0)
+);
+
+// register output
+logic [WORD_BITWIDTH-1:0] out0_reg;
+always_ff @(posedge clk or negedge rst_n) begin : ff_output
+  if (!rst_n) begin
+    out0_reg <= 0;
+  end else begin
+    out0_reg <= out0;
+  end
+end
+assign word_data_out_0 = out0_reg;
+
+endmodule
+
+// vesyla_template_start module_tail
+{% endif %}
+// vesyla_template_end module_tail
