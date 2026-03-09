@@ -3,37 +3,75 @@ module {{name}}_{{fingerprint}}_multiplier
 import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
-    input logic signed [BITWIDTH-1:0] in1,
-    input logic signed [BITWIDTH-1:0] in2,
+    //! First operand
+    input  logic signed [BITWIDTH-1:0] in1,
+    //! Second operand
+    input  logic signed [BITWIDTH-1:0] in2,
+    //! Output product (truncated to BITWIDTH bits)
     output logic signed [BITWIDTH-1:0] out,
-    output logic overflow,
-    output logic underflow,
-    input logic saturate
+    //! Overflow flag
+    output logic                       overflow,
+    //! Underflow flag
+    output logic                       underflow,
+    //! Saturation enable
+    input  logic                       saturate
 );
 
-  localparam logic signed [BITWIDTH-1:0] MaxResult = (1 << (BITWIDTH - 1)) - 1;
-  localparam logic signed [BITWIDTH-1:0] MinResult = -MaxResult - 1;
-  logic signed [BITWIDTH*2-1:0] temp_mult;
+  localparam int FRAC = FRACTIONAL_BITWIDTH;
 
-  always_comb begin
-    out = 0;
-    overflow = 0;
-    underflow = 0;
+  // In Q-product space, thresholds are shifted by FRAC bits
+  localparam logic signed [BITWIDTH*2-1:0] MaxResult = ((1 << (BITWIDTH - 1)) - 1) <<< FRAC;
+  localparam logic signed [BITWIDTH*2-1:0] MinResult = (-(1 << (BITWIDTH - 1))) <<< FRAC;
+
+  logic signed [BITWIDTH*2-1:0] temp_mult;
+  logic signed [BITWIDTH*2-1:0] temp_rounded;
+
+  // Rounding
+  generate
+    if (FRAC > 0) begin : gen_round_half_away_from_zero
+
+      logic guard_bit;
+      logic sign_bit;
+
+      always_comb begin
+        sign_bit  = temp_mult[BITWIDTH*2-1];
+        guard_bit = temp_mult[FRAC-1];  // first dropped fractional bit
+
+        // Round half away from zero:
+        //   positive & guard=1 → round up   (+1 in product space)
+        //   negative & guard=1 → round down (-1 in product space)
+        if (guard_bit)
+          temp_rounded = sign_bit ? (temp_mult - (1 <<< FRAC)) : (temp_mult + (1 <<< FRAC));
+        else temp_rounded = temp_mult;
+      end
+
+    end else begin : gen_no_round
+
+      always_comb temp_rounded = temp_mult;
+
+    end
+  endgenerate
+
+  // Saturation + output
+  always_comb begin : comb_saturation
+    out       = '0;
+    overflow  = 1'b0;
+    underflow = 1'b0;
     temp_mult = in1 * in2;
-    // saturation logic
+
     if (saturate) begin
-      if (temp_mult > MaxResult) begin
-        out = MaxResult;
-        overflow = 1;
-      end else if (temp_mult < MinResult) begin
-        out = MinResult;
-        underflow = 1;
+      if (temp_rounded > MaxResult) begin
+        out      = MaxResult[BITWIDTH-1+FRAC-:BITWIDTH];
+        overflow = 1'b1;
+      end else if (temp_rounded < MinResult) begin
+        out       = MinResult[BITWIDTH-1+FRAC-:BITWIDTH];
+        underflow = 1'b1;
       end else begin
-        out = temp_mult[BITWIDTH-1:0];
+        out = temp_rounded[BITWIDTH-1+FRAC-:BITWIDTH];
       end
     end else begin
-      out = temp_mult[BITWIDTH-1:0];
+      out = temp_rounded[BITWIDTH-1+FRAC-:BITWIDTH];
     end
   end
-endmodule
 
+endmodule
