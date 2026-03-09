@@ -63,13 +63,15 @@ void handleSubtAbs(Dpu *dpu) {
 }
 
 void handleMult(Dpu *dpu) {
-  dpu->handleOperation("MULT",
-                       [](int64_t a, int64_t b) { return mul_sat(a, b); });
+  dpu->handleOperation("MULT", [dpu](int64_t a, int64_t b) {
+    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
+  });
 }
 
 void handleMultConst(Dpu *dpu) {
-  dpu->handleOperation("MULT_CONST",
-                       [](int64_t a, int64_t b) { return mul_sat(a, b); });
+  dpu->handleOperation("MULT_CONST", [dpu](int64_t a, int64_t b) {
+    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
+  });
 }
 
 void handleLoadIR(Dpu *dpu) {
@@ -82,15 +84,14 @@ void handleMAC(Dpu *dpu) {
   dpu->handleOperation("MAC", [dpu](int64_t a, int64_t b) {
     auto &acc_reg = dpu->getAccumulateRegister();
 
-    // RTL saturates the PRODUCT to signed word-width BEFORE accumulating:
-    // multiplier.sv.j2 drives `saturate=1` so mult_out is sat16(a*b), then
-    // dpu.sv.j2's adder (also `saturate=1`) computes sat16(mult_out + acc).
-    // Mirror that here: saturate a*b to the word bitwidth (round-trip through
-    // int64ToVector/vectorToInt64, which clamp/sign-extend at word_bitwidth),
-    // then add to the accumulator, then saturate the sum (int64ToVector in
-    // handleOperation and below both saturate the stored result).
-    int64_t product = dpu->vectorToInt64(dpu->int64ToVector(mul_sat(a, b)));
-    int64_t result = add_sat(dpu->vectorToInt64(acc_reg), product);
+    // Fixed-point MAC. mul_sat rounds (a*b) >> fractional_bitwidth and clamps
+    // to the word bitwidth (= sat16 of the product, matching the RTL
+    // multiplier's saturate=1); add_sat then accumulates with saturation
+    // (mirroring dpu.sv.j2's adder). At fractional_bitwidth=0 this reduces to
+    // the plain integer sat16(a*b) MAC.
+    int64_t result = add_sat(
+        dpu->vectorToInt64(acc_reg),
+        mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
     acc_reg = dpu->int64ToVector(result);
     return result;
   });

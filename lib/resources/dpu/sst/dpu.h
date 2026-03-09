@@ -14,6 +14,9 @@ public:
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
     auto params = DRRAResource::getBaseParams();
+    params.push_back({"FRACTIONAL_BITWIDTH",
+                      "Number of fractional bits for fixed-point operations",
+                      "0"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -64,6 +67,7 @@ public:
   bool isIdle() override { return false; }
 
   using DRRAResource::out;
+  uint32_t fractional_bitwidth;
 
 private:
   std::vector<uint8_t> accumulate_register;
