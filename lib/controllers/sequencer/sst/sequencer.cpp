@@ -36,8 +36,8 @@ void Sequencer::init(unsigned int phase) {
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }
 
-bool Sequencer::clockTick(SST::Cycle_t currentCycle) {
-  if (currentCycle % 10 == 0) {
+bool Sequencer::clockTick(SST::Cycle_t currentSSTCycle) {
+  if (currentSSTCycle % 10 == 0) {
     if (cyclesToWait > 0) {
       cyclesToWait--;
       out.output("Waiting %u cycles\n", cyclesToWait);
@@ -48,6 +48,12 @@ bool Sequencer::clockTick(SST::Cycle_t currentCycle) {
       out.fatal(CALL_INFO, -1, "Program counter out of bounds\n");
     }
     uint32_t instruction = assemblyProgram[pc];
+    Instruction instrObj(instruction, format);
+    logTraceEvent("instruction", 0, false, 'X',
+                  {{"pc", static_cast<int>(pc)},
+                   {"instruction", instrObj.toString()},
+                   {"instruction_bin", instrObj.toBinaryString()},
+                   {"instruction_hex", instrObj.toHexString()}});
     decodeInstr(instruction);
     pc++;
 
@@ -94,12 +100,18 @@ void Sequencer::load_assembly_program(std::string assemblyProgramPath) {
 
 void Sequencer::handleHALT(const SEQUENCER_PKG::HALTInstruction &instr) {
   out.output("halt (slot=%d, )\n", instr.slot);
+  logTraceEvent("halt", 0, false, 'X', {{"pc", static_cast<int>(pc)}});
   readyToFinish = true;
 }
 
 void Sequencer::handleWAIT(const SEQUENCER_PKG::WAITInstruction &instr) {
   out.output("wait (slot=%d, mode=%d, cycle=%d)\n", instr.slot, instr.mode,
              instr.cycle);
+
+  logTraceEvent("wait", 0, false, 'X',
+                {{"pc", static_cast<int>(pc)},
+                 {"wait_mode", static_cast<int>(instr.mode)},
+                 {"wait_cycle", static_cast<int>(instr.cycle)}});
 
   if (instr.mode == 0) {
     cyclesToWait = instr.cycle;
@@ -112,16 +124,22 @@ void Sequencer::handleACT(const SEQUENCER_PKG::ACTInstruction &instr) {
   out.output("act (slot=%d, ports=%d, mode=%d, param=%d)\n", instr.slot,
              instr.ports, instr.mode, instr.param);
 
+  logTraceEvent("activation", 0, false, 'X',
+                {{"pc", static_cast<int>(pc)},
+                 {"action_mode", static_cast<int>(instr.mode)},
+                 {"action_ports", static_cast<int>(instr.ports)},
+                 {"action_param", static_cast<int>(instr.param)}});
+
   switch (instr.mode) {
-  case SEQUENCER_PKG::ACT_MODE_CONTINUOUS_PORT:
+  case SEQUENCER_PKG::ACT_MODE_CONTIGUOUS:
     handle_continuous_port_mode(instr.ports, instr.param);
     break;
 
-  case SEQUENCER_PKG::ACT_MODE_ALL_PORT_X:
+  case SEQUENCER_PKG::ACT_MODE_PORT_INDEX:
     handle_all_port_X_mode(instr.ports, instr.param);
     break;
 
-  case SEQUENCER_PKG::ACT_MODE_ACTIVATION_VECTOR:
+  case SEQUENCER_PKG::ACT_MODE_MAP:
     handle_activation_vector_mode(instr.ports, instr.param);
     break;
 
@@ -137,6 +155,14 @@ void Sequencer::handleCALC(const SEQUENCER_PKG::CALCInstruction &instr) {
              "operand2=%d, result=%d)\n",
              instr.slot, instr.mode, instr.operand1, instr.operand2_sd,
              instr.operand2, instr.result);
+
+  logTraceEvent("calculation", 0, false, 'X',
+                {{"pc", static_cast<int>(pc)},
+                 {"calc_mode", static_cast<int>(instr.mode)},
+                 {"calc_operand1", static_cast<int>(instr.operand1)},
+                 {"calc_operand2_sd", static_cast<int>(instr.operand2_sd)},
+                 {"calc_operand2", static_cast<int>(instr.operand2)},
+                 {"calc_result", static_cast<int>(instr.result)}});
 
   uint32_t operand1_tmp = 0;
   operand1_tmp = scalarRegisters[instr.operand1];
@@ -247,6 +273,13 @@ void Sequencer::handleBRN(const SEQUENCER_PKG::BRNInstruction &instr) {
   out.output("brn (slot=%d, reg=%d, target_true=%d, target_false=%d)\n",
              instr.slot, instr.reg, instr.target_true, instr.target_false);
 
+  logTraceEvent(
+      "branch", 0, false, 'X',
+      {{"pc", static_cast<int>(pc)},
+       {"branch_reg", static_cast<int>(instr.reg)},
+       {"branch_target_true", static_cast<int>(instr.target_true)},
+       {"branch_target_false", static_cast<int>(instr.target_false)}});
+
   // Compute new PC
   if (scalarRegisters[instr.reg]) {
     pc += instr.target_true;
@@ -333,7 +366,8 @@ void Sequencer::handle_activation_vector_mode(uint32_t ports, uint32_t param) {
   for (int currentSlot = 0; currentSlot < num_slots; currentSlot++) {
     slotActMask = activationMask & currentMask;
     if (slot_links[currentSlot] != nullptr) {
-      sendActEvent(currentSlot, slotActMask);
+      if (slotActMask != 0)
+        sendActEvent(currentSlot, slotActMask);
     } else {
       if (activationMask != 0) {
         out.fatal(CALL_INFO, -1,

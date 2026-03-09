@@ -11,8 +11,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic saturate
 );
 
-  localparam logic signed [BITWIDTH-1:0] MAX_RESULT = (1 << (BITWIDTH - 1)) - 1;
-  localparam logic signed [BITWIDTH-1:0] MIN_RESULT = -MAX_RESULT - 1;
+  localparam logic signed [BITWIDTH-1:0] MaxResult = (1 << (BITWIDTH - 1)) - 1;
+  localparam logic signed [BITWIDTH-1:0] MinResult = -MaxResult - 1;
   logic signed [BITWIDTH:0] temp_add;
 
   always_comb begin
@@ -22,11 +22,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     temp_add = in1 + in2;
     // saturation logic
     if (saturate) begin
-      if (temp_add > MAX_RESULT) begin
-        out = MAX_RESULT;
+      if (temp_add > MaxResult) begin
+        out = MaxResult;
         overflow = 1;
-      end else if (temp_add < MIN_RESULT) begin
-        out = MIN_RESULT;
+      end else if (temp_add < MinResult) begin
+        out = MinResult;
         underflow = 1;
       end else begin
         out = temp_add[BITWIDTH-1:0];
@@ -36,3 +36,4 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
   end
 endmodule
+

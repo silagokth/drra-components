@@ -14,6 +14,9 @@ public:
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
     auto params = DRRAResource::getBaseParams();
+    params.push_back({"FRACTIONAL_BITWIDTH",
+                      "Number of fractional bits for fixed-point operations",
+                      "0"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -52,23 +55,32 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDPU(const DPU_PKG::DPUInstruction &instr);
+  void handleEVT(const DPU_PKG::EVTInstruction &instr);
   void handleREP(const DPU_PKG::REPInstruction &instr);
   void handleREPX(const DPU_PKG::REPXInstruction &instr);
-  void handleFSM(const DPU_PKG::FSMInstruction &instr);
+  void handleTRANS(const DPU_PKG::TRANSInstruction &instr);
+  void handleDPU(const DPU_PKG::DPUInstruction &instr);
+
+  void handleActivation(uint32_t slot_id, uint32_t ports) override;
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   using DRRAResource::out;
+  uint32_t fractional_bitwidth;
 
 private:
   std::vector<uint8_t> accumulate_register;
 
   std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>> dpuHandlers;
 
-  uint32_t current_event_number = 0;
   std::vector<std::function<void()>> eventsHandlers;
 
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
+  std::vector<std::vector<uint8_t>> imm_buffers;
+
+  std::map<uint32_t, size_t> current_config_option;
+  int32_t last_config_level = -1;
+  int32_t last_config_trans = -1;
 };
 
 #endif // _DPU_H

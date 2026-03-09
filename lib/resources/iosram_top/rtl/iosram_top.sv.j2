@@ -63,127 +63,126 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign clk = clk_0;
     assign rst_n = rst_n_0;
 
-    logic [INSTR_OPCODE_BITWIDTH-1:0] opcode_0_0, opcode_0_2, opcode_1_3;
-    logic [RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0] payload_0_0, payload_0_2, payload_1_3;
+    agu_config_t agu_configs [NUM_AGUS];
+    logic [NUM_AGUS-1:0] agu_valid;
+    logic [NUM_AGUS-1:0] agu_activate;
+    assign agu_activate[0] = activate_0[0]; // slot 0 port 0
+    assign agu_activate[1] = 1'b0; // NOTE: IO OUT disabled in iosram_top
+    assign agu_activate[2] = activate_0[2]; // slot 0 port 2
+    assign agu_activate[3] = 1'b0; // NOTE: IO OUT disabled in iosram_top
+    assign agu_activate[4] = activate_1[2]; // slot 1 port 2
+    assign agu_activate[5] = activate_1[3]; // slot 1 port 3
 
-    assign opcode_0_0 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_0_0 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_0_2 = instr_0[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_0_2 = instr_0[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    assign opcode_1_3 = instr_1[RESOURCE_INSTR_WIDTH-1:RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH];
-    assign payload_1_3 = instr_1[RESOURCE_INSTR_WIDTH-INSTR_OPCODE_BITWIDTH-1:0];
-    
-    dsu_t dsu_0_0, dsu_0_2, dsu_1_3;
-    rep_t rep_0_0, rep_0_2, rep_1_3;
-    repx_t repx_0_0, repx_0_2, repx_1_3;
+    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
+    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+    logic [NUM_AGUS-1:0] agu_done;
+    genvar idx;
+    generate
+      for (idx = 0; idx < NUM_AGUS; idx++)
+        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx];
+    endgenerate
 
-    logic [IO_ADDR_WIDTH-1:0] addr_0_0;
-    logic [SRAM_ADDR_WIDTH-1:0] addr_0_2, addr_1_3;
-    logic dsu_valid_0_0, dsu_valid_0_2, dsu_valid_1_3;
-    logic rep_valid_0_0, rep_valid_0_2, rep_valid_1_3;
-    logic repx_valid_0_0, repx_valid_0_2, repx_valid_1_3;
-    logic port_enable_0_0, port_enable_0_2, port_enable_1_3;
-    logic [IO_ADDR_WIDTH-1:0] port_addr_0_0;
-    logic [SRAM_ADDR_WIDTH-1:0] port_addr_0_2, port_addr_1_3;
+    logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
+    logic [$clog2(3)-1:0] instruction_slot;
+    logic instruction_valid;
+    always_comb begin
+      if (!rst_n) begin
+        instruction_payload = '0;
+        instruction_slot = '0;
+        instruction_valid = 1'b0;
+      end else begin
+        if (instr_en_0) begin
+          instruction_payload = instr_0[INSTR_PAYLOAD_BITWIDTH-1:0];
+          instruction_slot = 0;
+          instruction_valid = 1'b1;
+        end else if (instr_en_1) begin
+          instruction_payload = instr_1[INSTR_PAYLOAD_BITWIDTH-1:0];
+          instruction_slot = 1;
+          instruction_valid = 1'b1;
+        end else begin
+          instruction_payload = '0;
+          instruction_slot = '0;
+          instruction_valid = 1'b0;
+        end
+      end
+  end
 
-    assign dsu_valid_0_0 = instr_en_0 && (opcode_0_0 == 6);
-    assign rep_valid_0_0 = instr_en_0 && (opcode_0_0 == 0);
-    assign repx_valid_0_0 = instr_en_0 && (opcode_0_0 == 1);
-    assign dsu_0_0 = dsu_valid_0_0 ? unpack_dsu(payload_0_0) : '{default: 0};
-    assign rep_0_0 = rep_valid_0_0 ? unpack_rep(payload_0_0) : '{default: 0};
-    assign repx_0_0 = repx_valid_0_0 ? unpack_repx(payload_0_0) : '{default: 0};
-    assign dsu_valid_0_2 = instr_en_0 && (opcode_0_2 == 6);
-    assign rep_valid_0_2 = instr_en_0 && (opcode_0_2 == 0);
-    assign repx_valid_0_2 = instr_en_0 && (opcode_0_2 == 1);
-    assign dsu_0_2 = dsu_valid_0_2 ? unpack_dsu(payload_0_2) : '{default: 0};
-    assign rep_0_2 = rep_valid_0_2 ? unpack_rep(payload_0_2) : '{default: 0};
-    assign repx_0_2 = repx_valid_0_2 ? unpack_repx(payload_0_2) : '{default: 0};
-    assign dsu_valid_1_3 = instr_en_1 && (opcode_1_3 == 6);
-    assign rep_valid_1_3 = instr_en_1 && (opcode_1_3 == 0);
-    assign repx_valid_1_3 = instr_en_1 && (opcode_1_3 == 1);
-    assign dsu_1_3 = dsu_valid_1_3 ? unpack_dsu(payload_1_3) : '{default: 0};
-    assign rep_1_3 = rep_valid_1_3 ? unpack_rep(payload_1_3) : '{default: 0};
-    assign repx_1_3 = repx_valid_1_3 ? unpack_repx(payload_1_3) : '{default: 0};
+    logic dsu_valid;
+    dsu_t dsu_instr;
+    logic rep_valid;
+    rep_t rep_instr;
+    logic repx_valid;
+    repx_t repx_instr;
+    logic trans_valid;
+    trans_t trans_instr;
 
-    logic [IO_ADDR_WIDTH-1:0] step_0_0;
-    logic [IO_ADDR_WIDTH-1:0] delay_0_0;
-    logic [IO_ADDR_WIDTH-1:0] iter_0_0;
-    logic [IO_ADDR_WIDTH-1:0] init_addr_0_0;
-
-    logic [SRAM_ADDR_WIDTH-1:0] step_0_2, step_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] delay_0_2, delay_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] iter_0_2, iter_1_3;
-    logic [SRAM_ADDR_WIDTH-1:0] init_addr_0_2, init_addr_1_3;
-
-    assign step_0_0 = {10'b0, rep_0_0._step};
-    assign delay_0_0 = {10'b0, rep_0_0._delay};
-    assign iter_0_0 = {10'b0, rep_0_0._iter};
-    assign init_addr_0_0 = dsu_0_0._init_addr;
-    assign step_0_2 = rep_0_2._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_0_2 = rep_0_2._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_0_2 = rep_0_2._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_0_2 = dsu_0_2._init_addr[SRAM_ADDR_WIDTH-1:0];
-    assign step_1_3 = rep_1_3._step[SRAM_ADDR_WIDTH-1:0];
-    assign delay_1_3 = rep_1_3._delay[SRAM_ADDR_WIDTH-1:0];
-    assign iter_1_3 = rep_1_3._iter[SRAM_ADDR_WIDTH-1:0];
-    assign init_addr_1_3 = dsu_1_3._init_addr[SRAM_ADDR_WIDTH-1:0];
-
-    agu #(
-      .ADDRESS_WIDTH(IO_ADDR_WIDTH),
-      .NUMBER_OF_LEVELS(4)
-    ) agu_0_0 (
+    {{name}}_{{fingerprint}}_decoder decoder_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .activate(activate_0[0]),
-      .load_initial(dsu_valid_0_0 & dsu_0_0._port == 0),
-      .load_level(rep_valid_0_0 & rep_0_0._port == 0),
-      .is_extended(),  // TODO: not supported yet
-      .level_to_load(rep_0_0._level[1:0]),
-      .step(step_0_0),
-      .delay(delay_0_0),
-      .iterations(iter_0_0),
-      .initial_address(init_addr_0_0),
-      .address_valid(port_enable_0_0),
-      .address(port_addr_0_0)
-  );
+      .instruction_valid(instruction_valid),
+      .instruction_payload(instruction_payload),
+      .dsu_valid(dsu_valid),
+      .dsu_instr(dsu_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .repx_valid(repx_valid),
+      .repx_instr(repx_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr)
+    );
 
-  agu #(
-      .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
-      .NUMBER_OF_LEVELS(4)
-  ) agu_0_2 (
+    {{name}}_{{fingerprint}}_controller controller_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .activate(activate_0[2]),
-      .load_initial(dsu_valid_0_2 & dsu_0_2._port == 2),
-      .load_level(rep_valid_0_2 & rep_0_2._port == 2),
-      .is_extended(),  // TODO: not supported yet
-      .level_to_load(rep_0_2._level[1:0]),
-      .step(step_0_2),
-      .delay(delay_0_2),
-      .iterations(iter_0_2),
-      .initial_address(init_addr_0_2),
-      .address_valid(port_enable_0_2),
-      .address(port_addr_0_2)
-  );
 
-  agu #(
-      .ADDRESS_WIDTH(SRAM_ADDR_WIDTH),
-      .NUMBER_OF_LEVELS(4)
-  ) agu_1_3 (
-      .clk(clk),
-      .rst_n(rst_n),
-      .activate(activate_1[3]),
-      .load_initial(dsu_valid_1_3 & dsu_1_3._port == 3),
-      .load_level(rep_valid_1_3 & rep_1_3._port == 3),
-      .is_extended(),  // TODO: not supported yet
-      .level_to_load(rep_1_3._level[1:0]),
-      .step(step_1_3),
-      .delay(delay_1_3),
-      .iterations(iter_1_3),
-      .initial_address(init_addr_1_3),
-      .address_valid(port_enable_1_3),
-      .address(port_addr_1_3)
-  );
+      .instruction_slot(instruction_slot),
+
+      .dsu_valid(dsu_valid),
+      .dsu_instr(dsu_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .repx_valid(repx_valid),
+      .repx_instr(repx_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr),
+
+      .agu_done(agu_done),
+      .agu_configs(agu_configs),
+      .init_address(agu_init_address)
+    );
+
+    genvar i;
+    generate
+      for (i = 0; i < NUM_AGUS; i++) begin : gen_agu
+        // NOTE: IO OUT disabled in iosram_top
+        if (i == 1 || i == 3) begin
+          assign agu_valid[i] = 1'b0;
+          assign agu_address[i] = '0;
+          assign agu_done[i] = 1'b0;
+        end else begin
+          localparam int AGU_ADDR_WIDTH = (i == 0 || i == 1) ? IO_ADDR_WIDTH : SRAM_ADDR_WIDTH;
+          agu_rtr #(
+            .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
+            .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+            .REP_ITER_WIDTH(REP_ITER_WIDTH),
+            .REP_STEP_WIDTH(REP_STEP_WIDTH),
+            .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+            .NUMBER_OR(NUMBER_OR),
+            .NUMBER_MT(NUMBER_MT),
+            .NUMBER_IR(NUMBER_IR)
+          ) agu_inst (
+            .clk(clk),
+            .rst_n(rst_n),
+            .enable(1'b1),
+            .activation(agu_activate[i]),
+            .agu_config(agu_configs[i]),
+            .addr_valid(agu_valid[i]),
+            .addr(agu_address[i]),
+            .done(agu_done[i])
+          );
+        end
+      end
+    endgenerate
 
     // merge the IO writing and normal writing to SRAM, IO has higher priority.
     // merge the writing and reading, writing has higher priority.
@@ -195,11 +194,20 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [BULK_BITWIDTH-1:0] sram_out_data;
     logic [SRAM_ADDR_WIDTH-1:0] sram_addr;
     logic sram_write_en;
+
+    // input ports
     always_comb begin
-        if (port_enable_0_2) begin
+        // SRAM IN (AGU 2 - SLOT 0 PORT 2)
+        if (agu_valid[2]) begin
             sram_in_en = 1;
-            sram_in_addr = port_addr_0_2;
+            sram_in_addr = agu_final_address[2];
             sram_in_data = io_data_in;
+        end
+        // BULK IN (AGU 4 - SLOT 1 PORT 2)
+        else if (agu_valid[4]) begin
+            sram_in_en = 1;
+            sram_in_addr = agu_final_address[4];
+            sram_in_data = bulk_data_in_1;
         end
         else begin
             sram_in_en = 0;
@@ -207,29 +215,42 @@ import {{name}}_{{fingerprint}}_pkg::*;
             sram_in_data = 0;
         end
     end
+
+    // output ports
     always_comb begin
-        if (port_enable_1_3) begin
+        // SRAM OUT (AGU 3 - SLOT 0 PORT 3)
+        // if (agu_valid[3]) begin
+        //     sram_out_en = 1;
+        //     sram_out_addr = agu_final_address[3];
+        //     io_data_out = sram_out_data;
+        //     bulk_data_out_1 = 0;
+        // end
+        // else
+        // NOTE: IO OUT disabled in iosram_top
+
+        // BULK OUT (AGU 5 - SLOT 1 PORT 3)
+        if (agu_valid[5]) begin
             sram_out_en = 1;
-            sram_out_addr = port_addr_1_3;
+            sram_out_addr = agu_final_address[5];
+            // io_data_out = 0;
+            bulk_data_out_1 = sram_out_data;
         end
         else begin
             sram_out_en = 0;
             sram_out_addr = 0;
-        end
-    end
-    
-    always_comb begin
-        if (port_enable_1_3) begin
-            bulk_data_out_1 = sram_out_data;
-        end
-        else begin
+            // io_data_out = 0;
             bulk_data_out_1 = 0;
         end
     end
 
-    // IO
-    assign io_en_in = port_enable_0_0;
-    assign io_addr_in = port_addr_0_0;
+    // IO IN (AGU 0 - SLOT 0 PORT 0)
+    assign io_en_in = agu_valid[0];
+    assign io_addr_in = agu_final_address[0];
+
+    // // IO OUT (AGU 1 - SLOT 0 PORT 1)
+    // assign io_en_out = agu_valid[1];
+    // assign io_addr_out = agu_final_address[1];
+    // NOTE: IO OUT disabled in iosram_top
 
     sram #(
         .DEPTH(DEPTH),
@@ -243,10 +264,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .address_a(sram_in_addr),
         .address_b(sram_out_addr),
         .data_a(sram_in_data),
-        .data_b(0),
+        .data_b('0),
         .q_b(sram_out_data)
     );
-
 endmodule
 
 // vesyla_template_start module_tail

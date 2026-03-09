@@ -1,6 +1,7 @@
 #include "swb.h"
 #include "dataEvent.h"
 #include "swb_pkg.h"
+#include "timingOperators.h"
 
 using namespace SST;
 
@@ -18,10 +19,6 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
     next_receiving_routes_maps.push_back(
         std::map<uint32_t, std::vector<uint32_t>>());
   }
-
-  // Set FSM 0 as the default FSM
-  currentFsmOption_swb = 0;
-  currentFsmOption_route = 0;
 
   // Slot ports
   for (uint32_t i = 0; i < num_slots; i++) {
@@ -83,7 +80,39 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
 }
 
 bool Swb::clockTick(SST::Cycle_t currentCycle) {
-  return DRRAResource::clockTick(currentCycle);
+  bool result = DRRAResource::clockTick(currentCycle);
+
+  if (currentCycle % 10 == 5) {
+    if (isPortActive(SWB_PKG::REP_PORT_INTRACELL)) {
+      int64_t agu_address =
+          agus[SWB_PKG::REP_PORT_INTRACELL].getAddressForCycle(
+              getPortActiveCycle(SWB_PKG::REP_PORT_INTRACELL));
+      if (agu_address >= 0 && agu_address != currentFsmOption_swb) {
+        currentFsmOption_swb = agu_address;
+        out.output("SWB switched to SWB configuration #%u\n",
+                   currentFsmOption_swb);
+      }
+    }
+    if (isPortActive(SWB_PKG::REP_PORT_INTERCELL)) {
+      out.output("Checking AGU for intercell port at cycle %lu\n",
+                 currentCycle / 10);
+      int64_t agu_address =
+          agus[SWB_PKG::REP_PORT_INTERCELL].getAddressForCycle(
+              getPortActiveCycle(SWB_PKG::REP_PORT_INTERCELL));
+      out.output("AGU address for intercell port: %ld\n", agu_address);
+      // print agu expression
+      out.output("AGU expression: %s\n", agus[SWB_PKG::REP_PORT_INTERCELL]
+                                             .getTimingExpressionString()
+                                             .c_str());
+      if (agu_address >= 0 && agu_address != currentFsmOption_route) {
+        currentFsmOption_route = agu_address;
+        out.output("SWB switched to ROUTE configuration #%u\n",
+                   currentFsmOption_route);
+      }
+    }
+  }
+
+  return result;
 }
 
 void Swb::handleSWB(const SWB_PKG::SWBInstruction &instr) {
@@ -109,7 +138,7 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
   out.output("route (slot=%d, option=%d, sr=%d, source=%d, target=%d)\n",
              instr.slot, instr.option, instr.sr, instr.source, instr.target);
 
-  bool is_receive = instr.sr == SWB_PKG::ROUTE_SR::ROUTE_SR_R;
+  bool is_receive = instr.sr == SWB_PKG::ROUTE_SR::ROUTE_SR_RECEIVE;
   std::vector<uint32_t> targets;
   if (is_receive) {
     // Receive
@@ -151,114 +180,59 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
       out.print(", ");
     }
   }
-  out.print("] in FSM %u\n", instr.option);
+  out.print("] in configuration slot %u\n", instr.option);
+}
+
+void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
+  out.output("evt (slot=%d, port=%s)\n", instr.slot,
+             instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
+                                                       : "intercell");
+
+  // add event to the timing model
+  std::string event_name =
+      "evt_" + std::to_string(instr.slot) + "_" +
+      (instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell" : "intercell");
+  agus[instr.port].addEvent(
+      event_name,
+      [this, event_name] {
+        out.output("Event %s triggered\n", event_name.c_str());
+      },
+      1);
 }
 
 void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
-
-  // For now, we only support increasing repetition levels (and no skipping)
-  if (instr.level != port_last_rep_level[instr.port] + 1) {
-    out.fatal(CALL_INFO, -1, "Invalid repetition level (last=%u, curr=%u)\n",
-              port_last_rep_level[instr.port], instr.level);
-  } else {
-    port_last_rep_level[instr.port] = instr.level;
-  }
+  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
+             instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
+                                                       : "intercell",
+             instr.iter, instr.step, instr.delay);
 
   // add repetition to the timing model
-  try {
-    next_timing_states[instr.port].addRepetition(instr.iter, instr.delay,
-                                                 instr.level, instr.step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
+  agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
 }
 
 void Swb::handleREPX(const SWB_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, level=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.level, instr.iter, instr.step,
-             instr.delay);
+  out.output(
+      "repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
+      instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell" : "intercell",
+      instr.iter, instr.step, instr.delay);
 
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), instr.slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + instr.port;
+  auto repx = instr;
+  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+  uint32_t iter = repx.iter << SWB_PKG::SWB_INSTR_REP_ITER_BITWIDTH |
+                  repetition_op.getIterations();
+  uint32_t step = repx.step << SWB_PKG::SWB_INSTR_REP_STEP_BITWIDTH |
+                  repetition_op.getStep();
+  uint32_t delay = repx.delay << SWB_PKG::SWB_INSTR_REP_DELAY_BITWIDTH |
+                   repetition_op.getDelay();
 
-  auto repetition_op =
-      next_timing_states[port_num].getRepetitionOperatorFromLevel(instr.level);
-  uint32_t iter = instr.iter << 6 | repetition_op.getIterations();
-  uint32_t step = instr.step << 6 | repetition_op.getStep();
-  uint32_t delay = instr.delay << 6 | repetition_op.getDelay();
-  try {
-    next_timing_states[port_num].adjustRepetition(iter, delay, instr.level,
-                                                  step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
-  }
+  agus[instr.port].adjustRepetition(iter, delay, step);
 }
 
-void Swb::handleFSM(const SWB_PKG::FSMInstruction &instr) {
-  out.output("fsm (slot=%d, port=%d, delay_0=%d, delay_1=%d, delay_2=%d)\n",
-             instr.slot, instr.port, instr.delay_0, instr.delay_1,
-             instr.delay_2);
+void Swb::handleTRANS(const SWB_PKG::TRANSInstruction &instr) {
+  out.output("trans (slot=%d, port=%d, delay=%d)\n", instr.slot, instr.port,
+             instr.delay);
 
-  std::vector<uint32_t> delays = {instr.delay_0, instr.delay_1, instr.delay_2};
-  if (instr.port == 0) { // inner cell communication
-    if (next_connection_maps[0].size() == 0) {
-      out.fatal(CALL_INFO, -1, "No inner cell connections in FSM 0\n");
-    }
-    next_timing_states[instr.port].addEvent(
-        "fsm_option_slot_reset_" + std::to_string(currentEventNumber), 5,
-        [this] { resetOption_swb(); });
-    currentEventNumber++;
-    out.output("Adding FSM reset event\n");
-
-    for (uint32_t i = 1; i < num_fsms; i++) {
-      out.output("Size of connection_maps[%u]: %lu\n", i,
-                 next_connection_maps[i].size());
-      if (next_connection_maps[i].size() == 0) {
-        break;
-      }
-      next_timing_states[instr.port].addTransition(
-          delays[i - 1],
-          "fsm_option_slot_switch_" + std::to_string(currentEventNumber), 5,
-          [this] { switchToNextOption_swb(); });
-      currentEventNumber++;
-      out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
-    }
-  } else if (instr.port == 2) // outer cell communication
-  {
-    if (next_receiving_routes_maps[0].size() == 0 &&
-        (next_sending_routes_maps[0].size() == 0)) {
-      out.fatal(CALL_INFO, -1, "No outer cell connections in FSM 0\n");
-    }
-    next_timing_states[instr.port].addEvent(
-        "fsm_option_slot_reset_" + std::to_string(currentEventNumber), 5,
-        [this] { resetOption_route(); });
-    currentEventNumber++;
-    out.output("Adding FSM reset event\n");
-
-    for (uint32_t i = 1; i < num_fsms; i++) {
-      if ((next_receiving_routes_maps[i].size() == 0) &&
-          (next_sending_routes_maps[i].size() == 0)) {
-        break;
-      }
-      // TODO: verify the timing of this
-      next_timing_states[instr.port].addTransition(
-          delays[i - 1],
-          "fsm_option_route_switch_" + std::to_string(currentEventNumber), 5,
-          [this] { switchToNextOption_route(); });
-      currentEventNumber++;
-      out.output("Adding FSM transition from FSM %u to FSM %u\n", i - 1, i);
-    }
-  } else
-    out.fatal(CALL_INFO, -1, "Invalid SWB port (can only be 0 or 2)\n");
+  agus[instr.port].addTransition(instr.delay);
 }
 
 void Swb::switchToNextOption_swb() {
@@ -284,10 +258,6 @@ void Swb::resetOption_route() {
 void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   if (dataEvent) {
-    // if (!active_ports[dataEvent->portType]) {
-    //   out.fatal(CALL_INFO, -1, "Received data while inactive\n", slot_id);
-    // }
-
     // Verify if the slot is mapped to another slot
     if (connection_maps[currentFsmOption_swb].count(id)) {
       uint32_t target = connection_maps[currentFsmOption_swb][id];
@@ -319,6 +289,24 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
         }
       }
       out.output("Slot %u is not linked. Ignoring sent data.\n", id);
+      out.output("Current SWB FSM option: %u\n", currentFsmOption_swb);
+      out.output("Current ROUTE FSM option: %u\n", currentFsmOption_route);
+      // Print sending routes map
+      out.output("Sending routes map (size: %d):\n",
+                 next_sending_routes_maps[currentFsmOption_route].size());
+      for (int s = 0; s < next_sending_routes_maps.size(); s++) {
+        out.output("  FSM option %d:\n", s);
+        for (auto const &pair : next_sending_routes_maps[s]) {
+          out.output("    Slot %u -> [", pair.first);
+          for (size_t i = 0; i < pair.second.size(); ++i) {
+            out.print("%s", cell_directions_str[pair.second[i]].c_str());
+            if (i < pair.second.size() - 1) {
+              out.print(", ");
+            }
+          }
+          out.print("]\n");
+        }
+      }
     }
   }
 }
@@ -377,6 +365,7 @@ void Swb::handleCellEventWithID(Event *event, uint32_t id) {
 }
 
 void Swb::handleActivation(uint32_t slot_id, uint32_t ports) {
+  activatePortsForSlot(slot_id, ports);
   uint32_t relative_ports = ports << (slot_id * 4);
   if (ports & 0b1) {
     connection_maps = next_connection_maps;
@@ -385,7 +374,7 @@ void Swb::handleActivation(uint32_t slot_id, uint32_t ports) {
       next_connection_maps.push_back(std::map<uint32_t, uint32_t>());
     }
   }
-  if (ports & 0b100) {
+  if (ports & 0b10) {
     sending_routes_maps = next_sending_routes_maps;
     receiving_routes_maps = next_receiving_routes_maps;
 
