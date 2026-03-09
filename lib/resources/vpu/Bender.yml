@@ -1,0 +1,5 @@
+package:
+  name: vpu
+
+sources:
+  - ./rtl/vpu_pkg.sv
