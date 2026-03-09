@@ -121,6 +121,8 @@ public:
     trace_file.close();
   }
 
+  size_t getWordBitwidth() const { return word_bitwidth; }
+
   // SST event handler
   // virtual void handleEvent(Event *event) = 0;
 
