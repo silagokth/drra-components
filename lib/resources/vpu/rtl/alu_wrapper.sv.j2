@@ -1,0 +1,332 @@
+// vesyla_template_start module_head
+module alu_wrapper
+  import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+  input logic clk,
+  input logic rst_n,
+
+  input logic  [WORD_BITWIDTH-1:0] word_in0,
+  input logic  [WORD_BITWIDTH-1:0] word_in1,
+  input logic  [BULK_BITWIDTH-1:0] bulk_in0,
+  input logic  [BULK_BITWIDTH-1:0] bulk_in1,
+
+  input logic [VPU_IMMEDIATE_WIDTH-1:0] immediate,
+  input logic [     VPU_MODE_WIDTH-1:0] vpu_mode,
+
+  input  logic                     acc_valid,
+  input  logic [BULK_BITWIDTH-1:0] acc_current,
+  output logic [BULK_BITWIDTH-1:0] acc_next,
+
+  output logic [WORD_BITWIDTH-1:0] word_out,
+  output logic [BULK_BITWIDTH-1:0] bulk_out
+);
+
+logic signed [WORD_BITWIDTH-1:0] adder_in0 [VECTOR_SIZE];
+logic signed [WORD_BITWIDTH-1:0] adder_in1 [VECTOR_SIZE];
+logic signed [WORD_BITWIDTH-1:0] adder_out [VECTOR_SIZE];
+genvar i;
+generate
+  for (i = 0; i < VECTOR_SIZE; i++) begin : gen_adders
+    {{name}}_{{fingerprint}}_adder adder_inst (
+        .in1(adder_in0[i]),
+        .in2(adder_in1[i]),
+        .saturate(1'b1),
+        .out(adder_out[i])
+    );
+  end
+endgenerate
+
+logic signed [WORD_BITWIDTH-1:0] mult_in0  [VECTOR_SIZE];
+logic signed [WORD_BITWIDTH-1:0] mult_in1  [VECTOR_SIZE];
+logic signed [WORD_BITWIDTH-1:0] mult_out  [VECTOR_SIZE];
+generate
+  for (i = 0; i < VECTOR_SIZE; i++) begin : gen_multipliers
+    {{name}}_{{fingerprint}}_multiplier mult_inst (
+        .in1(mult_in0[i]),
+        .in2(mult_in1[i]),
+        .saturate(1'b1),
+        .out(mult_out[i])
+    );
+  end
+endgenerate
+
+logic [WORD_BITWIDTH-1:0] alu_result [VECTOR_SIZE];
+logic [WORD_BITWIDTH-1:0] accu_curr [VECTOR_SIZE];
+logic [WORD_BITWIDTH-1:0] accu_next [VECTOR_SIZE];
+always_comb begin : comb_calculation
+  for (int i = 0; i < VECTOR_SIZE; i++) begin
+    adder_in0[i] = '0;
+    adder_in1[i] = '0;
+    adder_out[i] = '0;
+
+    mult_in0[i]  = '0;
+    mult_in1[i]  = '0;
+    mult_out[i]  = '0;
+
+    alu_result[i] = '0;
+  end
+
+  case (dpu_mode)
+    VPU_MODE_ADD: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        adder_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        adder_in1[i] = word_in1;
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_SUB: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        adder_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        adder_in1[i] = -word_in1;
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_MUL: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        mult_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        mult_in1[i] = word_in1;
+        alu_result[i] = mult_out[i];
+      end
+    end
+    VPU_MODE_MAC: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        mult_in0[i]  = bulk_in0 >> (i*WORD_BITWIDTH);
+        mult_in1[i]  = word_in1;
+        adder_in0[i] = mult_out[i];
+        if (acc_valid)
+          adder_in1[i] = accu_curr[i];
+        else
+          adder_in1[i] = '0;
+        accu_next[i] = adder_out[i];
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_MIN: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) < word_in1 ? (bulk_in0 >> (i*WORD_BITWIDTH)) : word_in1;
+    end
+    VPU_MODE_MAX: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) > word_in1 ? (bulk_in0 >> (i*WORD_BITWIDTH)) : word_in1;
+    end
+    VPU_MODE_LSHIFT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) <<< word_in1;
+    end
+    VPU_MODE_RSHIFT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) >>> word_in1;
+    end
+    VPU_MODE_SEQ: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) == word_in1 ? '1 : '0;
+    end
+    VPU_MODE_SNE: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) != word_in1 ? '1 : '0;
+    end
+    VPU_MODE_SLT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) < word_in1 ? '1 : '0;
+    end
+    VPU_MODE_SLE: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) <= word_in1 ? '1 : '0;
+    end
+    VPU_MODE_SGT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) > word_in1 ? '1 : '0;
+    end
+    VPU_MODE_SGE: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) >= word_in1 ? '1 : '0;
+    end
+    VPU_MODE_AND: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) & word_in1;
+    end
+    VPU_MODE_OR: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) | word_in1;
+    end
+    VPU_MODE_XOR: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) ^ word_in1;
+    end
+
+    VPU_MODE_VADD: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        adder_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        adder_in1[i] = bulk_in1 >> (i*WORD_BITWIDTH);
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_VSUB: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        adder_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        adder_in1[i] = -(bulk_in1 >> (i*WORD_BITWIDTH));
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_VMUL: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        mult_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        mult_in1[i] = bulk_in1 >> (i*WORD_BITWIDTH);
+        alu_result[i] = mult_out[i];
+      end
+    end
+    VPU_MODE_VMAC: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        mult_in0[i]  = bulk_in0 >> (i*WORD_BITWIDTH);
+        mult_in1[i]  = bulk_in1 >> (i*WORD_BITWIDTH);
+        adder_in0[i] = mult_out[i];
+        if (acc_valid)
+          adder_in1[i] = accu_curr[i];
+        else
+          adder_in1[i] = '0;
+        accu_next[i] = adder_out[i];
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_VMIN: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) < (bulk_in1 >> (i*WORD_BITWIDTH)) ? (bulk_in0 >> (i*WORD_BITWIDTH)) : (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VMAX: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) > (bulk_in1 >> (i*WORD_BITWIDTH)) ? (bulk_in0 >> (i*WORD_BITWIDTH)) : (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VLSHIFT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) <<< (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VRSHIFT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) >>> (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VSEQ: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) == (bulk_in1 >> (i*WORD_BITWIDTH)) ? '1 : '0;
+    end
+    VPU_MODE_VSNE: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) != (bulk_in1 >> (i*WORD_BITWIDTH)) ? '1 : '0;
+    end
+    VPU_MODE_VSLT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) < (bulk_in1 >> (i*WORD_BITWIDTH)) ? '1 : '0;
+    end
+    VPU_MODE_VSLE: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) <= (bulk_in1 >> (i*WORD_BITWIDTH)) ? '1 : '0;
+    end
+    VPU_MODE_VSGT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) > (bulk_in1 >> (i*WORD_BITWIDTH)) ? '1 : '0;
+    end
+    VPU_MODE_VSGE: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) >= (bulk_in1 >> (i*WORD_BITWIDTH)) ? '1 : '0;
+    end
+    VPU_MODE_VAND: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) & (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VOR: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) | (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VXOR: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) ^ (bulk_in1 >> (i*WORD_BITWIDTH));
+    end
+    VPU_MODE_VNOT: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = ~(bulk_in0 >> (i*WORD_BITWIDTH));
+    end
+
+    VPU_MODE_ADD_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        adder_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        adder_in1[i] = immediate;
+        alu_result[i] = adder_out[i];
+      end
+    end
+    VPU_MODE_MUL_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++) begin
+        mult_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
+        mult_in1[i] = immediate;
+        alu_result[i] = mult_out[i];
+      end
+    end
+    VPU_MODE_MIN_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) < immediate ? (bulk_in0 >> (i*WORD_BITWIDTH)) : immediate;
+    end
+    VPU_MODE_MAX_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) > immediate ? (bulk_in0 >> (i*WORD_BITWIDTH)) : immediate;
+    end
+    VPU_MODE_LSHIFT_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) <<< immediate;
+    end
+    VPU_MODE_RSHIFT_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) >>> immediate;
+    end
+    VPU_MODE_SEQ_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) == immediate ? '1 : '0;
+    end
+    VPU_MODE_SNE_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) != immediate ? '1 : '0;
+    end
+    VPU_MODE_SLT_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) < immediate ? '1 : '0;
+    end
+    VPU_MODE_SLE_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) <= immediate ? '1 : '0;
+    end
+    VPU_MODE_SGT_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) > immediate ? '1 : '0;
+    end
+    VPU_MODE_SGE_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) >= immediate ? '1 : '0;
+    end
+    VPU_MODE_AND_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) & immediate;
+    end
+    VPU_MODE_OR_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) | immediate;
+    end
+    VPU_MODE_XOR_IMM: begin
+      for (int i = 0; i < VECTOR_SIZE; i++)
+        alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) ^ immediate;
+    end
+
+    default: begin
+      alu_result = '0;
+      accu_next = '0;
+    end
+  endcase
+end
+
+always_comb begin : comb_output
+  for (int i = 0; i < VECTOR_SIZE; i++) begin
+    accu_curr[i] = acc_current >> (i*WORD_BITWIDTH);
+    bulk_out[i*WORD_BITWIDTH +: WORD_BITWIDTH] = alu_result[i];
+    acc_next[i*WORD_BITWIDTH +: WORD_BITWIDTH] = accu_next[i];
+  end
+end
+
+
+endmodule

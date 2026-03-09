@@ -1,0 +1,381 @@
+{
+  "format": {
+    "instr_bitwidth": 32,
+    "instr_type_bitwidth": 1,
+    "instr_opcode_bitwidth": 3,
+    "instr_slot_bitwidth": 4
+  },
+  "instructions": [
+    {
+      "name": "vpu",
+      "opcode": 4,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "config",
+          "comment": "Configuration register where the VPU mode will be stored.",
+          "bitwidth": 2
+        },
+        {
+          "name": "mode",
+          "comment": "VPU mode",
+          "bitwidth": 6,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "idle"
+            },
+            {
+              "key": 1,
+              "val": "add"
+            },
+            {
+              "key": 2,
+              "val": "add_acc"
+            },
+            {
+              "key": 3,
+              "val": "sub"
+            },
+            {
+              "key": 4,
+              "val": "sub_acc"
+            },
+            {
+              "key": 5,
+              "val": "mul"
+            },
+            {
+              "key": 6,
+              "val": "mac"
+            },
+            {
+              "key": 7,
+              "val": "min"
+            },
+            {
+              "key": 8,
+              "val": "max"
+            },
+            {
+              "key": 9,
+              "val": "lshift"
+            },
+            {
+              "key": 10,
+              "val": "rshift"
+            },
+            {
+              "key": 11,
+              "val": "seq"
+            },
+            {
+              "key": 12,
+              "val": "sne"
+            },
+            {
+              "key": 13,
+              "val": "slt"
+            },
+            {
+              "key": 14,
+              "val": "sle"
+            },
+            {
+              "key": 15,
+              "val": "sgt"
+            },
+            {
+              "key": 16,
+              "val": "sge"
+            },
+            {
+              "key": 17,
+              "val": "and"
+            },
+            {
+              "key": 18,
+              "val": "or"
+            },
+            {
+              "key": 19,
+              "val": "xor"
+            },
+            {
+              "key": 20,
+              "val": "vadd"
+            },
+            {
+              "key": 21,
+              "val": "vadd_acc"
+            },
+            {
+              "key": 22,
+              "val": "vsub"
+            },
+            {
+              "key": 23,
+              "val": "vsub_acc"
+            },
+            {
+              "key": 24,
+              "val": "vmul"
+            },
+            {
+              "key": 25,
+              "val": "vmac"
+            },
+            {
+              "key": 26,
+              "val": "vmin"
+            },
+            {
+              "key": 27,
+              "val": "vmax"
+            },
+            {
+              "key": 28,
+              "val": "vlshift"
+            },
+            {
+              "key": 29,
+              "val": "vrshift"
+            },
+            {
+              "key": 30,
+              "val": "vseq"
+            },
+            {
+              "key": 31,
+              "val": "vsne"
+            },
+            {
+              "key": 32,
+              "val": "vslt"
+            },
+            {
+              "key": 33,
+              "val": "vsle"
+            },
+            {
+              "key": 34,
+              "val": "vsgt"
+            },
+            {
+              "key": 35,
+              "val": "vsge"
+            },
+            {
+              "key": 36,
+              "val": "vand"
+            },
+            {
+              "key": 37,
+              "val": "vor"
+            },
+            {
+              "key": 38,
+              "val": "vxor"
+            },
+            {
+              "key": 39,
+              "val": "vnot"
+            },
+            {
+              "key": 40,
+              "val": "add_imm"
+            },
+            {
+              "key": 41,
+              "val": "mul_imm"
+            },
+            {
+              "key": 42,
+              "val": "min_imm"
+            },
+            {
+              "key": 43,
+              "val": "max_imm"
+            },
+            {
+              "key": 44,
+              "val": "lshift_imm"
+            },
+            {
+              "key": 45,
+              "val": "rshift_imm"
+            },
+            {
+              "key": 46,
+              "val": "seq_imm"
+            },
+            {
+              "key": 47,
+              "val": "sne_imm"
+            },
+            {
+              "key": 48,
+              "val": "slt_imm"
+            },
+            {
+              "key": 49,
+              "val": "sle_imm"
+            },
+            {
+              "key": 50,
+              "val": "sgt_imm"
+            },
+            {
+              "key": 51,
+              "val": "sge_imm"
+            },
+            {
+              "key": 52,
+              "val": "and_imm"
+            },
+            {
+              "key": 53,
+              "val": "or_imm"
+            },
+            {
+              "key": 54,
+              "val": "xor_imm"
+            }
+          ]
+        },
+        {
+          "name": "immediate",
+          "comment": "Immediate value (used by some VPU modes)",
+          "bitwidth": 16
+        }
+      ]
+    },
+    {
+      "name": "evt",
+      "opcode": 0,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the base event for the timing pattern of either the VPU operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "vpu"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rep",
+      "opcode": 1,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the repetition operator to target either the VPU operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "vpu"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Number of iterations.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Step size between the addresses generated for each iteration.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Delay between iterations.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "repx",
+      "opcode": 2,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the repetition extension to target either the VPU operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "vpu"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 3,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the transition operator to target either the VPU operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "vpu"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 23
+        }
+      ]
+    }
+  ]
+}
