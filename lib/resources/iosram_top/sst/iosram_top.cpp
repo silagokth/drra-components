@@ -89,11 +89,9 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
   std::string event_name;
   switch (port_num) {
   case DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO:
-    out.fatal(CALL_INFO, -1,
-              "Invalid DSU mode IOSRAM Btm should not read from IO\n");
     event_name =
         "dsu_sram_read_from_io_" + std::to_string(current_event_number);
-    agus[instr.port].addEvent(
+    agus[port_num].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO);
@@ -105,7 +103,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
     out.fatal(CALL_INFO, -1,
               "Invalid DSU mode IOSRAM Top should not write to IO\n");
     event_name = "dsu_sram_write_to_io_" + std::to_string(current_event_number);
-    agus[instr.port].addEvent(
+    agus[port_num].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO);
@@ -115,7 +113,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
     event_name = "dsu_io_write_to_sram_" + std::to_string(current_event_number);
-    agus[instr.port].addEvent(
+    agus[port_num].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM);
@@ -126,7 +124,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
   case DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM:
     event_name =
         "dsu_io_read_from_sram_" + std::to_string(current_event_number);
-    agus[instr.port].addEvent(
+    agus[port_num].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM);
@@ -136,7 +134,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK:
     event_name = "dsu_write_bulk_" + std::to_string(current_event_number);
-    agus[instr.port].addEvent(
+    agus[port_num].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK);
@@ -146,7 +144,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_READ_BULK:
     event_name = "dsu_read_bulk_" + std::to_string(current_event_number);
-    agus[instr.port].addEvent(
+    agus[port_num].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK);
