@@ -59,8 +59,6 @@ public:
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
-
   // Instruction format
   using DRRAResource::format;
   void handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr);
@@ -84,6 +82,8 @@ private:
   std::string dumpBackendContent();
   SST::MemHierarchy::Backend::Backing *backend = nullptr;
   ScratchBackendConvertor *backendConvertor = nullptr;
+
+  void switchToNextOption_sram(uint32_t port_num);
 
   // Backing store parameters
   uint64_t iosram_depth;
@@ -114,9 +114,21 @@ private:
   void writeBulk();
   void readBulk();
 
-  int32_t agu_initial_addr = -1;
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
+  std::map<uint32_t, uint32_t> port_agus_init;
+  std::map<uint32_t, uint32_t> port_agus;
+
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
+  void updatePortAGUs(uint32_t port) {
+    port_agus[port] = port_agus_init[port] +
+                      agus[port].getAddressForCycle(getPortActiveCycle(port));
+    if (port_agus[port] >= iosram_depth) {
+      out.fatal(CALL_INFO, -1,
+                "Invalid AGU address (greater than IOSRAM size)\n");
+    }
+  }
 };
 
 #endif // _IOSRAM_TOP_H

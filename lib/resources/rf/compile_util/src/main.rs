@@ -61,7 +61,6 @@ fn get_timing_model(op: Op) -> String {
             "rep" => {
                 let port = instr_segments.get_value("port").parse::<usize>().unwrap();
                 let iter = instr_segments.get_value("iter");
-                let _step = instr_segments.get_value("step");
                 let delay = instr_segments.get_value("delay");
                 r.insert(current_level[port], (iter.to_string(), delay.to_string()));
                 current_level[port] += 1;
