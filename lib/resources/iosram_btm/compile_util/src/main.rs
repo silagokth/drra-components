@@ -44,8 +44,8 @@ include!("isa_config.rs");
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
-    let mut current_rep = 0;
-    let mut current_trans = 0;
+    let mut current_level = [0; 4];
+    let mut current_trans = [0; 4];
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = "e0".to_string();
@@ -54,21 +54,24 @@ fn get_timing_model(op: Op) -> String {
         let instr_segments = instr.params;
         match instr.kind.as_str() {
             "dsu" => {
-                current_rep = 0;
-                current_trans = 0;
+                let port = instr_segments.get_value("port").parse::<usize>().unwrap();
+                current_level[port] = 0;
+                current_trans[port] = 0;
             }
             "rep" => {
+                let port = instr_segments.get_value("port").parse::<usize>().unwrap();
                 let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
-                r.insert(current_rep, (iter.to_string(), delay.to_string()));
-                current_rep += 1;
+                r.insert(current_level[port], (iter.to_string(), delay.to_string()));
+                current_level[port] += 1;
             }
             "repx" => {}
-            "fsm" => {
+            "trans" => {
+                let port = instr_segments.get_value("port").parse::<usize>().unwrap();
                 let delay = instr_segments.get_value("delay");
-                t.insert(current_trans, delay);
-                current_rep = 0;
-                current_trans += 1;
+                t.insert(current_trans[port], delay);
+                current_level[port] = 0;
+                current_trans[port] += 1;
             }
             _ => {
                 panic!("Unknown instruction kind: {}", instr.kind);

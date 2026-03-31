@@ -107,14 +107,7 @@ void Rf::handleREP(const RF_PKG::REPInstruction &instr) {
              instr.port, instr.iter, instr.step, instr.delay);
 
   auto rep = instr;
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), rep.slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + rep.port;
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
 
   // Add repetition to the timing model
   try {
@@ -129,14 +122,7 @@ void Rf::handleREPX(const RF_PKG::REPXInstruction &instr) {
              instr.slot, instr.port, instr.iter, instr.step, instr.delay);
 
   auto repx = instr;
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), repx.slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + repx.port;
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
 
   auto repetition_op = agus[port_num].getLastRepetitionOperator();
   uint32_t iter = repx.iter << RF_PKG::RF_INSTR_REPX_ITER_BITWIDTH |
@@ -157,9 +143,9 @@ void Rf::handleTRANS(const RF_PKG::TRANSInstruction &instr) {
   out.output("trans (slot=%d, port=%s, delay=%d)\n", instr.slot,
              instr.port == 0 ? "dpu" : "rst", instr.delay);
 
-  // Add transition to the timing model
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
   try {
-    agus[instr.port].addTransition(instr.delay);
+    agus[port_num].addTransition(instr.delay);
     current_event_number++;
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
