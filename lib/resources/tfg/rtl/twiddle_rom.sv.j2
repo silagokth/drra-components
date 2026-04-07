@@ -1,0 +1,74 @@
+module twiddle_rom
+import {{fingerprint}}_pkg::*;
+(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic [AGU_BITWIDTH-1:0] addr,
+    output logic [WORD_BITWIDTH-1:0] data
+);
+
+    parameter ROM_ENTRIES = 2**ROM_BITWIDTH;
+    logic [WORD_BITWIDTH-1:0] rom [0:ROM_ENTRIES];
+
+    initial begin
+        rom[0] = 32'h07fff0000;  // value fixed in multiplier
+        rom[1] = 32'h7ff6fcdc;
+        rom[2] = 32'h7fd9f9b8;
+        rom[3] = 32'h7fa7f695;
+        rom[4] = 32'h7f62f374;
+        rom[5] = 32'h7f0af055;
+        rom[6] = 32'h7e9ded38;
+        rom[7] = 32'h7e1eea1e;
+        rom[8] = 32'h7d8ae707;
+        rom[9] = 32'h7ce4e3f4;
+        rom[10] = 32'h7c2ae0e6;
+        rom[11] = 32'h7b5ddddc;
+        rom[12] = 32'h7a7ddad8;
+        rom[13] = 32'h798ad7d9;
+        rom[14] = 32'h7885d4e1;
+        rom[15] = 32'h776cd1ef;
+        rom[16] = 32'h7642cf04;
+        rom[17] = 32'h7505cc21;
+        rom[18] = 32'h73b6c946;
+        rom[19] = 32'h7255c673;
+        rom[20] = 32'h70e3c3a9;
+        rom[21] = 32'h6f5fc0e9;
+        rom[22] = 32'h6dcabe32;
+        rom[23] = 32'h6c24bb85;
+        rom[24] = 32'h6a6eb8e3;
+        rom[25] = 32'h68a7b64c;
+        rom[26] = 32'h66d0b3c0;
+        rom[27] = 32'h64e9b140;
+        rom[28] = 32'h62f2aecc;
+        rom[29] = 32'h60ecac65;
+        rom[30] = 32'h5ed7aa0a;
+        rom[31] = 32'h5cb4a7bd;
+        rom[32] = 32'h5a82a57e;
+    end
+
+    logic [ROM_BITWIDTH:0] rom_addr;
+    logic [WORD_BITWIDTH/2-1:0] data_r, data_i;
+
+    always_comb begin
+        rom_addr = 0;
+        if (addr[ROM_BITWIDTH] == 0) begin
+            rom_addr = addr[ROM_BITWIDTH:0];
+        end else begin
+            rom_addr = ~addr[ROM_BITWIDTH:0] + 1;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            data_r <= '0;
+            data_i <= '0;
+        end else begin
+            // fix for FRAC_BITWIDTH
+            data_r <= rom[rom_addr][WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+            data_i <= rom[rom_addr][WORD_BITWIDTH/2-1:0];
+        end
+    end
+
+    assign data = {(data_r >>> 15-FRAC_BITWIDTH), (data_i >>> 15-FRAC_BITWIDTH)};
+
+endmodule

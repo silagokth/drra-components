@@ -1,0 +1,17 @@
+{
+  "kind": "bu",
+  "size": 7,
+  "io_input": false,
+  "io_output": false,
+  "custom_properties": [
+    {
+      "name": "FRAC_BITWIDTH",
+      "value": 15
+    }
+  ],
+  "required_parameters": [
+    "RESOURCE_INSTR_WIDTH",
+    "BULK_BITWIDTH",
+    "WORD_BITWIDTH"
+  ]
+}

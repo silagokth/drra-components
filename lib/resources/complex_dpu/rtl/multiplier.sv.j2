@@ -1,0 +1,51 @@
+module multiplier
+import {{fingerprint}}_pkg::*;
+(
+    input  logic signed [WORD_BITWIDTH-1:0] data_in0,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in1,
+    output logic signed [WORD_BITWIDTH-1:0] data_out
+);
+
+    parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
+    parameter FRAC_BITWIDTH = WORD_BITWIDTH/4;
+
+    // real and imag signals
+    logic signed [COMPLEX_BITWIDTH-1:0] data0_r;
+    logic signed [COMPLEX_BITWIDTH-1:0] data0_i;
+    logic signed [COMPLEX_BITWIDTH-1:0] data1_r;
+    logic signed [COMPLEX_BITWIDTH-1:0] data1_i;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out1;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out2;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out2_neg;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out3;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out4;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out_r;
+    logic signed [COMPLEX_BITWIDTH-1:0] mul_out_i;
+
+    logic signed [COMPLEX_BITWIDTH*2-1:0] temp1, temp2, temp3, temp4;
+
+    assign data0_r = data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data0_i = data_in0[WORD_BITWIDTH/2-1:0];
+    assign data1_r = data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data1_i = data_in1[WORD_BITWIDTH/2-1:0];
+
+    always_comb begin
+        temp1 = data0_r * data1_r;       // ac
+        temp2 = data0_i * data1_i;       // bd
+        temp3 = data0_r * data1_i;       // ad
+        temp4 = data0_i * data1_r;       // bc
+        // truncation and rounding
+        mul_out1 = temp1[FRAC_BITWIDTH-1] ? (temp1 >>> FRAC_BITWIDTH) + 1 : temp1 >>> FRAC_BITWIDTH;    
+        mul_out2 = temp2[FRAC_BITWIDTH-1] ? (temp2 >>> FRAC_BITWIDTH) + 1 : temp2 >>> FRAC_BITWIDTH;    
+        mul_out3 = temp3[FRAC_BITWIDTH-1] ? (temp3 >>> FRAC_BITWIDTH) + 1 : temp3 >>> FRAC_BITWIDTH;
+        mul_out4 = temp4[FRAC_BITWIDTH-1] ? (temp4 >>> FRAC_BITWIDTH) + 1 : temp4 >>> FRAC_BITWIDTH;    
+        // bd sign conversion (2's complement)
+        mul_out2_neg = (~mul_out2) + 1;
+    end
+
+    assign mul_out_r = COMPLEX_BITWIDTH'(mul_out1 + mul_out2_neg);  // ac - bd
+    assign mul_out_i = COMPLEX_BITWIDTH'(mul_out3 + mul_out4);  // (ad + bc) i
+
+    assign data_out = {mul_out_r, mul_out_i};
+
+endmodule

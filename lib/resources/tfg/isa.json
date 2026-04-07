@@ -1,0 +1,63 @@
+{
+  "format": {
+    "instr_bitwidth": 32,
+    "instr_type_bitwidth": 1,
+    "instr_opcode_bitwidth": 3,
+    "instr_slot_bitwidth": 4
+  },
+  "instructions": [
+    {
+      "name": "fft",
+      "opcode": 4,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "The port number.",
+          "bitwidth": 2,
+          "verbo_map": [
+              { "key": 0, "val": "Write to RF (WORD)" },
+              { "key": 1, "val": "Read from RF (WORD)" },
+              { "key": 2, "val": "Write to RF (BULK)" },
+              { "key": 3, "val": "Read from RF (BULK)" }
+          ]
+        },
+        {
+          "name": "n_points",
+          "comment": "FFT points (binary).",
+          "bitwidth": 12
+        },
+        {
+          "name": "radix",
+          "comment": "Radix used for FFT.",
+          "bitwidth": 2,
+          "verbo_map": [
+            { "key": 0, "val": "Radix 2" },
+            { "key": 1, "val": "Radix 4" },
+            { "key": 2, "val": "Not implemented yet" },
+            { "key": 3, "val": "Not implemented yet" }
+          ]
+        },
+        {
+          "name": "n_bu",
+          "comment": "Number of BU in the cell (-1).",
+          "bitwidth": 1
+        },
+        {
+          "name": "mode",
+          "comment": "The AGU mode.",
+          "bitwidth": 1,
+          "verbo_map": [
+            { "key": 0, "val": "Twiddle address generation" },
+            { "key": 1, "val": "FFT data address generation" }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "delay",
+          "bitwidth": 5
+        }
+      ]
+    }
+  ]
+}

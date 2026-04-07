@@ -1,0 +1,60 @@
+{
+    "format": {
+      "instr_bitwidth": 32,
+      "instr_type_bitwidth": 1,
+      "instr_opcode_bitwidth": 3,
+      "instr_slot_bitwidth": 4
+    },
+    "instructions": [
+      {
+        "name": "bu",
+        "opcode": 3,
+        "instr_type": 1,
+        "segments": [
+          {
+            "name": "option",
+            "comment": "Configuration option.",
+            "bitwidth": 2
+          },
+          {
+            "name": "radix",
+            "comment": "Radix used for FFT.",
+            "bitwidth": 2,
+            "verbo_map": [
+              { "key": 0, "val": "Radix 2" },
+              { "key": 1, "val": "Radix 4" },
+              { "key": 2, "val": "Not implemented yet" },
+              { "key": 3, "val": "Not implemented yet" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "fsm",
+        "opcode": 2,
+        "instr_type": 1,
+        "segments": [
+          {
+            "name": "port",
+            "comment": "The port number",
+            "bitwidth": 2
+          },
+          {
+            "name": "delay_0",
+            "comment": "Delay between state 0 and 1.",
+            "bitwidth": 7
+          },
+          {
+            "name": "delay_1",
+            "comment": "Delay between state 1 and 2.",
+            "bitwidth": 7
+          },
+          {
+            "name": "delay_2",
+            "comment": "Delay between state 2 and 3.",
+            "bitwidth": 7
+          }
+        ]
+      }
+    ]
+  }

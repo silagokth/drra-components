@@ -1,0 +1,37 @@
+module radix2_bu
+import {{fingerprint}}_pkg::*;
+(
+    input  logic signed [WORD_BITWIDTH-1:0] data_in0,
+    input  logic signed [WORD_BITWIDTH-1:0] data_in1,
+    output logic signed [WORD_BITWIDTH-1:0] data_out0,
+    output logic signed [WORD_BITWIDTH-1:0] data_out1    
+);
+
+    parameter COMPLEX_BITWIDTH = WORD_BITWIDTH/2;
+
+    // data for butterfly
+    logic [COMPLEX_BITWIDTH-1:0] data0_r;
+    logic [COMPLEX_BITWIDTH-1:0] data0_i;
+    logic [COMPLEX_BITWIDTH-1:0] data1_r;
+    logic [COMPLEX_BITWIDTH-1:0] data1_i;
+    logic [COMPLEX_BITWIDTH-1:0] out0_r;
+    logic [COMPLEX_BITWIDTH-1:0] out0_i;
+    logic [COMPLEX_BITWIDTH-1:0] out1_r;
+    logic [COMPLEX_BITWIDTH-1:0] out1_i;
+
+    assign data0_r = data_in0[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data0_i = data_in0[WORD_BITWIDTH/2-1:0];
+    assign data1_r = data_in1[WORD_BITWIDTH-1:WORD_BITWIDTH/2];
+    assign data1_i = data_in1[WORD_BITWIDTH/2-1:0];
+
+    always_comb begin
+        out0_r = COMPLEX_BITWIDTH'(data0_r + data1_r);
+        out0_i = COMPLEX_BITWIDTH'(data0_i + data1_i);
+        out1_r = COMPLEX_BITWIDTH'(data0_r - data1_r);
+        out1_i = COMPLEX_BITWIDTH'(data0_i - data1_i);
+    end
+
+    assign data_out0 = {out0_r, out0_i};
+    assign data_out1 = {out1_r, out1_i};
+
+endmodule
