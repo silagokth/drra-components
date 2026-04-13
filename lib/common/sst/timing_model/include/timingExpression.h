@@ -28,14 +28,15 @@ public:
 class TimingState {
 private:
   std::shared_ptr<TimingExpression> expression;
-  uint64_t eventCounter;
-  uint64_t lastScheduledCycle;
+  uint64_t eventCounter = 0;
+  uint64_t lastScheduledCycle = 0;
   std::map<uint64_t, uint64_t> generatedAddresses;
   std::vector<uint64_t> levels_current_iteration;
   std::vector<uint64_t> levels_total_iterations;
   std::vector<uint64_t> levels_step;
 
   std::vector<std::shared_ptr<TimingExpression>> operator_queue;
+  std::vector<uint64_t> eventInitialAddresses;
 
   TimingState &buildRepetition(uint64_t iterations, uint64_t delay);
   TimingState &buildRepetition(uint64_t iterations, uint64_t delay,
@@ -95,6 +96,7 @@ public:
 
   RepetitionOperator getRepetitionOperatorFromLevel(uint64_t level) const;
   int64_t getAddressForCycle(uint64_t cycle);
+  void setEventInitialAddresses(const std::vector<uint64_t> &addresses);
   void copyLevelData(const TimingState &other);
   const std::vector<uint64_t> &getLevelsStep() const;
   const std::vector<uint64_t> &getLevelsTotalIterations() const;

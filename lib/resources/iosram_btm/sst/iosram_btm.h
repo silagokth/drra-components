@@ -59,8 +59,6 @@ public:
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
-
   // Instruction format
   using DRRAResource::format;
   void handleDSU(const IOSRAM_BTM_PKG::DSUInstruction &instr);
@@ -116,9 +114,32 @@ private:
   void writeBulk();
   void readBulk();
 
-  int32_t agu_initial_addr = -1;
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
+  std::map<uint32_t, uint32_t> port_agus_init;
+  std::map<uint32_t, uint32_t> port_agus;
+
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
+  void updatePortAGUs(uint32_t port) {
+    int64_t address_offset =
+        agus[port].getAddressForCycle(getPortActiveCycle(port));
+    if (address_offset < 0) {
+      out.fatal(CALL_INFO, -1,
+                "AGU for port %u returned negative address %d for cycle %d\n",
+                port, address_offset, getPortActiveCycle(port));
+    }
+    port_agus[port] = port_agus_init[port] + address_offset;
+    uint64_t max_addr = iosram_depth;
+    if (port == DSU_PORT_SRAM_READ_FROM_IO ||
+        port == DSU_PORT_SRAM_WRITE_TO_IO) {
+      max_addr = iosram_depth * (io_data_width / word_bitwidth);
+    }
+    if (port_agus[port] >= max_addr) {
+      out.fatal(CALL_INFO, -1, "Invalid AGU address %u for port %u (max %lu)\n",
+                port_agus[port], port, max_addr);
+    }
+  }
 };
 
 #endif // _IOSRAM_BTM_H

@@ -28,6 +28,7 @@ TimingState::TimingState(const TimingState &other)
     : expression(other.expression), eventCounter(other.eventCounter),
       lastScheduledCycle(other.lastScheduledCycle),
       eventNames(other.eventNames), operator_queue(other.operator_queue),
+      eventInitialAddresses(other.eventInitialAddresses),
       scheduledEvents(other.scheduledEvents),
       generatedAddresses(other.generatedAddresses),
       levels_current_iteration(other.levels_current_iteration),
@@ -115,6 +116,7 @@ TimingState &TimingState::operator=(const TimingState &other) {
     lastScheduledCycle = other.lastScheduledCycle;
     eventNames = other.eventNames;
     operator_queue = other.operator_queue;
+    eventInitialAddresses = other.eventInitialAddresses;
     scheduledEvents = other.scheduledEvents;
     generatedAddresses = other.generatedAddresses;
     levels_current_iteration = other.levels_current_iteration;
@@ -421,12 +423,16 @@ TimingState &TimingState::build() {
   for (auto &op : operator_queue) {
     if (auto event = std::dynamic_pointer_cast<TimingEvent>(op)) {
       expressions.push_back(std::static_pointer_cast<TimingExpression>(event));
-      // First address for the event is 0
+      // First address for the event uses per-event initial address if available
       current_event_id++;
       events_addresses[current_event_id] = std::map<uint64_t, uint64_t>();
-      events_addresses[current_event_id][0] = 0;
+      uint64_t init_addr =
+          (current_event_id < (int64_t)eventInitialAddresses.size())
+              ? eventInitialAddresses[current_event_id]
+              : 0;
+      events_addresses[current_event_id][0] = init_addr;
       events_last_cycle[current_event_id] = 0;
-      events_last_address[current_event_id] = 0;
+      events_last_address[current_event_id] = init_addr;
     } else if (auto transition =
                    std::dynamic_pointer_cast<TransitionOperator>(op)) {
       if (std::getenv("VESYLA_DEBUG"))
@@ -571,6 +577,38 @@ TimingState &TimingState::build() {
   }
 
   // Schedule events
+  if (std::getenv("VESYLA_DEBUG")) {
+    // Print type of expression (TimingEvent, TransitionOperator,
+    // RepetitionOperator)
+    if (std::dynamic_pointer_cast<TimingEvent>(expression)) {
+      std::cout << "Expression is a TimingEvent: "
+                << std::dynamic_pointer_cast<TimingEvent>(expression)->getName()
+                << std::endl;
+    } else if (std::dynamic_pointer_cast<TransitionOperator>(expression)) {
+      std::cout << "Expression is a TransitionOperator (next event: "
+                << std::dynamic_pointer_cast<TransitionOperator>(expression)
+                       ->getNextEventName()
+                << ")" << std::endl;
+    } else if (std::dynamic_pointer_cast<RepetitionOperator>(expression)) {
+      std::cout << "Expression is a RepetitionOperator (level: "
+                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
+                       ->getLevel()
+                << ", iterations: "
+                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
+                       ->getIterations()
+                << ", delay: "
+                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
+                       ->getDelay()
+                << ", step: "
+                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
+                       ->getStep()
+                << ")" << std::endl;
+    } else {
+      std::cout << "Expression is an unknown type" << std::endl;
+    }
+    std::cout << "Scheduling events for expression: " << expression->toString()
+              << std::endl;
+  }
   updateLastScheduledCycle(
       this->expression->scheduleEvents(*this, lastScheduledCycle));
   lastScheduledCycle = addresses.rbegin()->first;
@@ -602,6 +640,17 @@ void TimingState::scheduleEvent(std::shared_ptr<const TimingEvent> event,
 std::set<std::shared_ptr<const TimingEvent>>
 TimingState::getEventsForCycle(uint64_t cycle) {
   auto eventsIterator = scheduledEvents.find(cycle);
+  if (std::getenv("VESYLA_DEBUG"))
+    std::cout << "Getting events for cycle " << cycle << " in scheduledEvents ("
+              << scheduledEvents.size() << " entries)" << std::endl;
+  // print all cycles where these is an event scheduled for debugging
+  if (std::getenv("VESYLA_DEBUG")) {
+    std::cout << "Scheduled events cycles:" << std::endl;
+    for (const auto &entry : scheduledEvents) {
+      std::cout << " Cycle " << entry.first << " -> " << entry.second.size()
+                << " events" << std::endl;
+    }
+  }
   if (eventsIterator != scheduledEvents.end()) {
     return eventsIterator->second;
   }
@@ -668,6 +717,11 @@ int64_t TimingState::getAddressForCycle(uint64_t cycle) {
     address = it->second;
   }
   return address;
+}
+
+void TimingState::setEventInitialAddresses(
+    const std::vector<uint64_t> &addresses) {
+  eventInitialAddresses = addresses;
 }
 
 void TimingState::copyLevelData(const TimingState &other) {
