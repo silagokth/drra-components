@@ -124,9 +124,14 @@ private:
   void updatePortAGUs(uint32_t port) {
     port_agus[port] = port_agus_init[port] +
                       agus[port].getAddressForCycle(getPortActiveCycle(port));
-    if (port_agus[port] >= iosram_depth) {
+    uint64_t max_addr = iosram_depth;
+    if (port == DSU_PORT_SRAM_READ_FROM_IO || port == DSU_PORT_SRAM_WRITE_TO_IO) {
+      max_addr = iosram_depth * (io_data_width / word_bitwidth);
+    }
+    if (port_agus[port] >= max_addr) {
       out.fatal(CALL_INFO, -1,
-                "Invalid AGU address (greater than IOSRAM size)\n");
+                "Invalid AGU address %u for port %u (max %lu)\n",
+                port_agus[port], port, max_addr);
     }
   }
 };
