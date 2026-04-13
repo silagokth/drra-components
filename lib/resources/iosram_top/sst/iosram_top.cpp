@@ -11,7 +11,7 @@ Iosram_top::Iosram_top(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   instructionHandlers = IOSRAM_TOP_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
-  iosram_depth = 1u << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  iosram_depth = 1ULL << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
@@ -75,10 +75,10 @@ void Iosram_top::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
-  out.output("dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d, "
-             "port=%d)\n",
-             instr.slot, instr.port, instr.option, instr.init_addr_sd,
-             instr.init_addr);
+  out.output(
+      "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      instr.slot, instr.port, instr.option, instr.init_addr_sd,
+      instr.init_addr);
 
   // Set initial address
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
