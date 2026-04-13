@@ -7,6 +7,7 @@ private:
   std::unique_ptr<TimingState> timing_state = nullptr;
 
   std::vector<TimingState> lanes;
+  std::vector<uint64_t> lane_initial_addresses;
   size_t current_lane_index = 0;
   size_t current_trans_index = 0;
   uint64_t current_rep_level = 0;

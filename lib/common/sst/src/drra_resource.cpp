@@ -199,7 +199,11 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
       if (isPortActive(port.first)) { // if port is active
         auto events =
             getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
-
+        if (std::getenv("VESYLA_DEBUG"))
+          out.output(
+              "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
+              port.first, events.size(), currentSSTCycle / 10,
+              getPortActiveCycle(port.first));
         // add events to the list
         for (auto event : events) {
           events_for_cycle.push_back(event);
