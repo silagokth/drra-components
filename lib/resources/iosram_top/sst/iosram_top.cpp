@@ -11,7 +11,7 @@ Iosram_top::Iosram_top(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   instructionHandlers = IOSRAM_TOP_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
-  iosram_depth = 2 ^ params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  iosram_depth = 1u << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
