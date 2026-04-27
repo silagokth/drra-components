@@ -257,8 +257,8 @@
       "segments": [
         {
           "name": "port",
-          "comment": "Configure the base event for the timing pattern of either the VPU operation (0) or the RST operation (1).",
-          "bitwidth": 1,
+          "comment": "Configure the base event for the timing pattern of the target port: vpu (0), rst (1), in0 (2), or in1 (3).",
+          "bitwidth": 2,
           "verbo_map": [
             {
               "key": 0,
@@ -267,6 +267,14 @@
             {
               "key": 1,
               "val": "rst"
+            },
+            {
+              "key": 2,
+              "val": "in0"
+            },
+            {
+              "key": 3,
+              "val": "in1"
             }
           ]
         }
@@ -279,8 +287,8 @@
       "segments": [
         {
           "name": "port",
-          "comment": "Configure the repetition operator to target either the VPU operation (0) or the RST operation (1).",
-          "bitwidth": 1,
+          "comment": "Configure the repetition operator to target: vpu (0), rst (1), in0 (2), or in1 (3).",
+          "bitwidth": 2,
           "verbo_map": [
             {
               "key": 0,
@@ -289,6 +297,14 @@
             {
               "key": 1,
               "val": "rst"
+            },
+            {
+              "key": 2,
+              "val": "in0"
+            },
+            {
+              "key": 3,
+              "val": "in1"
             }
           ]
         },
@@ -307,7 +323,7 @@
         {
           "name": "delay",
           "comment": "Delay between iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         }
       ]
     },
@@ -318,8 +334,8 @@
       "segments": [
         {
           "name": "port",
-          "comment": "Configure the repetition extension to target either the VPU operation (0) or the RST operation (1).",
-          "bitwidth": 1,
+          "comment": "Configure the repetition extension to target: vpu (0), rst (1), in0 (2), or in1 (3).",
+          "bitwidth": 2,
           "verbo_map": [
             {
               "key": 0,
@@ -328,6 +344,14 @@
             {
               "key": 1,
               "val": "rst"
+            },
+            {
+              "key": 2,
+              "val": "in0"
+            },
+            {
+              "key": 3,
+              "val": "in1"
             }
           ]
         },
@@ -346,7 +370,7 @@
         {
           "name": "delay",
           "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
-          "bitwidth": 8
+          "bitwidth": 7
         }
       ]
     },
@@ -357,8 +381,8 @@
       "segments": [
         {
           "name": "port",
-          "comment": "Configure the transition operator to target either the VPU operation (0) or the RST operation (1).",
-          "bitwidth": 1,
+          "comment": "Configure the transition operator to target: vpu (0), rst (1), in0 (2), or in1 (3).",
+          "bitwidth": 2,
           "verbo_map": [
             {
               "key": 0,
@@ -367,13 +391,21 @@
             {
               "key": 1,
               "val": "rst"
+            },
+            {
+              "key": 2,
+              "val": "in0"
+            },
+            {
+              "key": 3,
+              "val": "in1"
             }
           ]
         },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",
-          "bitwidth": 23
+          "bitwidth": 22
         }
       ]
     }

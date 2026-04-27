@@ -10,12 +10,14 @@ Vpu::Vpu(SST::ComponentId_t id, SST::Params &params)
   // Params
   fractional_bitwidth = params.find<uint32_t>("FRACTIONAL_BITWIDTH", 0);
 
-  fsmHandlers.resize(num_fsms);
-  imm_buffers.resize(num_fsms);
   vpuHandlers = VPU_Operations::createHandlers(this);
   instructionHandlers = VPU_PKG::createInstructionHandlers(this);
+  fsmHandlers.assign(num_fsms, vpuHandlers.at(VPU_PKG::VPU_MODE::VPU_MODE_IDLE));
+  imm_buffers.assign(num_fsms, {});
+  input_latch_0.assign(io_data_width / 8, 0);
+  input_latch_1.assign(io_data_width / 8, 0);
   // initialize current configuration options to 0
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 4; i++) {
     current_config_option[i] = 0;
     port_last_rep_level[i] = -1;
   }
@@ -34,6 +36,14 @@ bool Vpu::clockTick(SST::Cycle_t currentCycle) {
     last_config_trans = -1;
   }
 
+  // Clear input buffers at the start of each logical cycle so that gap cycles
+  // (where the RF AGU enable is 0 and its output is 0) are modelled correctly.
+  if (currentCycle % 10 == 0) {
+    for (int i = 0; i < resource_size; i++) {
+      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
+    }
+  }
+
   // Deal with data events
   for (int i = 0; i < resource_size; i++) {
     Event *event = data_links[i]->recv();
@@ -44,23 +54,22 @@ bool Vpu::clockTick(SST::Cycle_t currentCycle) {
 
   // Execute VPU operation (priotity 9)
   if (currentCycle % 10 == 9) {
-    for (const auto &port : active_ports) {
-      if (isPortActive(port.first)) {
-        if (port.first == 0) {
-          int64_t agu_address =
-              agus[0].getAddressForCycle(getPortActiveCycle(0));
-          if (agu_address >= 0 && agu_address != current_fsm) {
-            current_fsm = agu_address;
-            out.output(" FSM switched to FSM #%u\n", current_fsm);
-          }
+    out.output(" Current FSM: %u\n", current_fsm);
+    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+    fsmHandlers[current_fsm]();
 
-          out.output("Executing VPU operation for port %u\n", port.first);
-          out.output(" Current FSM: %u\n", current_fsm);
-          out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-          fsmHandlers[current_fsm]();
-          break;
-        }
+    // Update FSM for next execution based on AGU output (one cycle delayed).
+    for (const auto &[port_id, is_active] : active_ports) {
+      if (!is_active || port_id != 0) {
+        continue;
       }
+
+      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
+      if (agu_address >= 0 && agu_address != current_fsm) {
+        current_fsm = agu_address;
+        out.output(" FSM switched to FSM #%u\n", current_fsm);
+      }
+      break;
     }
   }
 
@@ -136,6 +145,32 @@ void Vpu::handleEVT(const VPU_PKG::EVTInstruction &instr) {
         [this] {
           out.output(" VPU accumulate register cleared\n");
           accumulate_register.clear();
+        });
+    break;
+  case VPU_PKG::EVT_PORT::EVT_PORT_IN0:
+    agus[VPU_PKG::EVT_PORT::EVT_PORT_IN0].addEvent(
+        "vpu_in0_latch_" +
+            std::to_string(
+                current_config_option[VPU_PKG::EVT_PORT::EVT_PORT_IN0]),
+        [this] {
+          input_latch_0 = data_buffers[0];
+          auto vals0 = byteVectorToInt64Vector(input_latch_0);
+          out.output(" IN0 latched: %s\n", int64VectorToString(vals0).c_str());
+          logTraceEvent("in0_latch", slot_id, true, 'X',
+                        {{"data", int64VectorToString(vals0)}});
+        });
+    break;
+  case VPU_PKG::EVT_PORT::EVT_PORT_IN1:
+    agus[VPU_PKG::EVT_PORT::EVT_PORT_IN1].addEvent(
+        "vpu_in1_latch_" +
+            std::to_string(
+                current_config_option[VPU_PKG::EVT_PORT::EVT_PORT_IN1]),
+        [this] {
+          input_latch_1 = data_buffers[1];
+          auto vals1 = byteVectorToInt64Vector(input_latch_1);
+          out.output(" IN1 latched: %s\n", int64VectorToString(vals1).c_str());
+          logTraceEvent("in1_latch", slot_id, true, 'X',
+                        {{"data", int64VectorToString(vals1)}});
         });
     break;
 
@@ -242,19 +277,13 @@ void Vpu::handleOperation(std::string name,
                           std::function<std::vector<int64_t>(
                               std::vector<int64_t>, std::vector<int64_t>)>
                               operation) {
-  // Ensure both buffers exist
-  if (data_buffers[0].size() == 0 || data_buffers[1].size() == 0) {
-    out.fatal(CALL_INFO, -1, "Data buffers not found (data0=%lu, data1=%lu)\n",
-              data_buffers[0].size(), data_buffers[1].size());
-  }
-
-  std::vector<int64_t> data0 = byteVectorToInt64Vector(data_buffers[0]);
-  std::vector<int64_t> data1 = byteVectorToInt64Vector(data_buffers[1]);
+  std::vector<int64_t> data0 = byteVectorToInt64Vector(input_latch_0);
+  std::vector<int64_t> data1 = byteVectorToInt64Vector(input_latch_1);
   std::vector<int64_t> result = operation(data0, data1);
 
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
-  dataEvent->size = word_bitwidth;
+  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
   dataEvent->payload = int64VectorToByteVector(result);
+  dataEvent->size = dataEvent->payload.size() * 8;
   data_links[0]->send(dataEvent);
 
   out.output("VPU %s operation (in0=%s, in1=%s, out=%s, acc=%s)\n",

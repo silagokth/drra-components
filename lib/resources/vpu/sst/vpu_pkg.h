@@ -18,22 +18,22 @@ enum VPU_INSTR_VPU {
   VPU_INSTR_VPU_MODE_BITWIDTH = 6,
   VPU_INSTR_VPU_IMMEDIATE_BITWIDTH = 16
 };
-enum VPU_INSTR_EVT { VPU_INSTR_EVT_PORT_BITWIDTH = 1 };
+enum VPU_INSTR_EVT { VPU_INSTR_EVT_PORT_BITWIDTH = 2 };
 enum VPU_INSTR_REP {
-  VPU_INSTR_REP_PORT_BITWIDTH = 1,
+  VPU_INSTR_REP_PORT_BITWIDTH = 2,
   VPU_INSTR_REP_ITER_BITWIDTH = 8,
   VPU_INSTR_REP_STEP_BITWIDTH = 7,
-  VPU_INSTR_REP_DELAY_BITWIDTH = 8
+  VPU_INSTR_REP_DELAY_BITWIDTH = 7
 };
 enum VPU_INSTR_REPX {
-  VPU_INSTR_REPX_PORT_BITWIDTH = 1,
+  VPU_INSTR_REPX_PORT_BITWIDTH = 2,
   VPU_INSTR_REPX_ITER_BITWIDTH = 8,
   VPU_INSTR_REPX_STEP_BITWIDTH = 7,
-  VPU_INSTR_REPX_DELAY_BITWIDTH = 8
+  VPU_INSTR_REPX_DELAY_BITWIDTH = 7
 };
 enum VPU_INSTR_TRANS {
-  VPU_INSTR_TRANS_PORT_BITWIDTH = 1,
-  VPU_INSTR_TRANS_DELAY_BITWIDTH = 23
+  VPU_INSTR_TRANS_PORT_BITWIDTH = 2,
+  VPU_INSTR_TRANS_DELAY_BITWIDTH = 22
 };
 
 // ISA segment definitions
@@ -44,15 +44,15 @@ getIsaDefinitions() {
           {OpCode::VPU,
            {SegmentRange("config", 2, 22), SegmentRange("mode", 6, 16),
             SegmentRange("immediate", 16, 0)}},
-          {OpCode::EVT, {SegmentRange("port", 1, 23)}},
+          {OpCode::EVT, {SegmentRange("port", 2, 22)}},
           {OpCode::REP,
-           {SegmentRange("port", 1, 23), SegmentRange("iter", 8, 15),
-            SegmentRange("step", 7, 8), SegmentRange("delay", 8, 0)}},
+           {SegmentRange("port", 2, 22), SegmentRange("iter", 8, 14),
+            SegmentRange("step", 7, 7), SegmentRange("delay", 7, 0)}},
           {OpCode::REPX,
-           {SegmentRange("port", 1, 23), SegmentRange("iter", 8, 15),
-            SegmentRange("step", 7, 8), SegmentRange("delay", 8, 0)}},
+           {SegmentRange("port", 2, 22), SegmentRange("iter", 8, 14),
+            SegmentRange("step", 7, 7), SegmentRange("delay", 7, 0)}},
           {OpCode::TRANS,
-           {SegmentRange("port", 1, 23), SegmentRange("delay", 23, 0)}}};
+           {SegmentRange("port", 2, 22), SegmentRange("delay", 22, 0)}}};
   return segmentsDef;
 }
 
@@ -114,10 +114,10 @@ enum VPU_MODE {
   VPU_MODE_OR_IMM = 53,
   VPU_MODE_XOR_IMM = 54
 };
-enum EVT_PORT { EVT_PORT_VPU = 0, EVT_PORT_RST = 1 };
-enum REP_PORT { REP_PORT_VPU = 0, REP_PORT_RST = 1 };
-enum REPX_PORT { REPX_PORT_VPU = 0, REPX_PORT_RST = 1 };
-enum TRANS_PORT { TRANS_PORT_VPU = 0, TRANS_PORT_RST = 1 };
+enum EVT_PORT  { EVT_PORT_VPU  = 0, EVT_PORT_RST  = 1, EVT_PORT_IN0  = 2, EVT_PORT_IN1  = 3 };
+enum REP_PORT  { REP_PORT_VPU  = 0, REP_PORT_RST  = 1, REP_PORT_IN0  = 2, REP_PORT_IN1  = 3 };
+enum REPX_PORT { REPX_PORT_VPU = 0, REPX_PORT_RST = 1, REPX_PORT_IN0 = 2, REPX_PORT_IN1 = 3 };
+enum TRANS_PORT{ TRANS_PORT_VPU= 0, TRANS_PORT_RST= 1, TRANS_PORT_IN0= 2, TRANS_PORT_IN1= 3 };
 
 // Instruction formats
 struct VPUInstruction {

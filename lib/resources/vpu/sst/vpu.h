@@ -87,6 +87,9 @@ private:
   std::vector<std::function<void()>> fsmHandlers;
   std::vector<std::vector<uint8_t>> imm_buffers;
 
+  std::vector<uint8_t> input_latch_0;
+  std::vector<uint8_t> input_latch_1;
+
   std::map<uint32_t, size_t> current_config_option;
   int32_t last_config_level = -1;
   int32_t last_config_trans = -1;
