@@ -1,5 +1,15 @@
 package:
   name: vpu
 
+dependencies:
+  agu_rtr: { path: ../../common/agu_RTR }
+
 sources:
   - ./rtl/vpu_pkg.sv
+  - ./rtl/adder.sv
+  - ./rtl/multiplier.sv
+  - ./rtl/alu_wrapper.sv
+  - ./rtl/controller.sv
+  - ./rtl/mode_selector.sv
+  - ./rtl/decoder.sv
+  - ./rtl/vpu.sv

@@ -44,8 +44,8 @@ include!("isa_config.rs");
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
-    let mut current_level = [0, 0];
-    let mut current_trans = [0, 0];
+    let mut current_level = [0, 0, 0, 0];
+    let mut current_trans = [0, 0, 0, 0];
     let mut t: HashMap<i64, String> = HashMap::new();
     let mut r: HashMap<i64, (String, String)> = HashMap::new();
     let mut expr = "e0".to_string();

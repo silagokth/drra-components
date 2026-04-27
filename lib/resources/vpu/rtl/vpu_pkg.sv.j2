@@ -1,13 +1,51 @@
 // vesyla_template_start package_head
-package {{fingerprint}}_pkg;
+package {{name}}_{{fingerprint}}_pkg;
 // vesyla_template_end package_head
 
   // vesyla_template_start package_macro
   {% include "package.j2" %}
   // vesyla_template_end package_macro
 
+  import agu_rtr_pkg::*;
+
+  parameter int FSM_MAX_STATES = 4;
+  parameter int FSM_DELAY_WIDTH = 3;
+  parameter int VPU_MODE_WIDTH = 6;
+  parameter int VPU_IMMEDIATE_WIDTH = 16;
+  parameter int OPCODE_WIDTH = 3;
+  parameter int BITWIDTH = WORD_BITWIDTH;
+  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter int OPCODE_H = 26;
+  parameter int OPCODE_L = 24;
 
   parameter int VECTOR_SIZE = BULK_BITWIDTH / WORD_BITWIDTH;
 
-endpackage
+  // AGU RTR params
+  parameter int NUM_AGUS = 4;
+  parameter int AGU_VPU_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_RST_ADDR_WIDTH = 1;
+  parameter int AGU_IN_ADDR_WIDTH  = 1;
+  parameter int ADDRESS_WIDTH = (AGU_VPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH)
+    ? ((AGU_VPU_ADDR_WIDTH > AGU_IN_ADDR_WIDTH) ? AGU_VPU_ADDR_WIDTH : AGU_IN_ADDR_WIDTH)
+    : ((AGU_RST_ADDR_WIDTH > AGU_IN_ADDR_WIDTH) ? AGU_RST_ADDR_WIDTH : AGU_IN_ADDR_WIDTH);
+  parameter int REP_LEVEL_WIDTH = 3;
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX each have 7 bits
+  parameter int REP_ITER_WIDTH  = 8 * 2; // REP + REPX each have 8 bits
+  parameter int REP_STEP_WIDTH  = 7 * 2; // REP + REPX each have 7 bits
+  parameter int TRANS_OPTION_WIDTH = 2;
+  parameter int TRANS_DELAY_WIDTH = 22;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
 
+  typedef agu_config_class#(
+    .NUMBER_IR         (NUMBER_IR),
+    .NUMBER_MT         (NUMBER_MT),
+    .NUMBER_OR         (NUMBER_OR),
+    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
+    .REP_STEP_WIDTH    (REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
+
+endpackage

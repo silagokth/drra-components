@@ -1,5 +1,5 @@
 // vesyla_template_start module_head
-module alu_wrapper
+module vpu_alu_wrapper
   import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
@@ -52,22 +52,20 @@ generate
 endgenerate
 
 logic [WORD_BITWIDTH-1:0] alu_result [VECTOR_SIZE];
-logic [WORD_BITWIDTH-1:0] accu_curr [VECTOR_SIZE];
-logic [WORD_BITWIDTH-1:0] accu_next [VECTOR_SIZE];
+logic [WORD_BITWIDTH-1:0] accu_next  [VECTOR_SIZE];
 always_comb begin : comb_calculation
   for (int i = 0; i < VECTOR_SIZE; i++) begin
     adder_in0[i] = '0;
     adder_in1[i] = '0;
-    adder_out[i] = '0;
 
     mult_in0[i]  = '0;
     mult_in1[i]  = '0;
-    mult_out[i]  = '0;
 
     alu_result[i] = '0;
+    accu_next[i]  = acc_current >> (i*WORD_BITWIDTH);
   end
 
-  case (dpu_mode)
+  case (vpu_mode)
     VPU_MODE_ADD: begin
       for (int i = 0; i < VECTOR_SIZE; i++) begin
         adder_in0[i] = bulk_in0 >> (i*WORD_BITWIDTH);
@@ -95,7 +93,7 @@ always_comb begin : comb_calculation
         mult_in1[i]  = word_in1;
         adder_in0[i] = mult_out[i];
         if (acc_valid)
-          adder_in1[i] = accu_curr[i];
+          adder_in1[i] = acc_current >> (i*WORD_BITWIDTH);
         else
           adder_in1[i] = '0;
         accu_next[i] = adder_out[i];
@@ -182,7 +180,7 @@ always_comb begin : comb_calculation
         mult_in1[i]  = bulk_in1 >> (i*WORD_BITWIDTH);
         adder_in0[i] = mult_out[i];
         if (acc_valid)
-          adder_in1[i] = accu_curr[i];
+          adder_in1[i] = acc_current >> (i*WORD_BITWIDTH);
         else
           adder_in1[i] = '0;
         accu_next[i] = adder_out[i];
@@ -313,16 +311,13 @@ always_comb begin : comb_calculation
         alu_result[i] = (bulk_in0 >> (i*WORD_BITWIDTH)) ^ immediate;
     end
 
-    default: begin
-      alu_result = '0;
-      accu_next = '0;
-    end
+    default: ; // alu_result and accu_next already initialized in loop above
   endcase
 end
 
 always_comb begin : comb_output
+  word_out = '0;
   for (int i = 0; i < VECTOR_SIZE; i++) begin
-    accu_curr[i] = acc_current >> (i*WORD_BITWIDTH);
     bulk_out[i*WORD_BITWIDTH +: WORD_BITWIDTH] = alu_result[i];
     acc_next[i*WORD_BITWIDTH +: WORD_BITWIDTH] = accu_next[i];
   end
