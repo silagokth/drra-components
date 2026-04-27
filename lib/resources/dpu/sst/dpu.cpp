@@ -16,6 +16,9 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     current_config_option[i] = 0;
     port_last_rep_level[i] = -1;
   }
+  for (uint32_t i = 0; i < num_fsms; i++) {
+    fsmHandlers[i] = dpuHandlers.at(DPU_PKG::DPU_MODE::DPU_MODE_IDLE);
+  }
 }
 
 bool Dpu::clockTick(SST::Cycle_t currentCycle) {
@@ -31,6 +34,12 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     last_config_trans = -1;
   }
 
+  if (currentCycle % 10 == 0) {
+    for (int i = 0; i < resource_size; i++) {
+      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
+    }
+  }
+
   // Deal with data events
   for (int i = 0; i < resource_size; i++) {
     Event *event = data_links[i]->recv();
@@ -41,23 +50,22 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
 
   // Execute DPU operation (priotity 9)
   if (currentCycle % 10 == 9) {
-    for (const auto &port : active_ports) {
-      if (isPortActive(port.first)) {
-        if (port.first == 0) {
-          int64_t agu_address =
-              agus[0].getAddressForCycle(getPortActiveCycle(0));
-          if (agu_address >= 0 && agu_address != current_fsm) {
-            current_fsm = agu_address;
-            out.output(" FSM switched to FSM #%u\n", current_fsm);
-          }
+    out.output(" Current FSM: %u\n", current_fsm);
+    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+    fsmHandlers[current_fsm]();
 
-          out.output("Executing DPU operation for port %u\n", port.first);
-          out.output(" Current FSM: %u\n", current_fsm);
-          out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-          fsmHandlers[current_fsm]();
-          break;
-        }
+    // Update FSM for next execution based on AGU output (one cycle delayed).
+    for (const auto &[port_id, is_active] : active_ports) {
+      if (!is_active || port_id != 0) {
+        continue;
       }
+
+      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
+      if (agu_address >= 0 && agu_address != current_fsm) {
+        current_fsm = agu_address;
+        out.output(" FSM switched to FSM #%u\n", current_fsm);
+      }
+      break;
     }
   }
 
