@@ -168,9 +168,9 @@ void DRRAResource::checkAGULifetime(Cycle_t currentSSTCycle) {
           "Checking AGU %d lifetime: current cycle %lu. AGU has been "
           "active for %lu. AGU should be active for %lu more cycles (%lu "
           "cycles in total).\n",
-          i, currentSSTCycle / 10, current_active_cycle,
-          last_agu_cycle - current_active_cycle + 1, last_agu_cycle + 1);
-      if (current_active_cycle > last_agu_cycle) {
+          i, currentSSTCycle / 10, current_active_cycle + 1,
+          last_agu_cycle - current_active_cycle, last_agu_cycle + 1);
+      if (current_active_cycle >= last_agu_cycle) {
         out.output("Deactivating port %d as AGU is inactive\n", i);
         active_ports[i] = false;
         active_ports_cycles[i] = 0;
