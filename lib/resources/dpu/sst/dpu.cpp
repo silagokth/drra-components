@@ -19,8 +19,6 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
 }
 
 bool Dpu::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
-
   if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
     for (const auto &port : portsToActivate) {
       activatePortsForSlot(port.first, port.second);
@@ -39,7 +37,9 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
-  // Execute DPU operation (priotity 9)
+  // Execute DPU operation at sub 9 BEFORE the base clockTick runs the
+  // lifetime check (which would otherwise deactivate port 0 on its last
+  // active cycle, causing the final MULT to be skipped).
   if (currentCycle % 10 == 9) {
     for (const auto &port : active_ports) {
       if (isPortActive(port.first)) {
@@ -61,6 +61,7 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
+  bool result = DRRAResource::clockTick(currentCycle);
   return result;
 }
 

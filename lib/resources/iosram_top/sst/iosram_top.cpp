@@ -109,7 +109,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO);
           writeToIO();
         },
-        9);
+        8);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
     event_name = "dsu_io_write_to_sram_" + std::to_string(current_event_number);
@@ -119,7 +119,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM);
           writeToSRAM();
         },
-        8);
+        7);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM:
     event_name =
@@ -140,7 +140,7 @@ void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
           updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK);
           writeBulk();
         },
-        9);
+        8);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_READ_BULK:
     event_name = "dsu_read_bulk_" + std::to_string(current_event_number);
