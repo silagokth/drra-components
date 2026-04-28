@@ -1,0 +1,170 @@
+{
+  "format": {
+    "instr_bitwidth": 32,
+    "instr_type_bitwidth": 1,
+    "instr_opcode_bitwidth": 3,
+    "instr_slot_bitwidth": 4
+  },
+  "instructions": [
+    {
+      "name": "dsu",
+      "opcode": 6,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "option",
+          "comment": "Configuration option where the DSU mode will be stored. There are 4 options per port.",
+          "bitwidth": 2
+        },
+        {
+          "name": "port",
+          "comment": "The port number",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input_buffer",
+              "comment": "address generation for input buffer (cannot be active simultaneously with the output buffer)"
+            },
+            {
+              "key": 1,
+              "val": "output_buffer",
+              "comment": "address generation for output buffer (cannot be active simultaneously with the input buffer)"
+            }
+          ]
+        },
+        {
+          "name": "init_addr_sd",
+          "comment": "Is initial address static or dynamic?",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "s"
+            },
+            {
+              "key": 1,
+              "val": "d"
+            }
+          ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Initial address",
+          "bitwidth": 16
+        }
+      ]
+    },
+    {
+      "name": "rep",
+      "opcode": 0,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Select which port the repetition applies to.",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Number of iterations.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Step size between iterations.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Delay between iterations.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "repx",
+      "opcode": 1,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Select which port the repetition extension applies to.",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 2,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "select which port the transition applies to.",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input_buffer",
+              "comment": "address generation for input buffer"
+            },
+            {
+              "key": 1,
+              "val": "output_buffer",
+              "comment": "address generation for output buffer"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 23
+        }
+      ]
+    }
+  ]
+}
