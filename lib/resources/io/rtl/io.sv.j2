@@ -120,39 +120,33 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     endgenerate
 
-    // Input/output data mux
-    logic [BULK_BITWIDTH-1:0] selected_data;
-
+    // Input and output paths drive independent ports, so allow them to run
+    // simultaneously instead of muxing through a shared register. The previous
+    // if/else-if chain (and the shared `selected_data` register) silently
+    // dropped one path when both AGUs were valid in the same cycle.
     always_comb begin
+        // Defaults: all ports inactive.
+        io_en_in        = 1'b0;
+        io_addr_in      = '0;
+        bulk_data_out_0 = '0;
+        io_en_out       = 1'b0;
+        io_addr_out     = '0;
+        io_data_out     = '0;
+
+        // Input path (slot 0 port 0 -> input buffer): forward IO read data to
+        // the bulk output port.
         if (agu_valid[0]) begin
-            // Input is IO
-            selected_data = io_data_in;
-            io_en_in = 1'b1;
-            io_addr_in = agu_final_address[0];
-            // Output is bulk port
-            bulk_data_out_0 = selected_data;
-            io_en_out = 1'b0;
-            io_addr_out = '0;
-            io_data_out = '0;
-        end else if (agu_valid[1]) begin
-            // Input is bulk port
-            selected_data = bulk_data_in_0;
-            io_en_in = 1'b0;
-            io_addr_in = '0;
-            // Output is IO
-            bulk_data_out_0 = '0;
-            io_en_out = 1'b1;
+            io_en_in        = 1'b1;
+            io_addr_in      = agu_final_address[0];
+            bulk_data_out_0 = io_data_in;
+        end
+
+        // Output path (slot 0 port 1 -> output buffer): forward bulk input
+        // data to the IO write port.
+        if (agu_valid[1]) begin
+            io_en_out   = 1'b1;
             io_addr_out = agu_final_address[1];
-            io_data_out = selected_data;
-        end else begin
-            // No valid AGU, disable all outputs
-            selected_data = '0;
-            io_en_in = 1'b0;
-            io_addr_in = '0;
-            bulk_data_out_0 = '0;
-            io_en_out = 1'b0;
-            io_addr_out = '0;
-            io_data_out = '0;
+            io_data_out = bulk_data_in_0;
         end
     end
 endmodule

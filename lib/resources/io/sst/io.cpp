@@ -20,22 +20,24 @@ bool Io::clockTick(SST::Cycle_t currentCycle) {
     portsToActivate.clear();
   }
 
-  // Check if input and output ports are active at the same time
-  if (isPortActive(IO_PKG::DSU_PORT_INPUT_BUFFER) &&
-      isPortActive(IO_PKG::DSU_PORT_OUTPUT_BUFFER)) {
-    out.fatal(CALL_INFO, -1,
-              "Both DSU ports cannot be active at the same time\n");
-  }
 
-  // Output IO data to bulk port
+  // Gate bulkOutput / bulkInput on the DSU port AGU actually having an event
+  // scheduled at the current active cycle, not just the port being "active".
+  // isPortActive stays true throughout the port's whole lifetime (until the
+  // AGU is exhausted), including gaps between outer rep iterations; firing
+  // bulkOutput / bulkInput in those gap cycles would try to recv() data that
+  // was never requested/sent and was the source of spurious fatal errors.
   if (currentCycle % 10 == 2)
-    if (isPortActive(IO_PKG::DSU_PORT_INPUT_BUFFER))
-      bulkOutput(); // write bulk if input buffer is read from
+    if (isPortActive(IO_PKG::DSU_PORT_INPUT_BUFFER) &&
+        agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
+            getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER)) != -1)
+      bulkOutput();
 
-  // Read IO data from bulk port
   if (currentCycle % 10 == 7)
-    if (isPortActive(IO_PKG::DSU_PORT_OUTPUT_BUFFER))
-      bulkInput(); // read bulk if output buffer is written to
+    if (isPortActive(IO_PKG::DSU_PORT_OUTPUT_BUFFER) &&
+        agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
+            getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER)) != -1)
+      bulkInput();
 
   return result;
 }
@@ -160,7 +162,7 @@ void Io::writeToIO() {
 
   IOWriteRequest *writeReq = new IOWriteRequest();
   writeReq->address = write_to_io_address_buffer;
-  writeReq->data = io_data_buffer;
+  writeReq->data = io_output_data_buffer;
   io_output_link->send(writeReq);
 
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
@@ -168,8 +170,8 @@ void Io::writeToIO() {
              formatRawDataToWords(writeReq->data).c_str());
   logTraceEvent("io_dsu_write_to_output_", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
-                 {"size", (int)(io_data_buffer.size())},
-                 {"data", formatRawDataToWords(io_data_buffer)}});
+                 {"size", (int)(io_output_data_buffer.size())},
+                 {"data", formatRawDataToWords(io_output_data_buffer)}});
 }
 
 void Io::bulkInput() {
@@ -186,13 +188,15 @@ void Io::bulkInput() {
   if (dataEvent == nullptr)
     out.fatal(CALL_INFO, -1, "No data received on bulk input port\n");
 
-  // Store the data in the buffer
+  // Store the data in the output-path buffer (consumed by writeToIO at the
+  // following subcycle). Using a dedicated buffer prevents races with the
+  // input-path bulkOutput().
   out.output("Received bulk data (size=%dbits, data=%s)\n", dataEvent->size,
              formatRawDataToWords(dataEvent->payload).c_str());
-  io_data_buffer = dataEvent->payload;
+  io_output_data_buffer = dataEvent->payload;
 
   logTraceEvent("io_bulk_input", slot_id, true, 'X',
-                {{"data", formatRawDataToWords(io_data_buffer)}});
+                {{"data", formatRawDataToWords(io_output_data_buffer)}});
 }
 
 void Io::bulkOutput() {
@@ -212,20 +216,21 @@ void Io::bulkOutput() {
                "data=%s)\n",
                readResp->address, readResp->data.size() * 8,
                formatRawDataToWords(readResp->data).c_str());
-    io_data_buffer = readResp->data;
-    if (io_data_buffer.size() == 0) {
+    io_input_data_buffer = readResp->data;
+    if (io_input_data_buffer.size() == 0) {
       out.fatal(CALL_INFO, -1, "No data received from IO\n");
     }
   } else {
     out.fatal(CALL_INFO, -1, "No response received from IO\n");
   }
 
-  // Send data to output bulk port
+  // Send data to output bulk port (using the dedicated input-path buffer to
+  // avoid clobbering the output path's io_output_data_buffer).
   DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
   dataEvent->size = io_data_width;
-  dataEvent->payload = io_data_buffer;
+  dataEvent->payload = io_input_data_buffer;
   data_links[0]->send(dataEvent);
 
   logTraceEvent("io_bulk_output", slot_id, true, 'X',
-                {{"data", formatRawDataToWords(io_data_buffer)}});
+                {{"data", formatRawDataToWords(io_input_data_buffer)}});
 }

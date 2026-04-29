@@ -61,7 +61,15 @@ private:
   int64_t read_from_io_address_buffer = -1;
   int64_t write_to_io_address_buffer = -1;
 
-  std::vector<uint8_t> io_data_buffer;
+  // Separate input/output staging buffers so that simultaneous use of
+  // DSU_PORT_INPUT_BUFFER (read path) and DSU_PORT_OUTPUT_BUFFER (write path)
+  // does not race on a shared variable.
+  // - Input path: readFromIO() -> bulkOutput() stages the IO response in
+  //   io_input_data_buffer before forwarding on the bulk output port.
+  // - Output path: bulkInput() stages the bulk-port payload in
+  //   io_output_data_buffer; writeToIO() then forwards it to the IO subsystem.
+  std::vector<uint8_t> io_input_data_buffer;
+  std::vector<uint8_t> io_output_data_buffer;
 
   void readFromIO();
   void writeToIO();
