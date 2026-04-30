@@ -2,6 +2,7 @@
 #define _DPU_OPERATIONS_H
 
 #include "dpu_pkg.h"
+#include <cstdint>
 #include <functional>
 
 // Forward declaration
@@ -38,34 +39,64 @@ inline int64_t add_sat(int64_t a, int64_t b) {
   return a + b;
 }
 
-inline int64_t mul_sat(int64_t a, int64_t b) {
-  if (a == 0 || b == 0) {
-    return 0;
+inline int64_t round_shift(int64_t val, int frac) {
+  if (frac <= 0) {
+    return val;
   }
+
+  // Match RTL behavior: if guard bit is 1, round away from zero by one
+  // integer LSB in product space.
+  const int64_t guard = (val >> (frac - 1)) & INT64_C(1);
+  if (guard != 0) {
+    const int64_t unit = INT64_C(1) << frac;
+    val = (val < 0) ? (val - unit) : (val + unit);
+  }
+  return val;
+}
+
+inline int64_t mul_sat(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
+  const int64_t MAX_RESULT = (INT64_C(1) << (bitwidth - 1)) - 1;
+  const int64_t MIN_RESULT = -(INT64_C(1) << (bitwidth - 1));
+
+  if (a == 0 || b == 0)
+    return 0;
 
   if (a > 0) {
     if (b > 0) {
       if (a > INT64_MAX / b) {
-        return INT64_MAX;
+        return MAX_RESULT;
       }
     } else {
       if (b < INT64_MIN / a) {
-        return INT64_MIN;
+        return MIN_RESULT;
       }
     }
   } else {
     if (b > 0) {
       if (a < INT64_MIN / b) {
-        return INT64_MIN;
+        return MIN_RESULT;
       }
     } else {
       if (a != INT64_MIN && b < INT64_MAX / a) {
-        return INT64_MAX;
+        return MAX_RESULT;
       }
     }
   }
 
-  return a * b;
+  int64_t product = a * b;
+  int64_t rounded_product = round_shift(product, frac);
+
+  // Match RTL saturation in product space before extracting BITWIDTH bits.
+  const int64_t max_product = MAX_RESULT << frac;
+  const int64_t min_product = MIN_RESULT << frac;
+
+  if (rounded_product > max_product) {
+    return MAX_RESULT;
+  } else if (rounded_product < min_product) {
+    return MIN_RESULT;
+  }
+
+  return rounded_product >> frac;
 }
 } // namespace DPU_Operations
 
