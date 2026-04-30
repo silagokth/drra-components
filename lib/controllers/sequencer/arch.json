@@ -19,7 +19,7 @@
     },
     {
       "name": "IRAM_DEPTH",
-      "value": 256
+      "value": 512
     }
   ],
   "required_parameters": [
