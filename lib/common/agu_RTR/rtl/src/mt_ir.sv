@@ -24,7 +24,8 @@ module mt_ir
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                     ir_valid,
-    output logic                     ir_done
+    output logic                     ir_done,
+    output logic [$clog2(NUMBER_MT+1)-1:0] lane_index
 );
 
   // State machine states
@@ -47,6 +48,8 @@ module mt_ir
   logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt_next;
   logic [$clog2(NUMBER_MT+1)-1:0] current_mux_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] max_lane_index;
+
+  assign lane_index = current_mux_ptr;
 
   // Calculate number of transitions configured
   logic [$clog2(NUMBER_MT+1)-1:0] num_transitions_configured;
