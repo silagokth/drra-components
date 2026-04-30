@@ -8,6 +8,8 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
+  parameter AGU_BITWIDTH = 16;
+
   // AGU RTR params
   parameter int NUM_AGUS = 4;
   parameter int ADDRESS_WIDTH = $clog2(RF_DEPTH);
@@ -19,7 +21,7 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int TRANS_DELAY_WIDTH = 7;
   parameter int NUMBER_OR = 0;
   parameter int NUMBER_MT = 0;
-  parameter int NUMBER_IR = 4;
+  parameter int NUMBER_IR = 5;
   parameter int INCLUDE_IR_STATES = 1;
   parameter int INCLUDE_MT_STATES = 1;
   parameter int INCLUDE_OR_STATES = 1;

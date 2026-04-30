@@ -9,7 +9,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     input logic [FSM_PER_SLOT-1:0] agu_done,
 
-    output agu_config_t agu_configs[FSM_PER_SLOT]
+    output agu_config_t agu_configs[FSM_PER_SLOT],
+    output logic [FSM_PER_SLOT-1:0][ADDRESS_WIDTH-1:0] init_address
 );
 
     // Instruction type valid signals
@@ -52,6 +53,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [$clog2(NUM_AGUS)-1:0]       dsu_port;
     logic [$clog2(NUMBER_MT+1)-1:0]    rep_opt;
     logic [$clog2(NUMBER_IR)-1:0]      rep_lvl;
+    logic [$clog2(NUMBER_IR)-1:0]      rep_lvl_wr;
     logic [REP_DELAY_WIDTH/2-1:0]      rep_dly;
     logic [REP_ITER_WIDTH/2-1:0]       rep_itr;
     logic [REP_STEP_WIDTH/2-1:0]       rep_stp;
@@ -60,6 +62,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       dsu_port = dsu_instr._port;
       rep_opt  = current_lane_index[agu_config_index];
       rep_lvl  = current_rep_level[agu_config_index];
+      rep_lvl_wr = rep_valid ? rep_lvl : (rep_lvl == '0 ? '0 : rep_lvl - 1'b1);
       rep_dly  = rep_valid ? rep_instr._delay : repx_instr._delay;
       rep_itr  = rep_valid ? rep_instr._iter  : repx_instr._iter;
       rep_stp  = rep_valid ? rep_instr._step  : repx_instr._step;
@@ -100,31 +103,33 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end else if (rep_valid || repx_valid) begin
           if (use_or_reg[agu_config_index]) begin
             if (rep_valid) begin // REP: configure lower half
-              agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
-              agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
-              agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].delay[DELAY_HI-1:0] <= rep_dly;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].iter[ITER_HI-1:0]   <= rep_itr;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].step[STEP_HI-1:0]   <= rep_stp;
             end else begin // REPX: configure upper half
-              agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
-              agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
-              agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+              agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
             end
-            agu_configs_reg[agu_config_index].or_configs[rep_lvl].is_configured <= 1'b1;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl_wr].is_configured <= 1'b1;
             or_configured_reg[agu_config_index] <= 1'b1;
 
           end else begin
             if (rep_valid) begin // REP: configure lower half
-              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
-              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
-              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].delay[DELAY_HI-1:0] <= rep_dly;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].iter[ITER_HI-1:0]   <= rep_itr;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].step[STEP_HI-1:0]   <= rep_stp;
             end else begin // REPX: configure upper half
-              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
-              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
-              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+              agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
             end
-            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl_wr].is_configured <= 1'b1;
           end
 
-          current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+          if (rep_valid) begin
+            current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+          end
 
         // TRANS instruction: configure mode transition and switch to OR-level
         end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
@@ -139,5 +144,22 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
 
     assign agu_configs = agu_configs_reg;
+
+    logic [FSM_PER_SLOT-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        agu_init_address <= '0;
+      end else begin
+        for (int i = 0; i < FSM_PER_SLOT; i++) begin
+          if (agu_done[i]) begin
+            agu_init_address[i] <= '0;
+          end
+        end
+        if (dsu_valid) begin
+          agu_init_address[dsu_port] <= dsu_instr._init_addr;
+        end
+      end
+    end
+    assign init_address = agu_init_address;
 
 endmodule

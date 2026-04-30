@@ -44,10 +44,12 @@ module fabric_tb;
   int fd;
   int r, c;
   int index;
+  int scan_ret;
   string line;
   logic [INSTR_DATA_WIDTH-1:0] temp_instruction;
   realtime start_time, end_time;
-  logic [15:0][15:0] ob_line, ib_line;
+  localparam int TOKENS_PER_LINE = IO_DATA_WIDTH / WORD_BITWIDTH;
+  logic [TOKENS_PER_LINE-1:0][WORD_BITWIDTH-1:0] ob_line, ib_line;
   initial begin
     rst_n = 0;
     for (int i = 0; i < ROWS; i++) begin
@@ -114,8 +116,8 @@ module fabric_tb;
     $display("Output Buffers:");
     fd = $fopen("sram_image_out.bin", "w+");
     foreach (output_buffer[i]) begin
-      for (int x = 0; x < 16; x = x + 1) begin
-        ob_line[x] = output_buffer[i][16*x+:16];
+      for (int x = 0; x < TOKENS_PER_LINE; x = x + 1) begin
+        ob_line[x] = output_buffer[i][WORD_BITWIDTH*x+:WORD_BITWIDTH];
       end
       $display("OB[%d] = %s", i, $sformatf("%p", ob_line));
       $fwrite(fd, "%d %b\n", i, output_buffer[i]);
@@ -129,18 +131,15 @@ module fabric_tb;
     fd = $fopen("sram_image_in.bin", "r");
     // for each line put it in the input buffer
     $display("Loading input buffer");
-    while (!$feof(
-        fd
-    )) begin
-      void'($fscanf(fd, "%d %b", index, temp_data));
+    while ((scan_ret = $fscanf(fd, "%d %b", index, temp_data)) == 2) begin
       $display("index = %d, data = %b", index, temp_data);
       input_buffer[index] = temp_data;
     end
 
     $display("Input Buffers:");
     foreach (input_buffer[i]) begin
-      for (int x = 0; x < 16; x = x + 1) begin
-        ib_line[x] = input_buffer[i][16*x+:16];
+      for (int x = 0; x < TOKENS_PER_LINE; x = x + 1) begin
+        ib_line[x] = input_buffer[i][WORD_BITWIDTH*x+:WORD_BITWIDTH];
       end
       $display("IB[%d] = %s", i, $sformatf("%p", ib_line));
     end

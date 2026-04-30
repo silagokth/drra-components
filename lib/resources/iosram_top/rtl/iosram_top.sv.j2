@@ -161,7 +161,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
           assign agu_done[i] = 1'b0;
         end else begin
           localparam int AGU_ADDR_WIDTH = (i == 0 || i == 1) ? IO_ADDR_WIDTH : SRAM_ADDR_WIDTH;
-          logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
           agu_rtr #(
             .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
             .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
@@ -178,10 +177,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
             .activation(agu_activate[i]),
             .agu_config(agu_configs[i]),
             .addr_valid(agu_valid[i]),
-            .addr(agu_addr_inner),
+            .addr(agu_address[i]),
             .done(agu_done[i])
           );
-          assign agu_address[i] = ADDRESS_WIDTH'(agu_addr_inner);
         end
       end
     endgenerate
@@ -267,7 +265,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .address_b(sram_out_addr),
         .data_a(sram_in_data),
         .data_b('0),
-        .q_a(),
         .q_b(sram_out_data)
     );
 endmodule

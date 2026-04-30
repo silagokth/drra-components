@@ -81,7 +81,7 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::WriteNarrow);
           writeNarrow();
         },
-        8);
+        9);
     break;
   case DataEvent::PortType::WriteWide:
     event_name = "dsu_write_wide_" + std::to_string(current_event_number);
@@ -91,7 +91,7 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::WriteWide);
           writeWide();
         },
-        8);
+        9);
     break;
 
   default:

@@ -74,12 +74,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign agu_activate[5] = activate_1[3]; // slot 1 port 3
 
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+    logic [NUM_AGUS-1:0][NUMBER_MT:0][ADDRESS_WIDTH-1:0] agu_init_address;
+    logic [NUM_AGUS-1:0][$clog2(NUMBER_MT+1)-1:0] agu_lane_index;
     logic [NUM_AGUS-1:0] agu_done;
     genvar idx;
     generate
       for (idx = 0; idx < NUM_AGUS; idx++)
-        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx];
+        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx][agu_lane_index[idx]];
     endgenerate
 
     logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
@@ -160,7 +161,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
           assign agu_address[i] = '0;
         end else begin
           localparam int AGU_ADDR_WIDTH = (i == 0 || i == 1) ? IO_ADDR_WIDTH : SRAM_ADDR_WIDTH;
-          logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
           agu_rtr #(
             .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
             .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
@@ -177,10 +177,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
             .activation(agu_activate[i]),
             .agu_config(agu_configs[i]),
             .addr_valid(agu_valid[i]),
-            .addr(agu_addr_inner),
-            .done(agu_done[i])
+            .addr(agu_address[i]),
+            .done(agu_done[i]),
+            .lane_index(agu_lane_index[i])
           );
-          assign agu_address[i] = ADDRESS_WIDTH'(agu_addr_inner);
         end
       end
     endgenerate
@@ -266,7 +266,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .address_b(sram_out_addr),
         .data_a(sram_in_data),
         .data_b('0),
-        .q_a(),
         .q_b(sram_out_data)
     );
 endmodule

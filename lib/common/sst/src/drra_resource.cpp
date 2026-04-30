@@ -146,13 +146,11 @@ void DRRAResource::activatePort(uint32_t port) {
   out.output("Activating port %d\n", port);
   active_ports[port] = true;
   out.output("Building AGU for port %d\n", port);
-  if (agus[port].isEmpty()) {
-    // RTL AGU with no explicit config still produces one default address
-    // cycle. Model it with a single event so checkAGULifetime can retire the
-    // port instead of leaving it active across epochs.
-    agus[port].addEvent("default_act_" + std::to_string(port), [] {}, 1);
-  }
-  agus[port].build();
+  if (!agus[port].isEmpty())
+    agus[port].build();
+  // current_timing_states[port] = next_timing_states[port];
+  // next_timing_states[port] = TimingState();
+  // current_timing_states[port].build();
   port_last_rep_level[port] = -1;
   active_ports_cycles[port] = 0;
 }
@@ -170,8 +168,8 @@ void DRRAResource::checkAGULifetime(Cycle_t currentSSTCycle) {
           "Checking AGU %d lifetime: current cycle %lu. AGU has been "
           "active for %lu. AGU should be active for %lu more cycles (%lu "
           "cycles in total).\n",
-          i, currentSSTCycle / 10, current_active_cycle + 1,
-          last_agu_cycle - current_active_cycle, last_agu_cycle + 1);
+          i, currentSSTCycle / 10, current_active_cycle,
+          last_agu_cycle - current_active_cycle + 1, last_agu_cycle + 1);
       if (current_active_cycle >= last_agu_cycle) {
         out.output("Deactivating port %d as AGU is inactive\n", i);
         active_ports[i] = false;
@@ -272,7 +270,16 @@ uint64_t DRRAResource::vectorToUint64(std::vector<uint8_t> data) {
 int64_t DRRAResource::vectorToInt64(std::vector<uint8_t> data) {
   int64_t result = 0;
   for (size_t i = 0; i < data.size(); i++) {
-    result |= data[i] << (i * 8);
+    result |= static_cast<int64_t>(data[i]) << (i * 8);
+  }
+
+  // Interpret payload as signed value with configured word width.
+  if (word_bitwidth > 0 && word_bitwidth < 64) {
+    uint64_t sign_mask = uint64_t{1} << (word_bitwidth - 1);
+    if ((static_cast<uint64_t>(result) & sign_mask) != 0) {
+      uint64_t extend_mask = ~((uint64_t{1} << word_bitwidth) - 1);
+      result = static_cast<int64_t>(static_cast<uint64_t>(result) | extend_mask);
+    }
   }
   return result;
 }

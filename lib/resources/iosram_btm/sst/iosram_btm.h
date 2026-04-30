@@ -121,23 +121,19 @@ private:
 
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
+  bool isSramBackedPort(uint32_t port) const {
+    return port == DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM ||
+           port == DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM ||
+           port == DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK ||
+           port == DSU_RELATIVE_PORT::DSU_PORT_READ_BULK;
+  }
+
   void updatePortAGUs(uint32_t port) {
-    int64_t address_offset =
-        agus[port].getAddressForCycle(getPortActiveCycle(port));
-    if (address_offset < 0) {
+    port_agus[port] = port_agus_init[port] +
+                      agus[port].getAddressForCycle(getPortActiveCycle(port));
+    if (isSramBackedPort(port) && port_agus[port] >= iosram_depth) {
       out.fatal(CALL_INFO, -1,
-                "AGU for port %u returned negative address %d for cycle %d\n",
-                port, address_offset, getPortActiveCycle(port));
-    }
-    port_agus[port] = port_agus_init[port] + address_offset;
-    uint64_t max_addr = iosram_depth;
-    if (port == DSU_PORT_SRAM_READ_FROM_IO ||
-        port == DSU_PORT_SRAM_WRITE_TO_IO) {
-      max_addr = iosram_depth * (io_data_width / word_bitwidth);
-    }
-    if (port_agus[port] >= max_addr) {
-      out.fatal(CALL_INFO, -1, "Invalid AGU address %u for port %u (max %lu)\n",
-                port_agus[port], port, max_addr);
+                "Invalid AGU address (greater than IOSRAM size)\n");
     }
   }
 };

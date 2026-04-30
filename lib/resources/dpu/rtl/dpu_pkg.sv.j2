@@ -13,7 +13,7 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int DPU_MODE_WIDTH = 6;
   parameter int DPU_IMMEDIATE_WIDTH = 8;
   parameter int OPCODE_WIDTH = 4;
-  parameter int BITWIDTH = 16;
+  parameter int BITWIDTH = WORD_BITWIDTH;
   parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
   parameter int OPCODE_H = 26;
   parameter int OPCODE_L = 24;
@@ -25,14 +25,14 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
   // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
   parameter int REP_LEVEL_WIDTH = 3;
-  parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
-  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
   parameter int TRANS_OPTION_WIDTH = 2;
   parameter int TRANS_DELAY_WIDTH = 22;
   parameter int NUMBER_OR = 4;
   parameter int NUMBER_MT = 3;
-  parameter int NUMBER_IR = 4;
+  parameter int NUMBER_IR = 5;
 
   typedef agu_config_class#(
     .NUMBER_IR         (NUMBER_IR),

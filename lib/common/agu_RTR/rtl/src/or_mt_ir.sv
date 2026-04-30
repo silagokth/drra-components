@@ -32,7 +32,8 @@ module or_mt_ir
     // Outputs
     output logic [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                     ir_valid,
-    output logic                     ir_done
+    output logic                     ir_done,
+    output logic [$clog2(NUMBER_MT+1)-1:0] lane_index
 );
 
   // --------------------------------------------------------------------------
@@ -52,6 +53,7 @@ module or_mt_ir
   logic child_valid;
   logic child_done;
   logic [ADDRESS_WIDTH-1:0] child_addr;
+  logic [$clog2(NUMBER_MT+1)-1:0] child_lane_index;
 
   // OR Level Counters (Same structure as ir)
   logic [REP_ITER_WIDTH-1:0] or_iter_count[NUMBER_OR];
@@ -81,8 +83,11 @@ module or_mt_ir
       .ir_configs(ir_configs),
       .ir_addr   (child_addr),
       .ir_valid  (child_valid),
-      .ir_done   (child_done)
+      .ir_done   (child_done),
+      .lane_index(child_lane_index)
   );
+
+    assign lane_index = child_lane_index;
 
   // Pass through valid data immediately
   assign ir_valid = child_valid;

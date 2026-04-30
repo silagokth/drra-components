@@ -7,21 +7,34 @@ using namespace SST;
 
 Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
-  fsmHandlers.resize(num_fsms);
+  // Params
+  fractional_bitwidth = params.find<uint32_t>("FRACTIONAL_BITWIDTH", 0);
+
+  fsmHandlers.clear();
+  fsmModes.resize(num_fsms, DPU_PKG::DPU_MODE::DPU_MODE_IDLE);
   imm_buffers.resize(num_fsms);
   dpuHandlers = DPU_Operations::createHandlers(this);
+  refreshAllFsmHandlers();
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
   // initialize current configuration options to 0
   for (int i = 0; i < 2; i++) {
     current_config_option[i] = 0;
     port_last_rep_level[i] = -1;
   }
-  for (uint32_t i = 0; i < num_fsms; i++) {
-    fsmHandlers[i] = dpuHandlers.at(DPU_PKG::DPU_MODE::DPU_MODE_IDLE);
+}
+
+void Dpu::refreshAllFsmHandlers() {
+  fsmHandlers.clear();
+  fsmHandlers.resize(num_fsms);
+
+  for (size_t i = 0; i < num_fsms; ++i) {
+    fsmHandlers[i] = DPU_Operations::getDPUHandler(this, fsmModes[i]);
   }
 }
 
 bool Dpu::clockTick(SST::Cycle_t currentCycle) {
+  bool result = DRRAResource::clockTick(currentCycle);
+
   if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
     for (const auto &port : portsToActivate) {
       activatePortsForSlot(port.first, port.second);
@@ -32,12 +45,6 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     last_config_trans = -1;
   }
 
-  if (currentCycle % 10 == 0) {
-    for (int i = 0; i < resource_size; i++) {
-      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
-    }
-  }
-
   // Deal with data events
   for (int i = 0; i < resource_size; i++) {
     Event *event = data_links[i]->recv();
@@ -46,30 +53,29 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
-  // Execute DPU operation at sub 9 BEFORE the base clockTick runs the
-  // lifetime check (which would otherwise deactivate port 0 on its last
-  // active cycle, causing the final MULT to be skipped).
+  // Execute DPU operation (priotity 9)
   if (currentCycle % 10 == 9) {
-    out.output(" Current FSM: %u\n", current_fsm);
-    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-    fsmHandlers[current_fsm]();
+    for (const auto &port : active_ports) {
+      if (isPortActive(port.first)) {
+        if (port.first == 0) {
+          int64_t agu_address =
+              agus[0].getAddressForCycle(getPortActiveCycle(0));
+          if (agu_address >= 0 && agu_address != current_fsm) {
+            current_fsm = agu_address;
+            out.output(" FSM switched to FSM #%u\n", current_fsm);
+          }
 
-    // Update FSM for next execution based on AGU output (one cycle delayed).
-    for (const auto &[port_id, is_active] : active_ports) {
-      if (!is_active || port_id != 0) {
-        continue;
+          out.output("Executing DPU operation for port %u\n", port.first);
+          out.output(" Current FSM: %u\n", current_fsm);
+          out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+          // fsmHandlers[current_fsm]();
+          break;
+        }
       }
-
-      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
-      if (agu_address >= 0 && agu_address != current_fsm) {
-        current_fsm = agu_address;
-        out.output(" FSM switched to FSM #%u\n", current_fsm);
-      }
-      break;
     }
+    fsmHandlers[current_fsm]();
   }
 
-  bool result = DRRAResource::clockTick(currentCycle);
   return result;
 }
 
@@ -103,6 +109,32 @@ void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
   out.output("dpu (slot=%d, config=%d, mode=%d, immediate=%d)\n", instr.slot,
              instr.config, instr.mode, instr.immediate);
 
+  if (instr.config >= num_fsms) {
+    out.fatal(CALL_INFO, -1, "Invalid DPU config index: %d (num_fsms=%lu)\n",
+              instr.config, num_fsms);
+  }
+
+  // Treat config 0 as the beginning of a DPU mode reconfiguration sequence.
+  // Keep reset-path timing/config state independent from mode updates.
+  if (instr.config == 0) {
+    current_fsm = 0;
+    fsmModes.assign(num_fsms, DPU_PKG::DPU_MODE::DPU_MODE_IDLE);
+    imm_buffers.clear();
+    imm_buffers.resize(num_fsms);
+
+    // Reset only the DPU operation AGU path; do not touch RST path state.
+    const uint32_t dpu_port =
+        static_cast<uint32_t>(DPU_PKG::EVT_PORT::EVT_PORT_DPU);
+    agus[dpu_port].reset();
+    active_ports[dpu_port] = false;
+    active_ports_cycles[dpu_port] = 0;
+    current_config_option[dpu_port] = 0;
+    port_last_rep_level[dpu_port] = -1;
+
+    last_config_level = -1;
+    last_config_trans = -1;
+  }
+
   // Add the immediate value to the imm_buffers if the mode requires it
   if (instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_ADD_CONST ||
       instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_SUBT_ABS ||
@@ -112,9 +144,9 @@ void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
     imm_buffers[instr.config] = uint64ToVector(instr.immediate);
   }
 
-  // Add the event handler to the config index
-  fsmHandlers[instr.config] =
-      DPU_Operations::getDPUHandler(this, (DPU_PKG::DPU_MODE)instr.mode);
+  // Update mode state and rebuild all FSM handlers so the full table is fresh.
+  fsmModes[instr.config] = static_cast<DPU_PKG::DPU_MODE>(instr.mode);
+  refreshAllFsmHandlers();
 }
 
 void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {

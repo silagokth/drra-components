@@ -27,7 +27,8 @@ module agu_rtr
 
     output logic [ADDRESS_WIDTH-1:0] addr,
     output logic                     addr_valid,
-    output logic                     done
+    output logic                     done,
+    output logic [$clog2(NUMBER_MT+1)-1:0] lane_index
 );
   initial begin
     if (NUMBER_IR == 0) $error("agu_rtr: NUMBER_IR cannot be 0");
@@ -66,7 +67,8 @@ module agu_rtr
           .ir_configs(agu_config.ir_configs),
           .ir_addr   (addr),
           .ir_valid  (addr_valid),
-          .ir_done   (done)
+          .ir_done   (done),
+          .lane_index(lane_index)
       );
     end else if (NUMBER_MT > 0) begin : gen_mt_top
       mt_ir #(
@@ -85,9 +87,11 @@ module agu_rtr
           .ir_configs(agu_config.ir_configs),
           .ir_addr   (addr),
           .ir_valid  (addr_valid),
-          .ir_done   (done)
+          .ir_done   (done),
+          .lane_index(lane_index)
       );
     end else begin : gen_ir_top
+      assign lane_index = '0;
       ir #(
           .ADDRESS_WIDTH(ADDRESS_WIDTH),
           .NUMBER_IR    (NUMBER_IR),

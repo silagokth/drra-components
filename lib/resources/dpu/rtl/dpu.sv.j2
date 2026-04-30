@@ -58,6 +58,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Configuration signals from controller to AGU_RTR
   agu_config_t agu_configs [NUM_AGUS];
 
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
   logic [NUM_AGUS-1:0]                    agu_valid;
   logic [NUM_AGUS-1:0]                    agu_done;
   logic                                   reset_accumulator;
@@ -66,9 +67,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   genvar idx;
   generate
     for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
-      logic [ADDRESS_WIDTH-1:0] agu_address;
       localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
-      logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
       agu_rtr #(
           .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
           .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
@@ -85,10 +84,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
           .activation(agu_activate[idx]),
           .agu_config(agu_configs[idx]),
           .addr_valid(agu_valid[idx]),
-          .addr(agu_addr_inner),
+          .addr(agu_address[idx]),
           .done(agu_done[idx])
       );
-      assign agu_address = ADDRESS_WIDTH'(agu_addr_inner);
     end
   endgenerate
 
@@ -99,7 +97,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic rep_valid;
   rep_t rep_instr;
   logic repx_valid;
-  repx_t repx_instr;
+  repx_t repx;
   logic trans_valid;
   trans_t trans_instr;
 
@@ -148,7 +146,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .dpu_instr(dpu_instr),
 
     .dpu_agu_valid(agu_valid[0]),
-    .dpu_agu_address(gen_agu[0].agu_address),
+    .dpu_agu_address(agu_address[0]),
 
     .dpu_mode(dpu_mode),
     .immediate(immediate)
@@ -215,22 +213,18 @@ import {{name}}_{{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such
-  dpu_impl_pnkjyubmn1c_adder adder_inst (
+  {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
-      .out(adder_out),
-      .overflow(), // unused
-      .underflow() // unused
+      .out(adder_out)
   );
 
-  dpu_impl_pnkjyubmn1c_multiplier mult_inst (
+  {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),
-      .out(mult_out),
-      .overflow(), // unused
-      .underflow() // unused
+      .out(mult_out)
   );
 
   // register output

@@ -34,7 +34,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic bulk_w_en, bulk_r_en, word_w_en, word_r_en;
     logic [BULK_ADDR_WIDTH-1:0] bulk_w_addr, bulk_r_addr;
     logic [WORD_ADDR_WIDTH-1:0] word_w_addr, word_r_addr;
-    logic [ADDRESS_WIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
+    logic [AGU_BITWIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
 
     assign bulk_w_addr = bulk_w_agu[BULK_ADDR_WIDTH-1:0];
     assign bulk_r_addr = bulk_r_agu[BULK_ADDR_WIDTH-1:0];
@@ -63,8 +63,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
       end
 
-    parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
-    logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
+    // WORD_PER_BULK is now calculated based on actual bitwidths, not address widths
+    parameter int WORD_PER_BULK = BULK_BITWIDTH / WORD_BITWIDTH;
+    logic [$clog2(WORD_PER_BULK)-1:0] offset_w_addr, offset_r_addr;
     always_comb begin
         memory_next = memory;
         bulk_data_out_0 = '0;
@@ -74,7 +75,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         if (bulk_w_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_w_addr = i;
-                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_PER_BULK +:WORD_PER_BULK];
+                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_BITWIDTH +: WORD_BITWIDTH];
             end
         end
         if (word_w_en) begin
@@ -85,7 +86,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         if (bulk_r_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_r_addr = i;
-                bulk_data_out_0[i*WORD_PER_BULK +:WORD_PER_BULK] = memory[{bulk_r_addr, offset_r_addr}];
+                bulk_data_out_0[i*WORD_BITWIDTH +: WORD_BITWIDTH] = memory[{bulk_r_addr, offset_r_addr}];
             end
         end
         if (word_r_en) begin
@@ -97,18 +98,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
     agu_config_t agu_configs [FSM_PER_SLOT];
 
     logic [FSM_PER_SLOT-1:0] agu_enable;
-    logic [FSM_PER_SLOT-1:0][ADDRESS_WIDTH-1:0] agu_address;
+    logic [FSM_PER_SLOT-1:0][AGU_BITWIDTH-1:0] agu_address;
     logic [FSM_PER_SLOT-1:0] agu_done;
 
     assign word_w_en = agu_enable[0];
     assign word_r_en = agu_enable[1];
     assign bulk_w_en = agu_enable[2];
     assign bulk_r_en = agu_enable[3];
-
-    assign word_w_agu = agu_address[0];
-    assign word_r_agu = agu_address[1];
-    assign bulk_w_agu = agu_address[2];
-    assign bulk_r_agu = agu_address[3];
 
     genvar i;
     generate
@@ -135,6 +131,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     endgenerate
 
+    logic [FSM_PER_SLOT-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+
     {{name}}_{{fingerprint}}_controller controller_inst (
       .clk(clk),
       .rst_n(rst_n),
@@ -144,8 +142,22 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .agu_done(agu_done),
 
-      .agu_configs(agu_configs)
+      .agu_configs(agu_configs),
+      .init_address(agu_init_address)
     );
+
+    // Compute final addresses with init_address offset
+    logic [FSM_PER_SLOT-1:0][AGU_BITWIDTH-1:0] agu_final_address;
+    generate
+      for (i = 0; i < FSM_PER_SLOT; i++) begin : gen_final_addr
+        assign agu_final_address[i] = agu_address[i] + agu_init_address[i];
+      end
+    endgenerate
+
+    assign word_w_agu = agu_final_address[0];
+    assign word_r_agu = agu_final_address[1];
+    assign bulk_w_agu = agu_final_address[2];
+    assign bulk_r_agu = agu_final_address[3];
 
 endmodule
 
