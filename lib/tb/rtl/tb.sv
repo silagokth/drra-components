@@ -132,7 +132,7 @@ module fabric_tb;
     while (!$feof(
         fd
     )) begin
-      $fscanf(fd, "%d %b", index, temp_data);
+      void'($fscanf(fd, "%d %b", index, temp_data));
       $display("index = %d, data = %b", index, temp_data);
       input_buffer[index] = temp_data;
     end

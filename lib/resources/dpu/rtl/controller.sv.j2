@@ -47,7 +47,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
   always_comb begin
     evt_port = evt_instr._port;
     rep_opt   = current_lane_index[agu_config_index];
-    rep_lvl   = current_rep_level[agu_config_index];
+    rep_lvl   = rep_valid ? current_rep_level[agu_config_index] :
+                (current_rep_level[agu_config_index] == '0 ? '0 : current_rep_level[agu_config_index] - 1);
     rep_dly   = rep_valid ? rep_instr._delay : repx_instr._delay;
     rep_itr   = rep_valid ? rep_instr._iter  : repx_instr._iter;
     rep_stp   = rep_valid ? rep_instr._step  : repx_instr._step;
@@ -109,7 +110,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
           agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
         end
 
-        current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+        if (rep_valid)
+          current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
 
       // TRANS instruction
       end else if (trans_valid && !or_configured_reg[agu_config_index]) begin

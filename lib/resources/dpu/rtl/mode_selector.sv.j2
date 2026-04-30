@@ -16,10 +16,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
   output logic [DPU_IMMEDIATE_WIDTH-1:0] immediate
 
 );
-  localparam int NUM_FSM_STATES = $clog2(FSM_MAX_STATES);
-  logic [AGU_DPU_ADDR_WIDTH-1:0] dpu_mode_index;
-  logic [NUM_FSM_STATES-1:0][DPU_MODE_WIDTH-1:0]      mode_memory;
-  logic [NUM_FSM_STATES-1:0][DPU_IMMEDIATE_WIDTH-1:0] immediate_memory;
+  logic [AGU_DPU_ADDR_WIDTH-1:0]  dpu_mode_index;
+  logic [DPU_MODE_WIDTH-1:0]      mode_memory      [FSM_MAX_STATES];
+  logic [DPU_IMMEDIATE_WIDTH-1:0] immediate_memory [FSM_MAX_STATES];
 
   // ─────────────────────────────────────────────────────────────────────────
   // DPU mode index registration
@@ -37,8 +36,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // ────────────────────────────────────────────────────────────────────────
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      mode_memory        <= '0;
-      immediate_memory   <= '0;
+      mode_memory        <= '{default: '0};
+      immediate_memory   <= '{default: '0};
     end else if (dpu_valid) begin
       mode_memory[dpu_instr._config]      <= dpu_instr._mode;
       immediate_memory[dpu_instr._config] <= dpu_instr._immediate;

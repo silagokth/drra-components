@@ -10,14 +10,9 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
   instructionHandlers = SWB_PKG::createInstructionHandlers(this);
   for (uint32_t i = 0; i < num_fsms; i++) {
     connection_maps.push_back(std::map<uint32_t, uint32_t>());
-    sending_routes_maps.push_back(std::map<uint32_t, std::vector<uint32_t>>());
+    sending_routes_maps.push_back(std::map<uint32_t, std::set<uint32_t>>());
     receiving_routes_maps.push_back(
-        std::map<uint32_t, std::vector<uint32_t>>());
-    next_connection_maps.push_back(std::map<uint32_t, uint32_t>());
-    next_sending_routes_maps.push_back(
-        std::map<uint32_t, std::vector<uint32_t>>());
-    next_receiving_routes_maps.push_back(
-        std::map<uint32_t, std::vector<uint32_t>>());
+        std::map<uint32_t, std::set<uint32_t>>());
   }
 
   // Slot ports
@@ -82,6 +77,13 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
 bool Swb::clockTick(SST::Cycle_t currentCycle) {
   bool result = DRRAResource::clockTick(currentCycle);
 
+  if (currentCycle % 10 == 0 && !portsToActivate.empty()) {
+    for (const auto &[sid, ports] : portsToActivate) {
+      activatePortsForSlot(sid, ports);
+    }
+    portsToActivate.clear();
+  }
+
   if (currentCycle % 10 == 5) {
     if (isPortActive(SWB_PKG::REP_PORT_INTRACELL)) {
       int64_t agu_address =
@@ -127,7 +129,7 @@ void Swb::handleSWB(const SWB_PKG::SWBInstruction &instr) {
   }
 
   // Add the connection to the SWB map
-  next_connection_maps[instr.option][instr.source] = instr.target;
+  connection_maps[instr.option][instr.source] = instr.target;
 
   out.output("Adding connection from slot %u to slot %u "
              "in FSM %u\n",
@@ -146,10 +148,11 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
     // target is slot number (1-hot encoded)
 
     // Convert 1-hot encoded target to slot number
+    auto &receive_targets = receiving_routes_maps[instr.option][instr.source];
     for (uint32_t i = 0; i < 16; i++) {
       if (instr.target & (1 << i)) {
         targets.push_back(i);
-        next_receiving_routes_maps[instr.option][instr.source].push_back(i);
+        receive_targets.insert(i);
       }
     }
   } else {
@@ -158,10 +161,11 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
     // target is cell (NW=0/N/NE/W/C/E/SW/S/SE) (1-hot encoded)
 
     // Convert 1-hot encoded target to cell number
+    auto &send_targets = sending_routes_maps[instr.option][instr.source];
     for (uint32_t i = 0; i < 16; i++) {
       if (instr.target & (1 << i)) {
         targets.push_back(i);
-        next_sending_routes_maps[instr.option][instr.source].push_back(i);
+        send_targets.insert(i);
       }
     }
   }
@@ -261,7 +265,10 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
     // Verify if the slot is mapped to another slot
     if (connection_maps[currentFsmOption_swb].count(id)) {
       uint32_t target = connection_maps[currentFsmOption_swb][id];
-      out.output("Forwarding data from slot %u to slot %u\n", id, target);
+      out.output("Forwarding data from slot %u to slot %u (size=%dbits, "
+                 "data=%s)\n",
+                 id, target, dataEvent->size,
+                 formatRawDataToWords(dataEvent->payload).c_str());
       slot_links[target]->send(dataEvent);
     } else if (sending_routes_maps[currentFsmOption_route].count(id)) {
       for (auto target : sending_routes_maps[currentFsmOption_route][id]) {
@@ -270,8 +277,10 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
             out.flush();
             out.fatal(CALL_INFO, -1, "Cell link %u is not linked\n", id);
           }
-          out.output("Forwarding data to adjacent cell (direction: %s)\n",
-                     cell_directions_str[target].c_str());
+          out.output("Forwarding data to adjacent cell (direction: %s, "
+                     "size=%dbits, data=%s)\n",
+                     cell_directions_str[target].c_str(), dataEvent->size,
+                     formatRawDataToWords(dataEvent->payload).c_str());
           DataEvent *dataEventCopy = dataEvent->clone();
           cell_links[target]->send(dataEventCopy);
         } else {
@@ -283,7 +292,10 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
         // check if Dir::C is in receiving_routes_maps
         if (receiving_routes_maps[currentFsmOption_route].count(
                 CellDirection::C)) {
-          out.output("Forwarding data to self (direction: C)\n");
+          out.output("Forwarding data to self (direction: C, size=%dbits, "
+                     "data=%s)\n",
+                     dataEvent->size,
+                     formatRawDataToWords(dataEvent->payload).c_str());
           handleCellEventWithID(event, CellDirection::C);
           return;
         }
@@ -293,16 +305,16 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
       out.output("Current ROUTE FSM option: %u\n", currentFsmOption_route);
       // Print sending routes map
       out.output("Sending routes map (size: %d):\n",
-                 next_sending_routes_maps[currentFsmOption_route].size());
-      for (int s = 0; s < next_sending_routes_maps.size(); s++) {
+                 sending_routes_maps[currentFsmOption_route].size());
+      for (int s = 0; s < sending_routes_maps.size(); s++) {
         out.output("  FSM option %d:\n", s);
-        for (auto const &pair : next_sending_routes_maps[s]) {
+        for (auto const &pair : sending_routes_maps[s]) {
           out.output("    Slot %u -> [", pair.first);
-          for (size_t i = 0; i < pair.second.size(); ++i) {
-            out.print("%s", cell_directions_str[pair.second[i]].c_str());
-            if (i < pair.second.size() - 1) {
-              out.print(", ");
-            }
+          bool first = true;
+          for (auto target : pair.second) {
+            if (!first) out.print(", ");
+            out.print("%s", cell_directions_str[target].c_str());
+            first = false;
           }
           out.print("]\n");
         }
@@ -325,13 +337,11 @@ void Swb::handleCellEventWithID(Event *event, uint32_t id) {
         out.output("Forwarding from cell %s data to slot ",
                    cell_directions_str[id].c_str());
       }
-      for (int i = 0;
-           i < receiving_routes_maps[currentFsmOption_route][id].size(); i++) {
-        uint32_t target = receiving_routes_maps[currentFsmOption_route][id][i];
+      bool first = true;
+      for (auto target : receiving_routes_maps[currentFsmOption_route][id]) {
+        if (!first) out.print(", ");
         out.print("%u", target);
-        if (i < receiving_routes_maps[currentFsmOption_route][id].size() - 1) {
-          out.print(", ");
-        }
+        first = false;
         DataEvent *dataEventCopy = dataEvent->clone();
         slot_links[target]->send(dataEventCopy);
       }
@@ -346,14 +356,12 @@ void Swb::handleCellEventWithID(Event *event, uint32_t id) {
       out.output("Broadcasting data to slots ");
     else
       out.output("Forwarding data to slot ");
-    for (int i = 0; i < routes.size(); i++) {
-      uint32_t target = routes[i];
+    bool first = true;
+    for (auto target : routes) {
       if (target < num_slots) {
-        if (i < routes.size() - 1) {
-          out.print("%u, ", target);
-        } else {
-          out.print("%u", target);
-        }
+        if (!first) out.print(", ");
+        out.print("%u", target);
+        first = false;
         DataEvent *dataEventCopy = dataEvent->clone();
         slot_links[target]->send(dataEventCopy);
       } else {
@@ -365,26 +373,5 @@ void Swb::handleCellEventWithID(Event *event, uint32_t id) {
 }
 
 void Swb::handleActivation(uint32_t slot_id, uint32_t ports) {
-  activatePortsForSlot(slot_id, ports);
-  uint32_t relative_ports = ports << (slot_id * 4);
-  if (ports & 0b1) {
-    connection_maps = next_connection_maps;
-    next_connection_maps.clear();
-    for (uint32_t i = 0; i < num_fsms; i++) {
-      next_connection_maps.push_back(std::map<uint32_t, uint32_t>());
-    }
-  }
-  if (ports & 0b10) {
-    sending_routes_maps = next_sending_routes_maps;
-    receiving_routes_maps = next_receiving_routes_maps;
-
-    next_sending_routes_maps.clear();
-    next_receiving_routes_maps.clear();
-    for (uint32_t i = 0; i < num_fsms; i++) {
-      next_sending_routes_maps.push_back(
-          std::map<uint32_t, std::vector<uint32_t>>());
-      next_receiving_routes_maps.push_back(
-          std::map<uint32_t, std::vector<uint32_t>>());
-    }
-  }
+  portsToActivate[slot_id] = ports;
 }

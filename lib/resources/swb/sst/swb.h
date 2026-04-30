@@ -5,6 +5,7 @@
 #include "swb_pkg.h"
 #include <cstdint>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 class Swb : public DRRAResource {
@@ -79,13 +80,8 @@ private:
 
   // Map input ports to output ports ([source] = target)
   std::vector<std::map<uint32_t, uint32_t>> connection_maps;
-  std::vector<std::map<uint32_t, uint32_t>> next_connection_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>> sending_routes_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>>
-      next_sending_routes_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>> receiving_routes_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>>
-      next_receiving_routes_maps;
+  std::vector<std::map<uint32_t, std::set<uint32_t>>> sending_routes_maps;
+  std::vector<std::map<uint32_t, std::set<uint32_t>>> receiving_routes_maps;
 
   // Slot links
   std::vector<Link *> slot_links;
@@ -100,6 +96,8 @@ private:
   uint32_t currentFsmOption_swb = 0;
   uint32_t currentFsmOption_route = 0;
   uint32_t currentEventNumber = 0;
+
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 };
 
 #endif // _SWB_H

@@ -146,11 +146,13 @@ void DRRAResource::activatePort(uint32_t port) {
   out.output("Activating port %d\n", port);
   active_ports[port] = true;
   out.output("Building AGU for port %d\n", port);
-  if (!agus[port].isEmpty())
-    agus[port].build();
-  // current_timing_states[port] = next_timing_states[port];
-  // next_timing_states[port] = TimingState();
-  // current_timing_states[port].build();
+  if (agus[port].isEmpty()) {
+    // RTL AGU with no explicit config still produces one default address
+    // cycle. Model it with a single event so checkAGULifetime can retire the
+    // port instead of leaving it active across epochs.
+    agus[port].addEvent("default_act_" + std::to_string(port), [] {}, 1);
+  }
+  agus[port].build();
   port_last_rep_level[port] = -1;
   active_ports_cycles[port] = 0;
 }
@@ -168,9 +170,9 @@ void DRRAResource::checkAGULifetime(Cycle_t currentSSTCycle) {
           "Checking AGU %d lifetime: current cycle %lu. AGU has been "
           "active for %lu. AGU should be active for %lu more cycles (%lu "
           "cycles in total).\n",
-          i, currentSSTCycle / 10, current_active_cycle,
-          last_agu_cycle - current_active_cycle + 1, last_agu_cycle + 1);
-      if (current_active_cycle > last_agu_cycle) {
+          i, currentSSTCycle / 10, current_active_cycle + 1,
+          last_agu_cycle - current_active_cycle, last_agu_cycle + 1);
+      if (current_active_cycle >= last_agu_cycle) {
         out.output("Deactivating port %d as AGU is inactive\n", i);
         active_ports[i] = false;
         active_ports_cycles[i] = 0;
