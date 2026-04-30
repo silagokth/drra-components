@@ -137,7 +137,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       current_option    <= '{default: '1};
       current_level     <= '{default: '0};
       current_trans     <= '{default: '0};
-    end else if (|agu_done) begin
+    end else begin
+      // Reset state for any AGU that just finished. Run unconditionally in
+      // parallel with evt/rep dispatch — gating evt/rep on `!|agu_done`
+      // would silently drop dispatches that land on the same cycle as some
+      // other AGU's done. (See iosram_both for the trigger case.)
       for (int i = 0; i < NUM_AGUS; i++)
         if (agu_done[i]) begin
           agu_configs_reg[i]   <= '{default: '0};
@@ -148,54 +152,55 @@ import {{name}}_{{fingerprint}}_pkg::*;
           current_trans[i]     <= '0;
         end
 
-    end else if (evt_valid) begin
-      current_option[instr_port]                          <= current_option[instr_port] + 1;
-      current_level[instr_port]                           <= '0;
-      agu_configs_reg[instr_port].ir_configs[0][0].iter          <= 1;
-      agu_configs_reg[instr_port].ir_configs[0][0].is_configured <= 1'b1;
+      if (evt_valid) begin
+        current_option[instr_port]                          <= current_option[instr_port] + 1;
+        current_level[instr_port]                           <= '0;
+        agu_configs_reg[instr_port].ir_configs[0][0].iter          <= 1;
+        agu_configs_reg[instr_port].ir_configs[0][0].is_configured <= 1'b1;
 
-    end else if (rep_valid || repx_valid) begin
-      automatic logic [REP_OPTION_WIDTH-1:0]   opt      = current_option[instr_port];
-      automatic logic [$clog2(NUM_LEVELS)-1:0] curr_lvl = current_level[instr_port];
-      automatic logic [$clog2(NUM_LEVELS)-1:0] lvl      = rep_valid ? curr_lvl : (curr_lvl == '0 ? '0 : curr_lvl - 1);
-      automatic logic [REP_DELAY_WIDTH/2-1:0]  dly      = rep_valid ? rep_instr._delay : repx_instr._delay;
-      automatic logic [REP_ITER_WIDTH/2-1:0]   itr      = rep_valid ? rep_instr._iter  : repx_instr._iter;
-      automatic logic [REP_STEP_WIDTH/2-1:0]   stp      = rep_valid ? rep_instr._step  : repx_instr._step;
+      end else if (rep_valid || repx_valid) begin
+        automatic logic [REP_OPTION_WIDTH-1:0]   opt      = current_option[instr_port];
+        automatic logic [$clog2(NUM_LEVELS)-1:0] curr_lvl = current_level[instr_port];
+        automatic logic [$clog2(NUM_LEVELS)-1:0] lvl      = rep_valid ? curr_lvl : (curr_lvl == '0 ? '0 : curr_lvl - 1);
+        automatic logic [REP_DELAY_WIDTH/2-1:0]  dly      = rep_valid ? rep_instr._delay : repx_instr._delay;
+        automatic logic [REP_ITER_WIDTH/2-1:0]   itr      = rep_valid ? rep_instr._iter  : repx_instr._iter;
+        automatic logic [REP_STEP_WIDTH/2-1:0]   stp      = rep_valid ? rep_instr._step  : repx_instr._step;
 
-      if (use_or_reg[instr_port]) begin
-        if (rep_valid) begin // REP: configure lower half
-          agu_configs_reg[instr_port].or_configs[lvl].delay[DELAY_HI-1:0] <= dly;
-          agu_configs_reg[instr_port].or_configs[lvl].iter[ITER_HI-1:0]   <= itr;
-          agu_configs_reg[instr_port].or_configs[lvl].step[STEP_HI-1:0]   <= stp;
-        end else begin // REPX: configure upper half
-          agu_configs_reg[instr_port].or_configs[lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
-          agu_configs_reg[instr_port].or_configs[lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
-          agu_configs_reg[instr_port].or_configs[lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
+        if (use_or_reg[instr_port]) begin
+          if (rep_valid) begin // REP: configure lower half
+            agu_configs_reg[instr_port].or_configs[lvl].delay[DELAY_HI-1:0] <= dly;
+            agu_configs_reg[instr_port].or_configs[lvl].iter[ITER_HI-1:0]   <= itr;
+            agu_configs_reg[instr_port].or_configs[lvl].step[STEP_HI-1:0]   <= stp;
+          end else begin // REPX: configure upper half
+            agu_configs_reg[instr_port].or_configs[lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
+            agu_configs_reg[instr_port].or_configs[lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
+            agu_configs_reg[instr_port].or_configs[lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
+          end
+          agu_configs_reg[instr_port].or_configs[lvl].is_configured <= 1'b1;
+          or_configured_reg[instr_port]                             <= 1'b1;
+        end else begin
+          if (rep_valid) begin // REP: configure lower half
+            agu_configs_reg[instr_port].ir_configs[opt][lvl].delay[DELAY_HI-1:0] <= dly;
+            agu_configs_reg[instr_port].ir_configs[opt][lvl].iter[ITER_HI-1:0]   <= itr;
+            agu_configs_reg[instr_port].ir_configs[opt][lvl].step[STEP_HI-1:0]   <= stp;
+          end else begin // REPX: configure upper half
+            agu_configs_reg[instr_port].ir_configs[opt][lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
+            agu_configs_reg[instr_port].ir_configs[opt][lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
+            agu_configs_reg[instr_port].ir_configs[opt][lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
+          end
+          agu_configs_reg[instr_port].ir_configs[opt][lvl].is_configured <= 1'b1;
         end
-        agu_configs_reg[instr_port].or_configs[lvl].is_configured <= 1'b1;
-        or_configured_reg[instr_port]                             <= 1'b1;
-      end else begin
-        if (rep_valid) begin // REP: configure lower half
-          agu_configs_reg[instr_port].ir_configs[opt][lvl].delay[DELAY_HI-1:0] <= dly;
-          agu_configs_reg[instr_port].ir_configs[opt][lvl].iter[ITER_HI-1:0]   <= itr;
-          agu_configs_reg[instr_port].ir_configs[opt][lvl].step[STEP_HI-1:0]   <= stp;
-        end else begin // REPX: configure upper half
-          agu_configs_reg[instr_port].ir_configs[opt][lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= dly;
-          agu_configs_reg[instr_port].ir_configs[opt][lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= itr;
-          agu_configs_reg[instr_port].ir_configs[opt][lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= stp;
-        end
-        agu_configs_reg[instr_port].ir_configs[opt][lvl].is_configured <= 1'b1;
+
+        if (rep_valid)
+          current_level[instr_port] <= current_level[instr_port] + 1;
+
+      end else if (trans_valid && !or_configured_reg[instr_port]) begin
+        agu_configs_reg[instr_port].mt_configs[current_trans[instr_port]].delay         <= trans_instr._delay;
+        agu_configs_reg[instr_port].mt_configs[current_trans[instr_port]].is_configured <= 1'b1;
+        use_or_reg[instr_port]    <= 1'b1;
+        current_level[instr_port] <= '0;
+        current_trans[instr_port] <= current_trans[instr_port] + 1;
       end
-
-      if (rep_valid)
-        current_level[instr_port] <= current_level[instr_port] + 1;
-
-    end else if (trans_valid && !or_configured_reg[instr_port]) begin
-      agu_configs_reg[instr_port].mt_configs[current_trans[instr_port]].delay         <= trans_instr._delay;
-      agu_configs_reg[instr_port].mt_configs[current_trans[instr_port]].is_configured <= 1'b1;
-      use_or_reg[instr_port]    <= 1'b1;
-      current_level[instr_port] <= '0;
-      current_trans[instr_port] <= current_trans[instr_port] + 1;
     end
   end
 

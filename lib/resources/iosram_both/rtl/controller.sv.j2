@@ -64,7 +64,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       current_lane_index  <= '{default: '1};
       current_rep_level   <= '{default: '0};
       current_trans_index <= '{default: '0};
-    end else if (|agu_done) begin
+    end else begin
+      // Reset state for any AGU that just finished. Run unconditionally in
+      // parallel with dsu/rep dispatch — gating dsu/rep on `!|agu_done`
+      // would silently drop dispatches that land on the same cycle as some
+      // other AGU's done, producing the mul_512_1_1 chunks-1..7-missing bug.
       for (int i = 0; i < NUM_AGUS; i++) begin
         if (agu_done[i]) begin
           agu_configs_reg[i]     <= '0;
@@ -75,7 +79,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
           current_trans_index[i] <= '0;
         end
       end
-    end else if (dsu_valid) begin
+
+      if (dsu_valid) begin
       agu_config_index <= dsu_port;
       current_lane_index[dsu_port] <= current_lane_index[dsu_port] + 1;
       current_rep_level[dsu_port]  <= '0;
@@ -113,13 +118,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
 
-    end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
-      agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
-      agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
-      use_or_reg[agu_config_index] <= 1'b1;
+      end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
+        agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
+        agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
+        use_or_reg[agu_config_index] <= 1'b1;
 
-      current_rep_level[agu_config_index]   <= '0;
-      current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
+        current_rep_level[agu_config_index]   <= '0;
+        current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
+      end
     end
   end
 
