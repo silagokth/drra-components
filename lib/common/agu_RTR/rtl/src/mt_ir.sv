@@ -77,17 +77,9 @@ module mt_ir
     end
   end
 
-  // Check if current step is done
+  // Since empty lanes is always done, step is done when lane is done
   logic step_done;
-  logic step_configured;
-  always_comb begin
-    if (active_lane_ptr > max_lane_index) begin
-      step_configured = 1'b0;
-    end else begin
-      step_configured = ir_configs[active_lane_ptr][0].is_configured;
-    end
-  end
-  assign step_done = step_configured ? ir_done_array[active_lane_ptr] : 1'b1;
+  assign step_done = ir_done_array[active_lane_ptr];
 
   // Mux pointer logic
   always_comb begin
@@ -122,16 +114,8 @@ module mt_ir
 
   // Output muxing
   always_comb begin
-    ir_valid = 1'b0;
-    ir_addr  = '0;
-
-    if (current_mux_ptr <= max_lane_index && ir_configs[current_mux_ptr][0].is_configured) begin
-      ir_addr  = ir_addr_array[current_mux_ptr];
-      ir_valid = ir_valid_array[current_mux_ptr];
-    end else begin
-      ir_addr  = '0;
-      ir_valid = 1'b1;
-    end
+    ir_addr  = ir_addr_array[current_mux_ptr];
+    ir_valid = ir_valid_array[current_mux_ptr];
 
     if (!((state == RUN_LANE) || (state == IDLE && enable))) begin
       ir_valid = 1'b0;
@@ -163,47 +147,37 @@ module mt_ir
         transition_cnt_next  = '0;
 
         if (enable) begin
-          // Check Lane 0 safely
-          if (ir_configs[0][0].is_configured) begin
+          // If no transitions and lane 0 done, skip to done state
+          if (max_lane_index == '0 && ir_done_array[0]) begin
+            ir_done = 1'b1;
+            state_next = DONE;
+          // If lane 0 not done, run lane 0
+          end else if (!ir_done_array[0]) begin
             state_next = RUN_LANE;
+          // If lane 0 done, forward to next lane or transition delay
+          end else if (mt_configs[0].delay > 0) begin
+            state_next = TRANSITION_DELAY;
+            transition_cnt_next = mt_configs[0].delay;
           end else begin
-            // Counter Mode logic for Cycle 0
-            if (max_lane_index == 0 && ir_done_array[0]) state_next = DONE;
-            else if (mt_configs[0].delay > 0) begin
-              state_next = TRANSITION_DELAY;
-              transition_cnt_next = mt_configs[0].delay;
-            end else if (!ir_done_array[active_lane_ptr]) begin
-              active_lane_ptr_next = active_lane_ptr;
-              state_next = RUN_LANE;
-            end else begin
-              active_lane_ptr_next = 1;
-              state_next = RUN_LANE;
-            end
+            active_lane_ptr_next = 1;
+            state_next = RUN_LANE;
           end
         end
       end
 
       RUN_LANE: begin
         if (step_done) begin
+          // If done with all lanes, go to done state
           if (active_lane_ptr >= max_lane_index) begin
-            if (ir_configs[max_lane_index][0].is_configured && !ir_done_array[max_lane_index]) begin
-              ir_done = 1'b0;
-              state_next = RUN_LANE;
-            end else begin
-              ir_done = 1'b1;
-              state_next = IDLE;
-            end
+            ir_done = 1'b1;
+            state_next = IDLE;
+          // If not done with all lanes, forward to next lane or transition delay
+          end else if (mt_configs[active_lane_ptr].delay > 0) begin
+            state_next = TRANSITION_DELAY;
+            transition_cnt_next = mt_configs[active_lane_ptr].delay;
           end else begin
-            if (mt_configs[active_lane_ptr].delay > 0) begin
-              state_next = TRANSITION_DELAY;
-              transition_cnt_next = mt_configs[active_lane_ptr].delay;
-            end else if (!ir_done_array[active_lane_ptr]) begin
-              active_lane_ptr_next = active_lane_ptr;
-              state_next = RUN_LANE;
-            end else begin
-              active_lane_ptr_next = active_lane_ptr + 1;
-              state_next = RUN_LANE;
-            end
+            active_lane_ptr_next = active_lane_ptr + 1;
+            state_next = RUN_LANE;
           end
         end
       end

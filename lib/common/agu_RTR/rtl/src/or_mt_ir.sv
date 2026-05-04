@@ -161,10 +161,11 @@ module or_mt_ir
       // ----------------------------------------------------------------------
       IDLE: begin
         if (enable) begin
-          // Start immediately.
-          // Note: We don't check child_done here because child starts fresh.
-          state_next   = RUN_CHILD;
-          child_enable = 1'b1;
+          child_enable = 1;
+        if (child_done && all_or_done)
+          state_next = DONE;
+        else
+          state_next = RUN_CHILD;
         end
       end
 

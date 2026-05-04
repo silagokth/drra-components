@@ -7,17 +7,26 @@ puts "SEED = $SEED"
 
 set GCC "g++"
 set CXX_FLAGS "-c -fPIC"
-set INCLUDE_FLAGS "-I$ROOT/../../../sst/include -I$ROOT/include"
+set SST_ROOT "$ROOT/../../../sst"
+set SST_INCLUDE "$SST_ROOT/include"
+set TIMING_MODEL_ROOT "$SST_ROOT/timing_model"
+set TIMING_MODEL_INCLUDE "$TIMING_MODEL_ROOT/include"
+set INCLUDE_FLAGS "-I$SST_INCLUDE -I$TIMING_MODEL_INCLUDE -I$QUESTA_HOME/include -I$ROOT/include"
 set LINKER_FLAGS "-shared"
 
-exec $GCC -c -fPIC -I$ROOT/../../../sst/include -I$QUESTA_HOME/include \
-  $ROOT/../../../sst/src/timingModel.cpp -o $ROOT/timingModel.o
-exec $GCC -c -fPIC -I$ROOT/../../../sst/include -I$QUESTA_HOME/include \
-  $ROOT/../../../sst/src/drra_agu.cpp -o $ROOT/drra_agu.o
-exec $GCC -c -fPIC -I$ROOT/../../../sst/include -I$QUESTA_HOME/include \
+exec $GCC {*}$CXX_FLAGS {*}$INCLUDE_FLAGS \
+  $TIMING_MODEL_ROOT/src/timingModel.cpp -o $ROOT/timingModel.o
+exec $GCC {*}$CXX_FLAGS {*}$INCLUDE_FLAGS \
+  $TIMING_MODEL_ROOT/src/timingExpression.cpp -o $ROOT/timingExpression.o
+exec $GCC {*}$CXX_FLAGS {*}$INCLUDE_FLAGS \
+  $TIMING_MODEL_ROOT/src/timingOperators.cpp -o $ROOT/timingOperators.o
+exec $GCC {*}$CXX_FLAGS {*}$INCLUDE_FLAGS \
+  $SST_ROOT/src/drra_agu.cpp -o $ROOT/drra_agu.o
+exec $GCC {*}$CXX_FLAGS {*}$INCLUDE_FLAGS \
   $ROOT/tm_wrapper.cpp -o $ROOT/tm_wrapper.o
-exec $GCC $LINKER_FLAGS -o $ROOT/timingModel.so $ROOT/timingModel.o \
-  $ROOT/tm_wrapper.o $ROOT/drra_agu.o \
+exec $GCC {*}$LINKER_FLAGS -o $ROOT/timingModel.so $ROOT/timingModel.o \
+  $ROOT/timingExpression.o $ROOT/timingOperators.o $ROOT/tm_wrapper.o \
+  $ROOT/drra_agu.o \
   -static-libgcc -static-libstdc++
 
 vlog -svinputport=var -sv "$ROOT/../src/agu_RTR_pkg.sv" \
