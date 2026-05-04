@@ -1,0 +1,196 @@
+{
+  "format": {
+    "instr_bitwidth": 32,
+    "instr_type_bitwidth": 1,
+    "instr_opcode_bitwidth": 3,
+    "instr_slot_bitwidth": 4
+  },
+  "instructions": [
+    {
+      "name": "acc",
+      "opcode": 4,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "config",
+          "comment": "Configuration register where the ACC mode will be stored.",
+          "bitwidth": 2
+        },
+        {
+          "name": "mode",
+          "comment": "ACC mode",
+          "bitwidth": 4,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "idle"
+            },
+            {
+              "key": 1,
+              "val": "add"
+            },
+            {
+              "key": 2,
+              "val": "sub"
+            },
+            {
+              "key": 3,
+              "val": "vadd"
+            },
+            {
+              "key": 4,
+              "val": "vsub"
+            },
+            {
+              "key": 5,
+              "val": "capture"
+            },
+            {
+              "key": 6,
+              "val": "vmac_add"
+            },
+            {
+              "key": 7,
+              "val": "vmac_sub"
+            },
+            {
+              "key": 8,
+              "val": "square_add"
+            },
+            {
+              "key": 9,
+              "val": "square_sub"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "evt",
+      "opcode": 0,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the base event for the timing pattern of either the ACC operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "acc"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rep",
+      "opcode": 1,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the repetition operator to target either the ACC operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "acc"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Number of iterations.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Step size between the addresses generated for each iteration.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Delay between iterations.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "repx",
+      "opcode": 2,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the repetition extension to target either the ACC operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "acc"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 3,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the transition operator to target either the ACC operation (0) or the RST operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "acc"
+            },
+            {
+              "key": 1,
+              "val": "rst"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 23
+        }
+      ]
+    }
+  ]
+}

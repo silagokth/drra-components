@@ -1,0 +1,31 @@
+{
+  "kind": "acc",
+  "type": "resource",
+  "size": 1,
+  "io_input": false,
+  "io_output": false,
+  "custom_properties": [
+    {
+      "name": "IS_SIGNED",
+      "value": 1
+    },
+    {
+      "name": "ACC_REG_BITWIDTH",
+      "value": 64
+    },
+    {
+      "name": "INCLUDE_MULTIPLIER",
+      "value": 1
+    }
+  ],
+  "required_parameters": [
+    "IO_DATA_WIDTH",
+    "IO_ADDR_WIDTH",
+    "RESOURCE_INSTR_WIDTH",
+    "BULK_BITWIDTH",
+    "WORD_BITWIDTH",
+    "NUM_SLOTS",
+    "FSM_PER_SLOT",
+    "INSTR_OPCODE_BITWIDTH"
+  ]
+}

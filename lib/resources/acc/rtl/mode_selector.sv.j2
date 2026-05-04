@@ -1,0 +1,39 @@
+// vesyla_template_start module_head
+module acc_mode_selector
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+  input logic clk,
+  input logic rst_n,
+
+  input logic acc_valid,
+  input acc_t acc_instr,
+
+  input logic acc_agu_valid,
+  input logic [AGU_ACC_ADDR_WIDTH-1:0] acc_agu_address,
+
+  output logic [ACC_MODE_WIDTH-1:0] acc_mode
+);
+  localparam int NUM_FSM_STATES = $clog2(FSM_MAX_STATES);
+  logic [AGU_ACC_ADDR_WIDTH-1:0] acc_mode_index;
+  logic [NUM_FSM_STATES-1:0][ACC_MODE_WIDTH-1:0] mode_memory;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      acc_mode_index <= '0;
+    end else if (acc_agu_valid) begin
+      acc_mode_index <= acc_agu_address;
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      mode_memory <= '0;
+    end else if (acc_valid) begin
+      mode_memory[acc_instr._config] <= acc_instr._mode;
+    end
+  end
+
+  assign acc_mode = acc_agu_valid ? mode_memory[acc_agu_address] : mode_memory[acc_mode_index];
+
+endmodule
