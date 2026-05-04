@@ -1,0 +1,51 @@
+// vesyla_template_start package_head
+package {{name}}_{{fingerprint}}_pkg;
+// vesyla_template_end package_head
+
+  // vesyla_template_start package_macro
+  {% include "package.j2" %}
+  // vesyla_template_end package_macro
+
+  import agu_rtr_pkg::*;
+
+  parameter int ACC_OPCODE_WIDTH = 3;
+  parameter int ACC_MODE_WIDTH = 4;
+  parameter int ACC_CONFIG_WIDTH = 2;
+  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter int OPCODE_H = 26;
+  parameter int OPCODE_L = 24;
+
+  // AGU RTR params (simple: two ports, shallow hierarchy)
+  parameter int FSM_MAX_STATES = 4;
+  parameter int NUM_AGUS = 2;
+  parameter int AGU_ACC_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_RST_ADDR_WIDTH = 1;
+  parameter int ADDRESS_WIDTH = (AGU_ACC_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_ACC_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+  parameter int REP_LEVEL_WIDTH = 3;
+  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH  = 8 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH  = 7 * 2; // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = 23;
+  parameter int NUMBER_OR = 1;
+  parameter int NUMBER_MT = 1;
+  parameter int NUMBER_IR = 4;
+
+  typedef agu_config_class#(
+    .NUMBER_IR         (NUMBER_IR),
+    .NUMBER_MT         (NUMBER_MT),
+    .NUMBER_OR         (NUMBER_OR),
+    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
+    .REP_STEP_WIDTH    (REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
+
+  parameter int VECTOR_SIZE    = BULK_BITWIDTH / WORD_BITWIDTH;
+  parameter int TREE_SUM_WIDTH = WORD_BITWIDTH + $clog2(VECTOR_SIZE);
+
+{% if parameters.INCLUDE_MULTIPLIER %}
+  parameter int PRODUCT_WIDTH  = 2 * WORD_BITWIDTH;
+  parameter int MAC_SUM_WIDTH  = PRODUCT_WIDTH + $clog2(VECTOR_SIZE);
+{% endif %}
+
+endpackage

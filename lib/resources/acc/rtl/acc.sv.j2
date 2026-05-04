@@ -1,0 +1,258 @@
+// vesyla_template_start defines
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+// vesyla_template_end defines
+
+// vesyla_template_start module_head
+{% if not already_defined %}
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0
+);
+
+  // Unused output
+  assign word_data_out_0 = '0;
+
+  logic clk, rst_n;
+  assign clk   = clk_0;
+  assign rst_n = rst_n_0;
+
+  // Port 0 = acc (word in, bulk out); Port 1 = reset
+  logic [NUM_AGUS-1:0] agu_activate;
+  assign agu_activate[0] = activate_0[0];
+  assign agu_activate[1] = activate_0[1];
+
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+  logic instruction_valid;
+  assign instruction = instr_0;
+  assign instruction_valid = instr_en_0;
+
+  // Decoder outputs
+  logic acc_valid;
+  acc_t acc_instr;
+  logic evt_valid;
+  evt_t evt_instr;
+  logic rep_valid;
+  rep_t rep_instr;
+  logic repx_valid;
+  repx_t repx_instr;
+  logic trans_valid;
+  trans_t trans_instr;
+
+  acc_decoder decoder_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .instruction_valid(instruction_valid),
+    .instruction(instruction),
+    .acc_valid(acc_valid),
+    .acc_instr(acc_instr),
+    .evt_valid(evt_valid),
+    .evt_instr(evt_instr),
+    .rep_valid(rep_valid),
+    .rep_instr(rep_instr),
+    .repx_valid(repx_valid),
+    .repx_instr(repx_instr),
+    .trans_valid(trans_valid),
+    .trans_instr(trans_instr)
+  );
+
+  // AGU configs + ACC mode selection
+  agu_config_t agu_configs [NUM_AGUS];
+  logic [ACC_MODE_WIDTH-1:0] acc_mode;
+
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
+  logic [NUM_AGUS-1:0] agu_valid;
+  logic [NUM_AGUS-1:0] agu_done;
+
+  acc_controller controller_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .agu_done(agu_done),
+    .evt_valid(evt_valid),
+    .evt_instr(evt_instr),
+    .rep_valid(rep_valid),
+    .rep_instr(rep_instr),
+    .repx_valid(repx_valid),
+    .repx_instr(repx_instr),
+    .trans_valid(trans_valid),
+    .trans_instr(trans_instr),
+    .agu_configs(agu_configs)
+  );
+
+  genvar idx;
+  generate
+    for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
+      localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_ACC_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+      agu_rtr #(
+          .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
+          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+          .REP_ITER_WIDTH(REP_ITER_WIDTH),
+          .REP_STEP_WIDTH(REP_STEP_WIDTH),
+          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+          .NUMBER_OR(NUMBER_OR),
+          .NUMBER_MT(NUMBER_MT),
+          .NUMBER_IR(NUMBER_IR)
+      ) agu_rtr_inst (
+          .clk(clk),
+          .rst_n(rst_n),
+          .enable(1'b1),
+          .activation(agu_activate[idx]),
+          .agu_config(agu_configs[idx]),
+          .addr_valid(agu_valid[idx]),
+          .addr(agu_address[idx]),
+          .done(agu_done[idx])
+      );
+    end
+  endgenerate
+
+  acc_mode_selector mode_selector_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .acc_valid(acc_valid),
+    .acc_instr(acc_instr),
+    .acc_agu_valid(agu_valid[0]),
+    .acc_agu_address(agu_address[0]),
+    .acc_mode(acc_mode)
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Accumulator datapath
+  // ─────────────────────────────────────────────────────────────────────────
+  logic reset_accumulator;
+  assign reset_accumulator = agu_valid[1];
+
+  // Scalar path: word_data_in_0 → sign-extended to ACC_REG_BITWIDTH
+  logic signed [WORD_BITWIDTH-1:0] word_in;
+  assign word_in = word_data_in_0;
+
+  logic signed [ACC_REG_BITWIDTH-1:0] acc_reg;
+  logic signed [ACC_REG_BITWIDTH-1:0] word_ext;
+  assign word_ext = ACC_REG_BITWIDTH'($signed(word_in));
+
+  // Vector path: unpack bulk_data_in_0 into VECTOR_SIZE words, feed tree adder
+  logic [WORD_BITWIDTH-1:0] bulk_words [VECTOR_SIZE];
+  genvar k;
+  generate
+    for (k = 0; k < VECTOR_SIZE; k++) begin : gen_bulk_unpack
+      assign bulk_words[k] = bulk_data_in_0[k*WORD_BITWIDTH +: WORD_BITWIDTH];
+    end
+  endgenerate
+
+  logic signed [TREE_SUM_WIDTH-1:0] tree_sum;
+  tree_adder #(
+      .N       (VECTOR_SIZE),
+      .IN_WIDTH(WORD_BITWIDTH),
+      .SIGNED  (IS_SIGNED)
+  ) tree_adder_inst (
+      .din(bulk_words),
+      .sum(tree_sum)
+  );
+  logic signed [ACC_REG_BITWIDTH-1:0] tree_sum_ext;
+  assign tree_sum_ext = ACC_REG_BITWIDTH'($signed(tree_sum));
+
+{% if parameters.INCLUDE_MULTIPLIER %}
+  // ─────────────────────────────────────────────────────────────────────────
+  // Multiplier datapath (capture / vmac / square modes)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Operand register: latches bulk_data_in_0 during capture mode
+  logic [BULK_BITWIDTH-1:0] operand_reg;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      operand_reg <= '0;
+    end else if (agu_valid[0] && acc_mode == ACC_MODE_CAPTURE) begin
+      operand_reg <= bulk_data_in_0;
+    end
+  end
+
+  // Unpack operand_reg into VECTOR_SIZE words
+  logic [WORD_BITWIDTH-1:0] operand_words [VECTOR_SIZE];
+  genvar m;
+  generate
+    for (m = 0; m < VECTOR_SIZE; m++) begin : gen_operand_unpack
+      assign operand_words[m] = operand_reg[m*WORD_BITWIDTH +: WORD_BITWIDTH];
+    end
+  endgenerate
+
+  // Shared multiplier: A=bulk_words[i], B=mux(operand_words[i], bulk_words[i]).
+  // Square modes fold B=A, vmac modes use the captured operand as B.
+  logic [WORD_BITWIDTH-1:0] mac_b_operand [VECTOR_SIZE];
+  genvar p;
+  generate
+    for (p = 0; p < VECTOR_SIZE; p++) begin : gen_mac_b_select
+      assign mac_b_operand[p] =
+          (acc_mode == ACC_MODE_SQUARE_ADD || acc_mode == ACC_MODE_SQUARE_SUB)
+          ? bulk_words[p] : operand_words[p];
+    end
+  endgenerate
+
+  logic [PRODUCT_WIDTH-1:0] mac_products [VECTOR_SIZE];
+  genvar q;
+  generate
+    for (q = 0; q < VECTOR_SIZE; q++) begin : gen_mac_products
+      assign mac_products[q] = $signed(bulk_words[q]) * $signed(mac_b_operand[q]);
+    end
+  endgenerate
+
+  logic signed [MAC_SUM_WIDTH-1:0] mac_sum;
+  tree_adder #(
+      .N       (VECTOR_SIZE),
+      .IN_WIDTH(PRODUCT_WIDTH),
+      .SIGNED  (IS_SIGNED)
+  ) mac_tree_inst (
+      .din(mac_products),
+      .sum(mac_sum)
+  );
+
+  logic signed [ACC_REG_BITWIDTH-1:0] mac_sum_ext;
+  assign mac_sum_ext = ACC_REG_BITWIDTH'($signed(mac_sum));
+{% endif %}
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      acc_reg <= '0;
+    end else if (reset_accumulator) begin
+      acc_reg <= '0;
+    end else if (agu_valid[0]) begin
+      case (acc_mode)
+        ACC_MODE_ADD:  acc_reg <= acc_reg + word_ext;
+        ACC_MODE_SUB:  acc_reg <= acc_reg - word_ext;
+        ACC_MODE_VADD: acc_reg <= acc_reg + tree_sum_ext;
+        ACC_MODE_VSUB: acc_reg <= acc_reg - tree_sum_ext;
+{% if parameters.INCLUDE_MULTIPLIER %}
+        ACC_MODE_VMAC_ADD:    acc_reg <= acc_reg + mac_sum_ext;
+        ACC_MODE_VMAC_SUB:    acc_reg <= acc_reg - mac_sum_ext;
+        ACC_MODE_SQUARE_ADD:  acc_reg <= acc_reg + mac_sum_ext;
+        ACC_MODE_SQUARE_SUB:  acc_reg <= acc_reg - mac_sum_ext;
+{% endif %}
+        default:       acc_reg <= acc_reg;
+      endcase
+    end
+  end
+
+  generate
+    if (ACC_REG_BITWIDTH < BULK_BITWIDTH) begin : gen_acc_bulk_sign_extend
+      assign bulk_data_out_0 =
+          { { (BULK_BITWIDTH-ACC_REG_BITWIDTH) { acc_reg[ACC_REG_BITWIDTH-1] } },
+            acc_reg };
+    end else begin : gen_acc_bulk_truncate
+      assign bulk_data_out_0 = acc_reg[BULK_BITWIDTH-1:0];
+    end
+  endgenerate
+
+endmodule
+
+// vesyla_template_start module_tail
+{% endif %}
+// vesyla_template_end module_tail
