@@ -34,7 +34,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic bulk_w_en, bulk_r_en, word_w_en, word_r_en;
     logic [BULK_ADDR_WIDTH-1:0] bulk_w_addr, bulk_r_addr;
     logic [WORD_ADDR_WIDTH-1:0] word_w_addr, word_r_addr;
-    logic [AGU_BITWIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
+    logic [ADDRESS_WIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
 
     assign bulk_w_addr = bulk_w_agu[BULK_ADDR_WIDTH-1:0];
     assign bulk_r_addr = bulk_r_agu[BULK_ADDR_WIDTH-1:0];
@@ -97,7 +97,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     agu_config_t agu_configs [FSM_PER_SLOT];
 
     logic [FSM_PER_SLOT-1:0] agu_enable;
-    logic [FSM_PER_SLOT-1:0][AGU_BITWIDTH-1:0] agu_address;
+    logic [FSM_PER_SLOT-1:0][ADDRESS_WIDTH-1:0] agu_address;
     logic [FSM_PER_SLOT-1:0] agu_done;
 
     assign word_w_en = agu_enable[0];

@@ -1,0 +1,36 @@
+
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_decoder
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic instruction_valid,
+    input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
+
+    output logic dsu_valid,
+    output dsu_t dsu_instr,
+    output logic rep_valid,
+    output rep_t rep_instr,
+    output logic repx_valid,
+    output repx_t repx_instr,
+    output logic trans_valid,
+    output trans_t trans_instr
+);
+
+  logic [INSTR_OPCODE_BITWIDTH-1:0] opcode;
+  assign opcode = instruction_payload[INSTR_PAYLOAD_BITWIDTH-1:INSTR_PAYLOAD_BITWIDTH - INSTR_OPCODE_BITWIDTH];
+  assign dsu_valid = instruction_valid && (opcode == OPCODE_DSU);
+  assign rep_valid = instruction_valid && (opcode == OPCODE_REP);
+  assign repx_valid = instruction_valid && (opcode == OPCODE_REPX);
+  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
+
+  // Unpack instructions
+  assign dsu_instr = dsu_valid ? unpack_dsu(instruction_payload) : '{default: 0};
+  assign rep_instr = rep_valid ? unpack_rep(instruction_payload) : '{default: 0};
+  assign repx_instr = repx_valid ? unpack_repx(instruction_payload) : '{default: 0};
+  assign trans_instr = trans_valid ? unpack_trans(instruction_payload) : '{default: 0};
+
+endmodule

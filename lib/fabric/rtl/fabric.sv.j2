@@ -81,12 +81,18 @@ import fabric_pkg::*;
         .io_addr_in(io_addr_in[{{c}}]),
         .io_data_in(io_data_in[{{c}}]),
         {% else %}
+        .io_en_in(),
+        .io_addr_in(),
         .io_data_in('0),
         {% endif %}
         {% if cell.cell.io_output %}
         .io_en_out(io_en_out[{{c}}]),
         .io_addr_out(io_addr_out[{{c}}]),
         .io_data_out(io_data_out[{{c}}]),
+        {% else %}
+        .io_en_out(),
+        .io_addr_out(),
+        .io_data_out(),
         {% endif %}
         .instr_data_in(instr_data_net[{{r}}][{{c}}]),
         .instr_addr_in(instr_addr_net[{{r}}][{{c}}]),

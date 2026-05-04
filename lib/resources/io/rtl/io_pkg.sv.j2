@@ -8,17 +8,18 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
+  parameter DEPTH = 64;
+  parameter WIDTH = 256;
+  parameter int NUM_AGUS = 2;
+
   // AGU RTR params
-  parameter int NUM_AGUS = 4;
-  parameter int ADDRESS_WIDTH = $clog2(RF_DEPTH);
-  parameter int REP_LEVEL_WIDTH = 3;
+  parameter int ADDRESS_WIDTH = IO_ADDR_WIDTH;
   parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
   parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
-  parameter int TRANS_LEVEL_WIDTH = 7;
-  parameter int TRANS_DELAY_WIDTH = 7;
-  parameter int NUMBER_OR = 0;
-  parameter int NUMBER_MT = 0;
+  parameter int REP_STEP_WIDTH = 8 * 2; // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = 23;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
   parameter int NUMBER_IR = 4;
   parameter int INCLUDE_IR_STATES = 1;
   parameter int INCLUDE_MT_STATES = 1;
@@ -33,5 +34,6 @@ package {{name}}_{{fingerprint}}_pkg;
     .REP_STEP_WIDTH    (REP_STEP_WIDTH),
     .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
   )::agu_config_t agu_config_t;
+
 endpackage
 

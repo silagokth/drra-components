@@ -64,7 +64,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       current_lane_index  <= '{default: '1};
       current_rep_level   <= '{default: '0};
       current_trans_index <= '{default: '0};
-    end else if (|agu_done) begin
+    end else begin
+      // Reset state for any AGU that just finished. Run unconditionally in
+      // parallel with dsu/rep dispatch — gating dsu/rep on `!|agu_done`
+      // would silently drop dispatches that land on the same cycle as some
+      // other AGU's done. (See iosram_both for the trigger case.)
       for (int i = 0; i < NUM_AGUS; i++) begin
         if (agu_done[i]) begin
           agu_configs_reg[i] <= '0;
@@ -74,51 +78,53 @@ import {{name}}_{{fingerprint}}_pkg::*;
           current_rep_level[i] <= 0;
         end
       end
-    end else if (dsu_valid) begin
-      agu_config_index <= dsu_port;
-      current_lane_index[dsu_port] <= current_lane_index[dsu_port] + 1;
-      current_rep_level[dsu_port]  <= '0;
 
-      // NOTE: Default configuration of the AGU is return init_addr only
-      agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
-      agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
-    end else if (rep_valid || repx_valid) begin
+      if (dsu_valid) begin
+        agu_config_index <= dsu_port;
+        current_lane_index[dsu_port] <= current_lane_index[dsu_port] + 1;
+        current_rep_level[dsu_port]  <= '0;
 
-      if (use_or_reg[agu_config_index]) begin
-        if (rep_valid) begin
-          agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
-          agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
-          agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+        // NOTE: Default configuration of the AGU is return init_addr only
+        agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
+        agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
+      end else if (rep_valid || repx_valid) begin
+
+        if (use_or_reg[agu_config_index]) begin
+          if (rep_valid) begin
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+          end else begin
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+            agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+          end
+          agu_configs_reg[agu_config_index].or_configs[rep_lvl].is_configured <= 1'b1;
+          or_configured_reg[agu_config_index] <= 1'b1;
+
         end else begin
-          agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
-          agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
-          agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+          if (rep_valid) begin
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
+          end else begin
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
+            agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
+          end
+          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
         end
-        agu_configs_reg[agu_config_index].or_configs[rep_lvl].is_configured <= 1'b1;
-        or_configured_reg[agu_config_index] <= 1'b1;
 
-      end else begin
-        if (rep_valid) begin
-          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
-          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
-          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
-        end else begin
-          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
-          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
-          agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
-        end
-        agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
+        current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
+
+      end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
+        agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
+        agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
+        use_or_reg[agu_config_index] <= 1'b1;
+
+        current_rep_level[agu_config_index]   <= '0;
+        current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
       end
-
-      current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
-
-    end else if (trans_valid && !or_configured_reg[agu_config_index]) begin
-      agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].delay         <= trans_instr._delay;
-      agu_configs_reg[agu_config_index].mt_configs[current_trans_index[agu_config_index]].is_configured <= 1'b1;
-      use_or_reg[agu_config_index] <= 1'b1;
-
-      current_rep_level[agu_config_index]   <= '0;
-      current_trans_index[agu_config_index] <= current_trans_index[agu_config_index] + 1;
     end
   end
   assign agu_configs = agu_configs_reg;

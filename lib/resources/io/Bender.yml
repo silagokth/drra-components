@@ -1,0 +1,8 @@
+package:
+  name: io
+
+sources:
+  - ./rtl/io_pkg.sv
+  - ./rtl/io.sv
+  - ./rtl/controller.sv
+  - ./rtl/decoder.sv
