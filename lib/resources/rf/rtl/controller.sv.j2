@@ -9,7 +9,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     input logic [FSM_PER_SLOT-1:0] agu_done,
 
-    output agu_config_t agu_configs[FSM_PER_SLOT]
+    agu_cfg_if.producer agu_configs[FSM_PER_SLOT]
 );
 
     // Instruction type valid signals
@@ -138,6 +138,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end
 
-    assign agu_configs = agu_configs_reg;
+    genvar gi;
+    generate
+      for (gi = 0; gi < FSM_PER_SLOT; gi++) begin : gen_cfg_drive
+        assign agu_configs[gi].or_configs = agu_configs_reg[gi].or_configs;
+        assign agu_configs[gi].mt_configs = agu_configs_reg[gi].mt_configs;
+        assign agu_configs[gi].ir_configs = agu_configs_reg[gi].ir_configs;
+      end
+    endgenerate
 
 endmodule

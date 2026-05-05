@@ -9,22 +9,13 @@ module mt_ir
     parameter int REP_STEP_WIDTH,
     parameter int TRANS_DELAY_WIDTH
 ) (
-    input logic clk,
-    input logic rst_n,
-    input logic enable,
-
-    // Configuration
-    input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_class#(
-        .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH),
-        .STEP_WIDTH (REP_STEP_WIDTH)
-    )::rep_t [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs,
-
-    // Outputs
-    output logic [ADDRESS_WIDTH-1:0] ir_addr,
-    output logic                     ir_valid,
-    output logic                     ir_done
+    input  logic                                   clk,
+    input  logic                                   rst_n,
+    input  logic                                   enable,
+           agu_cfg_if.consumer                     cfg,
+    output logic               [ADDRESS_WIDTH-1:0] ir_addr,
+    output logic                                   ir_valid,
+    output logic                                   ir_done
 );
 
   // State machine states
@@ -53,7 +44,7 @@ module mt_ir
   always_comb begin
     num_transitions_configured = '0;
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (mt_configs[k].is_configured) begin
+      if (cfg.mt_configs[k].is_configured) begin
         num_transitions_configured = k + 1;
       end else begin
         break;
@@ -67,7 +58,7 @@ module mt_ir
     max_lane_index = '0;
     found_config   = 1'b0;
     for (int k = 0; k <= NUMBER_MT; k++) begin
-      if (ir_configs[k][0].is_configured) begin
+      if (cfg.ir_configs[k][0].is_configured) begin
         max_lane_index = k;
         found_config   = 1'b1;
       end
@@ -84,7 +75,7 @@ module mt_ir
     if (active_lane_ptr > max_lane_index) begin
       step_configured = 1'b0;
     end else begin
-      step_configured = ir_configs[active_lane_ptr][0].is_configured;
+      step_configured = cfg.ir_configs[active_lane_ptr][0].is_configured;
     end
   end
   assign step_done = step_configured ? ir_done_array[active_lane_ptr] : 1'b1;
@@ -107,15 +98,16 @@ module mt_ir
           .NUMBER_IR(NUMBER_IR),
           .DELAY_WIDTH(REP_DELAY_WIDTH),
           .ITER_WIDTH(REP_ITER_WIDTH),
-          .STEP_WIDTH(REP_STEP_WIDTH)
+          .STEP_WIDTH(REP_STEP_WIDTH),
+          .LANE(i)
       ) ir_inst (
-          .clk       (clk),
-          .rst_n     (rst_n),
-          .enable    (ir_enable_array[i]),
-          .ir_configs(ir_configs[i]),
-          .ir_addr   (ir_addr_array[i]),
-          .ir_valid  (ir_valid_array[i]),
-          .ir_done   (ir_done_array[i])
+          .clk     (clk),
+          .rst_n   (rst_n),
+          .enable  (ir_enable_array[i]),
+          .cfg     (cfg),
+          .ir_addr (ir_addr_array[i]),
+          .ir_valid(ir_valid_array[i]),
+          .ir_done (ir_done_array[i])
       );
     end
   endgenerate
@@ -125,7 +117,7 @@ module mt_ir
     ir_valid = 1'b0;
     ir_addr  = '0;
 
-    if (current_mux_ptr <= max_lane_index && ir_configs[current_mux_ptr][0].is_configured) begin
+    if (current_mux_ptr <= max_lane_index && cfg.ir_configs[current_mux_ptr][0].is_configured) begin
       ir_addr  = ir_addr_array[current_mux_ptr];
       ir_valid = ir_valid_array[current_mux_ptr];
     end else begin
@@ -137,8 +129,6 @@ module mt_ir
       ir_valid = 1'b0;
     end
   end
-
-  // assign ir_done = (state_next == DONE);
 
   // Lane enable logic
   always_comb begin
@@ -164,14 +154,14 @@ module mt_ir
 
         if (enable) begin
           // Check Lane 0 safely
-          if (ir_configs[0][0].is_configured) begin
+          if (cfg.ir_configs[0][0].is_configured) begin
             state_next = RUN_LANE;
           end else begin
             // Counter Mode logic for Cycle 0
             if (max_lane_index == 0 && ir_done_array[0]) state_next = DONE;
-            else if (mt_configs[0].delay > 0) begin
+            else if (cfg.mt_configs[0].delay > 0) begin
               state_next = TRANSITION_DELAY;
-              transition_cnt_next = mt_configs[0].delay;
+              transition_cnt_next = cfg.mt_configs[0].delay;
             end else if (!ir_done_array[active_lane_ptr]) begin
               active_lane_ptr_next = active_lane_ptr;
               state_next = RUN_LANE;
@@ -186,7 +176,7 @@ module mt_ir
       RUN_LANE: begin
         if (step_done) begin
           if (active_lane_ptr >= max_lane_index) begin
-            if (ir_configs[max_lane_index][0].is_configured && !ir_done_array[max_lane_index]) begin
+            if (cfg.ir_configs[max_lane_index][0].is_configured && !ir_done_array[max_lane_index]) begin
               ir_done = 1'b0;
               state_next = RUN_LANE;
             end else begin
@@ -194,9 +184,9 @@ module mt_ir
               state_next = IDLE;
             end
           end else begin
-            if (mt_configs[active_lane_ptr].delay > 0) begin
+            if (cfg.mt_configs[active_lane_ptr].delay > 0) begin
               state_next = TRANSITION_DELAY;
-              transition_cnt_next = mt_configs[active_lane_ptr].delay;
+              transition_cnt_next = cfg.mt_configs[active_lane_ptr].delay;
             end else if (!ir_done_array[active_lane_ptr]) begin
               active_lane_ptr_next = active_lane_ptr;
               state_next = RUN_LANE;

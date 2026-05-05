@@ -5,19 +5,16 @@ module ir
     parameter int NUMBER_IR,
     parameter int DELAY_WIDTH,
     parameter int ITER_WIDTH,
-    parameter int STEP_WIDTH
+    parameter int STEP_WIDTH,
+    parameter int LANE = 0
 ) (
-    input  logic                            clk,
-    input  logic                            rst_n,
-    input  logic                            enable,
-    input rep_config_class#(
-        .DELAY_WIDTH(DELAY_WIDTH),
-        .ITER_WIDTH (ITER_WIDTH),
-        .STEP_WIDTH (STEP_WIDTH)
-    )::rep_t [NUMBER_IR-1:0] ir_configs,
-    output logic        [ADDRESS_WIDTH-1:0] ir_addr,
-    output logic                            ir_valid,
-    output logic                            ir_done
+    input  logic                     clk,
+    input  logic                     rst_n,
+    input  logic                     enable,
+    agu_cfg_if.consumer              cfg,
+    output logic [ADDRESS_WIDTH-1:0] ir_addr,
+    output logic                     ir_valid,
+    output logic                     ir_done
 );
 
   typedef enum logic [1:0] {
@@ -40,7 +37,7 @@ module ir
   always_comb begin
     max_level = 0;
     for (int i = 0; i < NUMBER_IR; i++) begin
-      if (ir_configs[i].iter > 0) max_level = i;
+      if (cfg.ir_configs[LANE][i].iter > 0) max_level = i;
     end
   end
 
@@ -48,7 +45,7 @@ module ir
   logic level_at_last[NUMBER_IR];
   always_comb begin
     for (int i = 0; i < NUMBER_IR; i++) begin
-      level_at_last[i] = (iter_count[i] >= ir_configs[i].iter - 1);
+      level_at_last[i] = (iter_count[i] >= cfg.ir_configs[LANE][i].iter - 1);
     end
   end
 
@@ -110,7 +107,7 @@ module ir
         need_delay = 1'b0;
         active_delay_level_next = 0;
         for (int i = 0; i < NUMBER_IR; i++) begin
-          if (level_increments[i] && ir_configs[i].delay > 0 && !level_at_last[i]) begin
+          if (level_increments[i] && cfg.ir_configs[LANE][i].delay > 0 && !level_at_last[i]) begin
              // Priority to inner loops: only capture if we haven't found one yet
             if (!need_delay) begin
               need_delay = 1'b1;
@@ -146,7 +143,7 @@ module ir
     // DELAYING State Logic
     //---------------------------------------------------------------------
     else if (state == DELAYING) begin
-      if (delay_count >= ir_configs[active_delay_level].delay) begin
+      if (delay_count >= cfg.ir_configs[LANE][active_delay_level].delay) begin
         state_next = OUTPUTTING;
         delay_count_next = '0;
       end else begin
@@ -184,19 +181,16 @@ module ir
   end
 
   // Outputs
-  //assign ir_addr = iter_count[0];
   always_comb begin
     ir_addr = '0;
     for (int i = 0; i < NUMBER_IR; i++) begin
-      if (ir_configs[i].iter > 0)
-        ir_addr = ir_addr + (iter_count[i] * ir_configs[i].step);
+      if (cfg.ir_configs[LANE][i].iter > 0)
+        ir_addr = ir_addr + (iter_count[i] * cfg.ir_configs[LANE][i].step);
     end
   end
 
   // Valid is High immediately upon enable (Zero Latency)
   // and stays High during subsequent OUTPUTTING states.
   assign ir_valid = is_processing;
-
-  //assign ir_done = (state_next == DONE);
 
 endmodule

@@ -10,29 +10,13 @@ module or_mt_ir
     parameter int REP_STEP_WIDTH,
     parameter int TRANS_DELAY_WIDTH
 ) (
-    input logic clk,
-    input logic rst_n,
-    input logic enable,
-
-    // Configurations
-    // OR configs: Controls the repetition of the whole MT sequence
-    input rep_config_class#(
-        .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH),
-        .STEP_WIDTH (REP_STEP_WIDTH)
-    )::rep_t [NUMBER_OR-1:0] or_configs,
-    // MT/IR configs: Passed down to the child
-    input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_class#(
-        .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH),
-        .STEP_WIDTH (REP_STEP_WIDTH)
-    )::rep_t [NUMBER_IR-1:0][NUMBER_MT:0] ir_configs,
-
-    // Outputs
-    output logic [ADDRESS_WIDTH-1:0] ir_addr,
-    output logic                     ir_valid,
-    output logic                     ir_done
+    input  logic                                   clk,
+    input  logic                                   rst_n,
+    input  logic                                   enable,
+           agu_cfg_if.consumer                     cfg,
+    output logic               [ADDRESS_WIDTH-1:0] ir_addr,
+    output logic                                   ir_valid,
+    output logic                                   ir_done
 );
 
   // --------------------------------------------------------------------------
@@ -74,14 +58,13 @@ module or_mt_ir
       .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) mt_ir_inst (
-      .clk       (clk),
-      .rst_n     (rst_n),
-      .enable    (child_enable),  // Controlled by OR State Machine
-      .mt_configs(mt_configs),
-      .ir_configs(ir_configs),
-      .ir_addr   (child_addr),
-      .ir_valid  (child_valid),
-      .ir_done   (child_done)
+      .clk     (clk),
+      .rst_n   (rst_n),
+      .enable  (child_enable),  // Controlled by OR State Machine
+      .cfg     (cfg),
+      .ir_addr (child_addr),
+      .ir_valid(child_valid),
+      .ir_done (child_done)
   );
 
   // Pass through valid data immediately
@@ -90,7 +73,7 @@ module or_mt_ir
     ir_addr = child_addr;
     for (int o = 0; o < NUMBER_OR; o++) begin
       if (or_iter_count[o] > 0) begin
-        ir_addr += or_iter_count[o] * or_configs[o].step;
+        ir_addr += or_iter_count[o] * cfg.or_configs[o].step;
       end
     end
   end
@@ -106,7 +89,7 @@ module or_mt_ir
     max_or_level = 0;
     any_or_configured = 1'b0;
     for (int i = 0; i < NUMBER_OR; i++) begin
-      if (or_configs[i].iter > 0) begin
+      if (cfg.or_configs[i].iter > 0) begin
         max_or_level = i;
         any_or_configured = 1'b1;
       end
@@ -117,7 +100,7 @@ module or_mt_ir
   logic or_level_at_last[NUMBER_OR];
   always_comb begin
     for (int i = 0; i < NUMBER_OR; i++) begin
-      or_level_at_last[i] = (or_iter_count[i] >= or_configs[i].iter - 1);
+      or_level_at_last[i] = (or_iter_count[i] >= cfg.or_configs[i].iter - 1);
     end
   end
 
@@ -194,7 +177,7 @@ module or_mt_ir
           need_delay = 1'b0;
           active_or_delay_level_next = 0;
           for (int i = 0; i < NUMBER_OR; i++) begin
-            if (level_increments[i] && or_configs[i].delay > 0 && !or_level_at_last[i]) begin
+            if (level_increments[i] && cfg.or_configs[i].delay > 0 && !or_level_at_last[i]) begin
               if (!need_delay) begin
                 need_delay = 1'b1;
                 active_or_delay_level_next = i;
@@ -245,7 +228,7 @@ module or_mt_ir
 
         // Check against the configured delay for the active level
         // Even if config delay is 0, we spend this 1 cycle here effectively resetting.
-        if (or_delay_count >= or_configs[active_or_delay_level].delay) begin
+        if (or_delay_count >= cfg.or_configs[active_or_delay_level].delay) begin
           state_next = RUN_CHILD;
           or_delay_count_next = '0;
         end else begin

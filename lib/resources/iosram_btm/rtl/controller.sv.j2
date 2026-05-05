@@ -18,7 +18,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input trans_t trans_instr,
 
     input [NUM_AGUS-1:0] agu_done,
-    output agu_config_t agu_configs[NUM_AGUS],
+    agu_cfg_if.producer agu_configs[NUM_AGUS],
     output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address
 );
 
@@ -127,7 +127,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end
   end
-  assign agu_configs = agu_configs_reg;
+  genvar gi;
+  generate
+    for (gi = 0; gi < NUM_AGUS; gi++) begin : gen_cfg_drive
+      assign agu_configs[gi].or_configs = agu_configs_reg[gi].or_configs;
+      assign agu_configs[gi].mt_configs = agu_configs_reg[gi].mt_configs;
+      assign agu_configs[gi].ir_configs = agu_configs_reg[gi].ir_configs;
+    end
+  endgenerate
 
   logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
   always_ff @(posedge clk or negedge rst_n) begin

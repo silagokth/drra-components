@@ -3,6 +3,7 @@ package:
 
 sources:
   - ./rtl/src/agu_RTR_pkg.sv
+  - ./rtl/src/agu_cfg_if.sv
   - ./rtl/src/ir.sv
   - ./rtl/src/mt_ir.sv
   - ./rtl/src/or_mt_ir.sv
