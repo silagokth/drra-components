@@ -123,7 +123,7 @@ module agu_tb
     int iter;
     int step;
     int delay;
-    iter  = $urandom_range(2, 5);
+    iter  = $urandom_range(1, 5);
     step  = $urandom_range(0, 10);
     delay = $urandom_range(0, 5);
     add_rep(iter, step, delay);

@@ -45,7 +45,7 @@ module ir
   logic level_at_last[NUMBER_IR];
   always_comb begin
     for (int i = 0; i < NUMBER_IR; i++) begin
-      level_at_last[i] = (iter_count[i] >= cfg.ir_configs[LANE][i].iter - 1);
+      level_at_last[i] = (iter_count[i] + 1 >= cfg.ir_configs[LANE][i].iter);
     end
   end
 
