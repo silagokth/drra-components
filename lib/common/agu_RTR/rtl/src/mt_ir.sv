@@ -39,15 +39,18 @@ module mt_ir
   logic [$clog2(NUMBER_MT+1)-1:0] current_mux_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] max_lane_index;
 
-  // Calculate number of transitions configured
+  // Calculate number of transitions configured.
+  // A `stop` sentinel replaces a `break` to keep the loop synthesizable
+  // on tool flows that reject `break` inside a for-loop in always_comb.
   logic [$clog2(NUMBER_MT+1)-1:0] num_transitions_configured;
   always_comb begin
+    logic stop;
     num_transitions_configured = '0;
+    stop = 1'b0;
     for (int k = 0; k < NUMBER_MT; k++) begin
-      if (cfg.mt_configs[k].is_configured) begin
-        num_transitions_configured = k + 1;
-      end else begin
-        break;
+      if (!stop) begin
+        if (cfg.mt_configs[k].is_configured) num_transitions_configured = k + 1;
+        else                                 stop = 1'b1;
       end
     end
   end
