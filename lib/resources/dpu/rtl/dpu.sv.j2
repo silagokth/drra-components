@@ -56,17 +56,29 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
 
   // Configuration signals from controller to AGU_RTR
-  agu_config_t agu_configs [NUM_AGUS];
+  agu_cfg_if #(
+      .NUMBER_IR        (NUMBER_IR),
+      .NUMBER_MT        (NUMBER_MT),
+      .NUMBER_OR        (NUMBER_OR),
+      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  ) agu_configs [NUM_AGUS] ();
 
   logic [NUM_AGUS-1:0]                    agu_valid;
   logic [NUM_AGUS-1:0]                    agu_done;
   logic                                   reset_accumulator;
   assign reset_accumulator = agu_valid[1];
 
+  // Per-AGU address output, hoisted out of the generate block so consumers
+  // (e.g. dpu_mode_selector below) can reference it without a hierarchical
+  // path into `gen_agu[idx].agu_address`.
+  logic [ADDRESS_WIDTH-1:0] agu_address [NUM_AGUS];
+
   genvar idx;
   generate
     for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
-      logic [ADDRESS_WIDTH-1:0] agu_address;
       localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
       logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
       agu_rtr #(
@@ -83,12 +95,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
           .rst_n(rst_n),
           .enable(1'b1),
           .activation(agu_activate[idx]),
-          .agu_config(agu_configs[idx]),
+          .cfg(agu_configs[idx]),
           .addr_valid(agu_valid[idx]),
           .addr(agu_addr_inner),
           .done(agu_done[idx])
       );
-      assign agu_address = ADDRESS_WIDTH'(agu_addr_inner);
+      assign agu_address[idx] = ADDRESS_WIDTH'(agu_addr_inner);
     end
   endgenerate
 
@@ -148,7 +160,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .dpu_instr(dpu_instr),
 
     .dpu_agu_valid(agu_valid[0]),
-    .dpu_agu_address(gen_agu[0].agu_address),
+    .dpu_agu_address(agu_address[0]),
 
     .dpu_mode(dpu_mode),
     .immediate(immediate)

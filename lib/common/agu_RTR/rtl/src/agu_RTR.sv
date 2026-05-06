@@ -15,15 +15,7 @@ module agu_rtr
     input logic enable,
     input logic activation,
 
-    input agu_config_class#(
-        .NUMBER_IR        (NUMBER_IR),
-        .NUMBER_MT        (NUMBER_MT),
-        .NUMBER_OR        (NUMBER_OR),
-        .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
-        .REP_ITER_WIDTH   (REP_ITER_WIDTH),
-        .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-    )::agu_config_t agu_config,
+    agu_cfg_if.consumer cfg,
 
     output logic [ADDRESS_WIDTH-1:0] addr,
     output logic                     addr_valid,
@@ -58,15 +50,13 @@ module agu_rtr
           .REP_STEP_WIDTH   (REP_STEP_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
       ) or_mt_ir_inst (
-          .clk       (clk),
-          .rst_n     (rst_n),
-          .enable    (activation_reg),
-          .or_configs(agu_config.or_configs),
-          .mt_configs(agu_config.mt_configs),
-          .ir_configs(agu_config.ir_configs),
-          .ir_addr   (addr),
-          .ir_valid  (addr_valid),
-          .ir_done   (done)
+          .clk    (clk),
+          .rst_n  (rst_n),
+          .enable (activation_reg),
+          .cfg    (cfg),
+          .ir_addr(addr),
+          .ir_valid(addr_valid),
+          .ir_done(done)
       );
     end else if (NUMBER_MT > 0) begin : gen_mt_top
       mt_ir #(
@@ -78,14 +68,13 @@ module agu_rtr
           .REP_STEP_WIDTH   (REP_STEP_WIDTH),
           .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
       ) mt_ir_inst (
-          .clk       (clk),
-          .rst_n     (rst_n),
-          .enable    (activation_reg),
-          .mt_configs(agu_config.mt_configs),
-          .ir_configs(agu_config.ir_configs),
-          .ir_addr   (addr),
-          .ir_valid  (addr_valid),
-          .ir_done   (done)
+          .clk    (clk),
+          .rst_n  (rst_n),
+          .enable (activation_reg),
+          .cfg    (cfg),
+          .ir_addr(addr),
+          .ir_valid(addr_valid),
+          .ir_done(done)
       );
     end else begin : gen_ir_top
       ir #(
@@ -93,15 +82,16 @@ module agu_rtr
           .NUMBER_IR    (NUMBER_IR),
           .DELAY_WIDTH  (REP_DELAY_WIDTH),
           .ITER_WIDTH   (REP_ITER_WIDTH),
-          .STEP_WIDTH   (REP_STEP_WIDTH)
+          .STEP_WIDTH   (REP_STEP_WIDTH),
+          .LANE         (0)
       ) ir_inst (
-          .clk       (clk),
-          .rst_n     (rst_n),
-          .enable    (activation_reg),
-          .ir_configs(agu_config.ir_configs),
-          .ir_addr   (addr),
-          .ir_valid  (addr_valid),
-          .ir_done   (done)
+          .clk    (clk),
+          .rst_n  (rst_n),
+          .enable (activation_reg),
+          .cfg    (cfg),
+          .ir_addr(addr),
+          .ir_valid(addr_valid),
+          .ir_done(done)
       );
     end
   endgenerate

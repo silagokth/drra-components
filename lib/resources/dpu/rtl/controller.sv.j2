@@ -17,7 +17,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic trans_valid,
     input trans_t trans_instr,
 
-    output agu_config_t agu_configs [NUM_AGUS]
+    agu_cfg_if.producer agu_configs [NUM_AGUS]
 );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -125,7 +125,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
   end
 
-  assign agu_configs = agu_configs_reg;
+  genvar gi;
+  generate
+    for (gi = 0; gi < NUM_AGUS; gi++) begin : gen_cfg_drive
+      assign agu_configs[gi].or_configs = agu_configs_reg[gi].or_configs;
+      assign agu_configs[gi].mt_configs = agu_configs_reg[gi].mt_configs;
+      assign agu_configs[gi].ir_configs = agu_configs_reg[gi].ir_configs;
+    end
+  endgenerate
 
 endmodule
 
