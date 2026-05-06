@@ -178,8 +178,10 @@ module mt_ir
           active_lane_ptr_next = active_lane_ptr + 1;
           transition_cnt_next  = '0;
 
-          // Check if all done
-          if (active_lane_ptr + 1 >= max_lane_index) begin
+          // Check if all done. Widen the LHS by 1 bit before the +1 so
+          // an `active_lane_ptr` already at its max value does not wrap
+          // back to 0 and miss the comparison.
+          if ({1'b0, active_lane_ptr} + 1'b1 >= max_lane_index) begin
             if (ir_done_array[max_lane_index]) begin
               state_next = IDLE;
               ir_done    = 1'b1;

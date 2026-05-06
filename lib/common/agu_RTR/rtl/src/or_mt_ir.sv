@@ -46,6 +46,11 @@ module or_mt_ir
   logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level;
   logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level_next;
 
+  // Hoisted from inside the RUN_CHILD case-item: older Genus / DC versions
+  // reject `logic` declarations mid-case.
+  logic                  need_delay;
+  logic [NUMBER_OR-1:0]  level_increments;
+
   // --------------------------------------------------------------------------
   // Child Instantiation (MT_IR)
   // --------------------------------------------------------------------------
@@ -96,21 +101,25 @@ module or_mt_ir
     end
   end
 
-  // Check wrap conditions for each OR level
+  // Check wrap conditions for each OR level. Gate with `iter > 0` so an
+  // unconfigured level (iter == 0) does not underflow `iter - 1` to all-ones
+  // and produce a wide compare with no functional purpose.
   logic or_level_at_last[NUMBER_OR];
   always_comb begin
     for (int i = 0; i < NUMBER_OR; i++) begin
-      or_level_at_last[i] = (or_iter_count[i] >= cfg.or_configs[i].iter - 1);
+      or_level_at_last[i] = (cfg.or_configs[i].iter > 0) &&
+                            (or_iter_count[i] >= cfg.or_configs[i].iter - 1);
     end
   end
 
-  // Check if all OR levels are done
+  // Check if all OR levels are done.
+  // No `if (!rst_n)` guard here: the sequential reset of `or_iter_count`
+  // already drives this comb chain to 0, so the explicit gate would only
+  // add fanout on rst_n.
   logic all_or_done;
   always_comb begin
     all_or_done = 1'b1;
-    if (!rst_n) begin
-      all_or_done = 1'b0;
-    end else if (any_or_configured) begin
+    if (any_or_configured) begin
       for (int i = 0; i <= max_or_level; i++) begin
         if (!or_level_at_last[i]) all_or_done = 1'b0;
       end
@@ -126,6 +135,8 @@ module or_mt_ir
     child_enable = 1'b0;
     or_delay_count_next = or_delay_count;
     active_or_delay_level_next = active_or_delay_level;
+    need_delay = 1'b0;
+    level_increments = '0;
 
     for (int i = 0; i < NUMBER_OR; i++) begin
       or_iter_count_next[i] = or_iter_count[i];
@@ -162,8 +173,6 @@ module or_mt_ir
         if (child_done) begin
           // The child finished one full MT sequence (Lane 0 -> ... -> Lane N)
           // --- OR Counter Update Logic (Triggered on child completion) ---
-          logic need_delay;
-          logic [NUMBER_OR-1:0] level_increments;
 
           // 1. Calculate cascading increments
           level_increments[0] = 1'b1;  // Innermost OR always increments
@@ -261,7 +270,11 @@ module or_mt_ir
     end
   end
 
-  // Output Done Flag
-  assign ir_done = (state_next == DONE);
+  // Output Done Flag.
+  // Driven from the registered `state` (not `state_next`) so the comb
+  // path through the FSM next-state logic does not appear at the module
+  // output. Costs 1 cycle of latency on the done pulse vs the prior
+  // `state_next == DONE` form.
+  assign ir_done = (state == DONE);
 
 endmodule
