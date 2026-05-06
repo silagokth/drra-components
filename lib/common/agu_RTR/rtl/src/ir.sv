@@ -29,6 +29,14 @@ module ir
   logic [ITER_WIDTH-1:0] iter_count_next[NUMBER_IR];
   logic [DELAY_WIDTH-1:0] delay_count, delay_count_next;
 
+  // Per-level address accumulator. Holds `iter_count[i] * step[i]` as a
+  // running sum so the output path uses adders only — no multipliers.
+  // ASSUMPTION: cfg.ir_configs[LANE][i].step is held constant by the
+  // controller for the duration of an AGU run. If runtime step changes
+  // are ever introduced, this approach must be revisited.
+  logic [ADDRESS_WIDTH-1:0] level_addr      [NUMBER_IR];
+  logic [ADDRESS_WIDTH-1:0] level_addr_next [NUMBER_IR];
+
   logic [$clog2(NUMBER_IR)-1:0] active_delay_level;
   logic [$clog2(NUMBER_IR)-1:0] active_delay_level_next;
 
@@ -79,12 +87,14 @@ module ir
 
     for (int i = 0; i < NUMBER_IR; i++) begin
       iter_count_next[i] = iter_count[i];
+      level_addr_next[i] = level_addr[i];
     end
 
     // Reset counters while waiting in IDLE
     if (state == IDLE && !enable) begin
       for (int i = 0; i < NUMBER_IR; i++) begin
         iter_count_next[i] = '0;
+        level_addr_next[i] = '0;
       end
     end
 
@@ -124,8 +134,11 @@ module ir
           if (level_increments[i]) begin
             if (level_at_last[i]) begin
               iter_count_next[i] = '0;
+              level_addr_next[i] = '0;
             end else begin
               iter_count_next[i] = iter_count[i] + 1'b1;
+              level_addr_next[i] = level_addr[i]
+                                   + ADDRESS_WIDTH'(cfg.ir_configs[LANE][i].step);
             end
           end
         end
@@ -172,6 +185,7 @@ module ir
       active_delay_level <= '0;
       for (int i = 0; i < NUMBER_IR; i++) begin
         iter_count[i] <= '0;
+        level_addr[i] <= '0;
       end
     end else begin
       state <= state_next;
@@ -179,16 +193,20 @@ module ir
       active_delay_level <= active_delay_level_next;
       for (int i = 0; i < NUMBER_IR; i++) begin
         iter_count[i] <= iter_count_next[i];
+        level_addr[i] <= level_addr_next[i];
       end
     end
   end
 
-  // Outputs
+  // Outputs.
+  // Sum the per-level address accumulators rather than recomputing
+  // `iter_count[i] * step[i]` combinationally. Removes NUMBER_IR
+  // multipliers from the addr critical path.
   always_comb begin
     ir_addr = '0;
     for (int i = 0; i < NUMBER_IR; i++) begin
       if (cfg.ir_configs[LANE][i].iter > 0)
-        ir_addr = ir_addr + (iter_count[i] * cfg.ir_configs[LANE][i].step);
+        ir_addr = ir_addr + level_addr[i];
     end
   end
 
