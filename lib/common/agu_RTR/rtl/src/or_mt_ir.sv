@@ -43,8 +43,8 @@ module or_mt_ir
   logic [REP_DELAY_WIDTH-1:0] or_delay_count, or_delay_count_next;
 
   // Logic to track active delay level for OR
-  logic [$clog2(NUMBER_OR)-1:0] active_or_delay_level;
-  logic [$clog2(NUMBER_OR)-1:0] active_or_delay_level_next;
+  logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level;
+  logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level_next;
 
   // --------------------------------------------------------------------------
   // Child Instantiation (MT_IR)
@@ -205,17 +205,7 @@ module or_mt_ir
             or_delay_count_next = 1;
           end else begin
             state_next = RUN_CHILD;
-
-            if (need_delay) begin
-              // Load the configured delay
-              // Note: We use the delay value directly. The state machine consumes
-              // 1 cycle per count.
-              or_delay_count_next = 1;
-            end else begin
-              // If config delay is 0, we set count to 0.
-              // The OR_DELAY state will handle the 1-cycle minimum reset duration.
-              or_delay_count_next = '0;
-            end
+            or_delay_count_next = '0;
           end
         end
       end

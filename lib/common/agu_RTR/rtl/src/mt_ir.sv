@@ -43,7 +43,7 @@ module mt_ir
   logic [$clog2(NUMBER_MT+1)-1:0] num_transitions_configured;
   always_comb begin
     num_transitions_configured = '0;
-    for (int k = 0; k <= NUMBER_MT; k++) begin
+    for (int k = 0; k < NUMBER_MT; k++) begin
       if (cfg.mt_configs[k].is_configured) begin
         num_transitions_configured = k + 1;
       end else begin
@@ -141,10 +141,10 @@ module mt_ir
           if (max_lane_index == '0 && ir_done_array[0]) begin
             ir_done = 1'b1;
             state_next = DONE;
-          // If lane 0 not done, run lane 0
+            // If lane 0 not done, run lane 0
           end else if (!ir_done_array[0]) begin
             state_next = RUN_LANE;
-          // If lane 0 done, forward to next lane or transition delay
+            // If lane 0 done, forward to next lane or transition delay
           end else if (cfg.mt_configs[0].delay > 0) begin
             state_next = TRANSITION_DELAY;
             transition_cnt_next = cfg.mt_configs[0].delay;
@@ -161,7 +161,7 @@ module mt_ir
           if (active_lane_ptr >= max_lane_index) begin
             ir_done = 1'b1;
             state_next = IDLE;
-          // If not done with all lanes, forward to next lane or transition delay
+            // If not done with all lanes, forward to next lane or transition delay
           end else if (cfg.mt_configs[active_lane_ptr].delay > 0) begin
             state_next = TRANSITION_DELAY;
             transition_cnt_next = cfg.mt_configs[active_lane_ptr].delay;
