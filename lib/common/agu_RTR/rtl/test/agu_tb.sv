@@ -262,8 +262,17 @@ module agu_tb
           init_test();
           for (int i = 0; i <= n_mt; i++) begin
             add_event();
-            // Add IR repetitions
-            for (int j = 0; j < n_ir; j++) add_rep_random();  // or random/varied values
+            // Add IR repetitions. When n_ir == 0 inject the implicit
+            // default rep (iter=1, step=0, delay=0) that resource
+            // controllers always pre-configure on dsu/evt — see e.g.
+            // lib/resources/dpu/rtl/controller.sv.j2 lines 88-90:
+            //   agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
+            //   agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
+            // Production never reaches the AGU with all-zero ir_configs,
+            // so this mirrors the actual minimum config path.
+            if (n_ir == 0) add_rep(1, 0, 0);
+            else
+              for (int j = 0; j < n_ir; j++) add_rep_random();
           end
           // Add MT transitions
           for (int t = 0; t < n_mt; t++) add_trans_random();  // or random/varied values
