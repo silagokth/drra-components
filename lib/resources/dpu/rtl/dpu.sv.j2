@@ -71,10 +71,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic                                   reset_accumulator;
   assign reset_accumulator = agu_valid[1];
 
+  // Per-AGU address output, hoisted out of the generate block so consumers
+  // (e.g. dpu_mode_selector below) can reference it without a hierarchical
+  // path into `gen_agu[idx].agu_address`.
+  logic [ADDRESS_WIDTH-1:0] agu_address [NUM_AGUS];
+
   genvar idx;
   generate
     for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
-      logic [ADDRESS_WIDTH-1:0] agu_address;
       localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
       logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
       agu_rtr #(
@@ -96,7 +100,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
           .addr(agu_addr_inner),
           .done(agu_done[idx])
       );
-      assign agu_address = ADDRESS_WIDTH'(agu_addr_inner);
+      assign agu_address[idx] = ADDRESS_WIDTH'(agu_addr_inner);
     end
   endgenerate
 
@@ -156,7 +160,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .dpu_instr(dpu_instr),
 
     .dpu_agu_valid(agu_valid[0]),
-    .dpu_agu_address(gen_agu[0].agu_address),
+    .dpu_agu_address(agu_address[0]),
 
     .dpu_mode(dpu_mode),
     .immediate(immediate)
