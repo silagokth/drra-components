@@ -98,40 +98,40 @@ module or_mt_ir
   // OR Logic: Level Calculations (Adapted from ir.sv)
   // --------------------------------------------------------------------------
 
-  // Max level calculation: Determine the highest active OR level
-  logic [$clog2(NUMBER_OR+1)-1:0] max_or_level;
+  // Track whether any OR level is configured at all. Used to gate the
+  // all_or_done check so a fully unconfigured OR nest does not declare
+  // itself done before the child has run.
   logic any_or_configured;
   always_comb begin
-    max_or_level = 0;
     any_or_configured = 1'b0;
     for (int i = 0; i < NUMBER_OR; i++) begin
-      if (cfg.or_configs[i].iter > 0) begin
-        max_or_level = i;
-        any_or_configured = 1'b1;
-      end
+      if (cfg.or_configs[i].iter > 0) any_or_configured = 1'b1;
     end
   end
 
-  // Check wrap conditions for each OR level. Gate with `iter > 0` so an
-  // unconfigured level (iter == 0) does not underflow `iter - 1` to all-ones
-  // and produce a wide compare with no functional purpose.
+  // Check wrap conditions for each OR level. An unconfigured level
+  // (iter == 0) is treated as "perpetually at_last" so it never blocks
+  // the cascade or the all_or_done check. The contiguous-config
+  // invariant (no gaps between configured OR levels) means iter == 0
+  // only occurs above the highest configured level.
   logic or_level_at_last[NUMBER_OR];
   always_comb begin
     for (int i = 0; i < NUMBER_OR; i++) begin
-      or_level_at_last[i] = (cfg.or_configs[i].iter > 0) &&
+      or_level_at_last[i] = (cfg.or_configs[i].iter == 0) ||
                             (or_iter_count[i] >= cfg.or_configs[i].iter - 1);
     end
   end
 
-  // Check if all OR levels are done.
-  // No `if (!rst_n)` guard here: the sequential reset of `or_iter_count`
-  // already drives this comb chain to 0, so the explicit gate would only
-  // add fanout on rst_n.
+  // Check if all OR levels are done. Loop bound is the parameter
+  // NUMBER_OR (compile-time constant) so synth tools that reject
+  // runtime for-loop bounds elaborate cleanly. Unconfigured levels
+  // return or_level_at_last == 1 and pass through the loop without
+  // affecting the result.
   logic all_or_done;
   always_comb begin
     all_or_done = 1'b1;
     if (any_or_configured) begin
-      for (int i = 0; i <= max_or_level; i++) begin
+      for (int i = 0; i < NUMBER_OR; i++) begin
         if (!or_level_at_last[i]) all_or_done = 1'b0;
       end
     end

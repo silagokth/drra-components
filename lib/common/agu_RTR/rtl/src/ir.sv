@@ -40,31 +40,28 @@ module ir
   logic [$clog2(NUMBER_IR)-1:0] active_delay_level;
   logic [$clog2(NUMBER_IR)-1:0] active_delay_level_next;
 
-  // Max level calculation
-  logic [$clog2(NUMBER_IR+1)-1:0] max_level;
-  always_comb begin
-    max_level = 0;
-    for (int i = 0; i < NUMBER_IR; i++) begin
-      if (cfg.ir_configs[LANE][i].iter > 0) max_level = i;
-    end
-  end
-
-  // Check wrap conditions. Gate with `iter > 0` to match the form used in
-  // or_mt_ir and to avoid the `iter_count + 1` overflow on the boundary
-  // when `iter` saturates the field width.
+  // Check wrap conditions. An unconfigured level (iter == 0) is treated
+  // as "perpetually at_last" so it never blocks the cascade or the
+  // all_done check. The contiguous-config invariant (no gaps between
+  // configured levels) means iter == 0 only occurs above the highest
+  // configured level, so this rule is consistent with the original
+  // intent of the loop.
   logic level_at_last[NUMBER_IR];
   always_comb begin
     for (int i = 0; i < NUMBER_IR; i++) begin
-      level_at_last[i] = (cfg.ir_configs[LANE][i].iter > 0) &&
+      level_at_last[i] = (cfg.ir_configs[LANE][i].iter == 0) ||
                          (iter_count[i] >= cfg.ir_configs[LANE][i].iter - 1);
     end
   end
 
-  // Check all done
+  // Check all done. Loop bound is the parameter NUMBER_IR (compile-time
+  // constant) so synth tools that reject runtime for-loop bounds elaborate
+  // cleanly. Unconfigured levels return level_at_last == 1, so they pass
+  // through without affecting the result.
   logic all_done;
   always_comb begin
     all_done = 1'b1;
-    for (int i = 0; i <= max_level; i++) begin
+    for (int i = 0; i < NUMBER_IR; i++) begin
       if (!level_at_last[i]) all_done = 1'b0;
     end
   end
