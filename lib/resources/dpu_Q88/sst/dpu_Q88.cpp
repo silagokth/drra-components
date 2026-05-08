@@ -54,6 +54,17 @@ void Dpu_q88::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
                formatRawDataToWords(dataEvent->payload).c_str());
     std::vector<uint8_t> data = dataEvent->payload;
     data_buffers[slot_id] = data;
+
+    // DIAG: dump the raw bytes just written
+    {
+      std::ostringstream ss;
+      for (size_t i=0;i<data_buffers[slot_id].size();++i){
+        ss << std::hex << std::setfill('0') << std::setw(2)
+           << (int)data_buffers[slot_id][i] << (i+1<data_buffers[slot_id].size() ? " ":"");
+      }
+      out.output("DIAG: after recv, data_buffers[%d] size=%zu bytes: %s\n",
+                 slot_id, data_buffers[slot_id].size(), ss.str().c_str());
+    }
   }
 }
 
@@ -149,6 +160,20 @@ void Dpu_q88::handleOperation(
               data_buffers[0].size(), data_buffers[1].size());
   }
 
+  // DIAG: dump raw bytes before conversion
+  {
+    auto dump = [&](int idx){
+      std::ostringstream ss;
+      for (size_t i=0;i<data_buffers[idx].size();++i){
+        ss << std::hex << std::setfill('0') << std::setw(2)
+           << (int)data_buffers[idx][i] << (i+1<data_buffers[idx].size() ? " ":"");
+      }
+      out.output("DIAG: data_buffers[%d] size=%zu bytes: %s\n", idx,
+                 data_buffers[idx].size(), ss.str().c_str());
+    };
+    dump(0); dump(1);
+  }
+  
   int16_t data0 = DPU_Q88_Operations::vectorToInt16(data_buffers[0]);
   int16_t data1 = DPU_Q88_Operations::vectorToInt16(data_buffers[1]);
   int16_t result = operation(data0, data1);
@@ -157,4 +182,7 @@ void Dpu_q88::handleOperation(
   dataEvent->size = word_bitwidth;
   dataEvent->payload = DPU_Q88_Operations::int16ToVector(result);
   data_links[0]->send(dataEvent);
+
+  out.output("DPU %s operation (in0=%d, in1=%d, out=%d)\n", name.c_str(),
+             data0, data1, result);
 }

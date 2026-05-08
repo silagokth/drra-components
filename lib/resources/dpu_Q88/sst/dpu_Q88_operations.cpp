@@ -5,7 +5,7 @@
 namespace DPU_Q88_Operations {
 
 std::function<void()> getDPUHandler(Dpu_q88 *dpu, DPU_Q88_PKG::DPU_MODE mode) {
-  static auto handlers = DPU_Q88_Operations::createHandlers(dpu);
+  auto handlers = DPU_Q88_Operations::createHandlers(dpu);
   if (handlers.find(mode) != handlers.end()) {
     return handlers[mode];
   } else {
