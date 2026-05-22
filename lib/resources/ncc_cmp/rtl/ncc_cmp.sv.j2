@@ -1,0 +1,228 @@
+// vesyla_template_start defines
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+// vesyla_template_end defines
+
+// vesyla_template_start module_head
+{% if not already_defined %}
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0,
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0
+);
+
+  // Bulk lane is unused as an output; the resource is read via the word lane.
+  assign bulk_data_out_0 = '0;
+
+  logic clk, rst_n;
+  assign clk   = clk_0;
+  assign rst_n = rst_n_0;
+
+  // Two AGU-driven ports: ncc, rst.
+  logic [NUM_AGUS-1:0] agu_activate;
+  assign agu_activate[0] = activate_0[0];
+  assign agu_activate[1] = activate_0[1];
+
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+  logic instruction_valid;
+  assign instruction = instr_0;
+  assign instruction_valid = instr_en_0;
+
+  // Decoder outputs
+  logic ncc_valid;
+  ncc_t ncc_instr;
+  logic evt_valid;
+  evt_t evt_instr;
+  logic rep_valid;
+  rep_t rep_instr;
+  logic repx_valid;
+  repx_t repx_instr;
+  logic trans_valid;
+  trans_t trans_instr;
+
+  ncc_cmp_decoder decoder_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .instruction_valid(instruction_valid),
+    .instruction(instruction),
+    .ncc_valid(ncc_valid),
+    .ncc_instr(ncc_instr),
+    .evt_valid(evt_valid),
+    .evt_instr(evt_instr),
+    .rep_valid(rep_valid),
+    .rep_instr(rep_instr),
+    .repx_valid(repx_valid),
+    .repx_instr(repx_instr),
+    .trans_valid(trans_valid),
+    .trans_instr(trans_instr)
+  );
+
+  agu_config_t agu_configs [NUM_AGUS];
+
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
+  logic [NUM_AGUS-1:0] agu_valid;
+  logic [NUM_AGUS-1:0] agu_done;
+
+  ncc_cmp_controller controller_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .agu_done(agu_done),
+    .evt_valid(evt_valid),
+    .evt_instr(evt_instr),
+    .rep_valid(rep_valid),
+    .rep_instr(rep_instr),
+    .repx_valid(repx_valid),
+    .repx_instr(repx_instr),
+    .trans_valid(trans_valid),
+    .trans_instr(trans_instr),
+    .agu_configs(agu_configs)
+  );
+
+  genvar idx;
+  generate
+    for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
+      localparam int AGU_ADDR_WIDTH =
+          (idx == 0) ? AGU_NCC_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+      agu_rtr #(
+          .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
+          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+          .REP_ITER_WIDTH(REP_ITER_WIDTH),
+          .REP_STEP_WIDTH(REP_STEP_WIDTH),
+          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+          .NUMBER_OR(NUMBER_OR),
+          .NUMBER_MT(NUMBER_MT),
+          .NUMBER_IR(NUMBER_IR)
+      ) agu_rtr_inst (
+          .clk(clk),
+          .rst_n(rst_n),
+          .enable(1'b1),
+          .activation(agu_activate[idx]),
+          .agu_config(agu_configs[idx]),
+          .addr_valid(agu_valid[idx]),
+          .addr(agu_address[idx][AGU_ADDR_WIDTH-1:0]),
+          .done(agu_done[idx])
+      );
+    end
+  endgenerate
+
+  logic [NCC_MODE_WIDTH-1:0] ncc_mode;
+
+  ncc_cmp_mode_selector mode_selector_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .ncc_valid(ncc_valid),
+    .ncc_instr(ncc_instr),
+    .ncc_agu_valid(agu_valid[0]),
+    .ncc_agu_address(agu_address[0][AGU_NCC_ADDR_WIDTH-1:0]),
+    .ncc_mode(ncc_mode)
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Register file
+  // ─────────────────────────────────────────────────────────────────────────
+  logic signed [LINEAR_SHIFTED_W-1:0] s_a_cur,   s_a_best;
+  logic signed [QUAD_SHIFTED_W-1:0]   s_a2_cur,  s_a2_best;
+  logic signed [QUAD_SHIFTED_W-1:0]   s_ab_cur,  s_ab_best;
+  logic signed [LINEAR_SHIFTED_W-1:0] s_b;
+  logic                              best_valid;
+  logic [COUNTER_WIDTH-1:0]          local_cnt, max_cnt;
+
+  // Slice the bulk-in payload into shifted linear and quad sized signed views.
+  logic signed [LINEAR_SHIFTED_W-1:0] bulk_in_linear;
+  logic signed [QUAD_SHIFTED_W-1:0]   bulk_in_quad;
+  assign bulk_in_linear = bulk_data_in_0[LINEAR_BITWIDTH-1:LINEAR_RSHIFT];
+  assign bulk_in_quad   = bulk_data_in_0[QUAD_BITWIDTH-1:QUAD_RSHIFT];
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Comparator
+  // ─────────────────────────────────────────────────────────────────────────
+  logic update_best;
+
+  compare_unit #(
+      .LINEAR_BITWIDTH (LINEAR_SHIFTED_W),
+      .QUAD_BITWIDTH   (QUAD_SHIFTED_W),
+      .K_LOG2          (K_LOG2),
+      .PRODUCT_BITWIDTH(PRODUCT_BITWIDTH)
+  ) compare_unit_inst (
+      .s_a_cur     (s_a_cur),
+      .s_a2_cur    (s_a2_cur),
+      .s_ab_cur    (s_ab_cur),
+      .s_b         (s_b),
+      .s_a_best    (s_a_best),
+      .s_a2_best   (s_a2_best),
+      .s_ab_best   (s_ab_best),
+      .best_valid  (best_valid),
+      .update_best (update_best)
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // State updates
+  //   - AGU 0 (ncc): execute the configured NCC mode selected by its address
+  //   - AGU 1 (rst): clear all registers and counters
+  // ─────────────────────────────────────────────────────────────────────────
+  logic ncc_exec_valid, rst_valid;
+  assign ncc_exec_valid = agu_valid[0];
+  assign rst_valid      = agu_valid[1];
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n || rst_valid) begin
+      s_a_cur   <= '0;
+      s_a2_cur  <= '0;
+      s_ab_cur  <= '0;
+      s_a_best  <= '0;
+      s_a2_best <= '0;
+      s_ab_best <= '0;
+      s_b       <= '0;
+      best_valid <= 1'b0;
+      local_cnt <= '0;
+      max_cnt   <= '0;
+    end else begin
+      if (ncc_exec_valid) begin
+        unique case (ncc_mode)
+          NCC_MODE_LOAD_S_A:  s_a_cur  <= bulk_in_linear;
+          NCC_MODE_LOAD_S_A2: s_a2_cur <= bulk_in_quad;
+          NCC_MODE_LOAD_S_AB: s_ab_cur <= bulk_in_quad;
+          NCC_MODE_LOAD_S_B:  s_b      <= bulk_in_linear;
+          NCC_MODE_CMP: begin
+            local_cnt <= local_cnt + 1'b1;
+            if (update_best) begin
+              s_a_best  <= s_a_cur;
+              s_a2_best <= s_a2_cur;
+              s_ab_best <= s_ab_cur;
+              best_valid <= 1'b1;
+              max_cnt   <= local_cnt;
+            end
+          end
+          default: begin
+          end
+        endcase
+      end
+    end
+  end
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Word output: continuously expose max_cnt.
+  // ─────────────────────────────────────────────────────────────────────────
+  generate
+    if (COUNTER_WIDTH < WORD_BITWIDTH) begin : gen_word_zero_extend
+      assign word_data_out_0 =
+          { {(WORD_BITWIDTH-COUNTER_WIDTH){1'b0}}, max_cnt};
+    end else begin : gen_word_truncate
+      assign word_data_out_0 = max_cnt[WORD_BITWIDTH-1:0];
+    end
+  endgenerate
+
+endmodule
+
+// vesyla_template_start module_tail
+{% endif %}
+// vesyla_template_end module_tail

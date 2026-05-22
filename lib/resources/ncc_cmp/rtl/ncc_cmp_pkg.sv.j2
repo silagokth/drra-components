@@ -1,0 +1,53 @@
+// vesyla_template_start package_head
+package {{name}}_{{fingerprint}}_pkg;
+// vesyla_template_end package_head
+
+  // vesyla_template_start package_macro
+  {% include "package.j2" %}
+  // vesyla_template_end package_macro
+
+  import agu_rtr_pkg::*;
+
+  parameter int NCC_OPCODE_WIDTH = 3;
+  parameter int NCC_MODE_WIDTH = 3;
+  parameter int NCC_CONFIG_WIDTH = 3;
+  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
+  parameter int OPCODE_H = 26;
+  parameter int OPCODE_L = 24;
+
+  // Derived bit-widths for the comparator datapath.
+  parameter int QUAD_RSHIFT      = 2 * LINEAR_RSHIFT;
+  parameter int LINEAR_SHIFTED_W = LINEAR_BITWIDTH - LINEAR_RSHIFT;
+  parameter int QUAD_SHIFTED_W   = QUAD_BITWIDTH   - QUAD_RSHIFT;
+
+  // AGU configuration: Port 0 = ncc, Port 1 = reset.
+  parameter int FSM_MAX_STATES = 1 << NCC_CONFIG_WIDTH;
+  parameter int NUM_AGUS = 2;
+  parameter int AGU_NCC_ADDR_WIDTH = NCC_CONFIG_WIDTH;
+  parameter int AGU_RST_ADDR_WIDTH  = 1;
+  parameter int ADDRESS_WIDTH =
+      (AGU_NCC_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_NCC_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
+
+  parameter int REP_LEVEL_WIDTH   = 3;
+  parameter int REP_DELAY_WIDTH   = 7 * 2;  // REP + REPX
+  parameter int REP_ITER_WIDTH    = 8 * 2;  // REP + REPX
+  parameter int REP_STEP_WIDTH    = 7 * 2;  // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = 23;
+  parameter int NUMBER_OR = 1;
+  parameter int NUMBER_MT = 1;
+  parameter int NUMBER_IR = 4;
+
+  typedef agu_config_class#(
+    .NUMBER_IR         (NUMBER_IR),
+    .NUMBER_MT         (NUMBER_MT),
+    .NUMBER_OR         (NUMBER_OR),
+    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
+    .REP_STEP_WIDTH    (REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
+  )::agu_config_t agu_config_t;
+
+  // Counter width matches the word port so max_cnt fits a single word lane.
+  parameter int COUNTER_WIDTH = WORD_BITWIDTH;
+
+endpackage

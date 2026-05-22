@@ -1,0 +1,39 @@
+// vesyla_template_start module_head
+module ncc_cmp_mode_selector
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+  input logic clk,
+  input logic rst_n,
+
+  input logic ncc_valid,
+  input var ncc_t ncc_instr,
+
+  input logic ncc_agu_valid,
+  input logic [AGU_NCC_ADDR_WIDTH-1:0] ncc_agu_address,
+
+  output logic [NCC_MODE_WIDTH-1:0] ncc_mode
+);
+  logic [AGU_NCC_ADDR_WIDTH-1:0] mode_index;
+  logic [NCC_MODE_WIDTH-1:0] mode_memory [FSM_MAX_STATES];
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      mode_index <= '0;
+    end else if (ncc_agu_valid) begin
+      mode_index <= ncc_agu_address;
+    end
+  end
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      mode_memory <= '{default: NCC_MODE_IDLE};
+    end else if (ncc_valid) begin
+      mode_memory[ncc_instr._config] <= ncc_instr._mode;
+    end
+  end
+
+  assign ncc_mode =
+      ncc_agu_valid ? mode_memory[ncc_agu_address] : mode_memory[mode_index];
+
+endmodule

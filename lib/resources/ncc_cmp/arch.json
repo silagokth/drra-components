@@ -1,0 +1,39 @@
+{
+  "kind": "ncc_cmp",
+  "type": "resource",
+  "size": 1,
+  "io_input": false,
+  "io_output": false,
+  "custom_properties": [
+    {
+      "name": "K_LOG2",
+      "value": 14
+    },
+    {
+      "name": "LINEAR_BITWIDTH",
+      "value": 28
+    },
+    {
+      "name": "QUAD_BITWIDTH",
+      "value": 42
+    },
+    {
+      "name": "LINEAR_RSHIFT",
+      "value": 5
+    },
+    {
+      "name": "PRODUCT_BITWIDTH",
+      "value": 144
+    }
+  ],
+  "required_parameters": [
+    "IO_DATA_WIDTH",
+    "IO_ADDR_WIDTH",
+    "RESOURCE_INSTR_WIDTH",
+    "BULK_BITWIDTH",
+    "WORD_BITWIDTH",
+    "NUM_SLOTS",
+    "FSM_PER_SLOT",
+    "INSTR_OPCODE_BITWIDTH"
+  ]
+}

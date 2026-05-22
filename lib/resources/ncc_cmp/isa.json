@@ -1,0 +1,138 @@
+{
+  "format": {
+    "instr_bitwidth": 32,
+    "instr_type_bitwidth": 1,
+    "instr_opcode_bitwidth": 3,
+    "instr_slot_bitwidth": 4
+  },
+  "instructions": [
+    {
+      "name": "ncc",
+      "opcode": 4,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "config",
+          "comment": "Configuration register where the NCC mode will be stored.",
+          "bitwidth": 3
+        },
+        {
+          "name": "mode",
+          "comment": "NCC mode",
+          "bitwidth": 3,
+          "verbo_map": [
+            { "key": 0, "val": "idle" },
+            { "key": 1, "val": "load_s_a" },
+            { "key": 2, "val": "load_s_a2" },
+            { "key": 3, "val": "load_s_ab" },
+            { "key": 4, "val": "load_s_b" },
+            { "key": 5, "val": "cmp" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "evt",
+      "opcode": 0,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the base event for the timing pattern of either the NCC operation (0) or the reset operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            { "key": 0, "val": "ncc" },
+            { "key": 1, "val": "rst" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rep",
+      "opcode": 1,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the repetition operator to target either the NCC operation (0) or the reset operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            { "key": 0, "val": "ncc" },
+            { "key": 1, "val": "rst" }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Number of iterations.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Step size between the addresses generated for each iteration. On the NCC port, the address selects a configured NCC mode.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Delay between iterations.",
+          "bitwidth": 7
+        }
+      ]
+    },
+    {
+      "name": "repx",
+      "opcode": 2,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the repetition extension to target either the NCC operation (0) or the reset operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            { "key": 0, "val": "ncc" },
+            { "key": 1, "val": "rst" }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 7
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 3,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Configure the transition operator to target either the NCC operation (0) or the reset operation (1).",
+          "bitwidth": 1,
+          "verbo_map": [
+            { "key": 0, "val": "ncc" },
+            { "key": 1, "val": "rst" }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 23
+        }
+      ]
+    }
+  ]
+}
