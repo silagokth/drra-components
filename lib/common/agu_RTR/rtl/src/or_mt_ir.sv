@@ -10,29 +10,13 @@ module or_mt_ir
     parameter int REP_STEP_WIDTH,
     parameter int TRANS_DELAY_WIDTH
 ) (
-    input logic clk,
-    input logic rst_n,
-    input logic enable,
-
-    // Configurations
-    // OR configs: Controls the repetition of the whole MT sequence
-    input rep_config_class#(
-        .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH),
-        .STEP_WIDTH (REP_STEP_WIDTH)
-    )::rep_t [NUMBER_OR-1:0] or_configs,
-    // MT/IR configs: Passed down to the child
-    input trans_config_class#(.DELAY_WIDTH(TRANS_DELAY_WIDTH))::trans_t [NUMBER_MT-1:0] mt_configs,
-    input rep_config_class#(
-        .DELAY_WIDTH(REP_DELAY_WIDTH),
-        .ITER_WIDTH (REP_ITER_WIDTH),
-        .STEP_WIDTH (REP_STEP_WIDTH)
-    )::rep_t [NUMBER_IR-1:0][NUMBER_MT:0] ir_configs,
-
-    // Outputs
-    output logic [ADDRESS_WIDTH-1:0] ir_addr,
-    output logic                     ir_valid,
-    output logic                     ir_done
+    input  logic                                   clk,
+    input  logic                                   rst_n,
+    input  logic                                   enable,
+           agu_cfg_if.consumer                     cfg,
+    output logic               [ADDRESS_WIDTH-1:0] ir_addr,
+    output logic                                   ir_valid,
+    output logic                                   ir_done
 );
 
   // --------------------------------------------------------------------------
@@ -58,9 +42,22 @@ module or_mt_ir
   logic [REP_ITER_WIDTH-1:0] or_iter_count_next[NUMBER_OR];
   logic [REP_DELAY_WIDTH-1:0] or_delay_count, or_delay_count_next;
 
+  // Per-OR-level address accumulator. Holds `or_iter_count[o] * step[o]`
+  // as a running sum so the output path uses adders only — no multipliers.
+  // ASSUMPTION: cfg.or_configs[o].step is held constant by the controller
+  // for the duration of an AGU run. If runtime step changes are ever
+  // introduced, this approach must be revisited.
+  logic [ADDRESS_WIDTH-1:0] or_level_addr      [NUMBER_OR];
+  logic [ADDRESS_WIDTH-1:0] or_level_addr_next [NUMBER_OR];
+
   // Logic to track active delay level for OR
-  logic [$clog2(NUMBER_OR)-1:0] active_or_delay_level;
-  logic [$clog2(NUMBER_OR)-1:0] active_or_delay_level_next;
+  logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level;
+  logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level_next;
+
+  // Hoisted from inside the RUN_CHILD case-item: older Genus / DC versions
+  // reject `logic` declarations mid-case.
+  logic                  need_delay;
+  logic [NUMBER_OR-1:0]  level_increments;
 
   // --------------------------------------------------------------------------
   // Child Instantiation (MT_IR)
@@ -74,23 +71,25 @@ module or_mt_ir
       .REP_STEP_WIDTH   (REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
   ) mt_ir_inst (
-      .clk       (clk),
-      .rst_n     (rst_n),
-      .enable    (child_enable),  // Controlled by OR State Machine
-      .mt_configs(mt_configs),
-      .ir_configs(ir_configs),
-      .ir_addr   (child_addr),
-      .ir_valid  (child_valid),
-      .ir_done   (child_done)
+      .clk     (clk),
+      .rst_n   (rst_n),
+      .enable  (child_enable),  // Controlled by OR State Machine
+      .cfg     (cfg),
+      .ir_addr (child_addr),
+      .ir_valid(child_valid),
+      .ir_done (child_done)
   );
 
-  // Pass through valid data immediately
+  // Pass through valid data immediately.
+  // Sum the per-OR-level address accumulators rather than recomputing
+  // `or_iter_count[o] * step[o]` combinationally. Removes NUMBER_OR
+  // multipliers from the addr critical path.
   assign ir_valid = child_valid;
   always_comb begin
     ir_addr = child_addr;
     for (int o = 0; o < NUMBER_OR; o++) begin
-      if (or_iter_count[o] > 0) begin
-        ir_addr += or_iter_count[o] * or_configs[o].step;
+      if (cfg.or_configs[o].iter > 0) begin
+        ir_addr = ir_addr + or_level_addr[o];
       end
     end
   end
@@ -99,36 +98,40 @@ module or_mt_ir
   // OR Logic: Level Calculations (Adapted from ir.sv)
   // --------------------------------------------------------------------------
 
-  // Max level calculation: Determine the highest active OR level
-  logic [$clog2(NUMBER_OR+1)-1:0] max_or_level;
+  // Track whether any OR level is configured at all. Used to gate the
+  // all_or_done check so a fully unconfigured OR nest does not declare
+  // itself done before the child has run.
   logic any_or_configured;
   always_comb begin
-    max_or_level = 0;
     any_or_configured = 1'b0;
     for (int i = 0; i < NUMBER_OR; i++) begin
-      if (or_configs[i].iter > 0) begin
-        max_or_level = i;
-        any_or_configured = 1'b1;
-      end
+      if (cfg.or_configs[i].iter > 0) any_or_configured = 1'b1;
     end
   end
 
-  // Check wrap conditions for each OR level
+  // Check wrap conditions for each OR level. An unconfigured level
+  // (iter == 0) is treated as "perpetually at_last" so it never blocks
+  // the cascade or the all_or_done check. The contiguous-config
+  // invariant (no gaps between configured OR levels) means iter == 0
+  // only occurs above the highest configured level.
   logic or_level_at_last[NUMBER_OR];
   always_comb begin
     for (int i = 0; i < NUMBER_OR; i++) begin
-      or_level_at_last[i] = (or_iter_count[i] >= or_configs[i].iter - 1);
+      or_level_at_last[i] = (cfg.or_configs[i].iter == 0) ||
+                            (or_iter_count[i] >= cfg.or_configs[i].iter - 1);
     end
   end
 
-  // Check if all OR levels are done
+  // Check if all OR levels are done. Loop bound is the parameter
+  // NUMBER_OR (compile-time constant) so synth tools that reject
+  // runtime for-loop bounds elaborate cleanly. Unconfigured levels
+  // return or_level_at_last == 1 and pass through the loop without
+  // affecting the result.
   logic all_or_done;
   always_comb begin
     all_or_done = 1'b1;
-    if (!rst_n) begin
-      all_or_done = 1'b0;
-    end else if (any_or_configured) begin
-      for (int i = 0; i <= max_or_level; i++) begin
+    if (any_or_configured) begin
+      for (int i = 0; i < NUMBER_OR; i++) begin
         if (!or_level_at_last[i]) all_or_done = 1'b0;
       end
     end
@@ -143,15 +146,19 @@ module or_mt_ir
     child_enable = 1'b0;
     or_delay_count_next = or_delay_count;
     active_or_delay_level_next = active_or_delay_level;
+    need_delay = 1'b0;
+    level_increments = '0;
 
     for (int i = 0; i < NUMBER_OR; i++) begin
       or_iter_count_next[i] = or_iter_count[i];
+      or_level_addr_next[i] = or_level_addr[i];
     end
 
     // Reset counters while waiting in IDLE
     if (state == IDLE && !enable) begin
       for (int i = 0; i < NUMBER_OR; i++) begin
         or_iter_count_next[i] = '0;
+        or_level_addr_next[i] = '0;
       end
     end
 
@@ -161,10 +168,11 @@ module or_mt_ir
       // ----------------------------------------------------------------------
       IDLE: begin
         if (enable) begin
-          // Start immediately.
-          // Note: We don't check child_done here because child starts fresh.
-          state_next   = RUN_CHILD;
-          child_enable = 1'b1;
+          child_enable = 1;
+          if (child_done && all_or_done)
+            state_next = DONE;
+          else
+            state_next = RUN_CHILD;
         end
       end
 
@@ -178,8 +186,6 @@ module or_mt_ir
         if (child_done) begin
           // The child finished one full MT sequence (Lane 0 -> ... -> Lane N)
           // --- OR Counter Update Logic (Triggered on child completion) ---
-          logic need_delay;
-          logic [NUMBER_OR-1:0] level_increments;
 
           // 1. Calculate cascading increments
           level_increments[0] = 1'b1;  // Innermost OR always increments
@@ -194,7 +200,7 @@ module or_mt_ir
           need_delay = 1'b0;
           active_or_delay_level_next = 0;
           for (int i = 0; i < NUMBER_OR; i++) begin
-            if (level_increments[i] && or_configs[i].delay > 0 && !or_level_at_last[i]) begin
+            if (level_increments[i] && cfg.or_configs[i].delay > 0 && !or_level_at_last[i]) begin
               if (!need_delay) begin
                 need_delay = 1'b1;
                 active_or_delay_level_next = i;
@@ -207,8 +213,11 @@ module or_mt_ir
             if (level_increments[i]) begin
               if (or_level_at_last[i]) begin
                 or_iter_count_next[i] = '0;
+                or_level_addr_next[i] = '0;
               end else begin
                 or_iter_count_next[i] = or_iter_count[i] + 1'b1;
+                or_level_addr_next[i] = or_level_addr[i]
+                                        + ADDRESS_WIDTH'(cfg.or_configs[i].step);
               end
             end
           end
@@ -221,17 +230,7 @@ module or_mt_ir
             or_delay_count_next = 1;
           end else begin
             state_next = RUN_CHILD;
-
-            if (need_delay) begin
-              // Load the configured delay
-              // Note: We use the delay value directly. The state machine consumes
-              // 1 cycle per count.
-              or_delay_count_next = 1;
-            end else begin
-              // If config delay is 0, we set count to 0.
-              // The OR_DELAY state will handle the 1-cycle minimum reset duration.
-              or_delay_count_next = '0;
-            end
+            or_delay_count_next = '0;
           end
         end
       end
@@ -245,7 +244,7 @@ module or_mt_ir
 
         // Check against the configured delay for the active level
         // Even if config delay is 0, we spend this 1 cycle here effectively resetting.
-        if (or_delay_count >= or_configs[active_or_delay_level].delay) begin
+        if (or_delay_count >= cfg.or_configs[active_or_delay_level].delay) begin
           state_next = RUN_CHILD;
           or_delay_count_next = '0;
         end else begin
@@ -276,6 +275,7 @@ module or_mt_ir
       active_or_delay_level <= '0;
       for (int i = 0; i < NUMBER_OR; i++) begin
         or_iter_count[i] <= '0;
+        or_level_addr[i] <= '0;
       end
     end else begin
       state <= state_next;
@@ -283,11 +283,16 @@ module or_mt_ir
       active_or_delay_level <= active_or_delay_level_next;
       for (int i = 0; i < NUMBER_OR; i++) begin
         or_iter_count[i] <= or_iter_count_next[i];
+        or_level_addr[i] <= or_level_addr_next[i];
       end
     end
   end
 
-  // Output Done Flag
-  assign ir_done = (state_next == DONE);
+  // Output Done Flag.
+  // Driven from the registered `state` (not `state_next`) so the comb
+  // path through the FSM next-state logic does not appear at the module
+  // output. Costs 1 cycle of latency on the done pulse vs the prior
+  // `state_next == DONE` form.
+  assign ir_done = (state == DONE);
 
 endmodule
