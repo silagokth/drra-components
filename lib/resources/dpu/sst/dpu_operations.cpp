@@ -4,7 +4,7 @@
 namespace DPU_Operations {
 
 std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode) {
-  static auto handlers = DPU_Operations::createHandlers(dpu);
+  auto handlers = DPU_Operations::createHandlers(dpu);
   if (handlers.find(mode) != handlers.end()) {
     return handlers[mode];
   } else {

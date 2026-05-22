@@ -1,0 +1,224 @@
+#include "dpu_q88.h"
+#include "dataEvent.h"
+#include "dpu_q88_operations.h"
+#include "dpu_q88_pkg.h"
+
+using namespace SST;
+
+Dpu_q88::Dpu_q88(SST::ComponentId_t id, SST::Params &params)
+    : DRRAResource(id, params) {
+  fsmHandlers.resize(num_fsms);
+  imm_buffers.resize(num_fsms);
+  dpuHandlers = Dpu_Q88_Operations::createHandlers(this);
+  instructionHandlers = DPU_Q88_PKG::createInstructionHandlers(this);
+  // initialize current configuration options to 0
+  for (int i = 0; i < 2; i++) {
+    current_config_option[i] = 0;
+    port_last_rep_level[i] = -1;
+  }
+  for (uint32_t i = 0; i < num_fsms; i++) {
+    fsmHandlers[i] = dpuHandlers.at(DPU_Q88_PKG::DPU_MODE::DPU_MODE_IDLE);
+  }
+}
+
+bool Dpu_q88::clockTick(SST::Cycle_t currentCycle) {
+  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
+    for (const auto &port : portsToActivate) {
+      activatePortsForSlot(port.first, port.second);
+      current_config_option[port.first] = 0;
+    }
+    portsToActivate.clear();
+    last_config_level = -1;
+    last_config_trans = -1;
+  }
+
+  if (currentCycle % 10 == 0) {
+    for (int i = 0; i < resource_size; i++) {
+      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
+    }
+  }
+
+  // Deal with data events
+  for (int i = 0; i < resource_size; i++) {
+    Event *event = data_links[i]->recv();
+    if (event) {
+      handleEventWithSlotID(event, i);
+    }
+  }
+
+  // Execute DPU operation at sub 9 BEFORE the base clockTick runs the
+  // lifetime check (which would otherwise deactivate port 0 on its last
+  // active cycle, causing the final MULT to be skipped).
+  if (currentCycle % 10 == 9) {
+    out.output(" Current FSM: %u\n", current_fsm);
+    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+    fsmHandlers[current_fsm]();
+
+    // Update FSM for next execution based on AGU output (one cycle delayed).
+    for (const auto &[port_id, is_active] : active_ports) {
+      if (!is_active || port_id != 0) {
+        continue;
+      }
+
+      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
+      if (agu_address >= 0 && agu_address != current_fsm) {
+        current_fsm = agu_address;
+        out.output(" FSM switched to FSM #%u\n", current_fsm);
+      }
+      break;
+    }
+  }
+
+  bool result = DRRAResource::clockTick(currentCycle);
+  return result;
+}
+
+void Dpu_q88::handleActivation(uint32_t slot_id, uint32_t ports) {
+  portsToActivate[slot_id] = ports;
+}
+
+void Dpu_q88::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
+  DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
+  if (dataEvent) {
+    bool anyPortActive = false;
+    for (const auto &port : active_ports) {
+      if (isPortActive(port.first)) {
+        anyPortActive = true;
+        break;
+      }
+    }
+    if (dataEvent->portType != DataEvent::PortType::WriteNarrow)
+      out.fatal(CALL_INFO, -1, "Invalid port type\n");
+
+    // Store the data in the buffer of the slot
+    out.output("Received data (slot=%d, size=%dbits, data=%s)\n", slot_id,
+               dataEvent->size,
+               formatRawDataToWords(dataEvent->payload).c_str());
+    std::vector<uint8_t> data = dataEvent->payload;
+    data_buffers[slot_id] = data;
+  }
+}
+
+void Dpu_q88::handleDPU(const DPU_Q88_PKG::DPUInstruction &instr) {
+  out.output("dpu (slot=%d, config=%d, mode=%d, immediate=%d)\n", instr.slot,
+             instr.config, instr.mode, instr.immediate);
+
+  // Add the immediate value to the imm_buffers if the mode requires it
+  if (instr.mode == DPU_Q88_PKG::DPU_MODE::DPU_MODE_ADD_CONST ||
+      instr.mode == DPU_Q88_PKG::DPU_MODE::DPU_MODE_SUBT_ABS ||
+      instr.mode == DPU_Q88_PKG::DPU_MODE::DPU_MODE_MULT_CONST ||
+      instr.mode == DPU_Q88_PKG::DPU_MODE::DPU_MODE_MAX_MIN_CONST ||
+      instr.mode == DPU_Q88_PKG::DPU_MODE::DPU_MODE_LD_IR) {
+    imm_buffers[instr.config] = uint64ToVector(instr.immediate);
+  }
+
+  // Add the event handler to the config index
+  fsmHandlers[instr.config] =
+      Dpu_Q88_Operations::getDPUHandler(this, (DPU_Q88_PKG::DPU_MODE)instr.mode);
+}
+
+void Dpu_q88::handleEVT(const DPU_Q88_PKG::EVTInstruction &instr) {
+  out.output("evt (slot=%d, port=%d)\n", instr.slot, instr.port);
+
+  switch (instr.port) {
+  case DPU_Q88_PKG::EVT_PORT::EVT_PORT_DPU:
+    agus[DPU_Q88_PKG::EVT_PORT::EVT_PORT_DPU].addEvent(
+        "dpu_event_" +
+            std::to_string(
+                current_config_option[DPU_Q88_PKG::EVT_PORT::EVT_PORT_DPU]),
+        [this] {});
+    break;
+  case DPU_Q88_PKG::EVT_PORT::EVT_PORT_RST:
+    agus[DPU_Q88_PKG::EVT_PORT::EVT_PORT_RST].addEvent(
+        "dpu_reset_" +
+            std::to_string(
+                current_config_option[DPU_Q88_PKG::EVT_PORT::EVT_PORT_RST]),
+        [this] {
+          out.output(" DPU accumulate register cleared\n");
+          accumulate_register.clear();
+        });
+    break;
+  default:
+    out.fatal(CALL_INFO, -1, "Invalid EVT port: %d\n", instr.port);
+    break;
+  };
+}
+
+void Dpu_q88::handleREP(const DPU_Q88_PKG::REPInstruction &instr) {
+  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
+             instr.port == 0 ? "dpu" : "rst", instr.iter, instr.step,
+             instr.delay);
+
+  auto rep = instr;
+
+  // Add repetition to the timing model
+  try {
+    agus[instr.port].addRepetition(rep.iter, rep.delay, rep.step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
+  }
+}
+
+void Dpu_q88::handleREPX(const DPU_Q88_PKG::REPXInstruction &instr) {
+  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.port == 0 ? "dpu" : "rst", instr.iter,
+             instr.step, instr.delay);
+
+  auto repx = instr;
+  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+  uint32_t iter = repx.iter << DPU_Q88_PKG::DPU_Q88_INSTR_REP_ITER_BITWIDTH |
+                  repetition_op.getIterations();
+  uint32_t step = repx.step << DPU_Q88_PKG::DPU_Q88_INSTR_REP_STEP_BITWIDTH |
+                  repetition_op.getStep();
+  uint32_t delay = repx.delay << DPU_Q88_PKG::DPU_Q88_INSTR_REP_DELAY_BITWIDTH |
+                   repetition_op.getDelay();
+
+  try {
+    agus[instr.port].adjustRepetition(iter, delay, step);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+  }
+}
+
+void Dpu_q88::handleTRANS(const DPU_Q88_PKG::TRANSInstruction &instr) {
+  out.output("trans (slot=%d, port=%s, delay=%d)\n", instr.slot,
+             instr.port == 0 ? "dpu" : "rst", instr.delay);
+
+  // Add transition to the timing model
+  try {
+    agus[instr.port].addTransition(instr.delay);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
+  }
+}
+
+void Dpu_q88::handleOperation(std::string name,
+                          std::function<int16_t(int16_t, int16_t)> operation) {
+  // Ensure both buffers exist
+  if (data_buffers[0].size() == 0 || data_buffers[1].size() == 0) {
+    out.fatal(CALL_INFO, -1, "Data buffers not found (data0=%lu, data1=%lu)\n",
+              data_buffers[0].size(), data_buffers[1].size());
+  }
+
+  int16_t  data0 = Dpu_Q88_Operations::vectorToInt16(data_buffers[0]);
+  int16_t  data1 = Dpu_Q88_Operations::vectorToInt16(data_buffers[1]);
+  int16_t  result = operation(data0, data1);
+
+  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
+  dataEvent->size = word_bitwidth;
+  dataEvent->payload = Dpu_Q88_Operations::int16ToVector(result);
+  data_links[0]->send(dataEvent);
+
+  out.output("DPU_Q88 %s operation (in0=%d, in1=%d, out=%d, acc=%d)\n",
+             name.c_str(), data0, data1, result,
+             accumulate_register.size() > 0 ? Dpu_Q88_Operations::vectorToInt32(accumulate_register)
+                                            : 0);
+  logTraceEvent(
+      "operation", slot_id, true, 'X',
+      {{"data0", static_cast<int>(data0)},
+       {"data1", static_cast<int>(data1)},
+       {"result", static_cast<int>(result)},
+       {"accumulator", static_cast<int>(accumulate_register.size() > 0
+                                            ? Dpu_Q88_Operations::vectorToInt32(accumulate_register)
+                                            : 0)}});
+}

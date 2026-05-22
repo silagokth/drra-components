@@ -1,0 +1,45 @@
+// vesyla_template_start module_head
+module dpu_decoder
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic instruction_valid,
+    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+
+    output logic dpu_valid,
+    output dpu_t dpu_instr,
+    output logic evt_valid,
+    output evt_t evt_instr,
+    output logic rep_valid,
+    output rep_t rep_instr,
+    output logic repx_valid,
+    output repx_t repx_instr,
+    output logic trans_valid,
+    output trans_t trans_instr
+);
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction Decoding
+  // ─────────────────────────────────────────────────────────────────────────
+  logic [OPCODE_WIDTH-1:0] opcode;
+  assign opcode = instruction[OPCODE_H:OPCODE_L];
+
+  assign dpu_valid   = instruction_valid && (opcode == OPCODE_DPU);
+  assign evt_valid   = instruction_valid && (opcode == OPCODE_EVT);
+  assign rep_valid   = instruction_valid && (opcode == OPCODE_REP);
+  assign repx_valid  = instruction_valid && (opcode == OPCODE_REPX);
+  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction Unpacking
+  // ─────────────────────────────────────────────────────────────────────────
+  assign dpu_instr   = dpu_valid   ? unpack_dpu(instruction)   :'0;
+  assign evt_instr   = evt_valid   ? unpack_evt(instruction)   :'0;
+  assign rep_instr   = rep_valid   ? unpack_rep(instruction)   :'0;
+  assign repx_instr  = repx_valid  ? unpack_repx(instruction)  :'0;
+  assign trans_instr = trans_valid ? unpack_trans(instruction) :'0;
+
+endmodule
+
