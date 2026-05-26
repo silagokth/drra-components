@@ -11,28 +11,30 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic saturate
 );
 
-  localparam logic signed [BITWIDTH-1:0] MaxResult = (1 << (BITWIDTH - 1)) - 1;
-  localparam logic signed [BITWIDTH-1:0] MinResult = -MaxResult - 1;
   logic signed [BITWIDTH*2-1:0] temp_mult;
+  logic signed [BITWIDTH*2-1:0] temp_q88;
 
   always_comb begin
-    out = 0;
-    overflow = 0;
-    underflow = 0;
-    temp_mult = in1 * in2;
-    // saturation logic
+    out = '0;
+    overflow = 1'b0;
+    underflow = 1'b0;
+
+    // Q8.8 * Q8.8 = Q16.16, then arithmetic shift back to Q8.8.
+    temp_mult = $signed(in1) * $signed(in2);
+    temp_q88  = temp_mult >>> Q88_FRAC_BITS;
+
     if (saturate) begin
-      if (temp_mult > MaxResult) begin
-        out = MaxResult;
-        overflow = 1;
-      end else if (temp_mult < MinResult) begin
-        out = MinResult;
-        underflow = 1;
+      if (temp_q88 > Q88_MAX_16) begin
+        out = Q88_MAX_16[BITWIDTH-1:0];
+        overflow = 1'b1;
+      end else if (temp_q88 < Q88_MIN_16) begin
+        out = Q88_MIN_16[BITWIDTH-1:0];
+        underflow = 1'b1;
       end else begin
-        out = temp_mult[BITWIDTH-1:0];
+        out = temp_q88[BITWIDTH-1:0];
       end
     end else begin
-      out = temp_mult[BITWIDTH-1:0];
+      out = temp_q88[BITWIDTH-1:0];
     end
   end
 endmodule

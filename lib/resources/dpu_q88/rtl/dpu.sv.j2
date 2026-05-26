@@ -48,9 +48,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
   assign instruction_valid = instr_en_0;
 
   // Assign inputs
-  logic [WORD_BITWIDTH-1:0] in0, in1, out0;
-  assign in0 = word_data_in_0;
-  assign in1 = word_data_in_1;
+  logic signed [WORD_BITWIDTH-1:0] in0, in1, out0;
+  assign in0 = $signed(word_data_in_0);
+  assign in1 = $signed(word_data_in_1);
 
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
   logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
@@ -154,10 +154,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .immediate(immediate)
   );
 
-  // Calculation logic
+  // Q8.8 calculation logic
+  // Inputs/outputs are 16-bit signed Q8.8 values.
+  // The MAC accumulator is kept as signed 32-bit Q8.8, matching SST/model0.
   logic accumulator_valid;
-  logic signed [BITWIDTH-1:0] acc0, acc0_next;
-  logic signed [BITWIDTH-1:0] acc0_current;
+  logic signed [ACC_BITWIDTH-1:0] acc0, acc0_next;
+  logic signed [ACC_BITWIDTH-1:0] acc0_current;
+  logic signed [BITWIDTH*2-1:0] product_full;
+  logic signed [ACC_BITWIDTH-1:0] product_q88;
   logic signed [BITWIDTH-1:0] adder_in0;
   logic signed [BITWIDTH-1:0] adder_in1;
   logic signed [BITWIDTH-1:0] adder_out;
@@ -182,7 +186,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     adder_in1 = 0;
     mult_in0 = 0;
     mult_in1 = 0;
-    acc0_next = 0;
+    acc0_next = acc0_current;
+    product_full = '0;
+    product_q88 = '0;
 
     case (dpu_mode)
       DPU_MODE_ADD: begin
@@ -191,16 +197,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
         out0 = adder_out;
       end
       DPU_MODE_MAC: begin
-        mult_in0  = in0;
-        mult_in1  = in1;
-        adder_in0 = mult_out;
+        // Q8.8 MAC:
+        // product_q88 = (in0 * in1) >>> 8, accumulated in signed 32-bit.
+        product_full = $signed(in0) * $signed(in1);
+        product_q88 = ACC_BITWIDTH'(product_full >>> Q88_FRAC_BITS);
         if (accumulator_valid) begin
-          adder_in1 = acc0_current;
+          acc0_next = acc0_current + product_q88;
         end else begin
-          adder_in1 = '0;
+          acc0_next = product_q88;
         end
-        acc0_next = adder_out;
-        out0 = adder_out;
+        out0 = sat16_q88(acc0_next);
       end
       DPU_MODE_MULT: begin
         mult_in0 = in0;
@@ -215,7 +221,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such
-  dpu_impl_pnkjyubmn1c_adder adder_inst (
+  {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
@@ -224,7 +230,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .underflow() // unused
   );
 
-  dpu_impl_pnkjyubmn1c_multiplier mult_inst (
+  {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),

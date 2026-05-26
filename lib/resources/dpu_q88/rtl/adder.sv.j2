@@ -11,23 +11,23 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic saturate
 );
 
-  localparam logic signed [BITWIDTH-1:0] MaxResult = (1 << (BITWIDTH - 1)) - 1;
-  localparam logic signed [BITWIDTH-1:0] MinResult = -MaxResult - 1;
-  logic signed [BITWIDTH:0] temp_add;
+  logic signed [ACC_BITWIDTH-1:0] temp_add;
 
   always_comb begin
-    overflow = 0;
-    underflow = 0;
-    out = 0;
-    temp_add = in1 + in2;
-    // saturation logic
+    overflow = 1'b0;
+    underflow = 1'b0;
+    out = '0;
+
+    // Q8.8 addition keeps the same scale.
+    temp_add = ACC_BITWIDTH'($signed(in1)) + ACC_BITWIDTH'($signed(in2));
+
     if (saturate) begin
-      if (temp_add > MaxResult) begin
-        out = MaxResult;
-        overflow = 1;
-      end else if (temp_add < MinResult) begin
-        out = MinResult;
-        underflow = 1;
+      if (temp_add > Q88_MAX_16) begin
+        out = Q88_MAX_16[BITWIDTH-1:0];
+        overflow = 1'b1;
+      end else if (temp_add < Q88_MIN_16) begin
+        out = Q88_MIN_16[BITWIDTH-1:0];
+        underflow = 1'b1;
       end else begin
         out = temp_add[BITWIDTH-1:0];
       end

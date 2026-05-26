@@ -14,6 +14,23 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int DPU_IMMEDIATE_WIDTH = 8;
   parameter int OPCODE_WIDTH = 4;
   parameter int BITWIDTH = 16;
+  parameter int ACC_BITWIDTH = 32;
+  parameter int Q88_FRAC_BITS = 8;
+  localparam logic signed [ACC_BITWIDTH-1:0] Q88_MAX_16 = (ACC_BITWIDTH'(1) <<< (BITWIDTH - 1)) - 1;
+  localparam logic signed [ACC_BITWIDTH-1:0] Q88_MIN_16 = -(ACC_BITWIDTH'(1) <<< (BITWIDTH - 1));
+
+  function automatic logic signed [BITWIDTH-1:0] sat16_q88(
+      input logic signed [ACC_BITWIDTH-1:0] value
+  );
+    if (value > Q88_MAX_16) begin
+      sat16_q88 = Q88_MAX_16[BITWIDTH-1:0];
+    end else if (value < Q88_MIN_16) begin
+      sat16_q88 = Q88_MIN_16[BITWIDTH-1:0];
+    end else begin
+      sat16_q88 = value[BITWIDTH-1:0];
+    end
+  endfunction
+
   parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
   parameter int OPCODE_H = 26;
   parameter int OPCODE_L = 24;
