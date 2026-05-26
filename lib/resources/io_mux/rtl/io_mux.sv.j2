@@ -1,0 +1,262 @@
+// vesyla_template_start defines
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+// vesyla_template_end defines
+
+// vesyla_template_start module_head
+{% if not already_defined %}
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input  logic clk_0,
+    input  logic rst_n_0,
+    input  logic instr_en_0,
+    input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
+    input  logic [3:0] activate_0,
+    input  logic [WORD_BITWIDTH-1:0] word_data_in_0, // unused
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0, // unused
+    input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
+    output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
+    output logic io_en_in,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_in,
+    input  logic [IO_DATA_WIDTH-1:0] io_data_in,
+    output logic io_en_out,
+    output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
+    output logic [IO_DATA_WIDTH-1:0] io_data_out
+);
+
+    assign word_data_out_0 = '0;
+
+    logic clk, rst_n;
+    assign clk = clk_0;
+    assign rst_n = rst_n_0;
+
+    agu_cfg_if #(
+        .NUMBER_IR        (NUMBER_IR),
+        .NUMBER_MT        (NUMBER_MT),
+        .NUMBER_OR        (NUMBER_OR),
+        .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+        .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+        .REP_STEP_WIDTH   (REP_STEP_WIDTH),
+        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+    ) agu_configs [NUM_PHYSICAL_AGUS] ();
+
+    logic [NUM_PATTERN_AGUS-1:0] pattern_valid;
+    logic [NUM_PATTERN_AGUS-1:0] pattern_activate;
+    logic [NUM_PATTERN_AGUS-1:0] pattern_done;
+    logic [NUM_PATTERN_AGUS-1:0][ADDRESS_WIDTH-1:0] pattern_address;
+    logic [NUM_PATTERN_AGUS-1:0][ADDRESS_WIDTH-1:0] pattern_final_address;
+
+    logic [NUM_SELECTOR_SLOTS-1:0] selector_valid;
+    logic [NUM_SELECTOR_SLOTS-1:0] selector_activate;
+    logic [NUM_SELECTOR_SLOTS-1:0] selector_done;
+    logic [NUM_SELECTOR_SLOTS-1:0][ADDRESS_WIDTH-1:0] selector_address;
+    logic [NUM_SELECTOR_SLOTS-1:0][ADDRESS_WIDTH-1:0] selector_final_address;
+
+    logic [NUM_PHYSICAL_AGUS-1:0] agu_done;
+    logic [NUM_PHYSICAL_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address;
+
+    genvar idx;
+    generate
+      for (idx = 0; idx < NUM_PATTERN_AGUS; idx++) begin : gen_pattern_final_addr
+        assign pattern_final_address[idx] = pattern_address[idx] + init_address[idx];
+        assign agu_done[idx] = pattern_done[idx];
+      end
+      for (idx = 0; idx < NUM_SELECTOR_AGUS; idx++) begin : gen_selector_final_addr
+        assign selector_final_address[idx] =
+            selector_address[idx] + init_address[SELECTOR_AGU_BASE + idx];
+        assign agu_done[SELECTOR_AGU_BASE + idx] = selector_done[idx];
+      end
+    endgenerate
+
+    logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
+    assign instruction_payload = instr_en_0 ? instr_0[INSTR_PAYLOAD_BITWIDTH-1:0] : '0;
+    logic instruction_valid;
+    assign instruction_valid = instr_en_0;
+
+    logic dsu_valid;
+    dsu_t dsu_instr;
+    logic rep_valid;
+    rep_t rep_instr;
+    logic repx_valid;
+    repx_t repx_instr;
+    logic trans_valid;
+    trans_t trans_instr;
+
+    {{name}}_{{fingerprint}}_decoder decoder_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .instruction_valid(instruction_valid),
+      .instruction_payload(instruction_payload),
+      .dsu_valid(dsu_valid),
+      .dsu_instr(dsu_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .repx_valid(repx_valid),
+      .repx_instr(repx_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr)
+    );
+
+    {{name}}_{{fingerprint}}_controller controller_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+
+      .dsu_valid(dsu_valid),
+      .dsu_instr(dsu_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .repx_valid(repx_valid),
+      .repx_instr(repx_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr),
+
+      .agu_done(agu_done),
+      .agu_configs(agu_configs),
+      .init_address(init_address)
+    );
+
+    genvar pat_i;
+    generate
+      for (pat_i = 0; pat_i < NUM_INPUT_PATTERNS; pat_i++) begin : gen_input_pattern_activate
+        assign pattern_activate[INPUT_PATTERN_BASE + pat_i] = activate_0[0];
+      end
+      for (pat_i = 0; pat_i < NUM_OUTPUT_PATTERNS; pat_i++) begin : gen_output_pattern_activate
+        assign pattern_activate[OUTPUT_PATTERN_BASE + pat_i] = activate_0[1];
+      end
+    endgenerate
+
+    generate
+      if (HAS_INPUT_SELECTOR) begin : gen_input_selector_activate
+        assign selector_activate[INPUT_SELECTOR_INDEX] = activate_0[0];
+      end
+      if (HAS_OUTPUT_SELECTOR) begin : gen_output_selector_activate
+        assign selector_activate[OUTPUT_SELECTOR_INDEX] = activate_0[1];
+      end
+      for (idx = 0; idx < NUM_SELECTOR_SLOTS; idx++) begin : gen_unused_selector_activate
+        if (idx >= NUM_SELECTOR_AGUS) begin : gen_tie_unused_selector_activate
+          assign selector_activate[idx] = 1'b0;
+        end
+      end
+    endgenerate
+
+    genvar i;
+    generate
+      for (i = 0; i < NUM_PATTERN_AGUS; i++) begin : gen_pattern_agu
+        agu_rtr #(
+          .ADDRESS_WIDTH(IO_ADDR_WIDTH),
+          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+          .REP_ITER_WIDTH(REP_ITER_WIDTH),
+          .REP_STEP_WIDTH(REP_STEP_WIDTH),
+          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+          .NUMBER_OR(NUMBER_OR),
+          .NUMBER_MT(NUMBER_MT),
+          .NUMBER_IR(NUMBER_IR)
+        ) agu_inst (
+          .clk(clk),
+          .rst_n(rst_n),
+          .enable(1'b1),
+          .activation(pattern_activate[i]),
+          .cfg(agu_configs[i]),
+          .addr_valid(pattern_valid[i]),
+          .addr(pattern_address[i]),
+          .done(pattern_done[i])
+        );
+      end
+
+      for (i = 0; i < NUM_SELECTOR_SLOTS; i++) begin : gen_selector_agu
+        if (i < NUM_SELECTOR_AGUS) begin : gen_active_selector_agu
+          agu_rtr #(
+            .ADDRESS_WIDTH(IO_ADDR_WIDTH),
+            .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+            .REP_ITER_WIDTH(REP_ITER_WIDTH),
+            .REP_STEP_WIDTH(REP_STEP_WIDTH),
+            .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+            .NUMBER_OR(SEL_NUMBER_OR),
+            .NUMBER_MT(SEL_NUMBER_MT),
+            .NUMBER_IR(SEL_NUMBER_IR)
+          ) agu_inst (
+            .clk(clk),
+            .rst_n(rst_n),
+            .enable(1'b1),
+            .activation(selector_activate[i]),
+            .cfg(agu_configs[SELECTOR_AGU_BASE + i]),
+            .addr_valid(selector_valid[i]),
+            .addr(selector_address[i]),
+            .done(selector_done[i])
+          );
+        end else begin : gen_inactive_selector_agu
+          assign selector_valid[i] = 1'b0;
+          assign selector_address[i] = '0;
+          assign selector_done[i] = 1'b0;
+        end
+      end
+    endgenerate
+
+    generate
+      if (HAS_INPUT_SELECTOR) begin : g_input_mux
+        wire [INPUT_PATTERN_IDX_WIDTH-1:0] sel_in_idx =
+            selector_final_address[INPUT_SELECTOR_INDEX][INPUT_PATTERN_IDX_WIDTH-1:0];
+        logic [ADDRESS_WIDTH-1:0] input_pattern_addr;
+        logic input_pattern_valid;
+
+        always_comb begin
+          input_pattern_addr  = '0;
+          input_pattern_valid = 1'b0;
+
+          for (int k = 0; k < NUM_INPUT_PATTERNS; k++) begin
+            if (sel_in_idx == INPUT_PATTERN_IDX_WIDTH'(k)) begin
+              input_pattern_addr  = pattern_final_address[INPUT_PATTERN_BASE + k];
+              input_pattern_valid = pattern_valid[INPUT_PATTERN_BASE + k];
+            end
+          end
+
+          io_en_in        = selector_valid[INPUT_SELECTOR_INDEX] && input_pattern_valid;
+          io_addr_in      = input_pattern_addr;
+          bulk_data_out_0 = io_en_in ? io_data_in : '0;
+        end
+      end else begin : g_input_passthrough
+        always_comb begin
+          io_en_in        = pattern_valid[INPUT_PATTERN_BASE];
+          io_addr_in      = pattern_final_address[INPUT_PATTERN_BASE];
+          bulk_data_out_0 = io_en_in ? io_data_in : '0;
+        end
+      end
+    endgenerate
+
+    generate
+      if (HAS_OUTPUT_SELECTOR) begin : g_output_mux
+        wire [OUTPUT_PATTERN_IDX_WIDTH-1:0] sel_out_idx =
+            selector_final_address[OUTPUT_SELECTOR_INDEX][OUTPUT_PATTERN_IDX_WIDTH-1:0];
+        logic [ADDRESS_WIDTH-1:0] output_pattern_addr;
+        logic output_pattern_valid;
+
+        always_comb begin
+          output_pattern_addr  = '0;
+          output_pattern_valid = 1'b0;
+
+          for (int k = 0; k < NUM_OUTPUT_PATTERNS; k++) begin
+            if (sel_out_idx == OUTPUT_PATTERN_IDX_WIDTH'(k)) begin
+              output_pattern_addr  = pattern_final_address[OUTPUT_PATTERN_BASE + k];
+              output_pattern_valid = pattern_valid[OUTPUT_PATTERN_BASE + k];
+            end
+          end
+
+          io_en_out   = selector_valid[OUTPUT_SELECTOR_INDEX] && output_pattern_valid;
+          io_addr_out = output_pattern_addr;
+          io_data_out = io_en_out ? bulk_data_in_0 : '0;
+        end
+      end else begin : g_output_passthrough
+        always_comb begin
+          io_en_out   = pattern_valid[OUTPUT_PATTERN_BASE];
+          io_addr_out = pattern_final_address[OUTPUT_PATTERN_BASE];
+          io_data_out = io_en_out ? bulk_data_in_0 : '0;
+        end
+      end
+    endgenerate
+endmodule
+
+// vesyla_template_start module_tail
+{% endif %}
+// vesyla_template_end module_tail

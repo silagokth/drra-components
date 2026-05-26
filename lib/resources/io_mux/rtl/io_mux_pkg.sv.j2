@@ -1,0 +1,59 @@
+// vesyla_template_start package_head
+package {{name}}_{{fingerprint}}_pkg;
+// vesyla_template_end package_head
+
+  // vesyla_template_start package_macro
+  {% include "package.j2" %}
+  // vesyla_template_end package_macro
+
+  import agu_rtr_pkg::*;
+
+  parameter DEPTH = 64;
+  parameter WIDTH = 256;
+  parameter int HAS_INPUT_SELECTOR  = (NUM_INPUT_PATTERNS > 1) ? 1 : 0;
+  parameter int HAS_OUTPUT_SELECTOR = (NUM_OUTPUT_PATTERNS > 1) ? 1 : 0;
+
+  parameter int NUM_PATTERN_AGUS  = NUM_INPUT_PATTERNS + NUM_OUTPUT_PATTERNS;
+  parameter int NUM_SELECTOR_AGUS = HAS_INPUT_SELECTOR + HAS_OUTPUT_SELECTOR;
+  parameter int NUM_SELECTOR_SLOTS = (NUM_SELECTOR_AGUS > 0) ? NUM_SELECTOR_AGUS : 1;
+  parameter int NUM_PHYSICAL_AGUS = NUM_PATTERN_AGUS + NUM_SELECTOR_AGUS;
+
+  parameter int INPUT_PATTERN_BASE = 0;
+  parameter int OUTPUT_PATTERN_BASE = NUM_INPUT_PATTERNS;
+  parameter int SELECTOR_AGU_BASE = NUM_PATTERN_AGUS;
+  parameter int INPUT_SELECTOR_INDEX = 0;
+  parameter int OUTPUT_SELECTOR_INDEX = HAS_INPUT_SELECTOR;
+  parameter int INPUT_SELECTOR_PHYS_INDEX = SELECTOR_AGU_BASE + INPUT_SELECTOR_INDEX;
+  parameter int OUTPUT_SELECTOR_PHYS_INDEX = SELECTOR_AGU_BASE + OUTPUT_SELECTOR_INDEX;
+
+  parameter int MAX_PATTERN_AGUS_PER_GROUP =
+      (NUM_INPUT_PATTERNS > NUM_OUTPUT_PATTERNS) ? NUM_INPUT_PATTERNS : NUM_OUTPUT_PATTERNS;
+  parameter int PHYSICAL_AGU_IDX_WIDTH =
+      (NUM_PHYSICAL_AGUS <= 1) ? 1 : $clog2(NUM_PHYSICAL_AGUS);
+  parameter int AGU_IDX_WIDTH = $clog2(MAX_PATTERN_AGUS_PER_GROUP + 1);
+  parameter int INPUT_PATTERN_IDX_WIDTH =
+      (NUM_INPUT_PATTERNS <= 1) ? 1 : $clog2(NUM_INPUT_PATTERNS);
+  parameter int OUTPUT_PATTERN_IDX_WIDTH =
+      (NUM_OUTPUT_PATTERNS <= 1) ? 1 : $clog2(NUM_OUTPUT_PATTERNS);
+
+  // AGU RTR params
+  parameter int ADDRESS_WIDTH = IO_ADDR_WIDTH;
+  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 8 * 2; // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = 23;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+  parameter int INCLUDE_IR_STATES = 1;
+  parameter int INCLUDE_MT_STATES = 1;
+  parameter int INCLUDE_OR_STATES = 1;
+
+  // Selector AGUs are IR-only, but share the common config interface.
+  parameter int SEL_NUMBER_IR = NUMBER_IR;
+  parameter int SEL_NUMBER_MT = 0;
+  parameter int SEL_NUMBER_OR = 0;
+
+  {% include "agu_config.j2" %}
+
+endpackage
