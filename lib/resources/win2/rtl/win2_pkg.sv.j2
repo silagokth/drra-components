@@ -1,0 +1,38 @@
+// vesyla_template_start package_head
+package {{name}}_{{fingerprint}}_pkg;
+// vesyla_template_end package_head
+
+  // vesyla_template_start package_macro
+  {% include "package.j2" %}
+  // vesyla_template_end package_macro
+
+  import agu_rtr_pkg::*;
+
+  // Number of lanes in a bulk word; the barrel offset range is [0, NUM_LANES).
+  parameter int NUM_LANES       = BULK_BITWIDTH / WORD_BITWIDTH;
+  parameter int OFFSET_WIDTH    = (NUM_LANES > 1) ? $clog2(NUM_LANES) : 1;
+  parameter int CONCAT_BITWIDTH = 2 * BULK_BITWIDTH;
+
+  // Two AGUs:
+  //   index 0 = input  AGU (its addr_valid advances the 2-line buffer)
+  //   index 1 = offset AGU (its addr_valid enables output;
+  //                         low OFFSET_WIDTH bits of its address select offset)
+  parameter int NUM_AGUS = 2;
+
+  // AGU RTR params
+  parameter int ADDRESS_WIDTH = IO_ADDR_WIDTH;
+  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 8 * 2; // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = 23;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+  parameter int INCLUDE_IR_STATES = 1;
+  parameter int INCLUDE_MT_STATES = 1;
+  parameter int INCLUDE_OR_STATES = 1;
+
+  {% include "agu_config.j2" %}
+
+endpackage
+

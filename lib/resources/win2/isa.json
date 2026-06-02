@@ -1,0 +1,164 @@
+{
+  "format": {
+    "instr_bitwidth": 32,
+    "instr_type_bitwidth": 1,
+    "instr_opcode_bitwidth": 3,
+    "instr_slot_bitwidth": 4
+  },
+  "instructions": [
+    {
+      "name": "dsu",
+      "opcode": 6,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "option",
+          "comment": "Configuration option for the selected AGU. There are 4 options per port.",
+          "bitwidth": 2
+        },
+        {
+          "name": "port",
+          "comment": "Selects which AGU is being configured: 0 = input AGU (gates row-buffer advance), 1 = offset AGU (selects lane offset for the barrel slice).",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input",
+              "comment": "Input AGU: its addr_valid pulses latch a new bulk line into the 2-line buffer (line_A <= line_B; line_B <= bulk_data_in). Address value is ignored."
+            },
+            {
+              "key": 1,
+              "val": "offset",
+              "comment": "Offset AGU: its addr_valid drives output enable; the low log2(BULK/WORD) bits of its address select the lane offset of the BULK-wide slice taken from {line_B, line_A}."
+            }
+          ]
+        },
+        {
+          "name": "init_addr_sd",
+          "comment": "Is initial address static or dynamic?",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "s"
+            },
+            {
+              "key": 1,
+              "val": "d"
+            }
+          ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Initial address. For the offset AGU this is the starting lane offset; for the input AGU it is ignored.",
+          "bitwidth": 16
+        }
+      ]
+    },
+    {
+      "name": "rep",
+      "opcode": 0,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Selects which AGU the repetition applies to.",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input"
+            },
+            {
+              "key": 1,
+              "val": "offset"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "Number of iterations.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "Step size between iterations.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "Delay between iterations.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "repx",
+      "opcode": 1,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Selects which AGU the repetition extension applies to.",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input"
+            },
+            {
+              "key": 1,
+              "val": "offset"
+            }
+          ]
+        },
+        {
+          "name": "iter",
+          "comment": "most significant bits to apply to the `iter` value of the repetition operator.",
+          "bitwidth": 8
+        },
+        {
+          "name": "step",
+          "comment": "most significant bits to apply to the `step` value of the repetition operator.",
+          "bitwidth": 7,
+          "default_val": 1,
+          "is_signed": true
+        },
+        {
+          "name": "delay",
+          "comment": "most significant bits to apply to the `delay` value of the repetition operator.",
+          "bitwidth": 8
+        }
+      ]
+    },
+    {
+      "name": "trans",
+      "opcode": 2,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "Selects which AGU the transition applies to.",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "input"
+            },
+            {
+              "key": 1,
+              "val": "offset"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "comment": "Delay before the transition occurs.",
+          "bitwidth": 23
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+package:
+  name: win2
+
+sources:
+  - ./rtl/win2_pkg.sv
+  - ./rtl/win2.sv
+  - ./rtl/controller.sv
+  - ./rtl/decoder.sv
