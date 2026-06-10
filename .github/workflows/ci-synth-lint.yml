@@ -54,6 +54,20 @@ jobs:
           chmod +x "$HOME/slang/bin/slang"
           echo "$HOME/slang/bin" >> "$GITHUB_PATH"
 
+      - name: Install bender
+        run: |
+          set -e
+          # vesyla component assemble shells out to `bender script flist` per
+          # component; without it, assembly fails with ENOENT. Match the repo's
+          # bender 0.32 (cargo-dist installer; --local drops ./bender in CWD).
+          curl --proto '=https' --tlsv1.2 -sSf https://pulp-platform.github.io/bender/init \
+            | sh -s -- --local 0.32.0
+          mkdir -p "$HOME/bender/bin"
+          mv bender "$HOME/bender/bin/bender"
+          chmod +x "$HOME/bender/bin/bender"
+          echo "$HOME/bender/bin" >> "$GITHUB_PATH"
+          "$HOME/bender/bin/bender" --version
+
       - name: Download library
         uses: actions/download-artifact@v5
         with:
