@@ -27,3 +27,12 @@ jobs:
     secrets: inherit
     with:
       branch: ${{ needs.ci-build-library.outputs.branch }}
+
+  # Tier A: open-tool synthesizability lint (Verible + slang) on the assembled
+  # fabric. No PDK, GitHub-hosted, runs on every PR. Cheap complement to the
+  # gated Genus gate. See ci-synth-lint.yml / docs/SYNTH_LINT.md.
+  ci-synth-lint:
+    name: Synthesizability lint
+    uses: ./.github/workflows/ci-synth-lint.yml
+    needs: ci-build-library
+    secrets: inherit
