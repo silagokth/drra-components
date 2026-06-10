@@ -131,7 +131,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      agu_configs_reg   <= '{default: '{default: '0}};
+      agu_configs_reg   <= '{default: '0};
       use_or_reg        <= '{default: 1'b0};
       or_configured_reg <= '{default: 1'b0};
       current_option    <= '{default: '1};
