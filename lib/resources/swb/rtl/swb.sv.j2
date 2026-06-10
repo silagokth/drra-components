@@ -160,9 +160,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     endgenerate
 
     // SWB word channel routing logic
-    always_comb
+    always_comb begin
+      // Default assignment prevents a latch on slots not selected by slot_link
+      word_channels_out = '0;
       for (int i=0; i < NUM_SLOTS; i++)
         word_channels_out[curr_swb_configs.slot_link[i]] = word_channels_in[i];
+    end
 
     logic [BULK_BITWIDTH-1:0] bulk_local_channel;
 
