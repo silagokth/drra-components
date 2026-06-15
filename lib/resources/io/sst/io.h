@@ -49,7 +49,7 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const IO_PKG::DSUInstruction &instr);
+  void handleEVT(const IO_PKG::EVTInstruction &instr);
   void handleREP(const IO_PKG::REPInstruction &instr);
   void handleREPX(const IO_PKG::REPXInstruction &instr);
   void handleTRANS(const IO_PKG::TRANSInstruction &instr);
@@ -62,7 +62,7 @@ private:
   int64_t write_to_io_address_buffer = -1;
 
   // Separate input/output staging buffers so that simultaneous use of
-  // DSU_PORT_INPUT_BUFFER (read path) and DSU_PORT_OUTPUT_BUFFER (write path)
+  // EVT_PORT_INPUT_BUFFER (read path) and EVT_PORT_OUTPUT_BUFFER (write path)
   // does not race on a shared variable.
   // - Input path: readFromIO() -> bulkOutput() stages the IO response in
   //   io_input_data_buffer before forwarding on the bulk output port.
@@ -78,7 +78,6 @@ private:
 
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
@@ -91,7 +90,7 @@ private:
                 "AGU for port %u returned negative address %d for cycle %d\n",
                 port, address_offset, getPortActiveCycle(port));
     }
-    port_agus[port] = port_agus_init[port] + address_offset;
+    port_agus[port] = address_offset;
   }
 };
 

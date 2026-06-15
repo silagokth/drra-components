@@ -7,13 +7,13 @@
   },
   "instructions": [
     {
-      "name": "dsu",
+      "name": "evt",
       "opcode": 6,
       "instr_type": 1,
       "segments": [
         {
           "name": "option",
-          "comment": "Configuration option where the DSU mode will be stored. There are 4 options per port.",
+          "comment": "Configuration option where the EVT mode will be stored. There are 4 options per port.",
           "bitwidth": 2
         },
         {

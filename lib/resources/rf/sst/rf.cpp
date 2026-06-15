@@ -39,7 +39,7 @@ void Rf::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
+void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
   out.output(
       "dsu (slot=%d, option=%d, port=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.option, instr.port, instr.init_addr_sd,
@@ -47,7 +47,6 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
 
   auto dsu = instr;
 
-  port_agus_init[dsu.port] = dsu.init_addr;
   current_option_config[instr.port] = dsu.option;
 
   // Add the event handler
@@ -61,7 +60,7 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::ReadNarrow);
           readNarrow();
         },
-        1);
+        1, dsu.init_addr);
     break;
   case DataEvent::PortType::ReadWide:
     event_name = "dsu_read_wide_" + std::to_string(current_event_number);
@@ -71,7 +70,7 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::ReadWide);
           readWide();
         },
-        1);
+        1, dsu.init_addr);
     break;
   case DataEvent::PortType::WriteNarrow:
     event_name = "dsu_write_narrow_" + std::to_string(current_event_number);
@@ -81,7 +80,7 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::WriteNarrow);
           writeNarrow();
         },
-        8);
+        8, dsu.init_addr);
     break;
   case DataEvent::PortType::WriteWide:
     event_name = "dsu_write_wide_" + std::to_string(current_event_number);
@@ -91,11 +90,11 @@ void Rf::handleDSU(const RF_PKG::DSUInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::WriteWide);
           writeWide();
         },
-        8);
+        8, dsu.init_addr);
     break;
 
   default:
-    out.fatal(CALL_INFO, -1, "Invalid DSU mode\n");
+    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
   }
 
   // Add event handler

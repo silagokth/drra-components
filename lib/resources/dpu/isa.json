@@ -164,6 +164,11 @@
       "instr_type": 1,
       "segments": [
         {
+          "name": "option",
+          "comment": "Configuration option.",
+          "bitwidth": 2
+        },
+        {
           "name": "port",
           "comment": "Configure the base event for the timing pattern of either the DPU operation (0) or the RST operation (1).",
           "bitwidth": 1,
@@ -177,6 +182,26 @@
               "val": "rst"
             }
           ]
+        },
+        {
+          "name": "init_addr_sd",
+          "comment": "Is initial address static or dynamic?",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "s"
+            },
+            {
+              "key": 1,
+              "val": "d"
+            }
+          ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Initial address",
+          "bitwidth": 16
         }
       ]
     },

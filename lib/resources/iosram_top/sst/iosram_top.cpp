@@ -74,87 +74,83 @@ void Iosram_top::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Iosram_top::handleDSU(const IOSRAM_TOP_PKG::DSUInstruction &instr) {
+void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
   out.output(
       "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.option, instr.init_addr_sd,
       instr.init_addr);
 
-  // Set initial address
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-  agus[port_num].setInitialAddress(instr.init_addr);
-  out.output("Set initial address for port %d to %d\n", port_num,
-             instr.init_addr);
 
   std::string event_name;
   switch (port_num) {
-  case DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO:
+  case EVT_RELATIVE_PORT::EVT_PORT_SRAM_READ_FROM_IO:
     event_name =
         "dsu_sram_read_from_io_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO);
+          updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_SRAM_READ_FROM_IO);
           readFromIO();
         },
-        1);
+        1, instr.init_addr);
     break;
-  case DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO:
+  case EVT_RELATIVE_PORT::EVT_PORT_SRAM_WRITE_TO_IO:
     out.fatal(CALL_INFO, -1,
-              "Invalid DSU mode IOSRAM Top should not write to IO\n");
+              "Invalid EVT mode IOSRAM Top should not write to IO\n");
     event_name = "dsu_sram_write_to_io_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO);
+          updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_SRAM_WRITE_TO_IO);
           writeToIO();
         },
-        8);
+        8, instr.init_addr);
     break;
-  case DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
+  case EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM:
     event_name = "dsu_io_write_to_sram_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM);
+          updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM);
           writeToSRAM();
         },
-        7);
+        7, instr.init_addr);
     break;
-  case DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM:
+  case EVT_RELATIVE_PORT::EVT_PORT_IO_READ_FROM_SRAM:
     event_name =
         "dsu_io_read_from_sram_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM);
+          updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_IO_READ_FROM_SRAM);
           readFromSRAM();
         },
-        2);
+        2, instr.init_addr);
     break;
-  case DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK:
+  case EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK:
     event_name = "dsu_write_bulk_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK);
+          updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK);
           writeBulk();
         },
-        8);
+        8, instr.init_addr);
     break;
-  case DSU_RELATIVE_PORT::DSU_PORT_READ_BULK:
+  case EVT_RELATIVE_PORT::EVT_PORT_READ_BULK:
     event_name = "dsu_read_bulk_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK);
+          updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_READ_BULK);
           readBulk();
         },
-        1);
+        1, instr.init_addr);
     break;
 
   default:
-    out.fatal(CALL_INFO, -1, "Invalid DSU mode\n");
+    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
   }
 
   // Add event handler
@@ -217,8 +213,8 @@ void Iosram_top::handleTRANS(const IOSRAM_TOP_PKG::TRANSInstruction &instr) {
 
 void Iosram_top::readFromIO() {
   sram_read_from_io_address_buffer =
-      agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO].getAddressForCycle(
-          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO));
+      agus[EVT_RELATIVE_PORT::EVT_PORT_SRAM_READ_FROM_IO].getAddressForCycle(
+          getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_SRAM_READ_FROM_IO));
 
   IOReadRequest *readReq = new IOReadRequest();
   readReq->address = sram_read_from_io_address_buffer;
@@ -236,8 +232,8 @@ void Iosram_top::readFromIO() {
 
 void Iosram_top::writeToIO() {
   sram_write_to_io_address_buffer =
-      agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO].getAddressForCycle(
-          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO));
+      agus[EVT_RELATIVE_PORT::EVT_PORT_SRAM_WRITE_TO_IO].getAddressForCycle(
+          getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_SRAM_WRITE_TO_IO));
 
   IOWriteRequest *writeReq = new IOWriteRequest();
   writeReq->address = sram_write_to_io_address_buffer;
@@ -283,8 +279,8 @@ void Iosram_top::writeToSRAM() {
 
   // Calculate the SRAM address
   io_write_to_sram_address_buffer =
-      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
-          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM));
+      agus[EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
+          getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM));
 
   // Write data to the backend (SRAM)
   backend->set(io_write_to_sram_address_buffer, from_io_data_buffer.size(),
@@ -308,8 +304,8 @@ void Iosram_top::writeToSRAM() {
 
 void Iosram_top::readFromSRAM() {
   io_read_from_sram_address_buffer =
-      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM].getAddressForCycle(
-          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM));
+      agus[EVT_RELATIVE_PORT::EVT_PORT_IO_READ_FROM_SRAM].getAddressForCycle(
+          getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_IO_READ_FROM_SRAM));
 
   to_io_data_buffer.clear();
   backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
@@ -326,8 +322,8 @@ void Iosram_top::readFromSRAM() {
 
 void Iosram_top::readBulk() {
   read_bulk_address_buffer =
-      agus[DSU_RELATIVE_PORT::DSU_PORT_READ_BULK].getAddressForCycle(
-          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK));
+      agus[EVT_RELATIVE_PORT::EVT_PORT_READ_BULK].getAddressForCycle(
+          getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_READ_BULK));
   out.output("Initiating bulk read (addr=%d, size=%dbits)\n",
              read_bulk_address_buffer, io_data_width);
   DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
@@ -347,8 +343,8 @@ void Iosram_top::readBulk() {
 
 void Iosram_top::writeBulk() {
   write_bulk_address_buffer =
-      agus[DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK].getAddressForCycle(
-          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK));
+      agus[EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK].getAddressForCycle(
+          getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK));
 
   // Check if some data was received
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());

@@ -51,7 +51,7 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const RF_PKG::DSUInstruction &instr);
+  void handleEVT(const RF_PKG::EVTInstruction &instr);
   void handleREP(const RF_PKG::REPInstruction &instr);
   void handleREPX(const RF_PKG::REPXInstruction &instr);
   void handleTRANS(const RF_PKG::TRANSInstruction &instr);
@@ -74,14 +74,12 @@ private:
 
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   void updatePortAGUs(uint32_t port) {
-    port_agus[port] = port_agus_init[port] +
-                      agus[port].getAddressForCycle(getPortActiveCycle(port));
+    port_agus[port] = agus[port].getAddressForCycle(getPortActiveCycle(port));
     if (port_agus[port] >= register_file_size) {
       out.fatal(CALL_INFO, -1, "Invalid AGU address (greater than RF size)\n");
     }

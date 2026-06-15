@@ -76,6 +76,11 @@
       "instr_type": 1,
       "segments": [
         {
+          "name": "option",
+          "comment": "Configuration option.",
+          "bitwidth": 2
+        },
+        {
           "name": "port",
           "comment": "Selects whether the event is applied intracell (0) or intercell (1).",
           "bitwidth": 1,
@@ -89,6 +94,26 @@
               "val": "intercell"
             }
           ]
+        },
+        {
+          "name": "init_addr_sd",
+          "comment": "Is initial address static or dynamic?",
+          "bitwidth": 1,
+          "verbo_map": [
+            {
+              "key": 0,
+              "val": "s"
+            },
+            {
+              "key": 1,
+              "val": "d"
+            }
+          ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Initial address",
+          "bitwidth": 16
         }
       ]
     },
