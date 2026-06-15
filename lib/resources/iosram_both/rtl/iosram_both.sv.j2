@@ -110,12 +110,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end
 
-    logic dsu_valid;
-    dsu_t dsu_instr;
+    logic evt_valid;
+    evt_t evt_instr;
     logic rep_valid;
     rep_t rep_instr;
-    logic repx_valid;
-    repx_t repx_instr;
     logic trans_valid;
     trans_t trans_instr;
 
@@ -124,12 +122,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
-      .dsu_valid(dsu_valid),
-      .dsu_instr(dsu_instr),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
-      .repx_valid(repx_valid),
-      .repx_instr(repx_instr),
       .trans_valid(trans_valid),
       .trans_instr(trans_instr)
     );
@@ -140,12 +136,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .instruction_slot(instruction_slot),
 
-      .dsu_valid(dsu_valid),
-      .dsu_instr(dsu_instr),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
-      .repx_valid(repx_valid),
-      .repx_instr(repx_instr),
       .trans_valid(trans_valid),
       .trans_instr(trans_instr),
 
