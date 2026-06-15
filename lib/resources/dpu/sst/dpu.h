@@ -54,9 +54,8 @@ public:
   using DRRAResource::format;
   void handleEVT(const DPU_PKG::EVTInstruction &instr);
   void handleREP(const DPU_PKG::REPInstruction &instr);
-  void handleREPX(const DPU_PKG::REPXInstruction &instr);
   void handleTRANS(const DPU_PKG::TRANSInstruction &instr);
-  void handleDPU(const DPU_PKG::DPUInstruction &instr);
+  void handleCONF(const DPU_PKG::CONFInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
@@ -66,7 +65,7 @@ public:
 private:
   std::vector<uint8_t> accumulate_register;
 
-  std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>> dpuHandlers;
+  std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>> dpuHandlers;
 
   std::vector<std::function<void()>> eventsHandlers;
 

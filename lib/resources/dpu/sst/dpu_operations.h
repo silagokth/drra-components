@@ -9,8 +9,8 @@ class Dpu;
 
 namespace DPU_Operations {
 
-std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode);
-std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>>
+std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::CONF_MODE mode);
+std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>>
 createHandlers(Dpu *dpu);
 
 // Individual operation implementations

@@ -12,8 +12,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input evt_t evt_instr,
     input logic rep_valid,
     input rep_t rep_instr,
-    input logic repx_valid,
-    input repx_t repx_instr,
     input logic trans_valid,
     input trans_t trans_instr,
 
@@ -47,11 +45,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
   always_comb begin
     evt_port = evt_instr._port;
     rep_opt   = current_lane_index[agu_config_index];
-    rep_lvl   = rep_valid ? current_rep_level[agu_config_index] :
+    rep_lvl   = !rep_instr._ext ? current_rep_level[agu_config_index] :
                 (current_rep_level[agu_config_index] == '0 ? '0 : current_rep_level[agu_config_index] - 1);
-    rep_dly   = rep_valid ? rep_instr._delay : repx_instr._delay;
-    rep_itr   = rep_valid ? rep_instr._iter  : repx_instr._iter;
-    rep_stp   = rep_valid ? rep_instr._step  : repx_instr._step;
+    rep_dly   = rep_instr._delay;
+    rep_itr   = rep_instr._iter;
+    rep_stp   = rep_instr._step;
   end
 
   always_ff @(posedge clk or negedge rst_n) begin
@@ -83,13 +81,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
         agu_configs_reg[evt_port].ir_configs[0][0].iter <= 1;
         agu_configs_reg[evt_port].ir_configs[0][0].is_configured <= 1'b1;
 
-      end else if (rep_valid || repx_valid) begin
+      end else if (rep_valid) begin
         if (use_or_reg[agu_config_index]) begin
-          if (rep_valid) begin // REP: configure lower half
+          if (!rep_instr._ext) begin // base: configure lower half
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
-          end else begin // REPX: configure upper half
+          end else begin // extension: configure upper half
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
@@ -98,11 +96,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
           or_configured_reg[agu_config_index] <= 1'b1;
 
         end else begin
-          if (rep_valid) begin // REP: configure lower half
+          if (!rep_instr._ext) begin // base: configure lower half
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
-          end else begin // REPX: configure upper half
+          end else begin // extension: configure upper half
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_dly;
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_itr;
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_stp;
@@ -110,7 +108,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
           agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].is_configured <= 1'b1;
         end
 
-        if (rep_valid)
+        if (!rep_instr._ext)
           current_rep_level[agu_config_index] <= current_rep_level[agu_config_index] + 1;
 
       // TRANS instruction

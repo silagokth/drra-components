@@ -92,14 +92,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
   endgenerate
 
-  logic dpu_valid;
-  dpu_t dpu_instr;
+  logic conf_valid;
+  conf_t conf_instr;
   logic evt_valid;
   evt_t evt_instr;
   logic rep_valid;
   rep_t rep_instr;
-  logic repx_valid;
-  repx_t repx_instr;
   logic trans_valid;
   trans_t trans_instr;
 
@@ -110,14 +108,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .instruction_valid(instruction_valid),
     .instruction(instruction),
 
-    .dpu_valid(dpu_valid),
-    .dpu_instr(dpu_instr),
+    .conf_valid(conf_valid),
+    .conf_instr(conf_instr),
     .evt_valid(evt_valid),
     .evt_instr(evt_instr),
     .rep_valid(rep_valid),
     .rep_instr(rep_instr),
-    .repx_valid(repx_valid),
-    .repx_instr(repx_instr),
     .trans_valid(trans_valid),
     .trans_instr(trans_instr)
   );
@@ -132,8 +128,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .evt_instr(evt_instr),
     .rep_valid(rep_valid),
     .rep_instr(rep_instr),
-    .repx_valid(repx_valid),
-    .repx_instr(repx_instr),
     .trans_valid(trans_valid),
     .trans_instr(trans_instr),
 
@@ -144,8 +138,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .clk(clk),
     .rst_n(rst_n),
 
-    .dpu_valid(dpu_valid),
-    .dpu_instr(dpu_instr),
+    .conf_valid(conf_valid),
+    .conf_instr(conf_instr),
 
     .dpu_agu_valid(agu_valid[0]),
     .dpu_agu_address(gen_agu[0].agu_address),
