@@ -51,9 +51,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const RF_PKG::DSUInstruction &instr);
+  void handleCONF(const RF_PKG::CONFInstruction &instr);
+  void handleEVT(const RF_PKG::EVTInstruction &instr);
   void handleREP(const RF_PKG::REPInstruction &instr);
-  void handleREPX(const RF_PKG::REPXInstruction &instr);
   void handleTRANS(const RF_PKG::TRANSInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
