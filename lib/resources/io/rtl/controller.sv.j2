@@ -10,8 +10,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input dsu_t dsu_instr,
     input logic rep_valid,
     input rep_t rep_instr,
-    input logic repx_valid,
-    input repx_t repx_instr,
     input logic trans_valid,
     input trans_t trans_instr,
 
@@ -48,9 +46,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     dsu_port = dsu_instr._port;
     rep_opt  = current_lane_index[agu_config_index];
     rep_lvl  = current_rep_level[agu_config_index];
-    rep_dly  = rep_valid ? rep_instr._delay : repx_instr._delay;
-    rep_itr  = rep_valid ? rep_instr._iter  : repx_instr._iter;
-    rep_stp  = rep_valid ? rep_instr._step  : repx_instr._step;
+    rep_dly  = rep_instr._delay;
+    rep_itr  = rep_instr._iter;
+    rep_stp  = rep_instr._step;
   end
 
   always_ff @(posedge clk or negedge rst_n) begin : ff_agu_config_process
@@ -86,10 +84,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
         // NOTE: Default configuration of the AGU is return init_addr only
         agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
         agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
-      end else if (rep_valid || repx_valid) begin
+      end else if (rep_valid) begin
 
         if (use_or_reg[agu_config_index]) begin
-          if (rep_valid) begin
+          if (!rep_instr._ext) begin
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
             agu_configs_reg[agu_config_index].or_configs[rep_lvl].step[STEP_HI-1:0]   <= rep_stp;
@@ -102,7 +100,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
           or_configured_reg[agu_config_index] <= 1'b1;
 
         end else begin
-          if (rep_valid) begin
+          if (!rep_instr._ext) begin
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].delay[DELAY_HI-1:0] <= rep_dly;
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].iter[ITER_HI-1:0]   <= rep_itr;
             agu_configs_reg[agu_config_index].ir_configs[rep_opt][rep_lvl].step[STEP_HI-1:0]   <= rep_stp;

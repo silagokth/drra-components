@@ -49,9 +49,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const IO_PKG::DSUInstruction &instr);
+  void handleCONF(const IO_PKG::CONFInstruction &instr);
+  void handleEVT(const IO_PKG::EVTInstruction &instr);
   void handleREP(const IO_PKG::REPInstruction &instr);
-  void handleREPX(const IO_PKG::REPXInstruction &instr);
   void handleTRANS(const IO_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
@@ -62,7 +62,7 @@ private:
   int64_t write_to_io_address_buffer = -1;
 
   // Separate input/output staging buffers so that simultaneous use of
-  // DSU_PORT_INPUT_BUFFER (read path) and DSU_PORT_OUTPUT_BUFFER (write path)
+  // EVT_PORT_INPUT_BUFFER (read path) and EVT_PORT_OUTPUT_BUFFER (write path)
   // does not race on a shared variable.
   // - Input path: readFromIO() -> bulkOutput() stages the IO response in
   //   io_input_data_buffer before forwarding on the bulk output port.

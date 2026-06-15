@@ -20,7 +20,6 @@ bool Io::clockTick(SST::Cycle_t currentCycle) {
     portsToActivate.clear();
   }
 
-
   // Gate bulkOutput / bulkInput on the DSU port AGU actually having an event
   // scheduled at the current active cycle, not just the port being "active".
   // isPortActive stays true throughout the port's whole lifetime (until the
@@ -28,15 +27,15 @@ bool Io::clockTick(SST::Cycle_t currentCycle) {
   // bulkOutput / bulkInput in those gap cycles would try to recv() data that
   // was never requested/sent and was the source of spurious fatal errors.
   if (currentCycle % 10 == 2)
-    if (isPortActive(IO_PKG::DSU_PORT_INPUT_BUFFER) &&
-        agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
-            getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER)) != -1)
+    if (isPortActive(IO_PKG::EVT_PORT_INPUT_BUFFER) &&
+        agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
+            getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER)) != -1)
       bulkOutput();
 
   if (currentCycle % 10 == 7)
-    if (isPortActive(IO_PKG::DSU_PORT_OUTPUT_BUFFER) &&
-        agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
-            getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER)) != -1)
+    if (isPortActive(IO_PKG::EVT_PORT_OUTPUT_BUFFER) &&
+        agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
+            getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER)) != -1)
       bulkInput();
 
   return result;
@@ -46,9 +45,13 @@ void Io::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Io::handleDSU(const IO_PKG::DSUInstruction &instr) {
+void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {
+  out.output("conf (slot=%d)\n", instr.slot);
+}
+
+void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.option, instr.init_addr_sd,
       instr.init_addr);
 
@@ -59,31 +62,31 @@ void Io::handleDSU(const IO_PKG::DSUInstruction &instr) {
 
   std::string event_name;
   switch (instr.port) {
-  case IO_PKG::DSU_PORT_INPUT_BUFFER:
+  case IO_PKG::EVT_PORT_INPUT_BUFFER:
     event_name =
-        "io_dsu_read_from_input_" + std::to_string(current_event_number);
+        "io_evt_read_from_input_" + std::to_string(current_event_number);
     agus[instr.port].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(IO_PKG::DSU_PORT_INPUT_BUFFER);
+          updatePortAGUs(IO_PKG::EVT_PORT_INPUT_BUFFER);
           readFromIO();
         },
         1);
     break;
-  case IO_PKG::DSU_PORT_OUTPUT_BUFFER:
+  case IO_PKG::EVT_PORT_OUTPUT_BUFFER:
     event_name =
-        "io_dsu_write_to_output_" + std::to_string(current_event_number);
+        "io_evt_write_to_output_" + std::to_string(current_event_number);
     agus[instr.port].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(IO_PKG::DSU_PORT_OUTPUT_BUFFER);
+          updatePortAGUs(IO_PKG::EVT_PORT_OUTPUT_BUFFER);
           writeToIO();
         },
         8);
     break;
 
   default:
-    out.fatal(CALL_INFO, -1, "Invalid DSU mode\n");
+    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
   }
 
   // Add event handler
@@ -91,36 +94,32 @@ void Io::handleDSU(const IO_PKG::DSUInstruction &instr) {
 }
 
 void Io::handleREP(const IO_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port, instr.iter, instr.step, instr.delay);
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
+             instr.delay);
 
-  // add repetition to the timing model
   try {
-    agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
-    out.output("Added repetition to port %d (iter=%d, step=%d)\n", instr.port,
-               instr.iter, instr.step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+      out.output("Added repetition to port %d (iter=%d, step=%d)\n", instr.port,
+                 instr.iter, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+      uint32_t iter = instr.iter << IO_PKG::IO_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step << IO_PKG::IO_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay = instr.delay << IO_PKG::IO_INSTR_REP_DELAY_BITWIDTH |
+                       repetition_op.getDelay();
+      out.output(
+          "Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
+          instr.port, iter, step, delay);
+      agus[instr.port].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
-}
-
-void Io::handleREPX(const IO_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
-
-  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-  uint32_t iter = instr.iter << IO_PKG::IO_INSTR_REPX_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step << IO_PKG::IO_INSTR_REPX_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = instr.delay << IO_PKG::IO_INSTR_REPX_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-  out.output("Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
-             instr.port, iter, step, delay);
-  try {
-    agus[instr.port].adjustRepetition(iter, delay, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 
@@ -138,8 +137,8 @@ void Io::handleTRANS(const IO_PKG::TRANSInstruction &instr) {
 
 void Io::readFromIO() {
   read_from_io_address_buffer =
-      agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER));
+      agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER));
 
   IOReadRequest *readReq = new IOReadRequest();
   readReq->address = read_from_io_address_buffer;
@@ -148,7 +147,7 @@ void Io::readFromIO() {
 
   out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
              read_from_io_address_buffer, io_data_width);
-  logTraceEvent("io_dsu_read_from_input_", slot_id, true, 'X',
+  logTraceEvent("io_evt_read_from_input_", slot_id, true, 'X',
                 {{"address", (int)read_from_io_address_buffer},
                  {"size", (int)(io_data_width / 8)}});
 
@@ -157,8 +156,8 @@ void Io::readFromIO() {
 
 void Io::writeToIO() {
   write_to_io_address_buffer =
-      agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER));
+      agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER));
 
   IOWriteRequest *writeReq = new IOWriteRequest();
   writeReq->address = write_to_io_address_buffer;
@@ -168,19 +167,19 @@ void Io::writeToIO() {
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
              writeReq->address, writeReq->data.size() * 8,
              formatRawDataToWords(writeReq->data).c_str());
-  logTraceEvent("io_dsu_write_to_output_", slot_id, true, 'X',
+  logTraceEvent("io_evt_write_to_output_", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
                  {"size", (int)(io_output_data_buffer.size())},
                  {"data", formatRawDataToWords(io_output_data_buffer)}});
 }
 
 void Io::bulkInput() {
-  if (agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER)) == -1) {
+  if (agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER)) == -1) {
     out.fatal(CALL_INFO, -1,
               "AGU for port %d returned negative address for cycle %d\n",
-              IO_PKG::DSU_PORT_OUTPUT_BUFFER,
-              getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER));
+              IO_PKG::EVT_PORT_OUTPUT_BUFFER,
+              getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER));
   };
 
   // Receive data from bulk input port
@@ -200,12 +199,12 @@ void Io::bulkInput() {
 }
 
 void Io::bulkOutput() {
-  if (agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER)) == -1) {
+  if (agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER)) == -1) {
     out.fatal(CALL_INFO, -1,
               "AGU for port %d returned negative address for cycle %d\n",
-              IO_PKG::DSU_PORT_INPUT_BUFFER,
-              getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER));
+              IO_PKG::EVT_PORT_INPUT_BUFFER,
+              getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER));
   };
 
   // Check response from the input buffer port
