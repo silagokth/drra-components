@@ -16,8 +16,18 @@ module agu_tb
   localparam int RepStepWidth = 6;
   localparam int TransDelayWidth = 12;
 
-  // Configurations
-  typedef agu_config_class#(
+  // DUT signals
+  logic clk;
+  logic rst_n;
+  logic enable;
+  logic [AddressWidth-1:0] agu_addr;
+  logic agu_act;
+  logic agu_valid;
+  logic agu_done;
+  logic pass;
+
+  // Configuration interface
+  agu_cfg_if #(
       .NUMBER_IR        (NumberIr),
       .NUMBER_MT        (NumberMt),
       .NUMBER_OR        (NumberOr),
@@ -25,18 +35,7 @@ module agu_tb
       .REP_ITER_WIDTH   (RepIterWidth),
       .REP_STEP_WIDTH   (RepStepWidth),
       .TRANS_DELAY_WIDTH(TransDelayWidth)
-  )::agu_config_t agu_config_t;
-
-  // DUT signals
-  logic clk;
-  logic rst_n;
-  logic enable;
-  agu_config_t agu_config;
-  logic [AddressWidth-1:0] agu_addr;
-  logic agu_act;
-  logic agu_valid;
-  logic agu_done;
-  logic pass;
+  ) cfg_if ();
 
   // Testbench State
   int current_cycle;
@@ -66,7 +65,7 @@ module agu_tb
       .rst_n     (rst_n),
       .enable    (enable),
       .activation(agu_act),
-      .agu_config(agu_config),
+      .cfg       (cfg_if.consumer),
       .addr      (agu_addr),
       .addr_valid(agu_valid),
       .done      (agu_done)
@@ -100,7 +99,9 @@ module agu_tb
     tm.clear();
 
     // Reset DUT config
-    agu_config = '{default: '0};
+    cfg_if.or_configs = '0;
+    cfg_if.mt_configs = '0;
+    cfg_if.ir_configs = '0;
     agu_act = 0;
     current_lane_idx = -1;
     current_trans_idx = 0;
@@ -116,17 +117,13 @@ module agu_tb
     current_lane_idx++;
     current_rep_level = 0;
     current_trans_idx = 0;
-
-    // // NOTE: default, returns the first address
-    // agu_config.ir_configs[0][0].iter = 1;
-    // agu_config.ir_configs[0][0].is_configured = 1;
   endtask
 
   task automatic add_rep_random();
     int iter;
     int step;
     int delay;
-    iter  = $urandom_range(2, 5);
+    iter  = $urandom_range(1, 5);
     step  = $urandom_range(0, 10);
     delay = $urandom_range(0, 5);
     add_rep(iter, step, delay);
@@ -138,16 +135,16 @@ module agu_tb
 
     // Add to DUT configs
     if (use_or_reg) begin
-      agu_config.or_configs[current_rep_level].delay = delay;
-      agu_config.or_configs[current_rep_level].iter = iter;
-      agu_config.or_configs[current_rep_level].step = step;
-      agu_config.or_configs[current_rep_level].is_configured = 1;
+      cfg_if.or_configs[current_rep_level].delay = delay;
+      cfg_if.or_configs[current_rep_level].iter = iter;
+      cfg_if.or_configs[current_rep_level].step = step;
+      cfg_if.or_configs[current_rep_level].is_configured = 1;
       or_configured_reg = 1;
     end else begin
-      agu_config.ir_configs[current_lane_idx][current_rep_level].delay = delay;
-      agu_config.ir_configs[current_lane_idx][current_rep_level].iter = iter;
-      agu_config.ir_configs[current_lane_idx][current_rep_level].step = step;
-      agu_config.ir_configs[current_lane_idx][current_rep_level].is_configured = 1;
+      cfg_if.ir_configs[current_lane_idx][current_rep_level].delay = delay;
+      cfg_if.ir_configs[current_lane_idx][current_rep_level].iter = iter;
+      cfg_if.ir_configs[current_lane_idx][current_rep_level].step = step;
+      cfg_if.ir_configs[current_lane_idx][current_rep_level].is_configured = 1;
     end
 
     // Increment rep level
@@ -165,8 +162,8 @@ module agu_tb
     tm.add_transition(delay);
 
     // Add to DUT configs
-    agu_config.mt_configs[current_trans_idx].delay = delay;
-    agu_config.mt_configs[current_trans_idx].is_configured = 1;
+    cfg_if.mt_configs[current_trans_idx].delay = delay;
+    cfg_if.mt_configs[current_trans_idx].is_configured = 1;
 
     use_or_reg = 1;  // Once a transition is added, subsequent reps are for OR level
     current_rep_level = 0;
@@ -265,8 +262,17 @@ module agu_tb
           init_test();
           for (int i = 0; i <= n_mt; i++) begin
             add_event();
-            // Add IR repetitions
-            for (int j = 0; j < n_ir; j++) add_rep_random();  // or random/varied values
+            // Add IR repetitions. When n_ir == 0 inject the implicit
+            // default rep (iter=1, step=0, delay=0) that resource
+            // controllers always pre-configure on dsu/evt — see e.g.
+            // lib/resources/dpu/rtl/controller.sv.j2 lines 88-90:
+            //   agu_configs_reg[dsu_port].ir_configs[0][0].iter <= 1;
+            //   agu_configs_reg[dsu_port].ir_configs[0][0].is_configured <= 1'b1;
+            // Production never reaches the AGU with all-zero ir_configs,
+            // so this mirrors the actual minimum config path.
+            if (n_ir == 0) add_rep(1, 0, 0);
+            else
+              for (int j = 0; j < n_ir; j++) add_rep_random();
           end
           // Add MT transitions
           for (int t = 0; t < n_mt; t++) add_trans_random();  // or random/varied values

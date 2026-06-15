@@ -60,7 +60,15 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // AGU configuration signals
     // NOTE: The switchbox only uses 2 AGUs
     // (1 for SWB and 1 for ROUTE)
-    agu_config_t agu_configs[NUM_AGUS];
+    agu_cfg_if #(
+        .NUMBER_IR        (NUMBER_IR),
+        .NUMBER_MT        (NUMBER_MT),
+        .NUMBER_OR        (NUMBER_OR),
+        .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
+        .REP_ITER_WIDTH   (REP_ITER_WIDTH),
+        .REP_STEP_WIDTH   (REP_STEP_WIDTH),
+        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+    ) agu_configs [NUM_AGUS] ();
     logic [NUM_AGUS-1:0] agu_is_configured;
 
     // AGU control signals
@@ -142,7 +150,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
           .activation(activate_0[gen_i]),
 
-          .agu_config(agu_configs[gen_i]),
+          .cfg(agu_configs[gen_i]),
 
           .addr(agu_address[gen_i]),
           .addr_valid(agu_enable[gen_i]),

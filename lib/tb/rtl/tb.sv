@@ -29,15 +29,18 @@ module fabric_tb;
   logic ret_all;
   assign ret_all = &ret;
 
-  int   cycle_count = 0;
+  // `cycle_count` is the only variable an always_ff process writes here;
+  // dropped the `= 0` declaration initializer that triggered Questa's
+  // vlog-7061 (always_ff variable driven by another process — the
+  // initial-time variable-init counts as a second driver). The async
+  // reset branch below already initializes it.
+  int   cycle_count;
   logic start_counting = 0;
   always_ff @(posedge clk or negedge rst_n) begin
     if (~rst_n) begin
       cycle_count <= 0;
     end else if (start_counting) begin
       cycle_count <= cycle_count + 1;
-    end else begin
-      cycle_count <= cycle_count;
     end
   end
 
