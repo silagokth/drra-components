@@ -26,7 +26,7 @@ public:
   DRRA_AGU &operator=(DRRA_AGU &&) = default;
 
   DRRA_AGU &addEvent(const std::string &name, std::function<void()> handler,
-                     uint8_t priority = 5);
+                     uint8_t priority = 5, uint64_t init_addr = 0);
 
   DRRA_AGU &addRepetition(uint64_t iterations = 1, uint64_t delay = 0,
                           uint64_t step = 1);
