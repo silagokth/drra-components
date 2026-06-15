@@ -51,9 +51,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
+  void handleCONF(const SWB_PKG::CONFInstruction &instr);
   void handleEVT(const SWB_PKG::EVTInstruction &instr);
   void handleREP(const SWB_PKG::REPInstruction &instr);
-  void handleREPX(const SWB_PKG::REPXInstruction &instr);
   void handleTRANS(const SWB_PKG::TRANSInstruction &instr);
   void handleSWB(const SWB_PKG::SWBInstruction &instr);
   void handleROUTE(const SWB_PKG::ROUTEInstruction &instr);
