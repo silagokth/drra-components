@@ -61,8 +61,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic instruction_valid;
     assign instruction_valid = instr_en_0;
 
-    logic dsu_valid;
-    dsu_t dsu_instr;
+    logic evt_valid;
+    evt_t evt_instr;
     logic rep_valid;
     rep_t rep_instr;
     logic trans_valid;
@@ -73,8 +73,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
-      .dsu_valid(dsu_valid),
-      .dsu_instr(dsu_instr),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
       .trans_valid(trans_valid),
@@ -85,8 +85,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .clk(clk),
       .rst_n(rst_n),
 
-      .dsu_valid(dsu_valid),
-      .dsu_instr(dsu_instr),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
       .trans_valid(trans_valid),

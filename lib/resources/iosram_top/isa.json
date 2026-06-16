@@ -112,7 +112,7 @@
         {
           "name": "iter",
           "comment": "Number of iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         },
         {
           "name": "step",

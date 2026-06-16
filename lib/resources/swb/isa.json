@@ -131,7 +131,7 @@
         {
           "name": "step",
           "comment": "Step size between iterations.",
-          "bitwidth": 7,
+          "bitwidth": 6,
           "default_val": 1,
           "is_signed": true
         },

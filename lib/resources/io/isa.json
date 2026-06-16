@@ -94,7 +94,7 @@
         {
           "name": "iter",
           "comment": "Number of iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         },
         {
           "name": "step",
@@ -106,7 +106,7 @@
         {
           "name": "delay",
           "comment": "Delay between iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         }
       ]
     },
