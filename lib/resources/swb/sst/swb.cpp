@@ -188,9 +188,11 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
 }
 
 void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
-  out.output("evt (slot=%d, port=%s)\n", instr.slot,
-             instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
-                                                       : "intercell");
+  out.output(
+      "evt (slot=%d, option=%d, port=%s, init_addr_sd=%d, init_addr=%d)\n",
+      instr.slot, instr.option,
+      instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell" : "intercell",
+      instr.init_addr_sd, instr.init_addr);
 
   // add event to the timing model
   std::string event_name =
@@ -201,7 +203,7 @@ void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
       [this, event_name] {
         out.output("Event %s triggered\n", event_name.c_str());
       },
-      1);
+      1, instr.init_addr);
 }
 
 void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {

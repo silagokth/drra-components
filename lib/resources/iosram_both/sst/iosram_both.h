@@ -61,7 +61,7 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const IOSRAM_BOTH_PKG::DSUInstruction &instr);
+  void handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr);
   void handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr);
   void handleREPX(const IOSRAM_BOTH_PKG::REPXInstruction &instr);
   void handleTRANS(const IOSRAM_BOTH_PKG::TRANSInstruction &instr);
@@ -69,13 +69,13 @@ public:
   using DRRAResource::out;
 
 private:
-  enum DSU_RELATIVE_PORT {
-    DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_BOTH_PKG::DSU_PORT_INPUT_BUFFER,
-    DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_BOTH_PKG::DSU_PORT_OUTPUT_BUFFER,
-    DSU_PORT_IO_WRITE_TO_SRAM = IOSRAM_BOTH_PKG::DSU_PORT_SRAM_WRITE,
-    DSU_PORT_IO_READ_FROM_SRAM = IOSRAM_BOTH_PKG::DSU_PORT_SRAM_READ,
-    DSU_PORT_WRITE_BULK = 6,
-    DSU_PORT_READ_BULK = 7
+  enum EVT_RELATIVE_PORT {
+    EVT_PORT_SRAM_READ_FROM_IO = IOSRAM_BOTH_PKG::EVT_PORT_INPUT_BUFFER,
+    EVT_PORT_SRAM_WRITE_TO_IO = IOSRAM_BOTH_PKG::EVT_PORT_OUTPUT_BUFFER,
+    EVT_PORT_IO_WRITE_TO_SRAM = IOSRAM_BOTH_PKG::EVT_PORT_SRAM_WRITE,
+    EVT_PORT_IO_READ_FROM_SRAM = IOSRAM_BOTH_PKG::EVT_PORT_SRAM_READ,
+    EVT_PORT_WRITE_BULK = 6,
+    EVT_PORT_READ_BULK = 7
   };
 
   std::string access_time;
@@ -116,7 +116,6 @@ private:
 
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
@@ -129,10 +128,10 @@ private:
                 "AGU for port %u returned negative address %d for cycle %d\n",
                 port, address_offset, getPortActiveCycle(port));
     }
-    port_agus[port] = port_agus_init[port] + address_offset;
+    port_agus[port] = address_offset;
     uint64_t max_addr = iosram_depth;
-    if (port == DSU_PORT_SRAM_READ_FROM_IO ||
-        port == DSU_PORT_SRAM_WRITE_TO_IO) {
+    if (port == EVT_PORT_SRAM_READ_FROM_IO ||
+        port == EVT_PORT_SRAM_WRITE_TO_IO) {
       max_addr = iosram_depth * (io_data_width / word_bitwidth);
     }
     if (port_agus[port] >= max_addr) {

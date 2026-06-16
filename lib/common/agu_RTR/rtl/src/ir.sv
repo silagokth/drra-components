@@ -199,8 +199,11 @@ module ir
   // Sum the per-level address accumulators rather than recomputing
   // `iter_count[i] * step[i]` combinationally. Removes NUMBER_IR
   // multipliers from the addr critical path.
+  // Start from this lane's initial address; the per-level accumulators add
+  // the IR repetition offsets on top. An unconfigured lane therefore emits
+  // its init_addr only (matches the timing model's "default = init" lane).
   always_comb begin
-    ir_addr = '0;
+    ir_addr = cfg.init_addr[LANE];
     for (int i = 0; i < NUMBER_IR; i++) begin
       if (cfg.ir_configs[LANE][i].iter > 0)
         ir_addr = ir_addr + level_addr[i];

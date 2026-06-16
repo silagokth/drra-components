@@ -18,7 +18,8 @@ interface agu_cfg_if #(
     parameter int REP_DELAY_WIDTH   = 6,
     parameter int REP_ITER_WIDTH    = 6,
     parameter int REP_STEP_WIDTH    = 6,
-    parameter int TRANS_DELAY_WIDTH = 12
+    parameter int TRANS_DELAY_WIDTH = 12,
+    parameter int ADDRESS_WIDTH     = 16
 );
   // OR_DIM / MT_DIM: clamp to >=1 so packed dims never collapse to 0
   // when NUMBER_OR or NUMBER_MT is 0. Real entry count still tracks
@@ -64,6 +65,13 @@ interface agu_cfg_if #(
   //            Innermost loop = idx 0.
   rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
 
-  modport producer(output or_configs, mt_configs, ir_configs);
-  modport consumer(input or_configs, mt_configs, ir_configs);
+  // init_addr[NUMBER_MT+1]
+  //   Per-IR-lane initial address. One entry per IR lane, indexed
+  //   [0 .. NUMBER_MT], matching the 1st dim of ir_configs. The lane's
+  //   generated address is offset by its own init_addr (see ir.sv), so
+  //   lanes chained by MT transitions each keep their own base address.
+  logic [NUMBER_MT:0][ADDRESS_WIDTH-1:0]      init_addr;
+
+  modport producer(output or_configs, mt_configs, ir_configs, init_addr);
+  modport consumer(input or_configs, mt_configs, ir_configs, init_addr);
 endinterface

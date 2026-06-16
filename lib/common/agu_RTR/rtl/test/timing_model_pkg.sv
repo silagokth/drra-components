@@ -5,7 +5,8 @@ package timing_model_pkg;
     input int type_configs [],
     input int iter_configs [],
     input int delay_configs[],
-    input int step_configs []
+    input int step_configs [],
+    input int init_configs []
   );
   import "DPI-C" context function int cpp_pop_expected_address();
   import "DPI-C" context function int cpp_pop_expected_cycle();
@@ -19,6 +20,7 @@ package timing_model_pkg;
     int iter_q[$];
     int delay_q[$];
     int step_q[$];
+    int init_q[$];
 
     // Exprected results
     int addr_queue[$];
@@ -38,6 +40,7 @@ package timing_model_pkg;
       iter_q.delete();
       delay_q.delete();
       step_q.delete();
+      init_q.delete();
       addr_queue.delete();
       cycle_queue.delete();
       addr_count = 0;
@@ -45,11 +48,12 @@ package timing_model_pkg;
       expression = "";
     endfunction
 
-    function void add_event();
+    function void add_event(int init_addr = 0);
       type_q.push_back(2);
       iter_q.push_back(0);
       delay_q.push_back(0);
       step_q.push_back(0);
+      init_q.push_back(init_addr);
     endfunction
 
     function void add_repetition(int iter, int delay, int step);
@@ -57,6 +61,7 @@ package timing_model_pkg;
       iter_q.push_back(iter);
       delay_q.push_back(delay);
       step_q.push_back(step);
+      init_q.push_back(0);
     endfunction
 
     function void add_transition(int delay);
@@ -64,6 +69,7 @@ package timing_model_pkg;
       iter_q.push_back(0);
       delay_q.push_back(delay);
       step_q.push_back(0);
+      init_q.push_back(0);
     endfunction
 
     function int build();
@@ -71,6 +77,7 @@ package timing_model_pkg;
       int iter_arr[];
       int delay_arr[];
       int step_arr[];
+      int init_arr[];
 
       int max_cycles = 0;
 
@@ -79,17 +86,19 @@ package timing_model_pkg;
       iter_arr  = new[iter_q.size()];
       delay_arr = new[delay_q.size()];
       step_arr  = new[step_q.size()];
+      init_arr  = new[init_q.size()];
       foreach (type_q[i]) type_arr[i] = type_q[i];
       foreach (iter_q[i]) iter_arr[i] = iter_q[i];
       foreach (delay_q[i]) delay_arr[i] = delay_q[i];
       foreach (step_q[i]) step_arr[i] = step_q[i];
+      foreach (init_q[i]) init_arr[i] = init_q[i];
 
       // Clear SV queues
       addr_queue.delete();
       cycle_queue.delete();
 
       // Call C++ timing model
-      max_cycles = cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr);
+      max_cycles = cpp_build_pattern(type_arr, iter_arr, delay_arr, step_arr, init_arr);
 
       // Retrieve results
       addr_count = cpp_get_address_queue_size();

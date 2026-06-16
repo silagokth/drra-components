@@ -21,22 +21,22 @@ bool Io::clockTick(SST::Cycle_t currentCycle) {
   }
 
 
-  // Gate bulkOutput / bulkInput on the DSU port AGU actually having an event
+  // Gate bulkOutput / bulkInput on the EVT port AGU actually having an event
   // scheduled at the current active cycle, not just the port being "active".
   // isPortActive stays true throughout the port's whole lifetime (until the
   // AGU is exhausted), including gaps between outer rep iterations; firing
   // bulkOutput / bulkInput in those gap cycles would try to recv() data that
   // was never requested/sent and was the source of spurious fatal errors.
   if (currentCycle % 10 == 2)
-    if (isPortActive(IO_PKG::DSU_PORT_INPUT_BUFFER) &&
-        agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
-            getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER)) != -1)
+    if (isPortActive(IO_PKG::EVT_PORT_INPUT_BUFFER) &&
+        agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
+            getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER)) != -1)
       bulkOutput();
 
   if (currentCycle % 10 == 7)
-    if (isPortActive(IO_PKG::DSU_PORT_OUTPUT_BUFFER) &&
-        agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
-            getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER)) != -1)
+    if (isPortActive(IO_PKG::EVT_PORT_OUTPUT_BUFFER) &&
+        agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
+            getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER)) != -1)
       bulkInput();
 
   return result;
@@ -46,44 +46,39 @@ void Io::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Io::handleDSU(const IO_PKG::DSUInstruction &instr) {
+void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.option, instr.init_addr_sd,
       instr.init_addr);
 
-  // Set initial address
-  agus[instr.port].setInitialAddress(instr.init_addr);
-  out.output("Set initial address for port %d to %d\n", instr.port,
-             instr.init_addr);
-
   std::string event_name;
   switch (instr.port) {
-  case IO_PKG::DSU_PORT_INPUT_BUFFER:
+  case IO_PKG::EVT_PORT_INPUT_BUFFER:
     event_name =
-        "io_dsu_read_from_input_" + std::to_string(current_event_number);
+        "io_evt_read_from_input_" + std::to_string(current_event_number);
     agus[instr.port].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(IO_PKG::DSU_PORT_INPUT_BUFFER);
+          updatePortAGUs(IO_PKG::EVT_PORT_INPUT_BUFFER);
           readFromIO();
         },
-        1);
+        1, instr.init_addr);
     break;
-  case IO_PKG::DSU_PORT_OUTPUT_BUFFER:
+  case IO_PKG::EVT_PORT_OUTPUT_BUFFER:
     event_name =
-        "io_dsu_write_to_output_" + std::to_string(current_event_number);
+        "io_evt_write_to_output_" + std::to_string(current_event_number);
     agus[instr.port].addEvent(
         event_name,
         [this, event_name] {
-          updatePortAGUs(IO_PKG::DSU_PORT_OUTPUT_BUFFER);
+          updatePortAGUs(IO_PKG::EVT_PORT_OUTPUT_BUFFER);
           writeToIO();
         },
-        8);
+        8, instr.init_addr);
     break;
 
   default:
-    out.fatal(CALL_INFO, -1, "Invalid DSU mode\n");
+    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
   }
 
   // Add event handler
@@ -138,8 +133,8 @@ void Io::handleTRANS(const IO_PKG::TRANSInstruction &instr) {
 
 void Io::readFromIO() {
   read_from_io_address_buffer =
-      agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER));
+      agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER));
 
   IOReadRequest *readReq = new IOReadRequest();
   readReq->address = read_from_io_address_buffer;
@@ -148,7 +143,7 @@ void Io::readFromIO() {
 
   out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
              read_from_io_address_buffer, io_data_width);
-  logTraceEvent("io_dsu_read_from_input_", slot_id, true, 'X',
+  logTraceEvent("io_evt_read_from_input_", slot_id, true, 'X',
                 {{"address", (int)read_from_io_address_buffer},
                  {"size", (int)(io_data_width / 8)}});
 
@@ -157,8 +152,8 @@ void Io::readFromIO() {
 
 void Io::writeToIO() {
   write_to_io_address_buffer =
-      agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER));
+      agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER));
 
   IOWriteRequest *writeReq = new IOWriteRequest();
   writeReq->address = write_to_io_address_buffer;
@@ -168,44 +163,46 @@ void Io::writeToIO() {
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
              writeReq->address, writeReq->data.size() * 8,
              formatRawDataToWords(writeReq->data).c_str());
-  logTraceEvent("io_dsu_write_to_output_", slot_id, true, 'X',
+  logTraceEvent("io_evt_write_to_output_", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
                  {"size", (int)(io_output_data_buffer.size())},
                  {"data", formatRawDataToWords(io_output_data_buffer)}});
 }
 
 void Io::bulkInput() {
-  if (agus[IO_PKG::DSU_PORT_OUTPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER)) == -1) {
+  if (agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER)) == -1) {
     out.fatal(CALL_INFO, -1,
               "AGU for port %d returned negative address for cycle %d\n",
-              IO_PKG::DSU_PORT_OUTPUT_BUFFER,
-              getPortActiveCycle(IO_PKG::DSU_PORT_OUTPUT_BUFFER));
+              IO_PKG::EVT_PORT_OUTPUT_BUFFER,
+              getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER));
   };
 
-  // Receive data from bulk input port
-  DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[0]->recv());
-  if (dataEvent == nullptr)
-    out.fatal(CALL_INFO, -1, "No data received on bulk input port\n");
+  // Drain the bulk input link's FIFO, keeping only the freshest payload in
+  // io_output_data_buffer. Routing fabrics can queue stale loopbacks ahead of
+  // the live event; consuming until the last one ensures writeToIO uses the
+  // payload that's actually on the wire this cycle.
+  while (Event *event = data_links[0]->recv()) {
+    if (DataEvent *dataEvent = dynamic_cast<DataEvent *>(event)) {
+      io_output_data_buffer = dataEvent->payload;
+    }
+    delete event;
+  }
 
-  // Store the data in the output-path buffer (consumed by writeToIO at the
-  // following subcycle). Using a dedicated buffer prevents races with the
-  // input-path bulkOutput().
-  out.output("Received bulk data (size=%dbits, data=%s)\n", dataEvent->size,
-             formatRawDataToWords(dataEvent->payload).c_str());
-  io_output_data_buffer = dataEvent->payload;
+  out.output("Received bulk data (data=%s)\n",
+             formatRawDataToWords(io_output_data_buffer).c_str());
 
   logTraceEvent("io_bulk_input", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_output_data_buffer)}});
 }
 
 void Io::bulkOutput() {
-  if (agus[IO_PKG::DSU_PORT_INPUT_BUFFER].getAddressForCycle(
-          getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER)) == -1) {
+  if (agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
+          getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER)) == -1) {
     out.fatal(CALL_INFO, -1,
               "AGU for port %d returned negative address for cycle %d\n",
-              IO_PKG::DSU_PORT_INPUT_BUFFER,
-              getPortActiveCycle(IO_PKG::DSU_PORT_INPUT_BUFFER));
+              IO_PKG::EVT_PORT_INPUT_BUFFER,
+              getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER));
   };
 
   // Check response from the input buffer port
