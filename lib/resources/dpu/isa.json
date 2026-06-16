@@ -1,7 +1,7 @@
 { "format": {
     "instr_bitwidth": 32,
     "instr_type_bitwidth": 1,
-    "instr_opcode_bitwidth": 2,
+    "instr_opcode_bitwidth": 3,
     "instr_slot_bitwidth": 4
   },
   "instructions": [
@@ -207,7 +207,7 @@
         {
           "name": "iter",
           "comment": "Number of iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         },
         {
           "name": "step",
@@ -219,7 +219,7 @@
         {
           "name": "delay",
           "comment": "Delay between iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         }
       ]
     },
