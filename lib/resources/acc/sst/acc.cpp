@@ -125,17 +125,18 @@ void Acc::handleACC(const ACC_PKG::ACCInstruction &instr) {
 }
 
 void Acc::handleEVT(const ACC_PKG::EVTInstruction &instr) {
-  out.output("evt (slot=%d, port=%s)\n", instr.slot,
-             instr.port == 0 ? "acc" : "rst");
+  out.output("evt (slot=%d, option=%d, port=%s, init_addr_sd=%d, init_addr=%d)\n",
+             instr.slot, instr.option, instr.port == 0 ? "acc" : "rst",
+             instr.init_addr_sd, instr.init_addr);
 
   switch (instr.port) {
   case ACC_PKG::EVT_PORT::EVT_PORT_ACC:
-    agus[ACC_PKG::EVT_PORT::EVT_PORT_ACC].addEvent("acc_event", [this] {});
+    agus[ACC_PKG::EVT_PORT::EVT_PORT_ACC].addEvent(
+        "acc_event", [this] {}, 5, instr.init_addr);
     break;
   case ACC_PKG::EVT_PORT::EVT_PORT_RST:
-    agus[ACC_PKG::EVT_PORT::EVT_PORT_RST].addEvent("acc_reset", [this] {
-      clearAccumulator();
-    });
+    agus[ACC_PKG::EVT_PORT::EVT_PORT_RST].addEvent(
+        "acc_reset", [this] { clearAccumulator(); }, 5, instr.init_addr);
     break;
   default:
     out.fatal(CALL_INFO, -1, "Invalid ACC EVT port: %d\n", instr.port);
