@@ -70,7 +70,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
         .REP_ITER_WIDTH   (REP_ITER_WIDTH),
         .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+        .ADDRESS_WIDTH    (ADDRESS_WIDTH)
     ) agu_configs [NUM_AGUS] ();
     logic [NUM_AGUS-1:0] agu_valid;
     logic [NUM_AGUS-1:0] agu_activate;
@@ -82,12 +83,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign agu_activate[5] = activate_1[3]; // slot 1 port 3
 
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
     logic [NUM_AGUS-1:0] agu_done;
     genvar idx;
     generate
       for (idx = 0; idx < NUM_AGUS; idx++)
-        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx];
+        assign agu_final_address[idx] = agu_address[idx];
     endgenerate
 
     logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
@@ -115,8 +115,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end
 
-    logic dsu_valid;
-    dsu_t dsu_instr;
+    logic evt_valid;
+    evt_t evt_instr;
     logic rep_valid;
     rep_t rep_instr;
     logic repx_valid;
@@ -129,8 +129,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
-      .dsu_valid(dsu_valid),
-      .dsu_instr(dsu_instr),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
       .repx_valid(repx_valid),
@@ -145,8 +145,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .instruction_slot(instruction_slot),
 
-      .dsu_valid(dsu_valid),
-      .dsu_instr(dsu_instr),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
       .repx_valid(repx_valid),
@@ -155,8 +155,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_instr(trans_instr),
 
       .agu_done(agu_done),
-      .agu_configs(agu_configs),
-      .init_address(agu_init_address)
+      .agu_configs(agu_configs)
     );
 
     genvar i;

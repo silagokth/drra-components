@@ -402,6 +402,21 @@ TimingState &TimingState::build() {
     }
   }
 
+  // Per-event initial addresses (populated via setEventInitialAddresses on the
+  // fully-combined state) must line up 1:1 with the TimingEvents in the
+  // operator queue, in lane order. The build loop below indexes them by event
+  // position; a size mismatch would silently apply the wrong init address (or
+  // fall back to 0) and corrupt every generated address. Per-lane sub-builds
+  // leave the vector empty and intentionally fall back to 0.
+  if (!eventInitialAddresses.empty() &&
+      eventInitialAddresses.size() != event_count) {
+    throw std::runtime_error(
+        "eventInitialAddresses size (" +
+        std::to_string(eventInitialAddresses.size()) +
+        ") does not match number of events in operator queue (" +
+        std::to_string(event_count) + ")");
+  }
+
   TimingState temp_state;
   uint32_t num_events = 0;
   uint32_t num_transitions = 0;
@@ -692,18 +707,22 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
   // Find repetition operator with the same level in the operator queue
   for (auto &op : operator_queue) {
     if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
-      printf("Checking repetition operator with level %lu\n",
-             repetition->getLevel());
+      if (std::getenv("VESYLA_DEBUG"))
+        printf("Checking repetition operator with level %lu\n",
+               repetition->getLevel());
       if (repetition->getLevel() == level) {
         return *repetition;
       }
     }
   }
   // print the queue
-  printf("Operator queue:\n");
-  for (auto &op : operator_queue) {
-    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
-      printf(" - Repetition operator with level %lu\n", repetition->getLevel());
+  if (std::getenv("VESYLA_DEBUG")) {
+    printf("Operator queue:\n");
+    for (auto &op : operator_queue) {
+      if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+        printf(" - Repetition operator with level %lu\n",
+               repetition->getLevel());
+      }
     }
   }
   throw std::runtime_error("Repetition operator with level " +

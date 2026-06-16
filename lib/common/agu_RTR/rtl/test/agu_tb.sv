@@ -102,6 +102,7 @@ module agu_tb
     cfg_if.or_configs = '0;
     cfg_if.mt_configs = '0;
     cfg_if.ir_configs = '0;
+    cfg_if.init_addr  = '0;
     agu_act = 0;
     current_lane_idx = -1;
     current_trans_idx = 0;
@@ -112,11 +113,14 @@ module agu_tb
     or_configured_reg = 0;
   endtask
 
-  task automatic add_event();
-    tm.add_event();
+  task automatic add_event(input int init_addr = 0);
+    tm.add_event(init_addr);
     current_lane_idx++;
     current_rep_level = 0;
     current_trans_idx = 0;
+    // Per-lane initial address: each event opens a new IR lane whose
+    // address generation is seeded by init_addr (see ir.sv).
+    cfg_if.init_addr[current_lane_idx] = init_addr;
   endtask
 
   task automatic add_rep_random();

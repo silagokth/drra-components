@@ -17,7 +17,8 @@ TimingState *DRRA_AGU::getLaneAtIndex(size_t index) {
 }
 
 DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
-                             std::function<void()> handler, uint8_t priority) {
+                             std::function<void()> handler, uint8_t priority,
+                             uint64_t init_addr) {
   if (timing_state) {
     if (std::getenv("VESYLA_DEBUG"))
       std::cout << "Timing state exists, expression: "
@@ -37,7 +38,7 @@ DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
   if (auto lane = getLaneAtIndex(current_lane_index)) {
     auto expr = lane->getExpression();
     lane->addEvent(name, handler, priority);
-    lane_initial_addresses.push_back(initial_address);
+    lane_initial_addresses.push_back(init_addr);
     current_rep_level = 0;
     current_lane_index++;
   } else {

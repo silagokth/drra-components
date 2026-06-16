@@ -118,7 +118,9 @@ void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
 }
 
 void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
-  out.output("evt (slot=%d, port=%d)\n", instr.slot, instr.port);
+  out.output("evt (slot=%d, option=%d, port=%d, init_addr_sd=%d, init_addr=%d)\n",
+             instr.slot, instr.option, instr.port, instr.init_addr_sd,
+             instr.init_addr);
 
   switch (instr.port) {
   case DPU_PKG::EVT_PORT::EVT_PORT_DPU:
@@ -126,7 +128,7 @@ void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
         "dpu_event_" +
             std::to_string(
                 current_config_option[DPU_PKG::EVT_PORT::EVT_PORT_DPU]),
-        [this] {});
+        [this] {}, 5, instr.init_addr);
     break;
   case DPU_PKG::EVT_PORT::EVT_PORT_RST:
     agus[DPU_PKG::EVT_PORT::EVT_PORT_RST].addEvent(
@@ -136,7 +138,8 @@ void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
         [this] {
           out.output(" DPU accumulate register cleared\n");
           accumulate_register.clear();
-        });
+        },
+        5, instr.init_addr);
     break;
   default:
     out.fatal(CALL_INFO, -1, "Invalid EVT port: %d\n", instr.port);

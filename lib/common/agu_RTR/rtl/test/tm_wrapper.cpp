@@ -19,7 +19,8 @@ extern "C" {
 int cpp_build_pattern(const svOpenArrayHandle type_h,
                       const svOpenArrayHandle iter_h,
                       const svOpenArrayHandle delay_h,
-                      const svOpenArrayHandle step_h, bool debug = false) {
+                      const svOpenArrayHandle step_h,
+                      const svOpenArrayHandle init_h, bool debug = false) {
   expected_addresses.clear();
 
   DRRA_AGU agu;
@@ -37,10 +38,12 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
     int iter = 0;
     int delay = 0;
     int step = 0;
+    int init = 0;
     int *type_ptr = (int *)svGetArrElemPtr1(type_h, i);
     int *iter_ptr = (int *)svGetArrElemPtr1(iter_h, i);
     int *delay_ptr = (int *)svGetArrElemPtr1(delay_h, i);
     int *step_ptr = (int *)svGetArrElemPtr1(step_h, i);
+    int *init_ptr = (int *)svGetArrElemPtr1(init_h, i);
     if (type_ptr)
       type = *type_ptr;
     if (iter_ptr)
@@ -49,6 +52,8 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
       delay = *delay_ptr;
     if (step_ptr)
       step = *step_ptr;
+    if (init_ptr)
+      init = *init_ptr;
 
     if (debug)
       std::cerr << "[DPI] - LVL " << i;
@@ -66,8 +71,9 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
       agu.addTransition(delay);
     } else if (type == 2) { // Event
       if (debug)
-        std::cerr << " (event " << event_count << ")" << std::endl;
-      agu.addEvent("event_" + std::to_string(event_count), [] {});
+        std::cerr << " (event " << event_count << ") init_addr=" << init
+                  << std::endl;
+      agu.addEvent("event_" + std::to_string(event_count), [] {}, 5, init);
       event_count++;
     }
   }
