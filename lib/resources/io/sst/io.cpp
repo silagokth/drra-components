@@ -48,7 +48,7 @@ void Io::handleActivation(uint32_t slot_id, uint32_t ports) {
 
 void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.option, instr.init_addr_sd,
       instr.init_addr);
 
@@ -56,7 +56,7 @@ void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
   switch (instr.port) {
   case IO_PKG::EVT_PORT_INPUT_BUFFER:
     event_name =
-        "io_dsu_read_from_input_" + std::to_string(current_event_number);
+        "io_evt_read_from_input_" + std::to_string(current_event_number);
     agus[instr.port].addEvent(
         event_name,
         [this, event_name] {
@@ -67,7 +67,7 @@ void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
     break;
   case IO_PKG::EVT_PORT_OUTPUT_BUFFER:
     event_name =
-        "io_dsu_write_to_output_" + std::to_string(current_event_number);
+        "io_evt_write_to_output_" + std::to_string(current_event_number);
     agus[instr.port].addEvent(
         event_name,
         [this, event_name] {
@@ -143,7 +143,7 @@ void Io::readFromIO() {
 
   out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
              read_from_io_address_buffer, io_data_width);
-  logTraceEvent("io_dsu_read_from_input_", slot_id, true, 'X',
+  logTraceEvent("io_evt_read_from_input_", slot_id, true, 'X',
                 {{"address", (int)read_from_io_address_buffer},
                  {"size", (int)(io_data_width / 8)}});
 
@@ -163,7 +163,7 @@ void Io::writeToIO() {
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
              writeReq->address, writeReq->data.size() * 8,
              formatRawDataToWords(writeReq->data).c_str());
-  logTraceEvent("io_dsu_write_to_output_", slot_id, true, 'X',
+  logTraceEvent("io_evt_write_to_output_", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
                  {"size", (int)(io_output_data_buffer.size())},
                  {"data", formatRawDataToWords(io_output_data_buffer)}});

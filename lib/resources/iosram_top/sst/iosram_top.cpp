@@ -76,7 +76,7 @@ void Iosram_top::handleActivation(uint32_t slot_id, uint32_t ports) {
 
 void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.option, instr.init_addr_sd,
       instr.init_addr);
 
@@ -86,7 +86,7 @@ void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
   switch (port_num) {
   case EVT_RELATIVE_PORT::EVT_PORT_SRAM_READ_FROM_IO:
     event_name =
-        "dsu_sram_read_from_io_" + std::to_string(current_event_number);
+        "evt_sram_read_from_io_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
@@ -98,7 +98,7 @@ void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
   case EVT_RELATIVE_PORT::EVT_PORT_SRAM_WRITE_TO_IO:
     out.fatal(CALL_INFO, -1,
               "Invalid EVT mode IOSRAM Top should not write to IO\n");
-    event_name = "dsu_sram_write_to_io_" + std::to_string(current_event_number);
+    event_name = "evt_sram_write_to_io_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
@@ -108,7 +108,7 @@ void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
         8, instr.init_addr);
     break;
   case EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM:
-    event_name = "dsu_io_write_to_sram_" + std::to_string(current_event_number);
+    event_name = "evt_io_write_to_sram_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
@@ -119,7 +119,7 @@ void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
     break;
   case EVT_RELATIVE_PORT::EVT_PORT_IO_READ_FROM_SRAM:
     event_name =
-        "dsu_io_read_from_sram_" + std::to_string(current_event_number);
+        "evt_io_read_from_sram_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
@@ -129,7 +129,7 @@ void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
         2, instr.init_addr);
     break;
   case EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK:
-    event_name = "dsu_write_bulk_" + std::to_string(current_event_number);
+    event_name = "evt_write_bulk_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {
@@ -139,7 +139,7 @@ void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {
         8, instr.init_addr);
     break;
   case EVT_RELATIVE_PORT::EVT_PORT_READ_BULK:
-    event_name = "dsu_read_bulk_" + std::to_string(current_event_number);
+    event_name = "evt_read_bulk_" + std::to_string(current_event_number);
     agus[port_num].addEvent(
         event_name,
         [this, event_name] {

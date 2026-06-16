@@ -41,56 +41,56 @@ void Rf::handleActivation(uint32_t slot_id, uint32_t ports) {
 
 void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, option=%d, port=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, option=%d, port=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.option, instr.port, instr.init_addr_sd,
       instr.init_addr);
 
-  auto dsu = instr;
+  auto evt = instr;
 
-  current_option_config[instr.port] = dsu.option;
+  current_option_config[instr.port] = evt.option;
 
   // Add the event handler
   std::string event_name;
-  switch (dsu.port) {
+  switch (evt.port) {
   case DataEvent::PortType::ReadNarrow:
-    event_name = "dsu_read_narrow_" + std::to_string(current_event_number);
-    agus[dsu.port].addEvent(
+    event_name = "evt_read_narrow_" + std::to_string(current_event_number);
+    agus[evt.port].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DataEvent::PortType::ReadNarrow);
           readNarrow();
         },
-        1, dsu.init_addr);
+        1, evt.init_addr);
     break;
   case DataEvent::PortType::ReadWide:
-    event_name = "dsu_read_wide_" + std::to_string(current_event_number);
-    agus[dsu.port].addEvent(
+    event_name = "evt_read_wide_" + std::to_string(current_event_number);
+    agus[evt.port].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DataEvent::PortType::ReadWide);
           readWide();
         },
-        1, dsu.init_addr);
+        1, evt.init_addr);
     break;
   case DataEvent::PortType::WriteNarrow:
-    event_name = "dsu_write_narrow_" + std::to_string(current_event_number);
-    agus[dsu.port].addEvent(
+    event_name = "evt_write_narrow_" + std::to_string(current_event_number);
+    agus[evt.port].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DataEvent::PortType::WriteNarrow);
           writeNarrow();
         },
-        8, dsu.init_addr);
+        8, evt.init_addr);
     break;
   case DataEvent::PortType::WriteWide:
-    event_name = "dsu_write_wide_" + std::to_string(current_event_number);
-    agus[dsu.port].addEvent(
+    event_name = "evt_write_wide_" + std::to_string(current_event_number);
+    agus[evt.port].addEvent(
         event_name,
         [this, event_name] {
           updatePortAGUs(DataEvent::PortType::WriteWide);
           writeWide();
         },
-        8, dsu.init_addr);
+        8, evt.init_addr);
     break;
 
   default:
