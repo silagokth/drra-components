@@ -7,7 +7,7 @@
   },
   "instructions": [
     {
-      "name": "dsu",
+      "name": "evt",
       "opcode": 6,
       "instr_type": 1,
       "segments": [

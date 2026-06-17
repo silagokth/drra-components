@@ -337,8 +337,11 @@ void Ncc_cmp::handleEVT(const NCC_CMP_PKG::EVTInstruction &instr) {
   if (instr.port >= 2) {
     out.fatal(CALL_INFO, -1, "Invalid NCC EVT port: %d\n", instr.port);
   }
-  out.output("evt (slot=%d, port=%s)\n", instr.slot, portName(instr.port));
-  agus[instr.port].addEvent(std::string("ncc_") + portName(instr.port), [] {});
+  out.output("evt (slot=%d, option=%d, port=%s, init_addr_sd=%d, init_addr=%d)\n",
+             instr.slot, instr.option, portName(instr.port), instr.init_addr_sd,
+             instr.init_addr);
+  agus[instr.port].addEvent(
+      std::string("ncc_") + portName(instr.port), [] {}, 5, instr.init_addr);
 }
 
 void Ncc_cmp::handleREP(const NCC_CMP_PKG::REPInstruction &instr) {

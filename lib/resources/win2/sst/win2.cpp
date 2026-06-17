@@ -161,17 +161,15 @@ std::vector<uint8_t> Win2::takeAlignedSlice(uint32_t offset) const {
   return slice;
 }
 
-void Win2::handleDSU(const WIN2_PKG::DSUInstruction &instr) {
+void Win2::handleEVT(const WIN2_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, port=%s, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%s, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, portName(instr.port), instr.option, instr.init_addr_sd,
       instr.init_addr);
 
   if (instr.port >= 2) {
-    out.fatal(CALL_INFO, -1, "Invalid WIN2 DSU port: %d\n", instr.port);
+    out.fatal(CALL_INFO, -1, "Invalid WIN2 EVT port: %d\n", instr.port);
   }
-
-  agus[instr.port].setInitialAddress(instr.init_addr);
 
   std::string event_name =
       std::string("win2_") + portName(instr.port) + "_" +
@@ -179,16 +177,19 @@ void Win2::handleDSU(const WIN2_PKG::DSUInstruction &instr) {
 
   // Install the AGU-gated work as the event lambda. The base class fires
   // these only on cycles where the AGU has a valid address (mirroring the
-  // RTL's agu_valid).
+  // RTL's agu_valid). The per-lane initial address is attached to this
+  // event so chained lanes each keep their own base address.
   switch (instr.port) {
   case PORT_INPUT:
-    agus[PORT_INPUT].addEvent(event_name, [this] { absorbAndShift(); });
+    agus[PORT_INPUT].addEvent(
+        event_name, [this] { absorbAndShift(); }, 5, instr.init_addr);
     break;
   case PORT_OFFSET:
-    agus[PORT_OFFSET].addEvent(event_name, [this] { latchOffset(); });
+    agus[PORT_OFFSET].addEvent(
+        event_name, [this] { latchOffset(); }, 5, instr.init_addr);
     break;
   default:
-    out.fatal(CALL_INFO, -1, "Invalid WIN2 DSU port: %d\n", instr.port);
+    out.fatal(CALL_INFO, -1, "Invalid WIN2 EVT port: %d\n", instr.port);
   }
 
   current_event_number++;

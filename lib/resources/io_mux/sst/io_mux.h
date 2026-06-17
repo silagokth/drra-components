@@ -46,7 +46,7 @@ public:
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
   using DRRAResource::format;
-  void handleDSU(const IO_MUX_PKG::DSUInstruction &instr);
+  void handleEVT(const IO_MUX_PKG::EVTInstruction &instr);
   void handleREP(const IO_MUX_PKG::REPInstruction &instr);
   void handleREPX(const IO_MUX_PKG::REPXInstruction &instr);
   void handleTRANS(const IO_MUX_PKG::TRANSInstruction &instr);
@@ -92,9 +92,10 @@ private:
   uint32_t selectorIndex(uint32_t port) const;
   uint32_t activeRepresentativeAgu(uint32_t port) const;
 
-  bool decodeDSUTarget(uint32_t port, uint32_t agu_idx, uint32_t &physical_agu,
+  bool decodeEVTTarget(uint32_t port, uint32_t agu_idx, uint32_t &physical_agu,
                        bool &is_selector) const;
-  void addDSUEvent(uint32_t port, uint32_t physical_agu, bool is_selector);
+  void addEVTEvent(uint32_t port, uint32_t physical_agu, bool is_selector,
+                   uint64_t init_addr);
   void activateMuxPort(uint32_t port);
 
   uint32_t selectorIndexWidth(uint32_t count) const;

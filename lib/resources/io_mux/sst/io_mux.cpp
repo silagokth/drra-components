@@ -63,26 +63,25 @@ void Io_mux::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Io_mux::handleDSU(const IO_MUX_PKG::DSUInstruction &instr) {
+void Io_mux::handleEVT(const IO_MUX_PKG::EVTInstruction &instr) {
   uint32_t physical_agu = 0;
   bool is_selector = false;
 
   out.output(
-      "dsu (slot=%d, port=%d, agu_idx=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%d, agu_idx=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.agu_idx, instr.init_addr_sd,
       instr.init_addr);
 
-  if (!decodeDSUTarget(instr.port, instr.agu_idx, physical_agu, is_selector)) {
+  if (!decodeEVTTarget(instr.port, instr.agu_idx, physical_agu, is_selector)) {
     out.fatal(CALL_INFO, -1,
-              "Invalid io_mux DSU target: port=%u agu_idx=%u\n", instr.port,
+              "Invalid io_mux EVT target: port=%u agu_idx=%u\n", instr.port,
               instr.agu_idx);
   }
 
   current_target_valid = true;
   current_target_agu = physical_agu;
 
-  agus[physical_agu].setInitialAddress(instr.init_addr);
-  addDSUEvent(instr.port, physical_agu, is_selector);
+  addEVTEvent(instr.port, physical_agu, is_selector, instr.init_addr);
   current_event_number++;
 }
 
@@ -91,7 +90,7 @@ void Io_mux::handleREP(const IO_MUX_PKG::REPInstruction &instr) {
              instr.slot, instr.port, instr.iter, instr.step, instr.delay);
 
   if (!current_target_valid) {
-    out.fatal(CALL_INFO, -1, "REP issued before a valid DSU target\n");
+    out.fatal(CALL_INFO, -1, "REP issued before a valid EVT target\n");
   }
 
   try {
@@ -108,7 +107,7 @@ void Io_mux::handleREPX(const IO_MUX_PKG::REPXInstruction &instr) {
              instr.slot, instr.port, instr.iter, instr.step, instr.delay);
 
   if (!current_target_valid) {
-    out.fatal(CALL_INFO, -1, "REPX issued before a valid DSU target\n");
+    out.fatal(CALL_INFO, -1, "REPX issued before a valid EVT target\n");
   }
 
   auto repetition_op = agus[current_target_agu].getLastRepetitionOperator();
@@ -131,7 +130,7 @@ void Io_mux::handleTRANS(const IO_MUX_PKG::TRANSInstruction &instr) {
              instr.delay);
 
   if (!current_target_valid) {
-    out.fatal(CALL_INFO, -1, "TRANS issued before a valid DSU target\n");
+    out.fatal(CALL_INFO, -1, "TRANS issued before a valid EVT target\n");
   }
 
   try {
@@ -162,7 +161,7 @@ uint32_t Io_mux::activeRepresentativeAgu(uint32_t port) const {
   return hasSelector(port) ? selectorIndex(port) : patternBase(port);
 }
 
-bool Io_mux::decodeDSUTarget(uint32_t port, uint32_t agu_idx,
+bool Io_mux::decodeEVTTarget(uint32_t port, uint32_t agu_idx,
                              uint32_t &physical_agu,
                              bool &is_selector) const {
   if (port != INPUT_PORT && port != OUTPUT_PORT) {
@@ -184,30 +183,30 @@ bool Io_mux::decodeDSUTarget(uint32_t port, uint32_t agu_idx,
   return false;
 }
 
-void Io_mux::addDSUEvent(uint32_t port, uint32_t physical_agu,
-                         bool is_selector) {
+void Io_mux::addEVTEvent(uint32_t port, uint32_t physical_agu, bool is_selector,
+                         uint64_t init_addr) {
   std::string event_name;
   const bool drives_io = is_selector || !hasSelector(port);
 
   if (port == INPUT_PORT && drives_io) {
-    event_name = "io_mux_dsu_read_from_input_" + std::to_string(current_event_number);
+    event_name = "io_mux_evt_read_from_input_" + std::to_string(current_event_number);
     agus[physical_agu].addEvent(
         event_name,
         [this] {
           readFromIO();
         },
-        1);
+        1, init_addr);
   } else if (port == OUTPUT_PORT && drives_io) {
-    event_name = "io_mux_dsu_write_to_output_" + std::to_string(current_event_number);
+    event_name = "io_mux_evt_write_to_output_" + std::to_string(current_event_number);
     agus[physical_agu].addEvent(
         event_name,
         [this] {
           writeToIO();
         },
-        8);
+        8, init_addr);
   } else {
     event_name = "io_mux_pattern_addr_" + std::to_string(current_event_number);
-    agus[physical_agu].addEvent(event_name, [] {}, 5);
+    agus[physical_agu].addEvent(event_name, [] {}, 5, init_addr);
   }
 }
 
@@ -290,7 +289,7 @@ void Io_mux::readFromIO() {
 
   out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
              read_from_io_address_buffer, io_data_width);
-  logTraceEvent("io_mux_dsu_read_from_input_", slot_id, true, 'X',
+  logTraceEvent("io_mux_evt_read_from_input_", slot_id, true, 'X',
                 {{"address", (int)read_from_io_address_buffer},
                  {"size", (int)(io_data_width / 8)}});
 
@@ -311,7 +310,7 @@ void Io_mux::writeToIO() {
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
              writeReq->address, writeReq->data.size() * 8,
              formatRawDataToWords(writeReq->data).c_str());
-  logTraceEvent("io_mux_dsu_write_to_output_", slot_id, true, 'X',
+  logTraceEvent("io_mux_evt_write_to_output_", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
                  {"size", (int)(io_output_data_buffer.size())},
                  {"data", formatRawDataToWords(io_output_data_buffer)}});
