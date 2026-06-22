@@ -1,6 +1,9 @@
 package:
   name: io
 
+dependencies:
+  agu_rtr: { path: ../../common/agu_RTR }
+
 sources:
   - ./rtl/io_pkg.sv
   - ./rtl/io.sv

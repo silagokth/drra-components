@@ -3,6 +3,7 @@ package:
 
 dependencies:
   sram: { path: ../../common/sram }
+  agu_rtr: { path: ../../common/agu_RTR }
 
 sources:
   - ./rtl/iosram_top_pkg.sv
