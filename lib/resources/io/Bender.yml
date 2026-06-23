@@ -2,6 +2,7 @@ package:
   name: io
 
 dependencies:
+  agu_rtr: { path: ../../common/agu_RTR }
   agu_controller: { path: ../../common/agu_controller }
 
 sources:

@@ -2,7 +2,6 @@ package:
   name: dpu
 
 dependencies:
-  fsm: { path: ../../common/fsm }
   agu_rtr: { path: ../../common/agu_RTR }
   agu_controller: { path: ../../common/agu_controller }
 
