@@ -4,9 +4,11 @@ package:
 dependencies:
   fsm: { path: ../../common/fsm }
   agu_rtr: { path: ../../common/agu_RTR }
+  agu_controller: { path: ../../common/agu_controller }
 
 sources:
   - ./rtl/swb_pkg.sv
   - ./rtl/swb.sv
   - ./rtl/controller.sv
+  - ./rtl/decoder.sv
   - ./rtl/conf_manager.sv

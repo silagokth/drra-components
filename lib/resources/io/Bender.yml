@@ -1,8 +1,10 @@
 package:
   name: io
 
+dependencies:
+  agu_controller: { path: ../../common/agu_controller }
+
 sources:
   - ./rtl/io_pkg.sv
   - ./rtl/io.sv
-  - ./rtl/controller.sv
   - ./rtl/decoder.sv
