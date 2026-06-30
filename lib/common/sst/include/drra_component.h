@@ -20,6 +20,7 @@ public:
   DRRAComponent(ComponentId_t id, Params &params) : Component(id) {
     // Configure init
     out.init("", 16, 0, Output::STDOUT);
+    out.bindCycle(&_currentSSTCycle);
 
     // Get parameters
     clock = params.find<std::string>("clock", "100MHz");
@@ -94,16 +95,13 @@ public:
   // SST clock handler
   bool clockTickBase(Cycle_t currentCycle) {
     _currentSSTCycle = currentCycle;
-    if (currentCycle % 10 == 0) {
-      out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle / 10);
-    }
     bool result = clockTick(currentCycle);
     return result;
   }
 
   void logTraceEvent(
       std::string name, int slot_id, bool isResource = true, char phase = 'X',
-      const std::unordered_map<std::string, std::variant<int, std::string>>
+      const std::unordered_map<std::string, std::variant<long long, std::string>>
           &args = {}) {
     trace_file.open(trace_name, std::ios::app);
     TraceEvent trace_event(name, _currentSSTCycle, 1, 0, phase);
@@ -111,8 +109,8 @@ public:
                             cell_coordinates[1], slot_id);
     trace_event.setProcessId(0);
     for (const auto &arg : args) {
-      if (std::holds_alternative<int>(arg.second)) {
-        trace_event.addArg(arg.first, std::get<int>(arg.second));
+      if (std::holds_alternative<long long>(arg.second)) {
+        trace_event.addArg(arg.first, std::get<long long>(arg.second));
       } else if (std::holds_alternative<std::string>(arg.second)) {
         trace_event.addArg(arg.first, std::get<std::string>(arg.second));
       }

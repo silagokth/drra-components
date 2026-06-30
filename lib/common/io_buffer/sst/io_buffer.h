@@ -72,6 +72,7 @@ public:
 
 private:
   DRRAOutput out;
+  uint64_t _currentSSTCycle = 0;
   std::string clock;
   uint64_t printFrequency;
   uint64_t io_data_width, io_depth;

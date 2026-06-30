@@ -9,6 +9,7 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   // Output
   out.init("", 0, 0, Output::STDOUT);
   out.setPrefix(getType() + " - ");
+  out.bindCycle(&_currentSSTCycle);
 
   // Get params
   clock = params.find<std::string>("clock", "100MHz");
@@ -102,10 +103,7 @@ void IOBuffer::complete(unsigned int phase) {}
 void IOBuffer::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
 
 bool IOBuffer::clockTick(SST::Cycle_t currentCycle) {
-  if (currentCycle % 10 == 0) {
-    out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle / 10);
-  }
-
+  _currentSSTCycle = currentCycle;
   return false;
 }
 
