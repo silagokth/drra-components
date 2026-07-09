@@ -25,12 +25,12 @@ std::string TimingExpression::lastEventName() const { return ""; }
 TimingState::TimingState() : eventCounter(0), lastScheduledCycle(0) {}
 
 TimingState::TimingState(const TimingState &other)
-    : expression(other.expression), eventCounter(other.eventCounter),
+    : addr_segs(other.addr_segs), addr_outerDims(other.addr_outerDims),
+      addr_last_cycle(other.addr_last_cycle), expression(other.expression),
+      eventCounter(other.eventCounter),
       lastScheduledCycle(other.lastScheduledCycle),
       eventNames(other.eventNames), operator_queue(other.operator_queue),
       eventInitialAddresses(other.eventInitialAddresses),
-      scheduledEvents(other.scheduledEvents),
-      generatedAddresses(other.generatedAddresses),
       levels_current_iteration(other.levels_current_iteration),
       levels_total_iterations(other.levels_total_iterations),
       levels_step(other.levels_step) {}
@@ -117,8 +117,9 @@ TimingState &TimingState::operator=(const TimingState &other) {
     eventNames = other.eventNames;
     operator_queue = other.operator_queue;
     eventInitialAddresses = other.eventInitialAddresses;
-    scheduledEvents = other.scheduledEvents;
-    generatedAddresses = other.generatedAddresses;
+    addr_segs = other.addr_segs;
+    addr_outerDims = other.addr_outerDims;
+    addr_last_cycle = other.addr_last_cycle;
     levels_current_iteration = other.levels_current_iteration;
     levels_total_iterations = other.levels_total_iterations;
     levels_step = other.levels_step;
@@ -361,8 +362,23 @@ TimingState &TimingState::build() {
   if (std::getenv("VESYLA_DEBUG"))
     std::cout << "Building timing state with " << operator_queue.size()
               << " operators." << std::endl;
-  if (!expression) {
-    this->addEvent("event_0", [] {});
+
+  // Empty operator queue: either nothing was ever added (error) or the state
+  // holds a single event created via createFromEvent() whose event lives in
+  // `expression` rather than the queue. Schedule that lone event at cycle 0.
+  if (operator_queue.empty()) {
+    if (!expression)
+      throw std::runtime_error("Cannot build timing state without any events");
+    EventSeg seg;
+    seg.base_addr = eventInitialAddresses.empty() ? 0 : eventInitialAddresses[0];
+    seg.event = std::dynamic_pointer_cast<const TimingEvent>(expression);
+    addr_segs.clear();
+    if (seg.event)
+      addr_segs.push_back(seg);
+    addr_outerDims.clear();
+    addr_last_cycle = 0;
+    lastScheduledCycle = 0;
+    return *this;
   }
 
   // Order operator_queue by putting all transition in beginning
@@ -402,37 +418,58 @@ TimingState &TimingState::build() {
     }
   }
 
-  TimingState temp_state;
-  uint32_t num_events = 0;
-  uint32_t num_transitions = 0;
-  if (std::dynamic_pointer_cast<TimingEvent>(operator_queue[0])) {
-    if (std::getenv("VESYLA_DEBUG"))
-      std::cout << "First operator is an event" << std::endl;
-    temp_state = TimingState(
-        std::static_pointer_cast<TimingExpression>(operator_queue[0]));
+  // Assemble the final expression (for toString/debug and transition chaining)
+  // and, in the same pass, build the compact lazy address model.
+  //
+  //   * An event starts a new segment.
+  //   * A repetition before any transition is an inner rep of the current
+  //     segment; after a transition it is a global/outer rep applied to every
+  //     segment.
+  //   * A transition places the next event's segment after the accumulated
+  //     concatenation span (plus the transition delay).
+  //
+  // For a single rep level l with (iter, delay, step) applied on top of a
+  // structure already spanning `span` cycles:
+  //     period      = span + delay + 1        (stride between iterations)
+  //     new span    = (iter - 1) * period + span
+  // The address contribution is index_l * step, summed across levels. This is
+  // exactly the recurrence the old per-cycle enumeration produced, but stored
+  // in O(#levels) instead of O(#cycles).
+  std::deque<std::shared_ptr<TimingExpression>> expressions;
+
+  std::vector<EventSeg> segs;
+  std::vector<Dim> outerDims;
+  int64_t current_event_id = -1;
+  bool transitions_started = false;
+  uint64_t concat_span = 0; // span of the accumulated concatenation
+  uint64_t trans_count = 0;
+
+  // Raw TimingState API (createFromEvent + addRepetition/addTransition) leaves
+  // the base event in `expression` instead of pushing it onto the queue, so the
+  // queue can start with a repetition or transition. Seed the first segment
+  // from that base event before processing the operators.
+  if (!std::dynamic_pointer_cast<TimingEvent>(operator_queue.front()) &&
+      expression) {
+    expressions.push_back(expression);
+    current_event_id = 0;
+    EventSeg seg;
+    seg.base_addr = eventInitialAddresses.empty() ? 0 : eventInitialAddresses[0];
+    seg.event = std::dynamic_pointer_cast<const TimingEvent>(expression);
+    segs.push_back(seg);
   }
 
-  // Add all operators to the expression
-  std::deque<std::shared_ptr<TimingExpression>> expressions;
-  std::map<uint64_t, uint64_t> addresses;
-  std::map<uint64_t, std::map<uint64_t, uint64_t>> events_addresses;
-  std::map<uint64_t, uint64_t> events_last_cycle;
-  std::map<uint64_t, uint64_t> events_last_address;
-  int64_t current_event_id = -1;
-  uint64_t current_transition_id = 0;
   for (auto &op : operator_queue) {
     if (auto event = std::dynamic_pointer_cast<TimingEvent>(op)) {
       expressions.push_back(std::static_pointer_cast<TimingExpression>(event));
-      // First address for the event uses per-event initial address if available
+
       current_event_id++;
-      events_addresses[current_event_id] = std::map<uint64_t, uint64_t>();
-      uint64_t init_addr =
+      EventSeg seg;
+      seg.base_addr =
           (current_event_id < (int64_t)eventInitialAddresses.size())
               ? eventInitialAddresses[current_event_id]
               : 0;
-      events_addresses[current_event_id][0] = init_addr;
-      events_last_cycle[current_event_id] = 0;
-      events_last_address[current_event_id] = init_addr;
+      seg.event = std::static_pointer_cast<const TimingEvent>(event);
+      segs.push_back(seg);
     } else if (auto transition =
                    std::dynamic_pointer_cast<TransitionOperator>(op)) {
       if (std::getenv("VESYLA_DEBUG"))
@@ -440,8 +477,20 @@ TimingState &TimingState::build() {
                   << transition->getDelay() << ")" << std::endl;
       std::shared_ptr<TimingExpression> from_expr = expressions.front();
       expressions.pop_front();
-      std::shared_ptr<TimingExpression> to_expr = expressions.front();
-      expressions.pop_front();
+      // The destination event is either already queued (DRRA_AGU pushes both
+      // events) or must be synthesized from the transition's next-event name
+      // (raw string addTransition, which carries only the name).
+      bool synthesized_to = expressions.empty();
+      std::shared_ptr<TimingExpression> to_expr;
+      if (!synthesized_to) {
+        to_expr = expressions.front();
+        expressions.pop_front();
+      } else {
+        auto toEvent = std::make_shared<TimingEvent>(
+            transition->getNextEventName(), eventCounter++);
+        toEvent->setHandler(transition->getHandler());
+        to_expr = std::static_pointer_cast<TimingExpression>(toEvent);
+      }
       std::shared_ptr<TransitionOperator> transition_op =
           std::make_shared<TransitionOperator>(
               transition->getDelay(), transition->getNextEventName(),
@@ -450,51 +499,25 @@ TimingState &TimingState::build() {
       expressions.push_front(
           std::static_pointer_cast<TimingExpression>(transition_op));
 
-      // fromEvent addresses
-      if (std::getenv("VESYLA_DEBUG"))
-        std::cout << "Addresses fromEvent:" << std::endl;
-      std::map<uint64_t, uint64_t> fromEventAddresses;
-      if (current_transition_id == 0) {
-        fromEventAddresses = events_addresses[current_transition_id];
-      } else {
-        fromEventAddresses = addresses;
+      // Concatenate the next event's segment after the accumulated span.
+      if (!transitions_started) {
+        transitions_started = true;
+        concat_span = segs[0].inner_span;
       }
-      for (const auto &addr_pair : fromEventAddresses) {
-        if (std::getenv("VESYLA_DEBUG"))
-          std::cout << " Cycle " << addr_pair.first << " -> Address "
-                    << addr_pair.second << std::endl;
+      // The destination segment is pre-created for queued events; synthesize it
+      // here for the string-API path.
+      if (trans_count + 1 >= segs.size()) {
+        EventSeg seg;
+        seg.base_addr = (trans_count + 1 < eventInitialAddresses.size())
+                            ? eventInitialAddresses[trans_count + 1]
+                            : 0;
+        seg.event = std::dynamic_pointer_cast<const TimingEvent>(to_expr);
+        segs.push_back(seg);
       }
-
-      // toEvent addresses
-      if (std::getenv("VESYLA_DEBUG"))
-        std::cout << "Addresses toEvent:" << std::endl;
-      std::map<uint64_t, uint64_t> toEventAddresses =
-          events_addresses[current_transition_id + 1];
-      for (const auto &addr_pair : toEventAddresses) {
-        if (std::getenv("VESYLA_DEBUG"))
-          std::cout << " Cycle " << addr_pair.first << " -> Address "
-                    << addr_pair.second << std::endl;
-      }
-
-      addresses = fromEventAddresses;
-      uint64_t last_cycle = addresses.rbegin()->first;
-      if (std::getenv("VESYLA_DEBUG"))
-        std::cout << "Last cycle fromEvent: " << last_cycle << std::endl;
-      for (const auto &addr_pair : toEventAddresses) {
-        uint64_t addr_cycle =
-            addr_pair.first + last_cycle + transition->getDelay() + 1;
-        uint64_t addr_value = addr_pair.second;
-        addresses[addr_cycle] = addr_value;
-      }
-
-      current_transition_id++;
-      if (std::getenv("VESYLA_DEBUG"))
-        std::cout << "Addresses after transition:" << std::endl;
-      for (const auto &addr_pair : addresses) {
-        if (std::getenv("VESYLA_DEBUG"))
-          std::cout << " Cycle " << addr_pair.first << " -> Address "
-                    << addr_pair.second << std::endl;
-      }
+      EventSeg &toSeg = segs[trans_count + 1];
+      toSeg.base_cycle = concat_span + transition->getDelay() + 1;
+      concat_span = toSeg.base_cycle + toSeg.inner_span;
+      trans_count++;
     } else if (auto repetition =
                    std::dynamic_pointer_cast<RepetitionOperator>(op)) {
       if (std::getenv("VESYLA_DEBUG"))
@@ -508,47 +531,20 @@ TimingState &TimingState::build() {
       levels_total_iterations.push_back(repetition->getIterations());
       levels_step.push_back(repetition->getStep());
 
-      if (current_transition_id == 0) {
-        auto events_addresses_copy = events_addresses[current_event_id];
-        for (int it = 0; it < repetition->getIterations() - 1; it++) {
-          uint64_t last_cycle =
-              events_addresses[current_event_id].rbegin()->first;
-          uint64_t current_cycle = last_cycle + repetition->getDelay() + 1;
-          for (const auto &addr_pair : events_addresses_copy) {
-            uint64_t addr_cycle = addr_pair.first + current_cycle;
-            uint64_t addr_value =
-                addr_pair.second + (it + 1) * repetition->getStep();
-            events_addresses[current_event_id][addr_cycle] = addr_value;
-          }
-        }
-        if (std::getenv("VESYLA_DEBUG"))
-          std::cout << "Addresses event " << current_event_id
-                    << " after repetition:" << std::endl;
-        for (const auto &addr_pair : events_addresses[current_event_id]) {
-          if (std::getenv("VESYLA_DEBUG"))
-            std::cout << " Cycle " << addr_pair.first << " -> Address "
-                      << addr_pair.second << std::endl;
-        }
+      uint64_t iter = repetition->getIterations();
+      uint64_t delay = repetition->getDelay();
+      uint64_t step = repetition->getStep();
+      if (!transitions_started) {
+        // Inner repetition of the current segment.
+        EventSeg &s = segs[current_event_id];
+        uint64_t period = s.inner_span + delay + 1;
+        s.innerDims.push_back({period, iter, step});
+        s.inner_span = (iter - 1) * period + s.inner_span;
       } else {
-        // Repeat the whole addresses
-        auto addresses_copy = addresses;
-        for (int it = 0; it < repetition->getIterations() - 1; it++) {
-          uint64_t last_cycle = addresses.rbegin()->first;
-          uint64_t current_cycle = last_cycle + repetition->getDelay() + 1;
-          for (const auto &addr_pair : addresses_copy) {
-            uint64_t addr_cycle = addr_pair.first + current_cycle;
-            uint64_t addr_value =
-                addr_pair.second + (it + 1) * repetition->getStep();
-            addresses[addr_cycle] = addr_value;
-          }
-        }
-        if (std::getenv("VESYLA_DEBUG"))
-          std::cout << "Addresses after repetition:" << std::endl;
-        for (const auto &addr_pair : addresses) {
-          if (std::getenv("VESYLA_DEBUG"))
-            std::cout << " Cycle " << addr_pair.first << " -> Address "
-                      << addr_pair.second << std::endl;
-        }
+        // Global/outer repetition applied to the whole concatenation.
+        uint64_t period = concat_span + delay + 1;
+        outerDims.push_back({period, iter, step});
+        concat_span = (iter - 1) * period + concat_span;
       }
 
       std::shared_ptr<TimingExpression> expr = expressions.back();
@@ -566,64 +562,23 @@ TimingState &TimingState::build() {
     this->expression = expressions.back();
   }
 
-  // If no transitions were added, generate addresses now
-  if (current_transition_id == 0) {
-    uint64_t cycle = addresses.empty() ? 0 : addresses.rbegin()->first + 1;
-    for (const auto &addr_pair : events_addresses[current_transition_id]) {
-      uint64_t addr_cycle = addr_pair.first + cycle;
-      uint64_t addr_value = addr_pair.second;
-      addresses[addr_cycle] = addr_value;
-    }
+  if (!transitions_started) {
+    // No transitions: only the first event's lattice is exposed, matching the
+    // legacy single-event address generation (extra events, if any, were
+    // discarded there too).
+    if (segs.size() > 1)
+      segs.resize(1);
+    concat_span = segs.empty() ? 0 : segs[0].inner_span;
   }
 
-  // Schedule events
-  if (std::getenv("VESYLA_DEBUG")) {
-    // Print type of expression (TimingEvent, TransitionOperator,
-    // RepetitionOperator)
-    if (std::dynamic_pointer_cast<TimingEvent>(expression)) {
-      std::cout << "Expression is a TimingEvent: "
-                << std::dynamic_pointer_cast<TimingEvent>(expression)->getName()
-                << std::endl;
-    } else if (std::dynamic_pointer_cast<TransitionOperator>(expression)) {
-      std::cout << "Expression is a TransitionOperator (next event: "
-                << std::dynamic_pointer_cast<TransitionOperator>(expression)
-                       ->getNextEventName()
-                << ")" << std::endl;
-    } else if (std::dynamic_pointer_cast<RepetitionOperator>(expression)) {
-      std::cout << "Expression is a RepetitionOperator (level: "
-                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
-                       ->getLevel()
-                << ", iterations: "
-                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
-                       ->getIterations()
-                << ", delay: "
-                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
-                       ->getDelay()
-                << ", step: "
-                << std::dynamic_pointer_cast<RepetitionOperator>(expression)
-                       ->getStep()
-                << ")" << std::endl;
-    } else {
-      std::cout << "Expression is an unknown type" << std::endl;
-    }
-    std::cout << "Scheduling events for expression: " << expression->toString()
-              << std::endl;
-  }
-  updateLastScheduledCycle(
-      this->expression->scheduleEvents(*this, lastScheduledCycle));
-  lastScheduledCycle = addresses.rbegin()->first;
+  addr_segs = std::move(segs);
+  addr_outerDims = std::move(outerDims);
+  addr_last_cycle = concat_span;
+  lastScheduledCycle = concat_span;
 
-  if (std::getenv("VESYLA_DEBUG"))
-    std::cout << "Addresses scheduled:" << std::endl;
-  for (const auto &addr_pair : addresses) {
-    if (std::getenv("VESYLA_DEBUG"))
-      std::cout << " Cycle " << addr_pair.first << " -> Address "
-                << addr_pair.second << std::endl;
-  }
   if (std::getenv("VESYLA_DEBUG"))
     std::cout << "Build complete, last scheduled cycle: " << lastScheduledCycle
               << std::endl;
-  generatedAddresses = addresses;
 
   return *this;
 }
@@ -634,27 +589,52 @@ std::shared_ptr<TimingExpression> TimingState::getExpression() const {
 
 void TimingState::scheduleEvent(std::shared_ptr<const TimingEvent> event,
                                 uint64_t cycle) {
-  scheduledEvents[cycle].insert(event);
+  // No-op: the lazy address model derives events on demand in
+  // getEventsForCycle. Kept because TimingEvent::scheduleEvents still calls it.
+  (void)event;
+  (void)cycle;
+}
+
+int64_t TimingState::decomposeDims(uint64_t offset,
+                                   const std::vector<Dim> &dims) {
+  uint64_t addr = 0;
+  // Outermost (largest period) first: each level's period exceeds the span of
+  // all inner levels, so the quotient is the unique index at that level.
+  for (size_t k = dims.size(); k-- > 0;) {
+    const Dim &d = dims[k];
+    uint64_t idx = d.period ? offset / d.period : 0;
+    if (idx >= d.iter)
+      return -1; // beyond this level's iteration count
+    addr += idx * d.step;
+    offset -= idx * d.period;
+  }
+  if (offset != 0)
+    return -1; // not on the lattice (gap cycle)
+  return static_cast<int64_t>(addr);
 }
 
 std::set<std::shared_ptr<const TimingEvent>>
 TimingState::getEventsForCycle(uint64_t cycle) {
-  auto eventsIterator = scheduledEvents.find(cycle);
-  if (std::getenv("VESYLA_DEBUG"))
-    std::cout << "Getting events for cycle " << cycle << " in scheduledEvents ("
-              << scheduledEvents.size() << " entries)" << std::endl;
-  // print all cycles where these is an event scheduled for debugging
-  if (std::getenv("VESYLA_DEBUG")) {
-    std::cout << "Scheduled events cycles:" << std::endl;
-    for (const auto &entry : scheduledEvents) {
-      std::cout << " Cycle " << entry.first << " -> " << entry.second.size()
-                << " events" << std::endl;
+  std::set<std::shared_ptr<const TimingEvent>> result;
+  uint64_t off = cycle;
+  // Strip outer repetition dimensions (they do not change which event fires).
+  for (size_t k = addr_outerDims.size(); k-- > 0;) {
+    const Dim &d = addr_outerDims[k];
+    uint64_t idx = off / d.period;
+    if (idx >= d.iter)
+      return result;
+    off -= idx * d.period;
+  }
+  for (const auto &s : addr_segs) {
+    if (off < s.base_cycle)
+      break; // fell into a gap before this segment
+    if (off <= s.base_cycle + s.inner_span) {
+      if (decomposeDims(off - s.base_cycle, s.innerDims) >= 0 && s.event)
+        result.insert(s.event);
+      return result;
     }
   }
-  if (eventsIterator != scheduledEvents.end()) {
-    return eventsIterator->second;
-  }
-  return std::set<std::shared_ptr<const TimingEvent>>();
+  return result;
 }
 
 bool TimingState::findEventByName(const std::string &name) {
@@ -711,12 +691,30 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
 }
 
 int64_t TimingState::getAddressForCycle(uint64_t cycle) {
-  int64_t address = -1;
-  auto it = generatedAddresses.find(cycle);
-  if (it != generatedAddresses.end()) {
-    address = it->second;
+  uint64_t off = cycle;
+  uint64_t outer_addr = 0;
+  // Decompose the outer repetition dimensions (outermost first).
+  for (size_t k = addr_outerDims.size(); k-- > 0;) {
+    const Dim &d = addr_outerDims[k];
+    uint64_t idx = off / d.period;
+    if (idx >= d.iter)
+      return -1; // beyond the outermost repetition -> gap
+    outer_addr += idx * d.step;
+    off -= idx * d.period;
   }
-  return address;
+  // Locate the segment whose inner lattice contains the remaining offset.
+  for (const auto &s : addr_segs) {
+    if (off < s.base_cycle)
+      break; // gap before this segment
+    if (off <= s.base_cycle + s.inner_span) {
+      int64_t inner = decomposeDims(off - s.base_cycle, s.innerDims);
+      if (inner < 0)
+        return -1; // gap inside the segment's inner lattice
+      return static_cast<int64_t>(s.base_addr + static_cast<uint64_t>(inner) +
+                                  outer_addr);
+    }
+  }
+  return -1;
 }
 
 void TimingState::setEventInitialAddresses(
