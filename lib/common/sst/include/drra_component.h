@@ -26,29 +26,39 @@ public:
     printFrequency = params.find<Cycle_t>("printFrequency", 1);
     word_bitwidth = params.find<size_t>("word_bitwidth", 16);
 
+    // Debug/monitoring mode. Off by default: no per-cycle prints, no trace
+    // file, and the expensive trace/log string builders (formatRawDataToWords,
+    // dumpBackendContent) short-circuit. Enabled either via the "debug" param
+    // or the VESYLA_DEBUG environment variable.
+    debug_enabled = params.find<bool>("debug", false) ||
+                    (std::getenv("VESYLA_DEBUG") != nullptr);
+    out.setEnabled(debug_enabled);
+
     // Set statistics
     // number_of_instructions = registerStatistic
 
-    // Output JSON
+    // Output JSON (only when debug/monitoring is enabled)
     trace_name = params.find<std::string>("trace_name", "trace.json");
-    std::fstream trace_file_exists(trace_name);
-    if (trace_file_exists.good()) {
-      trace_file.open(trace_name, std::ios::out | std::ios::app);
-      if (!trace_file.is_open()) {
-        out.fatal(CALL_INFO, -1, "Failed to open trace file %s\n",
-                  trace_name.c_str());
+    if (debug_enabled) {
+      std::fstream trace_file_exists(trace_name);
+      if (trace_file_exists.good()) {
+        trace_file.open(trace_name, std::ios::out | std::ios::app);
+        if (!trace_file.is_open()) {
+          out.fatal(CALL_INFO, -1, "Failed to open trace file %s\n",
+                    trace_name.c_str());
+        }
+      } else {
+        trace_file.open(trace_name, std::ios::out | std::ios::trunc);
+        if (!trace_file.is_open()) {
+          out.fatal(CALL_INFO, -1, "Failed to open trace file %s\n",
+                    trace_name.c_str());
+        }
+        trace_file << "{ \"traceEvents\": [" << std::endl;
+        trace_file << "{\"name\": \"process_name\", \"ph\": \"M\", \"pid\": "
+                      "0, \"args\": {\"name\": \"drra\"}},\n";
       }
-    } else {
-      trace_file.open(trace_name, std::ios::out | std::ios::trunc);
-      if (!trace_file.is_open()) {
-        out.fatal(CALL_INFO, -1, "Failed to open trace file %s\n",
-                  trace_name.c_str());
-      }
-      trace_file << "{ \"traceEvents\": [" << std::endl;
-      trace_file << "{\"name\": \"process_name\", \"ph\": \"M\", \"pid\": "
-                    "0, \"args\": {\"name\": \"drra\"}},\n";
+      trace_file.close();
     }
-    trace_file.close();
 
     tc = registerClock(
         clock,
@@ -105,6 +115,8 @@ public:
       std::string name, int slot_id, bool isResource = true, char phase = 'X',
       const std::unordered_map<std::string, std::variant<int, std::string>>
           &args = {}) {
+    if (!debug_enabled)
+      return; // tracing disabled
     trace_file.open(trace_name, std::ios::app);
     TraceEvent trace_event(name, _currentSSTCycle, 1, 0, phase);
     trace_event.setThreadId(isResource ? 1 : 2, cell_coordinates[0],
@@ -140,6 +152,11 @@ protected:
     params.push_back({"instr_slot_width", "Instruction slot width", "4"});
     params.push_back({"cell_coordinates", "Cell coordinates", "[0,0]"});
     params.push_back({"num_slots", "Number of slots in the parent cell", "16"});
+    params.push_back({"debug",
+                      "Enable debug monitoring (per-cycle prints + JSON trace "
+                      "file). Off by default; also enabled by the VESYLA_DEBUG "
+                      "environment variable.",
+                      "0"});
     return params;
   }
 
@@ -160,6 +177,7 @@ protected:
 
   std::string trace_name = "";
   std::ofstream trace_file;
+  bool debug_enabled = false; // gates prints, trace file, and trace-arg builders
 
   // Local buffers
   uint32_t instrBuffer;
@@ -183,6 +201,8 @@ protected:
       instructionHandlers;
 
   std::string formatRawDataToWords(std::vector<uint8_t> raw_data) {
+    if (!debug_enabled)
+      return ""; // debug disabled: skip expensive per-transfer formatting
     std::string formatted_data = "[";
     size_t word_size = word_bitwidth / 8;
     uint64_t current_word = 0;
