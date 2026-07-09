@@ -2,7 +2,6 @@ package:
   name: swb
 
 dependencies:
-  fsm: { path: ../../common/fsm }
   agu_rtr: { path: ../../common/agu_RTR }
 
 sources:
