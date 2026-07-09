@@ -76,13 +76,22 @@ public:
   }
 
   void set(Addr addr, size_t size, std::vector<uint8_t> &data) {
-    string raw_data;
-    for (int i = size - 1; i >= 0; i--) {
-      raw_data += std::bitset<8>(data[i]).to_string();
+    // Pack `size` bytes into the top of a fresh MAX_WIDTH-bit word directly,
+    // reproducing the legacy bit layout without building a MAX_WIDTH-char
+    // bit-string per access. Byte d occupies bits [base + 8d, base + 8d + 7]
+    // with base = MAX_WIDTH - 8*size (data[size-1] at the MSB end), matching
+    // the old bytes -> bit-string -> bitset path exactly.
+    std::bitset<MAX_WIDTH> slice;
+    size_t base = MAX_WIDTH - 8 * size;
+    for (size_t d = 0; d < size; d++) {
+      uint8_t byte = data[d];
+      for (int b = 0; b < 8; b++) {
+        if ((byte >> b) & 1u) {
+          slice.set(base + 8 * d + b);
+        }
+      }
     }
-    // Pad 0s if size is not multiple of width
-    raw_data.resize(MAX_WIDTH, '0');
-    io_->write(addr, 1, raw_data);
+    io_->set_slice(addr, slice);
   }
 
   uint8_t get(Addr addr) {
@@ -91,10 +100,21 @@ public:
   }
 
   void get(Addr addr, size_t size, std::vector<uint8_t> &data) {
-    string raw_data = io_->read(addr, size);
+    // Unpack width_/8 bytes from the top of the addressed word (inverse of
+    // set), reading the bitset chunk directly instead of round-tripping
+    // through a MAX_WIDTH-char string. `size` is ignored, matching the legacy
+    // behaviour where only the addressed chunk's bits were used.
+    (void)size;
+    std::bitset<MAX_WIDTH> slice = io_->get_slice(addr);
+    size_t base = MAX_WIDTH - width_;
     for (size_t i = 0; i < width_ / 8; i++) {
-      data.push_back(
-          std::bitset<8>(raw_data.substr(width_ - 8 * (i + 1), 8)).to_ulong());
+      uint8_t byte = 0;
+      for (int b = 0; b < 8; b++) {
+        if (slice.test(base + 8 * i + b)) {
+          byte |= (1u << b);
+        }
+      }
+      data.push_back(byte);
     }
   }
 
