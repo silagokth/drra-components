@@ -119,6 +119,9 @@ void DRRAResource::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void DRRAResource::handleEventBase(Event *event) {
+  // Controller events are handler-delivered (clock-independent); wake the clock
+  // if the idle-skip paused it.
+  ensureClockRunning();
   if (event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);

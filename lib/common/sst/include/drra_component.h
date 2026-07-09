@@ -60,10 +60,9 @@ public:
       trace_file.close();
     }
 
-    tc = registerClock(
-        clock,
-        new Clock::Handler2<DRRAComponent, &DRRAComponent::clockTickBase>(
-            this));
+    clockHandler =
+        new Clock::Handler2<DRRAComponent, &DRRAComponent::clockTickBase>(this);
+    tc = registerClock(clock, clockHandler);
 
     // Parent cell variables
     std::vector<int> paramsCellCoordinates;
@@ -108,7 +107,21 @@ public:
       out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle / 10);
     }
     bool result = clockTick(currentCycle);
+    // Idle-skip: pause the clock (handler returning true is removed) when there
+    // is no work, re-armed by ensureClockRunning() on the next event.
+    if (!result && isIdle()) {
+      clock_running = false;
+      return true;
+    }
     return result;
+  }
+
+  // Re-arm the clock if the idle-skip paused it.
+  void ensureClockRunning() {
+    if (!clock_running) {
+      reregisterClock(tc, clockHandler);
+      clock_running = true;
+    }
   }
 
   void logTraceEvent(
@@ -138,6 +151,9 @@ public:
 
 protected:
   virtual bool clockTick(Cycle_t currentCycle) { return false; }
+  // Can this component pause its clock? Default false (drivers keep ticking).
+  virtual bool isIdle() { return false; }
+  bool clock_running = true;
   // Document params
   static std::vector<SST::ElementInfoParam> getBaseParams() {
     std::vector<SST::ElementInfoParam> params;
