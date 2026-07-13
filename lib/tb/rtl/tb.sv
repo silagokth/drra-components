@@ -112,7 +112,7 @@ module fabric_tb;
     // that propagation cycle. Subtract it to report the halt-execution cycle,
     // matching the instruction-level (SST) model which stops the moment `halt`
     // runs. (Verified cycle-for-cycle against SST across all testcases.)
-    total_cycles = cycle_count - 1;
+    total_cycles = (cycle_count > 0) ? (cycle_count - 1) : 0;
     $display("Simulation ends! Total cycles = %d", total_cycles);
 
     // write the number of cycles to a file
