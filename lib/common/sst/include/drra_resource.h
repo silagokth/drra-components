@@ -87,6 +87,21 @@ protected:
 
   void executeScheduledEventsForCycle(Cycle_t currentSSTCycle);
 
+  // Idle when no port is active and no activation is pending. Keeping the clock
+  // alive while portsToActivate is non-empty ensures a deferred activation is
+  // applied on the same cycle it would be without pausing. (DPU opts out.)
+  bool isIdle() override {
+    for (const auto &p : active_ports) {
+      if (p.second)
+        return false;
+    }
+    return portsToActivate.empty();
+  }
+
+  // Activations arrive mid-cycle and are applied by clockTick at the next
+  // %10==0 boundary; common to every resource, owned by the base.
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
   uint64_t vectorToUint64(std::vector<uint8_t> data);
   int64_t vectorToInt64(std::vector<uint8_t> data);
   std::vector<uint8_t> uint64ToVector(uint64_t data, bool saturate = true);
