@@ -7,6 +7,8 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <stdexcept>
+#include <string>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -81,6 +83,15 @@ public:
     // bit-string per access. Byte d occupies bits [base + 8d, base + 8d + 7]
     // with base = MAX_WIDTH - 8*size (data[size-1] at the MSB end), matching
     // the old bytes -> bit-string -> bitset path exactly.
+    // Guard the base computation: if size exceeds the word width in bytes,
+    // `MAX_WIDTH - 8*size` underflows (size_t) and slice.set() throws
+    // out_of_range. A word write can never be wider than the backing word.
+    if (8 * size > MAX_WIDTH) {
+      throw std::out_of_range(
+          "BackingIO::set: size (" + std::to_string(size) +
+          " bytes) exceeds word width (" + std::to_string(MAX_WIDTH / 8) +
+          " bytes)");
+    }
     std::bitset<MAX_WIDTH> slice;
     size_t base = MAX_WIDTH - 8 * size;
     for (size_t d = 0; d < size; d++) {

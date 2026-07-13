@@ -534,6 +534,13 @@ TimingState &TimingState::build() {
       uint64_t iter = repetition->getIterations();
       uint64_t delay = repetition->getDelay();
       uint64_t step = repetition->getStep();
+      // A repetition with zero iterations is malformed: the span math below
+      // uses (iter - 1), which underflows uint64_t and yields a garbage span.
+      if (iter == 0) {
+        throw std::runtime_error(
+            "TimingState::build: repetition with iterations == 0 (level " +
+            std::to_string(repetition->getLevel()) + ")");
+      }
       if (!transitions_started) {
         // Inner repetition of the current segment.
         EventSeg &s = segs[current_event_id];
