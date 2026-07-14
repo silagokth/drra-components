@@ -275,11 +275,21 @@ uint64_t DRRAResource::vectorToUint64(std::vector<uint8_t> data) {
 }
 
 int64_t DRRAResource::vectorToInt64(std::vector<uint8_t> data) {
-  int64_t result = 0;
+  uint64_t raw = 0;
   for (size_t i = 0; i < data.size(); i++) {
-    result |= data[i] << (i * 8);
+    raw |= static_cast<uint64_t>(data[i]) << (i * 8);
   }
-  return result;
+  // Sign-extend from word_bitwidth to 64 bits. RTL DPU operand ports are
+  // `logic signed` (see multiplier.sv.j2 / dpu.sv.j2), so an operand whose
+  // MSB is set is negative. Symmetric with int64ToVector, which writes
+  // signed-saturated values.
+  if (word_bitwidth > 0 && word_bitwidth < 64) {
+    uint64_t sign_bit = 1ULL << (word_bitwidth - 1);
+    if (raw & sign_bit) {
+      raw |= ~((1ULL << word_bitwidth) - 1);
+    }
+  }
+  return static_cast<int64_t>(raw);
 }
 
 std::vector<uint8_t> DRRAResource::uint64ToVector(uint64_t data,
