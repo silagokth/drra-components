@@ -12,6 +12,7 @@ Iosram_both::Iosram_both(SST::ComponentId_t id, SST::Params &params)
   instructionHandlers = IOSRAM_BOTH_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
   iosram_depth = 1ULL << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  io_address_width = params.find<uint32_t>("IO_ADDR_WIDTH", 16);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
