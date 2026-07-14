@@ -14,9 +14,9 @@ package {{name}}_{{fingerprint}}_pkg;
 
   // AGU RTR params
   parameter int ADDRESS_WIDTH = IO_ADDR_WIDTH;
-  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
-  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 8 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX (iter field = 8 bits)
+  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX (delay field = 8 bits)
+  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX (step field = 7 bits)
   parameter int TRANS_DELAY_WIDTH = 23;
   parameter int NUMBER_OR = 4;
   parameter int NUMBER_MT = 3;
