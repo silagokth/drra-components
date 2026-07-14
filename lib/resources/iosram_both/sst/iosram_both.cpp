@@ -356,6 +356,29 @@ void Iosram_both::writeBulk() {
   if (dataEvent == nullptr)
     out.fatal(CALL_INFO, -1, "No data received\n");
 
+  // RTL SRAM write-port arbitration (iosram_both.sv "input ports" always_comb):
+  //   if (agu_valid[2]) [io_write_to_sram]  <-- priority
+  //   else if (agu_valid[4]) [write_bulk / drain]
+  // The io_write_to_sram (input-staging) AGU has priority over the write_bulk
+  // (drain) AGU at the shared single SRAM write port. When input-staging is
+  // producing an address in the same cycle, RTL masks the drain write entirely
+  // (the routed drain data still arrives on bulk_data_in but is discarded by
+  // the write mux). SST otherwise models the two writes as independent
+  // backend->set() calls, silently committing a drain that RTL drops -- this is
+  // the F1 double-buffer divergence (mul_512_1_1_db entries 0,1). Reproduce the
+  // arbitration so the SST (m2) matches the RTL (m3).
+  bool io_write_to_sram_active =
+      isPortActive(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM) &&
+      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
+          getPortActiveCycle(
+              DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM)) >= 0;
+  if (io_write_to_sram_active) {
+    logTraceEvent("iosram_write_bulk_dropped", slot_id, true, 'X',
+                  {{"address", (int)write_bulk_address_buffer}});
+    delete dataEvent;
+    return;
+  }
+
   // Write data to the backend
   backend->set(write_bulk_address_buffer, dataEvent->size / 8,
                dataEvent->payload);
