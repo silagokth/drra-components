@@ -4,7 +4,11 @@
 namespace DPU_Operations {
 
 std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode) {
-  static auto handlers = DPU_Operations::createHandlers(dpu);
+  // NOTE: must NOT be `static` — the handler closures capture `dpu`, so a
+  // function-local static would permanently bind every DPU instance to the
+  // first one constructed (wrong-instance bug, and unsafe under SST threads).
+  // Called once per config instruction, so rebuilding the small map is cheap.
+  auto handlers = DPU_Operations::createHandlers(dpu);
   if (handlers.find(mode) != handlers.end()) {
     return handlers[mode];
   } else {
