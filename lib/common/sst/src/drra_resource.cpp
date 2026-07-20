@@ -90,15 +90,17 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
     }
   }
 
-  // Write to trace file
-  trace_file.open(trace_name, std::ios::app);
-  trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
-                "\"tid\": 1"
-             << std::setw(3) << std::setfill('0') << cell_coordinates[0]
-             << std::setw(3) << std::setfill('0') << cell_coordinates[1]
-             << std::setw(3) << std::setfill('0') << slot_id
-             << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
-  trace_file.close();
+  // Write to trace file (only when debug/monitoring is enabled)
+  if (debug_enabled) {
+    trace_file.open(trace_name, std::ios::app);
+    trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
+                  "\"tid\": 1"
+               << std::setw(3) << std::setfill('0') << cell_coordinates[0]
+               << std::setw(3) << std::setfill('0') << cell_coordinates[1]
+               << std::setw(3) << std::setfill('0') << slot_id
+               << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
+    trace_file.close();
+  }
 }
 
 bool DRRAResource::clockTick(Cycle_t currentCycle) {
@@ -117,6 +119,9 @@ void DRRAResource::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void DRRAResource::handleEventBase(Event *event) {
+  // Controller events are handler-delivered (clock-independent); wake the clock
+  // if the idle-skip paused it.
+  ensureClockRunning();
   if (event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);

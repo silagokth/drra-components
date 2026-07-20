@@ -97,7 +97,6 @@ private:
   uint32_t currentFsmOption_route = 0;
   uint32_t currentEventNumber = 0;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 };
 
 #endif // _SWB_H

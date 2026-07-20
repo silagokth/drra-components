@@ -58,7 +58,10 @@ public:
   void handleCONF(const DPU_PKG::CONFInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
+  // DPU drives its FSM/output every active cycle; the idle-skip pause/resume
+  // desyncs that output, so it never idle-skips.
+  bool isIdle() override { return false; }
 
   using DRRAResource::out;
 

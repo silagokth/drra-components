@@ -253,6 +253,8 @@ void Iosram_top::writeToIO() {
 }
 
 std::string Iosram_top::dumpBackendContent() {
+  if (!debug_enabled)
+    return ""; // debug disabled: skip full-SRAM dump built for trace args
   std::string result;
   std::vector<uint8_t> data;
   for (uint32_t addr = 0; addr < iosram_depth; addr++) {

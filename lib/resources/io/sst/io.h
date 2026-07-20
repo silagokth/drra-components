@@ -81,7 +81,6 @@ private:
   std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   void updatePortAGUs(uint32_t port) {
     int64_t address_offset =
