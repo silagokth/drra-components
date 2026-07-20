@@ -1,0 +1,8 @@
+package:
+  name: agu_controller
+
+dependencies:
+  agu_rtr: { path: ../agu_RTR }   # for agu_cfg_if
+
+sources:
+  - ./rtl/src/agu_controller.sv

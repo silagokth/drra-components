@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <unordered_map>
+#include <vector>
 
 {% set class_name = kind | capitalize %}
 class {{ class_name }};
@@ -22,36 +23,88 @@ enum OpCode {
 {% endfor %}
 };
 
+// Variant (sub-opcode) selectors
 {% for instruction in isa.instructions %}
+{% if instruction.variants %}
+enum {{ instruction.name | upper }}_VARIANT_OPCODE {
+{% for variant in instruction.variants %}
+  OPCODE_{{ variant.name | upper }} = {{ variant.opcode }}{% if not loop.last %},{% endif %}
+{% endfor %}
+};
+static constexpr uint32_t {{ instruction.name | upper }}_VARIANT_OPCODE_BITWIDTH = {{ instruction.variant_opcode_bitwidth }};
+{% endif %}
+{% endfor %}
+
+// Per-instruction / per-variant segment bitwidths
+{% for instruction in isa.instructions %}
+{% if instruction.segments %}
 enum {{ kind | upper }}_INSTR_{{ instruction.name | upper }} {
   {% for segment in instruction.segments %}
   {{ kind | upper }}_INSTR_{{ instruction.name | upper }}_{{ segment.name | upper }}_BITWIDTH = {{ segment.bitwidth }}{% if not loop.last %},{% endif %}
   {% endfor %}
 };
+{% endif %}
+{% if instruction.variants %}
+{% for variant in instruction.variants %}
+enum {{ kind | upper }}_INSTR_{{ variant.name | upper }} {
+  {% for segment in variant.segments %}
+  {{ kind | upper }}_INSTR_{{ variant.name | upper }}_{{ segment.name | upper }}_BITWIDTH = {{ segment.bitwidth }}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+{% endfor %}
+{% endif %}
 {% endfor %}
 
 // ISA segment definitions
 inline const std::unordered_map<OpCode, std::vector<SegmentRange>> &getIsaDefinitions() {
   static const std::unordered_map<OpCode, std::vector<SegmentRange>> segmentsDef = {
     {% for instruction in isa.instructions %}
+    {% if type == 'resource' %}
+    {% set seg_base = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+    {% else %}
+    {% set seg_base = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth %}
+    {% endif %}
     {OpCode::{{ instruction.name | upper }}, {
-      {% if type == 'resource' %}
-      {% set current_lsb = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+      {% if instruction.variants %}
+      SegmentRange("variant", {{ instruction.variant_opcode_bitwidth }}, {{ seg_base - instruction.variant_opcode_bitwidth }})
       {% else %}
-      {% set current_lsb = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth %}
-      {% endif %}
+      {% set current_lsb = seg_base %}
       {% for segment in instruction.segments %}
       {% set current_lsb = current_lsb - segment.bitwidth %}
       SegmentRange("{{ segment.name | lower }}", {{ segment.bitwidth }}, {{ current_lsb }}){% if not loop.last %},{% endif %}
       {% endfor %}
+      {% endif %}
     }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
   return segmentsDef;
 }
 
+// Per-variant segment definitions (segments start below the variant selector)
+{% for instruction in isa.instructions %}
+{% if instruction.variants %}
+{% if type == 'resource' %}
+{% set seg_base = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
+{% else %}
+{% set seg_base = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth %}
+{% endif %}
+{% for variant in instruction.variants %}
+inline std::vector<SegmentRange> get{{ variant.name | capitalize }}SegmentDefs() {
+  return {
+    {% set current_lsb = seg_base - instruction.variant_opcode_bitwidth %}
+    {% for segment in variant.segments %}
+    {% set current_lsb = current_lsb - segment.bitwidth %}
+    SegmentRange("{{ segment.name | lower }}", {{ segment.bitwidth }}, {{ current_lsb }}){% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
 // ISA verbo mappings
 {% for instruction in isa.instructions %}
+{% if instruction.segments %}
 {% for segment in instruction.segments %}
 {% if segment.verbo_map %}
 enum {{ instruction.name | upper }}_{{ segment.name | upper }} {
@@ -61,10 +114,49 @@ enum {{ instruction.name | upper }}_{{ segment.name | upper }} {
 };
 {% endif %}
 {% endfor %}
+{% endif %}
+{% if instruction.variants %}
+{% for variant in instruction.variants %}
+{% for segment in variant.segments %}
+{% if segment.verbo_map %}
+enum {{ variant.name | upper }}_{{ segment.name | upper }} {
+{% for map in segment.verbo_map %}
+  {{ variant.name | upper }}_{{ segment.name | upper }}_{{ map.val | replace(' ', '_') | replace('(', '') | replace(')', '') | upper }} = {{ map.key }}{% if not loop.last %},{% endif %}
+{% endfor %}
+};
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
 {% endfor %}
 
 // Instruction formats
 {% for instruction in isa.instructions %}
+{% if instruction.variants %}
+struct {{ instruction.name | upper }}Instruction {
+  uint32_t slot, variant, raw;
+  Instruction::Format format;
+
+  {{ instruction.name | upper }}Instruction(const Instruction &instr, uint32_t raw_bits) {
+    slot = instr.slot;
+    variant = instr.get("variant").value;
+    raw = raw_bits;
+    format = instr.format;
+  }
+};
+{% for variant in instruction.variants %}
+struct {{ variant.name | upper }}Instruction {
+  uint32_t slot{% for segment in variant.segments %}, {{ segment.name | lower }}{% endfor %};
+
+  {{ variant.name | upper }}Instruction(const Instruction &instr) {
+    slot = instr.slot;
+    {% for segment in variant.segments %}
+    {{ segment.name | lower }} = instr.get("{{ segment.name | lower }}").value;
+    {% endfor %}
+  }
+};
+{% endfor %}
+{% else %}
 struct {{ instruction.name | upper }}Instruction {
   uint32_t slot{% for segment in instruction.segments %}, {{ segment.name | lower }}{% endfor %};
 
@@ -75,6 +167,7 @@ struct {{ instruction.name | upper }}Instruction {
     {% endfor %}
   }
 };
+{% endif %}
 {% endfor %}
 
 std::unordered_map<uint32_t, std::function<void(uint32_t)>>

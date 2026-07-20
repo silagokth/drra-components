@@ -45,9 +45,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [$clog2(NUM_DIRS)-1:0]  route_in_conf_link;
     logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link;
 
-    // Instruction valid signals
-    logic [NUM_OPTIONS-1:0] rep_valid;
-    logic [NUM_OPTIONS-1:0] trans_valid;
+    // One-hot port-valid strobes from the controller
+    logic [NUM_OPTIONS-1:0] rep_valid_port;
+    logic [NUM_OPTIONS-1:0] trans_valid_port;
 
     // SWB and ROUTE configurations signals
     swb_config_t swb_configs [NUM_OPTIONS];
@@ -76,13 +76,52 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
     logic [NUM_AGUS-1:0] agu_done;
 
-    // Controller module (decodes instructions)
+    // Decoded instruction signals
+    logic   evt_valid;
+    evt_t   evt_instr;
+    logic   swb_valid;
+    swb_t   swb_instr;
+    logic   route_valid;
+    route_t route_instr;
+    logic   rep_valid;
+    rep_t   rep_instr;
+    logic   trans_valid;
+    trans_t trans_instr;
+
+    // Decoder module
+    {{name}}_{{fingerprint}}_decoder decoder_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .instruction_valid(instruction_valid),
+      .instruction_payload(instruction_payload),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
+      .swb_valid(swb_valid),
+      .swb_instr(swb_instr),
+      .route_valid(route_valid),
+      .route_instr(route_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr)
+    );
+
+    // Controller module
     {{name}}_{{fingerprint}}_controller controller_inst (
       .clk(clk),
       .rst_n(rst_n),
 
-      .instruction_valid(instruction_valid),
-      .instruction_payload(instruction_payload),
+      .evt_valid(evt_valid),
+      .evt_instr(evt_instr),
+      .swb_valid(swb_valid),
+      .swb_instr(swb_instr),
+      .route_valid(route_valid),
+      .route_instr(route_instr),
+      .rep_valid(rep_valid),
+      .rep_instr(rep_instr),
+      .trans_valid(trans_valid),
+      .trans_instr(trans_instr),
+
       .agu_done(agu_done),
 
       .swb_conf_valid(swb_conf_valid),
@@ -93,8 +132,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .route_in_conf_link(route_in_conf_link),
       .route_out_conf_link(route_out_conf_link),
 
-      .rep_valid_port(rep_valid),
-      .trans_valid_port(trans_valid),
+      .rep_valid_port(rep_valid_port),
+      .trans_valid_port(trans_valid_port),
 
       .swb_configs(swb_configs),
       .route_in_configs(route_in_src_configs),

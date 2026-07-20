@@ -6,8 +6,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
   input logic clk,
   input logic rst_n,
 
-  input logic dpu_valid,
-  input dpu_t dpu_instr,
+  input logic conf_valid,
+  input conf_t conf_instr,
 
   input logic dpu_agu_valid,
   input logic [AGU_DPU_ADDR_WIDTH-1:0] dpu_agu_address,
@@ -38,9 +38,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     if (!rst_n) begin
       mode_memory        <= '{default: '0};
       immediate_memory   <= '{default: '0};
-    end else if (dpu_valid) begin
-      mode_memory[dpu_instr._config]      <= dpu_instr._mode;
-      immediate_memory[dpu_instr._config] <= dpu_instr._immediate;
+    end else if (conf_valid) begin
+      mode_memory[conf_instr._option]      <= conf_instr._mode;
+      immediate_memory[conf_instr._option] <= conf_instr._immediate;
     end
   end
 

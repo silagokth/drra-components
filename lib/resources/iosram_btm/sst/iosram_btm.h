@@ -61,19 +61,19 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const IOSRAM_BTM_PKG::DSUInstruction &instr);
+  void handleCONF(const IOSRAM_BTM_PKG::CONFInstruction &instr);
+  void handleEVT(const IOSRAM_BTM_PKG::EVTInstruction &instr);
   void handleREP(const IOSRAM_BTM_PKG::REPInstruction &instr);
-  void handleREPX(const IOSRAM_BTM_PKG::REPXInstruction &instr);
   void handleTRANS(const IOSRAM_BTM_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 
 private:
   enum DSU_RELATIVE_PORT {
-    DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_BTM_PKG::DSU_PORT_INPUT_BUFFER,
-    DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_BTM_PKG::DSU_PORT_OUTPUT_BUFFER,
-    DSU_PORT_IO_WRITE_TO_SRAM = IOSRAM_BTM_PKG::DSU_PORT_SRAM_WRITE,
-    DSU_PORT_IO_READ_FROM_SRAM = IOSRAM_BTM_PKG::DSU_PORT_SRAM_READ,
+    DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_BTM_PKG::EVT_PORT_INPUT_BUFFER,
+    DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_BTM_PKG::EVT_PORT_OUTPUT_BUFFER,
+    DSU_PORT_IO_WRITE_TO_SRAM = IOSRAM_BTM_PKG::EVT_PORT_SRAM_WRITE,
+    DSU_PORT_IO_READ_FROM_SRAM = IOSRAM_BTM_PKG::EVT_PORT_SRAM_READ,
     DSU_PORT_WRITE_BULK = 6,
     DSU_PORT_READ_BULK = 7
   };

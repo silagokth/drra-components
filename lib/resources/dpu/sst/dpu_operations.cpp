@@ -3,7 +3,7 @@
 
 namespace DPU_Operations {
 
-std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode) {
+std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::CONF_MODE mode) {
   static auto handlers = DPU_Operations::createHandlers(dpu);
   if (handlers.find(mode) != handlers.end()) {
     return handlers[mode];
@@ -13,21 +13,21 @@ std::function<void()> getDPUHandler(Dpu *dpu, DPU_PKG::DPU_MODE mode) {
   }
 }
 
-std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>>
+std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>>
 createHandlers(Dpu *dpu) {
   return {
-      {DPU_PKG::DPU_MODE::DPU_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_ADD_CONST,
+      {DPU_PKG::CONF_MODE::CONF_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_ADD_CONST,
        [dpu] { Impl::handleAddConst(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_SUBT, [dpu] { Impl::handleSubt(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_SUBT_ABS,
+      {DPU_PKG::CONF_MODE::CONF_MODE_SUBT, [dpu] { Impl::handleSubt(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_SUBT_ABS,
        [dpu] { Impl::handleSubtAbs(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_MULT_CONST,
+      {DPU_PKG::CONF_MODE::CONF_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_MULT_CONST,
        [dpu] { Impl::handleMultConst(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_LD_IR, [dpu] { Impl::handleLoadIR(dpu); }},
-      {DPU_PKG::DPU_MODE::DPU_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }}};
+      {DPU_PKG::CONF_MODE::CONF_MODE_LD_IR, [dpu] { Impl::handleLoadIR(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }}};
 }
 
 namespace Impl {
