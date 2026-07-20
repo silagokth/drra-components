@@ -87,6 +87,7 @@ private:
 
   // Backing store parameters
   uint64_t iosram_depth;
+  uint32_t io_address_width; // bits of the io input/output buffer address space
   bool read_only;
 
   SST::Link *self_link = nullptr;
@@ -132,7 +133,10 @@ private:
     uint64_t max_addr = iosram_depth;
     if (port == DSU_PORT_SRAM_READ_FROM_IO ||
         port == DSU_PORT_SRAM_WRITE_TO_IO) {
-      max_addr = iosram_depth * (io_data_width / word_bitwidth);
+      // These ports address the external io input/output buffer, whose range
+      // is the io address space (2^io_address_width), not the local SRAM
+      // geometry. (Previously mis-bounded by iosram_depth * words-per-line.)
+      max_addr = 1ULL << io_address_width;
     }
     if (port_agus[port] >= max_addr) {
       out.fatal(CALL_INFO, -1, "Invalid AGU address %u for port %u (max %lu)\n",

@@ -12,6 +12,7 @@ Iosram_top::Iosram_top(SST::ComponentId_t id, SST::Params &params)
   instructionHandlers = IOSRAM_TOP_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
   iosram_depth = 1ULL << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  io_address_width = params.find<uint32_t>("IO_ADDR_WIDTH", 16);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
@@ -355,6 +356,28 @@ void Iosram_top::writeBulk() {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
   if (dataEvent == nullptr)
     out.fatal(CALL_INFO, -1, "No data received\n");
+
+  // RTL SRAM write-port arbitration (iosram_top.sv "input ports" always_comb):
+  //   if (agu_valid[2]) [io_write_to_sram]  <-- priority
+  //   else if (agu_valid[4]) [write_bulk / drain]
+  // The io_write_to_sram (input-staging) AGU has priority over the write_bulk
+  // (drain) AGU at the shared single SRAM write port. When input-staging is
+  // producing an address in the same cycle, RTL masks the drain write entirely.
+  // SST otherwise commits both writes as independent backend->set() calls,
+  // silently keeping a drain RTL drops -- the F1 divergence (see iosram_both).
+  // Latent in the 3-cell fabric today (staging and drain never overlap), but
+  // reproduce the arbitration for faithfulness. No-op for those schedules.
+  bool io_write_to_sram_active =
+      isPortActive(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM) &&
+      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
+          getPortActiveCycle(
+              DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM)) >= 0;
+  if (io_write_to_sram_active) {
+    logTraceEvent("iosram_write_bulk_dropped", slot_id, true, 'X',
+                  {{"address", (int)write_bulk_address_buffer}});
+    delete dataEvent;
+    return;
+  }
 
   // Write data to the backend
   backend->set(write_bulk_address_buffer, dataEvent->size / 8,
