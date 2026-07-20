@@ -3,12 +3,12 @@ package:
 
 dependencies:
   agu_rtr: { path: ../../common/agu_RTR }
+  agu_controller: { path: ../../common/agu_controller }
 
 sources:
   - ./rtl/dpu_pkg.sv
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
-  - ./rtl/controller.sv
   - ./rtl/mode_selector.sv
   - ./rtl/decoder.sv

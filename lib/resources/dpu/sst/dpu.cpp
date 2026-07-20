@@ -17,7 +17,7 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     port_last_rep_level[i] = -1;
   }
   for (uint32_t i = 0; i < num_fsms; i++) {
-    fsmHandlers[i] = dpuHandlers.at(DPU_PKG::DPU_MODE::DPU_MODE_IDLE);
+    fsmHandlers[i] = dpuHandlers.at(DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
   }
 }
 
@@ -99,22 +99,22 @@ void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
   }
 }
 
-void Dpu::handleDPU(const DPU_PKG::DPUInstruction &instr) {
-  out.output("dpu (slot=%d, config=%d, mode=%d, immediate=%d)\n", instr.slot,
-             instr.config, instr.mode, instr.immediate);
+void Dpu::handleCONF(const DPU_PKG::CONFInstruction &instr) {
+  out.output("conf (slot=%d, option=%d, mode=%d, immediate=%d)\n", instr.slot,
+             instr.option, instr.mode, instr.immediate);
 
   // Add the immediate value to the imm_buffers if the mode requires it
-  if (instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_ADD_CONST ||
-      instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_SUBT_ABS ||
-      instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_MULT_CONST ||
-      instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_MAX_MIN_CONST ||
-      instr.mode == DPU_PKG::DPU_MODE::DPU_MODE_LD_IR) {
-    imm_buffers[instr.config] = uint64ToVector(instr.immediate);
+  if (instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_ADD_CONST ||
+      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_SUBT_ABS ||
+      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_MULT_CONST ||
+      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_MAX_MIN_CONST ||
+      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_LD_IR) {
+    imm_buffers[instr.option] = uint64ToVector(instr.immediate);
   }
 
   // Add the event handler to the config index
-  fsmHandlers[instr.config] =
-      DPU_Operations::getDPUHandler(this, (DPU_PKG::DPU_MODE)instr.mode);
+  fsmHandlers[instr.option] =
+      DPU_Operations::getDPUHandler(this, (DPU_PKG::CONF_MODE)instr.mode);
 }
 
 void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
@@ -145,38 +145,27 @@ void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
 }
 
 void Dpu::handleREP(const DPU_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port == 0 ? "dpu" : "rst", instr.iter, instr.step,
-             instr.delay);
-
-  auto rep = instr;
-
-  // Add repetition to the timing model
-  try {
-    agus[instr.port].addRepetition(rep.iter, rep.delay, rep.step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
-}
-
-void Dpu::handleREPX(const DPU_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port == 0 ? "dpu" : "rst", instr.iter,
+  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port == 0 ? "dpu" : "rst", instr.iter,
              instr.step, instr.delay);
 
-  auto repx = instr;
-  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-  uint32_t iter = repx.iter << DPU_PKG::DPU_INSTR_REP_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = repx.step << DPU_PKG::DPU_INSTR_REP_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = repx.delay << DPU_PKG::DPU_INSTR_REP_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-
   try {
-    agus[instr.port].adjustRepetition(iter, delay, step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+      uint32_t iter = instr.iter << DPU_PKG::DPU_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step << DPU_PKG::DPU_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay = instr.delay << DPU_PKG::DPU_INSTR_REP_DELAY_BITWIDTH |
+                       repetition_op.getDelay();
+      agus[instr.port].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 

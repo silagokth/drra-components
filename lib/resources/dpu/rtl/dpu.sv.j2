@@ -104,14 +104,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     end
   endgenerate
 
-  logic dpu_valid;
-  dpu_t dpu_instr;
+  logic conf_valid;
+  conf_t conf_instr;
   logic evt_valid;
   evt_t evt_instr;
   logic rep_valid;
   rep_t rep_instr;
-  logic repx_valid;
-  repx_t repx_instr;
   logic trans_valid;
   trans_t trans_instr;
 
@@ -122,42 +120,56 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .instruction_valid(instruction_valid),
     .instruction(instruction),
 
-    .dpu_valid(dpu_valid),
-    .dpu_instr(dpu_instr),
+    .conf_valid(conf_valid),
+    .conf_instr(conf_instr),
     .evt_valid(evt_valid),
     .evt_instr(evt_instr),
     .rep_valid(rep_valid),
     .rep_instr(rep_instr),
-    .repx_valid(repx_valid),
-    .repx_instr(repx_instr),
     .trans_valid(trans_valid),
     .trans_instr(trans_instr)
   );
 
-  dpu_controller controller_inst (
+  agu_controller #(
+    .ADDRESS_WIDTH(ADDRESS_WIDTH),
+    .NUM_AGUS(NUM_AGUS),
+    .NUMBER_IR(NUMBER_IR),
+    .NUMBER_MT(NUMBER_MT),
+    .NUMBER_OR(NUMBER_OR),
+    .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH(REP_ITER_WIDTH),
+    .REP_STEP_WIDTH(REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  ) controller_inst (
     .clk  (clk),
     .rst_n(rst_n),
 
-    .agu_done(agu_done),
-
+    // Single instruction slot: EVT port is used directly. dpu has no init
+    // address path, so evt_init_addr is tied off and init_address is unused.
     .evt_valid(evt_valid),
-    .evt_instr(evt_instr),
-    .rep_valid(rep_valid),
-    .rep_instr(rep_instr),
-    .repx_valid(repx_valid),
-    .repx_instr(repx_instr),
-    .trans_valid(trans_valid),
-    .trans_instr(trans_instr),
+    .evt_port(evt_instr._port),
+    .evt_init_addr('0),
 
-    .agu_configs(agu_configs)
+    .rep_valid(rep_valid),
+    .rep_ext(rep_instr._ext),
+    .rep_delay(rep_instr._delay),
+    .rep_iter(rep_instr._iter),
+    .rep_step(rep_instr._step),
+
+    .trans_valid(trans_valid),
+    .trans_delay(trans_instr._delay),
+
+    .agu_done(agu_done),
+    .agu_configs(agu_configs),
+    .init_address()
   );
 
   dpu_mode_selector mode_selector_inst (
     .clk(clk),
     .rst_n(rst_n),
 
-    .dpu_valid(dpu_valid),
-    .dpu_instr(dpu_instr),
+    .conf_valid(conf_valid),
+    .conf_instr(conf_instr),
 
     .dpu_agu_valid(agu_valid[0]),
     .dpu_agu_address(agu_address[0]),
@@ -197,12 +209,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     acc0_next = 0;
 
     case (dpu_mode)
-      DPU_MODE_ADD: begin
+      CONF_MODE_ADD: begin
         adder_in0 = in0;
         adder_in1 = in1;
         out0 = adder_out;
       end
-      DPU_MODE_MAC: begin
+      CONF_MODE_MAC: begin
         mult_in0  = in0;
         mult_in1  = in1;
         adder_in0 = mult_out;
@@ -214,7 +226,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         acc0_next = adder_out;
         out0 = adder_out;
       end
-      DPU_MODE_MULT: begin
+      CONF_MODE_MULT: begin
         mult_in0 = in0;
         mult_in1 = in1;
         out0 = mult_out;

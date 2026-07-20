@@ -12,11 +12,7 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int FSM_DELAY_WIDTH = 3;
   parameter int DPU_MODE_WIDTH = 6;
   parameter int DPU_IMMEDIATE_WIDTH = 8;
-  parameter int OPCODE_WIDTH = 4;
   parameter int BITWIDTH = 16;
-  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
-  parameter int OPCODE_H = 26;
-  parameter int OPCODE_L = 24;
 
   // AGU RTR params
   parameter int NUM_AGUS = 2;
@@ -25,9 +21,11 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
   // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
   parameter int REP_LEVEL_WIDTH = 3;
-  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX (delay field = 8 bits)
-  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX (iter field = 8 bits)
-  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX (step field = 7 bits)
+  // Widths must be twice the isa.json rep field widths (base + repx half).
+  // isa_refactor sets dpu rep iter/step/delay to 7 bits each.
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
   parameter int TRANS_OPTION_WIDTH = 2;
   parameter int TRANS_DELAY_WIDTH = 23;
   parameter int NUMBER_OR = 4;

@@ -75,9 +75,9 @@ void Iosram_both::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Iosram_both::handleDSU(const IOSRAM_BOTH_PKG::DSUInstruction &instr) {
+void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
   out.output(
-      "dsu (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
       instr.slot, instr.port, instr.option, instr.init_addr_sd,
       instr.init_addr);
 
@@ -153,50 +153,49 @@ void Iosram_both::handleDSU(const IOSRAM_BOTH_PKG::DSUInstruction &instr) {
     break;
 
   default:
-    out.fatal(CALL_INFO, -1, "Invalid DSU mode\n");
+    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
   }
 
   // Add event handler
   current_event_number++;
 }
 
-void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port, instr.iter, instr.step, instr.delay);
-
-  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-
-  // add repetition to the timing model
-  try {
-    agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
-    out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
-               instr.iter, instr.step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
+void Iosram_both::handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr) {
+  out.output("conf (slot=%d)\n", instr.slot);
 }
 
-void Iosram_both::handleREPX(const IOSRAM_BOTH_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
+void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
+             instr.delay);
 
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-  auto repetition_op = agus[port_num].getLastRepetitionOperator();
-  uint32_t iter = instr.iter
-                      << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step
-                      << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay =
-      instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_DELAY_BITWIDTH |
-      repetition_op.getDelay();
-  out.output("Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
-             port_num, iter, step, delay);
+
   try {
-    agus[port_num].adjustRepetition(iter, delay, step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
+      out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
+                 instr.iter, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[port_num].getLastRepetitionOperator();
+      uint32_t iter = instr.iter
+                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step
+                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay =
+          instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH |
+          repetition_op.getDelay();
+      out.output(
+          "Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
+          port_num, iter, step, delay);
+      agus[port_num].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 
