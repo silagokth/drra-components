@@ -7,6 +7,9 @@ using namespace SST;
 
 Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
+  // Params
+  fractional_bitwidth = params.find<uint32_t>("FRACTIONAL_BITWIDTH", 0);
+
   fsmHandlers.resize(num_fsms);
   imm_buffers.resize(num_fsms);
   dpuHandlers = DPU_Operations::createHandlers(this);

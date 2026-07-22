@@ -2,6 +2,7 @@
 #define _DPU_OPERATIONS_H
 
 #include "dpu_pkg.h"
+#include <cstdint>
 #include <functional>
 
 // Forward declaration
@@ -38,34 +39,58 @@ inline int64_t add_sat(int64_t a, int64_t b) {
   return a + b;
 }
 
-inline int64_t mul_sat(int64_t a, int64_t b) {
-  if (a == 0 || b == 0) {
+inline int64_t round_shift(int64_t val, int frac) {
+  if (frac <= 0)
+    return val;
+
+  // Round half away from zero: round the magnitude (ties up), then restore the
+  // sign. Biasing the signed value by -half for negatives and arithmetic-
+  // shifting would double-round (the shift already floors toward -inf).
+  int64_t half = INT64_C(1) << (frac - 1);
+  int64_t mag = (val < 0) ? -val : val;
+  int64_t r = (mag + half) >> frac;
+  return (val < 0) ? -r : r;
+}
+
+inline int64_t mul_sat(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
+  const int64_t MAX_RESULT = (INT64_C(1) << (bitwidth - 1)) - 1;
+  const int64_t MIN_RESULT = -(INT64_C(1) << (bitwidth - 1));
+
+  if (a == 0 || b == 0)
     return 0;
-  }
 
   if (a > 0) {
     if (b > 0) {
       if (a > INT64_MAX / b) {
-        return INT64_MAX;
+        return MAX_RESULT;
       }
     } else {
       if (b < INT64_MIN / a) {
-        return INT64_MIN;
+        return MIN_RESULT;
       }
     }
   } else {
     if (b > 0) {
       if (a < INT64_MIN / b) {
-        return INT64_MIN;
+        return MIN_RESULT;
       }
     } else {
       if (a != INT64_MIN && b < INT64_MAX / a) {
-        return INT64_MAX;
+        return MAX_RESULT;
       }
     }
   }
 
-  return a * b;
+  int64_t product = a * b;
+  int64_t result = round_shift(product, frac);
+
+  if (result > MAX_RESULT) {
+    return MAX_RESULT;
+  } else if (result < MIN_RESULT) {
+    return MIN_RESULT;
+  }
+
+  return result;
 }
 } // namespace DPU_Operations
 

@@ -4,7 +4,16 @@
   "size": 2,
   "io_input": false,
   "io_output": false,
-  "custom_properties": [],
+  "custom_properties": [
+    {
+      "name": "FRACTIONAL_BITWIDTH",
+      "value": 0
+    },
+    {
+      "name": "IS_SIGNED",
+      "value": 1
+    }
+  ],
   "required_parameters": [
     "IO_DATA_WIDTH",
     "IO_ADDR_WIDTH",
