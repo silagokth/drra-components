@@ -43,9 +43,13 @@ inline int64_t round_shift(int64_t val, int frac) {
   if (frac <= 0)
     return val;
 
+  // Round half away from zero: round the magnitude (ties up), then restore the
+  // sign. Biasing the signed value by -half for negatives and arithmetic-
+  // shifting would double-round (the shift already floors toward -inf).
   int64_t half = INT64_C(1) << (frac - 1);
-  int64_t rounded = val + (val >= 0 ? half : -half);
-  return rounded >> frac;
+  int64_t mag = (val < 0) ? -val : val;
+  int64_t r = (mag + half) >> frac;
+  return (val < 0) ? -r : r;
 }
 
 inline int64_t mul_sat(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {

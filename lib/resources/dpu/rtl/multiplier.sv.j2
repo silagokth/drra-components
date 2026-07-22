@@ -30,19 +30,20 @@ import {{name}}_{{fingerprint}}_pkg::*;
   generate
     if (FRAC > 0) begin : gen_round_half_away_from_zero
 
-      logic guard_bit;
       logic sign_bit;
+      logic round_up;
 
       always_comb begin
-        sign_bit  = temp_mult[BITWIDTH*2-1];
-        guard_bit = temp_mult[FRAC-1];  // first dropped fractional bit
+        sign_bit = temp_mult[BITWIDTH*2-1];
 
-        // Round half away from zero:
-        //   positive & guard=1 → round up   (+1 in product space)
-        //   negative & guard=1 → round down (-1 in product space)
-        if (guard_bit)
-          temp_rounded = sign_bit ? (temp_mult - (1 <<< FRAC)) : (temp_mult + (1 <<< FRAC));
-        else temp_rounded = temp_mult;
+        // Round half away from zero. The output slice below is an arithmetic
+        // shift (floor, toward -inf), so we only ever round UP (+1 in result
+        // space = +2^FRAC in product space). Round up when the dropped fraction
+        // exceeds half; for negatives an exact half must NOT round up so that
+        // ties go away from zero (more negative), hence the extra lower-bits
+        // test for the negative case.
+        round_up = temp_mult[FRAC-1] & (sign_bit ? (|temp_mult[FRAC-2:0]) : 1'b1);
+        temp_rounded = temp_mult + (round_up ? (1 <<< FRAC) : '0);
       end
 
     end else begin : gen_no_round
