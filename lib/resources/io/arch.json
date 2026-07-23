@@ -4,7 +4,20 @@
   "size": 1,
   "io_input": true,
   "io_output": true,
-  "custom_properties": [],
+  "custom_properties": [
+    {
+      "name": "NUMBER_IR",
+      "value": 4
+    },
+    {
+      "name": "NUMBER_MT",
+      "value": 3
+    },
+    {
+      "name": "NUMBER_OR",
+      "value": 4
+    }
+  ],
   "required_parameters": [
     "IO_DATA_WIDTH",
     "IO_ADDR_WIDTH",
