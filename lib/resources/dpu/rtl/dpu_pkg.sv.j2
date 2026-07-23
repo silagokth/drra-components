@@ -28,9 +28,8 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
   parameter int TRANS_OPTION_WIDTH = 2;
   parameter int TRANS_DELAY_WIDTH = 23;
-  parameter int NUMBER_OR = 4;
-  parameter int NUMBER_MT = 3;
-  parameter int NUMBER_IR = 4;
+  // NUMBER_OR / NUMBER_MT / NUMBER_IR come from this resource's arch.json
+  // custom_properties (emitted by package.j2 above); defaults live there.
 
   {% include "agu_config.j2" %}
 endpackage
