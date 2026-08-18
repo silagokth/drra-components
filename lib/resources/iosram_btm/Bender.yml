@@ -3,7 +3,8 @@ package:
 
 dependencies:
   sram: { path: ../../common/sram }
-  agu_array: { path: ../../common/agu_array }
+  agu_rtr: { path: ../../common/agu_RTR }
+  agu_controller: { path: ../../common/agu_controller }
 
 sources:
   - ./rtl/iosram_btm_pkg.sv
