@@ -59,7 +59,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic                                   reset_accumulator;
   assign reset_accumulator = agu_valid[1];
 
-  // Per-AGU address, consumed by dpu_mode_selector below.
+  // Per-AGU address; AGU 0 selects the live configuration below.
   logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
 
   logic conf_valid;
@@ -128,19 +128,41 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .is_configured()
   );
 
-  dpu_mode_selector mode_selector_inst (
-    .clk(clk),
+  // Configuration registers (lib/common/config_controller). CONF writes one
+  // register per FSM state, holding {mode, immediate}; the DPU AGU's address
+  // selects which one is live. BYPASS_ON_VALID keeps the original behaviour of
+  // reading the configuration in the same cycle its address is generated.
+  logic [0:0][CONF_REG_WIDTH-1:0] current_config;
+
+  config_controller #(
+    .NUM_OPTIONS(CONF_NUM_OPTIONS),
+    .REGS_PER_OPTION(1),
+    .REG_WIDTH(CONF_REG_WIDTH),
+    .SELECT_WIDTH(AGU_DPU_ADDR_WIDTH),
+    .BYPASS_ON_VALID(1'b1)
+  ) config_inst (
+    .clk  (clk),
     .rst_n(rst_n),
 
-    .conf_valid(conf_valid),
-    .conf_instr(conf_instr),
+    .write_valid (conf_valid),
+    .write_option(conf_instr._option),
+    .write_reg   ('0),
+    // Each field is widened to its declared width so the concatenation is
+    // exactly CONF_REG_WIDTH regardless of the ISA's segment sizes.
+    .write_data  ({DPU_MODE_WIDTH'(conf_instr._mode),
+                   DPU_IMMEDIATE_WIDTH'(conf_instr._immediate)}),
 
-    .dpu_agu_valid(agu_valid[0]),
-    .dpu_agu_address(agu_address[0]),
+    .select_valid (agu_valid[0]),
+    .select_option(agu_address[0][AGU_DPU_ADDR_WIDTH-1:0]),
 
-    .dpu_mode(dpu_mode),
-    .immediate(immediate)
+    .current(current_config)
   );
+
+  assign dpu_mode = current_config[0][CONF_REG_WIDTH-1 -: DPU_MODE_WIDTH];
+  // Immediate reads as zero unless the AGU is presenting an address this
+  // cycle, matching the previous dpu_mode_selector behaviour.
+  assign immediate = agu_valid[0] ? current_config[0][DPU_IMMEDIATE_WIDTH-1:0]
+                                  : '0;
 
   // Calculation logic
   logic accumulator_valid;

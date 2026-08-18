@@ -3,11 +3,11 @@ package:
 
 dependencies:
   agu_array: { path: ../../common/agu_array }
+  config_controller: { path: ../../common/config_controller }
 
 sources:
   - ./rtl/dpu_pkg.sv
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
-  - ./rtl/mode_selector.sv
   - ./rtl/decoder.sv
