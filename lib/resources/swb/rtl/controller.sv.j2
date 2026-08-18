@@ -18,8 +18,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic   trans_valid,
     input  trans_t trans_instr,
 
-    input  logic [NUM_AGUS-1:0]              agu_done,
-
     // SWB and ROUTE configuration signals
     output logic                          swb_conf_valid,
     output logic                          route_in_conf_valid,
@@ -29,23 +27,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [$clog2(NUM_DIRS)-1:0]   route_in_conf_link,
     output logic [$clog2(NUM_SLOTS)-1:0]  route_out_conf_link,
 
-    // Instruction valid signals
-    output logic [NUM_OPTIONS-1:0] rep_valid_port,
-    output logic [NUM_OPTIONS-1:0] trans_valid_port,
-
     // SWB and ROUTE configurations
     output swb_config_t           swb_configs      [NUM_OPTIONS],
     output route_receive_config_t route_in_configs  [NUM_OPTIONS],
-    output route_send_config_t    route_out_configs [NUM_OPTIONS],
-
-    // AGU configurations
-    agu_cfg_if.producer        agu_configs      [NUM_AGUS],
-    output logic [NUM_AGUS-1:0] agu_is_configured
+    output route_send_config_t    route_out_configs [NUM_OPTIONS]
 );
-  // One-hot port-valid strobes derived from the decoded instructions.
-  assign rep_valid_port   = rep_valid ? (1 << rep_instr._port) : '0;
-  assign trans_valid_port = trans_valid ? (1 << trans_instr._port) : '0;
-
   // ─────────────────────────────────────────────────────────────────────────
   // SWB and ROUTE Configuration
   // ─────────────────────────────────────────────────────────────────────────
@@ -80,46 +66,5 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end
   end
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // AGU Configuration — shared agu_controller (lib/common/agu_controller).
-  //
-  // The switchbox feeds the decoded EVT/REP/TRANS fields straight in; the
-  // controller latches the EVT port, assembles each AGU config, drives the
-  // agu_cfg_if producers, and reports agu_is_configured. The switchbox has no
-  // init-address path, so evt_init_addr is tied off and init_address is unused.
-  // ─────────────────────────────────────────────────────────────────────────
-  agu_controller #(
-    .ADDRESS_WIDTH(ADDRESS_WIDTH),
-    .NUM_AGUS(NUM_AGUS),
-    .NUMBER_IR(NUMBER_IR),
-    .NUMBER_MT(NUMBER_MT),
-    .NUMBER_OR(NUMBER_OR),
-    .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-    .REP_ITER_WIDTH(REP_ITER_WIDTH),
-    .REP_STEP_WIDTH(REP_STEP_WIDTH),
-    .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-  ) agu_controller_inst (
-    .clk(clk),
-    .rst_n(rst_n),
-
-    .evt_valid(evt_valid),
-    .evt_port(evt_instr._port),
-    .evt_init_addr('0),
-
-    .rep_valid(rep_valid),
-    .rep_ext(rep_instr._ext),
-    .rep_delay(rep_instr._delay),
-    .rep_iter(rep_instr._iter),
-    .rep_step(rep_instr._step),
-
-    .trans_valid(trans_valid),
-    .trans_delay(trans_instr._delay),
-
-    .agu_done(agu_done),
-    .agu_configs(agu_configs),
-    .init_address(),
-    .agu_is_configured(agu_is_configured)
-  );
 
 endmodule

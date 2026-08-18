@@ -55,54 +55,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
   logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
 
-  // Configuration signals from controller to AGU_RTR
-  agu_cfg_if #(
-      .NUMBER_IR        (NUMBER_IR),
-      .NUMBER_MT        (NUMBER_MT),
-      .NUMBER_OR        (NUMBER_OR),
-      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
-      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
-      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-  ) agu_configs [NUM_AGUS] ();
-
   logic [NUM_AGUS-1:0]                    agu_valid;
-  logic [NUM_AGUS-1:0]                    agu_done;
   logic                                   reset_accumulator;
   assign reset_accumulator = agu_valid[1];
 
-  // Per-AGU address output, hoisted out of the generate block so consumers
-  // (e.g. dpu_mode_selector below) can reference it without a hierarchical
-  // path into `gen_agu[idx].agu_address`.
-  logic [ADDRESS_WIDTH-1:0] agu_address [NUM_AGUS];
-
-  genvar idx;
-  generate
-    for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
-      localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
-      logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
-      agu_rtr #(
-          .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
-          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-          .REP_ITER_WIDTH(REP_ITER_WIDTH),
-          .REP_STEP_WIDTH(REP_STEP_WIDTH),
-          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
-          .NUMBER_OR(NUMBER_OR),
-          .NUMBER_MT(NUMBER_MT),
-          .NUMBER_IR(NUMBER_IR)
-      ) agu_rtr_inst (
-          .clk(clk),
-          .rst_n(rst_n),
-          .enable(1'b1),
-          .activation(agu_activate[idx]),
-          .cfg(agu_configs[idx]),
-          .addr_valid(agu_valid[idx]),
-          .addr(agu_addr_inner),
-          .done(agu_done[idx])
-      );
-      assign agu_address[idx] = ADDRESS_WIDTH'(agu_addr_inner);
-    end
-  endgenerate
+  // Per-AGU address, consumed by dpu_mode_selector below.
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
 
   logic conf_valid;
   conf_t conf_instr;
@@ -130,9 +88,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .trans_instr(trans_instr)
   );
 
-  agu_controller #(
-    .ADDRESS_WIDTH(ADDRESS_WIDTH),
+  // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr per
+  // port. The two AGUs address different things -- AGU 0 walks the mode table,
+  // AGU 1 only strobes the accumulator reset -- so they get individual address
+  // widths. dpu has no init-address path, so evt_init_addr is tied off.
+  agu_array #(
     .NUM_AGUS(NUM_AGUS),
+    .ADDRESS_WIDTH(ADDRESS_WIDTH),
+    .AGU_ADDR_WIDTH('{AGU_DPU_ADDR_WIDTH, AGU_RST_ADDR_WIDTH}),
     .NUMBER_IR(NUMBER_IR),
     .NUMBER_MT(NUMBER_MT),
     .NUMBER_OR(NUMBER_OR),
@@ -140,12 +103,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .REP_ITER_WIDTH(REP_ITER_WIDTH),
     .REP_STEP_WIDTH(REP_STEP_WIDTH),
     .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-  ) controller_inst (
+  ) agu_array_inst (
     .clk  (clk),
     .rst_n(rst_n),
 
-    // Single instruction slot: EVT port is used directly. dpu has no init
-    // address path, so evt_init_addr is tied off and init_address is unused.
+    // Single instruction slot: EVT port is used directly.
     .evt_valid(evt_valid),
     .evt_port(evt_instr._port),
     .evt_init_addr('0),
@@ -159,9 +121,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .trans_valid(trans_valid),
     .trans_delay(trans_instr._delay),
 
-    .agu_done(agu_done),
-    .agu_configs(agu_configs),
-    .init_address()
+    .activation(agu_activate),
+    .addr_valid(agu_valid),
+    .addr(agu_address),
+    .done(),
+    .is_configured()
   );
 
   dpu_mode_selector mode_selector_inst (

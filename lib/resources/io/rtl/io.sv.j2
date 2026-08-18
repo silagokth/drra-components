@@ -33,28 +33,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign clk = clk_0;
     assign rst_n = rst_n_0;
 
-    agu_cfg_if #(
-        .NUMBER_IR        (NUMBER_IR),
-        .NUMBER_MT        (NUMBER_MT),
-        .NUMBER_OR        (NUMBER_OR),
-        .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
-        .REP_ITER_WIDTH   (REP_ITER_WIDTH),
-        .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-    ) agu_configs [NUM_AGUS] ();
     logic [NUM_AGUS-1:0] agu_valid;
     logic [NUM_AGUS-1:0] agu_activate;
     assign agu_activate[0] = activate_0[0]; // slot 0 port 0
     assign agu_activate[1] = activate_0[1]; // slot 0 port 1
 
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
-    logic [NUM_AGUS-1:0] agu_done;
-    genvar idx;
-    generate
-      for (idx = 0; idx < NUM_AGUS; idx++)
-        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx];
-    endgenerate
+    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_final_address;
 
     logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
     assign instruction_payload = instr_en_0 ? instr_0[INSTR_PAYLOAD_BITWIDTH-1:0] : '0;
@@ -81,17 +65,22 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_instr(trans_instr)
     );
 
-    agu_controller #(
-      .ADDRESS_WIDTH(ADDRESS_WIDTH),
+    // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr
+    // per port. io's AGUs are uniform and all present; it does use the EVT
+    // init-address path, so USE_INIT_ADDR is set and `addr` is the final
+    // (init + generated) address.
+    agu_array #(
       .NUM_AGUS(NUM_AGUS),
+      .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR(NUMBER_IR),
       .NUMBER_MT(NUMBER_MT),
       .NUMBER_OR(NUMBER_OR),
       .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
       .REP_STEP_WIDTH(REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-    ) controller_inst (
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .USE_INIT_ADDR(1'b1)
+    ) agu_array_inst (
       .clk(clk),
       .rst_n(rst_n),
 
@@ -109,35 +98,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_valid(trans_valid),
       .trans_delay(trans_instr._delay),
 
-      .agu_done(agu_done),
-      .agu_configs(agu_configs),
-      .init_address(agu_init_address)
+      .activation(agu_activate),
+      .addr_valid(agu_valid),
+      .addr(agu_final_address),
+      .done(),
+      .is_configured()
     );
-
-    genvar i;
-    generate
-      for (i = 0; i < NUM_AGUS; i++) begin : gen_agu
-        agu_rtr #(
-          .ADDRESS_WIDTH(IO_ADDR_WIDTH),
-          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-          .REP_ITER_WIDTH(REP_ITER_WIDTH),
-          .REP_STEP_WIDTH(REP_STEP_WIDTH),
-          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
-          .NUMBER_OR(NUMBER_OR),
-          .NUMBER_MT(NUMBER_MT),
-          .NUMBER_IR(NUMBER_IR)
-        ) agu_inst (
-          .clk(clk),
-          .rst_n(rst_n),
-          .enable(1'b1),
-          .activation(agu_activate[i]),
-          .cfg(agu_configs[i]),
-          .addr_valid(agu_valid[i]),
-          .addr(agu_address[i]),
-          .done(agu_done[i])
-        );
-      end
-    endgenerate
 
     // Input and output paths drive independent ports, so allow them to run
     // simultaneously instead of muxing through a shared register. The previous
