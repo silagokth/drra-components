@@ -10,7 +10,7 @@ package {{name}}_{{fingerprint}}_pkg;
 
   parameter DEPTH = 64;
   parameter WIDTH = 256;
-  parameter int NUM_AGUS = 6;
+  parameter int NUM_AGUS = 4;  // = $clog2 width of the ISA port field (2)
 
   // AGU RTR params
   parameter int ADDRESS_WIDTH = (IO_ADDR_WIDTH > SRAM_ADDR_WIDTH) ? IO_ADDR_WIDTH : SRAM_ADDR_WIDTH;
