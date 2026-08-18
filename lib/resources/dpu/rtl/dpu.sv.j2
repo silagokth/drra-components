@@ -42,9 +42,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
   assign agu_activate[0] = activate_0[0];
   assign agu_activate[1] = activate_0[1];
 
-  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_payload;
   logic instruction_valid;
-  assign instruction = instr_0;
+  assign instruction_payload = instr_0;
   assign instruction_valid = instr_en_0;
 
   // Assign inputs
@@ -71,12 +71,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic trans_valid;
   trans_t trans_instr;
 
-  dpu_decoder decoder_inst (
+  {{name}}_{{fingerprint}}_decoder decoder_inst (
     .clk(clk),
     .rst_n(rst_n),
 
     .instruction_valid(instruction_valid),
-    .instruction(instruction),
+    .instruction_payload(instruction_payload),
 
     .conf_valid(conf_valid),
     .conf_instr(conf_instr),
@@ -225,7 +225,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   end
 
   // in future we will use ChipWare blocks for pipelined and such
-  dpu_impl_pnkjyubmn1c_adder adder_inst (
+  {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .saturate(1'b1),
@@ -234,7 +234,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .underflow() // unused
   );
 
-  dpu_impl_pnkjyubmn1c_multiplier mult_inst (
+  {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
       .saturate(1'b1),

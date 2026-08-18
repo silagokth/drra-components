@@ -1,5 +1,5 @@
 // vesyla_template_start module_head
-module dpu_decoder
+module {{name}}_{{fingerprint}}_decoder
 import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
@@ -7,7 +7,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic rst_n,
 
     input logic instruction_valid,
-    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction,
+    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_payload,
 
     output logic conf_valid,
     output conf_t conf_instr,
@@ -22,7 +22,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Instruction Decoding
   // ─────────────────────────────────────────────────────────────────────────
   logic [OPCODE_WIDTH-1:0] opcode;
-  assign opcode = instruction[OPCODE_H:OPCODE_L];
+  assign opcode = instruction_payload[OPCODE_H:OPCODE_L];
 
   assign conf_valid   = instruction_valid && (opcode == OPCODE_CONF);
   assign evt_valid   = instruction_valid && (opcode == OPCODE_EVT);
@@ -32,10 +32,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // ─────────────────────────────────────────────────────────────────────────
   // Instruction Unpacking
   // ─────────────────────────────────────────────────────────────────────────
-  assign conf_instr   = conf_valid   ? unpack_conf(instruction)   :'0;
-  assign evt_instr   = evt_valid   ? unpack_evt(instruction)   :'0;
-  assign rep_instr   = rep_valid   ? unpack_rep(instruction)   :'0;
-  assign trans_instr = trans_valid ? unpack_trans(instruction) :'0;
+  assign conf_instr   = conf_valid   ? unpack_conf(instruction_payload)   :'0;
+  assign evt_instr   = evt_valid   ? unpack_evt(instruction_payload)   :'0;
+  assign rep_instr   = rep_valid   ? unpack_rep(instruction_payload)   :'0;
+  assign trans_instr = trans_valid ? unpack_trans(instruction_payload) :'0;
 
 endmodule
 
