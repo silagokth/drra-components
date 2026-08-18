@@ -45,17 +45,6 @@ package {{name}}_{{fingerprint}}_pkg;
 
   {% include "agu_config.j2" %}
 
-  typedef struct {
-    logic [$clog2(NUM_SLOTS)-1:0] slot_link [NUM_SLOTS];
-  } swb_config_t;
-
-  typedef struct {
-    logic [NUM_SLOTS-1:0] receive_links [NUM_DIRS];
-  } route_receive_config_t;
-
-  typedef struct {
-    logic [NUM_DIRS-1:0] send_links [NUM_SLOTS];
-  } route_send_config_t;
 
 endpackage
 

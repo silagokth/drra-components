@@ -45,13 +45,15 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [$clog2(NUM_DIRS)-1:0]  route_in_conf_link;
     logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link;
 
-    // SWB and ROUTE configurations signals
-    swb_config_t swb_configs [NUM_OPTIONS];
-    route_receive_config_t route_in_src_configs [NUM_OPTIONS];
-    route_send_config_t    route_out_src_configs [NUM_OPTIONS];
-    swb_config_t curr_swb_configs;
-    route_receive_config_t curr_route_in_configs;
-    route_send_config_t    curr_route_out_configs;
+    // Configuration write data from the controller
+    logic [$clog2(NUM_SLOTS)-1:0] swb_conf_data;
+    logic [NUM_SLOTS-1:0]         route_in_conf_data;
+    logic [NUM_DIRS-1:0]          route_out_conf_data;
+
+    // Live configuration for the option each AGU currently addresses
+    logic [NUM_SLOTS-1:0][$clog2(NUM_SLOTS)-1:0] curr_swb_config;
+    logic [NUM_DIRS-1:0][NUM_SLOTS-1:0]          curr_route_in_config;
+    logic [NUM_SLOTS-1:0][NUM_DIRS-1:0]          curr_route_out_config;
 
     // AGU control signals
     // NOTE: The switchbox only uses 2 AGUs (1 for SWB and 1 for ROUTE)
@@ -112,35 +114,64 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .route_in_conf_link(route_in_conf_link),
       .route_out_conf_link(route_out_conf_link),
 
-      .swb_configs(swb_configs),
-      .route_in_configs(route_in_src_configs),
-      .route_out_configs(route_out_src_configs)
+      .swb_conf_data(swb_conf_data),
+      .route_in_conf_data(route_in_conf_data),
+      .route_out_conf_data(route_out_conf_data)
     );
 
-    // Configuration manager module
-    {{name}}_{{fingerprint}}_conf_manager conf_manager_inst (
-      .clk(clk),
+    // Configuration registers (lib/common/config_controller). Three banks, one
+    // per configurable structure; each holds NUM_OPTIONS configurations and the
+    // owning AGU's address selects which is live. The switchbox reads the
+    // option latched at the last address strobe, so BYPASS_ON_VALID stays 0.
+    config_controller #(
+      .NUM_OPTIONS(NUM_OPTIONS),
+      .REGS_PER_OPTION(NUM_SLOTS),
+      .REG_WIDTH($clog2(NUM_SLOTS)),
+      .SELECT_WIDTH(ADDRESS_WIDTH)
+    ) swb_config_inst (
+      .clk  (clk),
       .rst_n(rst_n),
+      .write_valid  (swb_conf_valid),
+      .write_option (option_index),
+      .write_reg    (swb_conf_link),
+      .write_data   (swb_conf_data),
+      .select_valid (agu_enable[AGU_SWB_INDEX]),
+      .select_option(agu_address[AGU_SWB_INDEX]),
+      .current      (curr_swb_config)
+    );
 
-      .agu_enable(agu_enable),
-      .agu_address(agu_address),
+    config_controller #(
+      .NUM_OPTIONS(NUM_OPTIONS),
+      .REGS_PER_OPTION(NUM_DIRS),
+      .REG_WIDTH(NUM_SLOTS),
+      .SELECT_WIDTH(ADDRESS_WIDTH)
+    ) route_in_config_inst (
+      .clk  (clk),
+      .rst_n(rst_n),
+      .write_valid  (route_in_conf_valid),
+      .write_option (option_index),
+      .write_reg    (route_in_conf_link),
+      .write_data   (route_in_conf_data),
+      .select_valid (agu_enable[AGU_ROUTE_INDEX]),
+      .select_option(agu_address[AGU_ROUTE_INDEX]),
+      .current      (curr_route_in_config)
+    );
 
-      .swb_conf_valid(swb_conf_valid),
-      .route_in_conf_valid(route_in_conf_valid),
-      .route_out_conf_valid(route_out_conf_valid),
-      .option_index(option_index),
-
-      .swb_conf_link(swb_conf_link),
-      .route_in_conf_link(route_in_conf_link),
-      .route_out_conf_link(route_out_conf_link),
-
-      .swb_configs(swb_configs),
-      .route_in_configs(route_in_src_configs),
-      .route_out_configs(route_out_src_configs),
-
-      .current_swb_config(curr_swb_configs),
-      .current_route_in_config(curr_route_in_configs),
-      .current_route_out_config(curr_route_out_configs)
+    config_controller #(
+      .NUM_OPTIONS(NUM_OPTIONS),
+      .REGS_PER_OPTION(NUM_SLOTS),
+      .REG_WIDTH(NUM_DIRS),
+      .SELECT_WIDTH(ADDRESS_WIDTH)
+    ) route_out_config_inst (
+      .clk  (clk),
+      .rst_n(rst_n),
+      .write_valid  (route_out_conf_valid),
+      .write_option (option_index),
+      .write_reg    (route_out_conf_link),
+      .write_data   (route_out_conf_data),
+      .select_valid (agu_enable[AGU_ROUTE_INDEX]),
+      .select_option(agu_address[AGU_ROUTE_INDEX]),
+      .current      (curr_route_out_config)
     );
 
     // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr
@@ -183,7 +214,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // SWB word channel routing logic
     always_comb
       for (int i=0; i < NUM_SLOTS; i++)
-        word_channels_out[curr_swb_configs.slot_link[i]] = word_channels_in[i];
+        word_channels_out[curr_swb_config[i]] = word_channels_in[i];
 
     logic [BULK_BITWIDTH-1:0] bulk_local_channel;
 
@@ -197,15 +228,15 @@ import {{name}}_{{fingerprint}}_pkg::*;
       bulk_intercell_s_out = '0;
 
       for (int i = 0; i < NUM_SLOTS; i++) begin
-        if (curr_route_out_configs.send_links[i][DIR_NORTH])
+        if (curr_route_out_config[i][DIR_NORTH])
           bulk_intercell_n_out = bulk_intracell_in[i];
-        if (curr_route_out_configs.send_links[i][DIR_WEST])
+        if (curr_route_out_config[i][DIR_WEST])
           bulk_intercell_w_out = bulk_intracell_in[i];
-        if (curr_route_out_configs.send_links[i][DIR_LOCAL])
+        if (curr_route_out_config[i][DIR_LOCAL])
           bulk_local_channel = bulk_intracell_in[i];
-        if (curr_route_out_configs.send_links[i][DIR_EAST])
+        if (curr_route_out_config[i][DIR_EAST])
           bulk_intercell_e_out = bulk_intracell_in[i];
-        if (curr_route_out_configs.send_links[i][DIR_SOUTH])
+        if (curr_route_out_config[i][DIR_SOUTH])
           bulk_intercell_s_out = bulk_intracell_in[i];
       end
     end
@@ -217,7 +248,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       for (int d = 0; d < NUM_DIRS; d++) begin
         for (int i = 0; i < NUM_SLOTS; i++) begin
-          if (curr_route_in_configs.receive_links[d][i]) begin
+          if (curr_route_in_config[d][i]) begin
             case (d)
               DIR_NORTH: bulk_intracell_out[i] = bulk_intercell_n_in;
               DIR_WEST:  bulk_intracell_out[i] = bulk_intercell_w_in;
