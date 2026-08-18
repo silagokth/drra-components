@@ -7,4 +7,3 @@ dependencies:
 sources:
   - ./rtl/io_pkg.sv
   - ./rtl/io.sv
-  - ./rtl/decoder.sv

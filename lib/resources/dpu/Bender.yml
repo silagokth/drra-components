@@ -10,4 +10,3 @@ sources:
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
   - ./rtl/dpu.sv
-  - ./rtl/decoder.sv

@@ -1,0 +1,78 @@
+// Resource instruction decoder, generated from the component's isa.json.
+//
+// Splits an instruction payload by opcode and unpacks it into the per-
+// instruction structs the resource consumes: CONF feeds the configuration
+// registers, EVT / REP / TRANS feed the AGU array.
+//
+// Ports are derived from the ISA, so a resource gets exactly the instructions
+// it defines:
+//   * an instruction with segments      -> <name>_valid / <name>_instr
+//   * an instruction with variants      -> valid stays internal, one port pair
+//                                          per variant
+//   * an instruction with neither       -> nothing (e.g. a CONF that a
+//                                          resource does not implement)
+//
+// Widths and opcodes come from the package's ISA-derived parameters
+// (INSTRUCTION_PAYLOAD_WIDTH, OPCODE_H/L, OPCODE_*), so this needs nothing
+// from arch.json.
+
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_decoder
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic instruction_valid,
+    input logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_payload
+{% for instr in isa.instructions %}
+{% if instr.variants is defined and instr.variants | length > 0 %}
+{% for variant in instr.variants %}
+    , output logic {{variant.name}}_valid
+    , output {{variant.name}}_t {{variant.name}}_instr
+{% endfor %}
+{% elif instr.segments is defined and instr.segments | length > 0 %}
+    , output logic {{instr.name}}_valid
+    , output {{instr.name}}_t {{instr.name}}_instr
+{% endif %}
+{% endfor %}
+);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction decoding
+  // ─────────────────────────────────────────────────────────────────────────
+  logic [OPCODE_WIDTH-1:0] opcode;
+  assign opcode = instruction_payload[OPCODE_H:OPCODE_L];
+
+{% for instr in isa.instructions %}
+{% if instr.variants is defined and instr.variants | length > 0 %}
+  // {{instr.name | upper}} selects a variant with a sub-opcode below the opcode field
+  logic {{instr.name}}_valid;
+  assign {{instr.name}}_valid = instruction_valid && (opcode == OPCODE_{{instr.name | upper}});
+
+  logic [{{instr.name | upper}}_VARIANT_OPCODE_BITWIDTH-1:0] {{instr.name}}_variant;
+  assign {{instr.name}}_variant = instruction_payload[OPCODE_L-1 -: {{instr.name | upper}}_VARIANT_OPCODE_BITWIDTH];
+
+{% for variant in instr.variants %}
+  assign {{variant.name}}_valid = {{instr.name}}_valid && ({{instr.name}}_variant == OPCODE_{{variant.name | upper}});
+{% endfor %}
+{% elif instr.segments is defined and instr.segments | length > 0 %}
+  assign {{instr.name}}_valid = instruction_valid && (opcode == OPCODE_{{instr.name | upper}});
+{% endif %}
+{% endfor %}
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction unpacking
+  // ─────────────────────────────────────────────────────────────────────────
+{% for instr in isa.instructions %}
+{% if instr.variants is defined and instr.variants | length > 0 %}
+{% for variant in instr.variants %}
+  assign {{variant.name}}_instr = {{variant.name}}_valid ? unpack_{{variant.name}}(instruction_payload) : '0;
+{% endfor %}
+{% elif instr.segments is defined and instr.segments | length > 0 %}
+  assign {{instr.name}}_instr = {{instr.name}}_valid ? unpack_{{instr.name}}(instruction_payload) : '0;
+{% endif %}
+{% endfor %}
+
+endmodule

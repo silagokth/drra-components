@@ -7,4 +7,3 @@ dependencies:
 sources:
   - ./rtl/rf_pkg.sv
   - ./rtl/rf.sv
-  - ./rtl/decoder.sv

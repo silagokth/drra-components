@@ -279,6 +279,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     );
 endmodule
 
+// Instruction decoder, generated from isa.json (lib/common/jinja/decoder.j2)
+{% include "decoder.j2" %}
+
 // vesyla_template_start module_tail
 {% endif %}
 // vesyla_template_end module_tail

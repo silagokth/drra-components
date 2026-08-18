@@ -9,4 +9,3 @@ dependencies:
 sources:
   - ./rtl/iosram_btm_pkg.sv
   - ./rtl/iosram_btm.sv
-  - ./rtl/decoder.sv
