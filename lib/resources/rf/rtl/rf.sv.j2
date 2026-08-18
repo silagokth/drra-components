@@ -130,8 +130,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     );
 
     // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr
-    // per port. rf's AGUs are uniform, all present, and have no init-address
-    // path, so AGU_ADDR_WIDTH / AGU_PRESENT / USE_INIT_ADDR all take defaults.
+    // per port. rf's AGUs are uniform and have no init-address path, so
+    // AGU_ADDR_WIDTH and USE_INIT_ADDR both take their defaults.
     agu_array #(
       .NUM_AGUS(NUM_AGUS),
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
