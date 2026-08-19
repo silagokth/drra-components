@@ -63,32 +63,30 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign clk = clk_0;
     assign rst_n = rst_n_0;
 
-    agu_cfg_if #(
-        .NUMBER_IR        (NUMBER_IR),
-        .NUMBER_MT        (NUMBER_MT),
-        .NUMBER_OR        (NUMBER_OR),
-        .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
-        .REP_ITER_WIDTH   (REP_ITER_WIDTH),
-        .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-        .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-    ) agu_configs [NUM_AGUS] ();
-    logic [NUM_AGUS-1:0] agu_valid;
+    // AGU port map.
+    //
+    // The AGU index is internal to this module. What is fixed is which
+    // (slot, port) pair drives each one -- the same pair the SST model's
+    // getRelativePortNum() computes and a .pasm `port=` field names. iosram_top
+    // carries the IO input direction only, so it has four:
+    //
+    //   AGU 0  slot 0 port 0  IO in
+    //   AGU 1  slot 0 port 2  SRAM write from IO
+    //   AGU 2  slot 1 port 2  SRAM write from bulk
+    //   AGU 3  slot 1 port 3  SRAM read to bulk
+    //
+    // The activation map here and the evt_agu lookup below express the same
+    // table and must stay in step: configuring one AGU while activating
+    // another is silent, and only shows up as a program producing no data.
     logic [NUM_AGUS-1:0] agu_activate;
-    assign agu_activate[0] = activate_0[0]; // slot 0 port 0
-    assign agu_activate[1] = 1'b0; // NOTE: IO OUT disabled in iosram_top
-    assign agu_activate[2] = activate_0[2]; // slot 0 port 2
-    assign agu_activate[3] = 1'b0; // NOTE: IO OUT disabled in iosram_top
-    assign agu_activate[4] = activate_1[2]; // slot 1 port 2
-    assign agu_activate[5] = activate_1[3]; // slot 1 port 3
+    assign agu_activate[0] = activate_0[0];
+    assign agu_activate[1] = activate_0[2];
+    assign agu_activate[2] = activate_1[2];
+    assign agu_activate[3] = activate_1[3];
 
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
-    logic [NUM_AGUS-1:0] agu_done;
-    genvar idx;
-    generate
-      for (idx = 0; idx < NUM_AGUS; idx++)
-        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx];
-    endgenerate
+    logic [NUM_AGUS-1:0] agu_valid;
+    // Final (init + generated) address; agu_array adds the EVT initial address.
+    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
 
     logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
     logic [$clog2(3)-1:0] instruction_slot;
@@ -115,6 +113,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
   end
 
+    // Decoded instructions
     logic evt_valid;
     evt_t evt_instr;
     logic rep_valid;
@@ -135,23 +134,55 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_instr(trans_instr)
     );
 
-    agu_controller #(
-      .ADDRESS_WIDTH(ADDRESS_WIDTH),
+    // Which AGU this EVT -- and the REP / TRANS instructions following it --
+    // configures. Same table as the activation map above.
+    //
+    // A (slot, port) pair this variant does not implement configures nothing:
+    // iosram_top has no IO output path, and previously those ports addressed
+    // AGUs that were tied off, so an EVT naming one was ignored. Dropping it
+    // here keeps that, rather than letting it land on AGU 0.
+    logic [$clog2(NUM_AGUS)-1:0] evt_agu;
+    logic                        evt_agu_valid;
+    always_comb begin
+      evt_agu = '0;
+      evt_agu_valid = 1'b0;
+      if (instruction_slot == 0) begin
+        case (evt_instr._port)
+          EVT_PORT_INPUT_BUFFER: begin evt_agu = 0; evt_agu_valid = 1'b1; end
+          EVT_PORT_SRAM_WRITE:   begin evt_agu = 1; evt_agu_valid = 1'b1; end
+          default: ;
+        endcase
+      end else begin
+        case (evt_instr._port)
+          EVT_PORT_SRAM_WRITE: begin evt_agu = 2; evt_agu_valid = 1'b1; end
+          EVT_PORT_SRAM_READ:  begin evt_agu = 3; evt_agu_valid = 1'b1; end
+          default: ;
+        endcase
+      end
+    end
+
+    // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr
+    // per port. AGU 0 addresses the IO port and the rest address the SRAM, so
+    // they get individual address widths. iosram uses the EVT init-address
+    // path, so USE_INIT_ADDR is set and `addr` is the final address.
+    agu_array #(
       .NUM_AGUS(NUM_AGUS),
+      .ADDRESS_WIDTH(ADDRESS_WIDTH),
+      .AGU_ADDR_WIDTH('{IO_ADDR_WIDTH, SRAM_ADDR_WIDTH, SRAM_ADDR_WIDTH, SRAM_ADDR_WIDTH}),
       .NUMBER_IR(NUMBER_IR),
       .NUMBER_MT(NUMBER_MT),
       .NUMBER_OR(NUMBER_OR),
       .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
       .REP_STEP_WIDTH(REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-    ) controller_inst (
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .USE_INIT_ADDR(1'b1)
+    ) agu_array_inst (
       .clk(clk),
       .rst_n(rst_n),
 
-      // Dual instruction slots: slot>0 targets the upper AGU group (offset +2).
-      .evt_valid(evt_valid),
-      .evt_port((instruction_slot == 0) ? evt_instr._port : evt_instr._port + 2),
+      .evt_valid(evt_valid && evt_agu_valid),
+      .evt_port(evt_agu),
       .evt_init_addr(evt_instr._init_addr),
 
       .rep_valid(rep_valid),
@@ -163,128 +194,29 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_valid(trans_valid),
       .trans_delay(trans_instr._delay),
 
-      .agu_done(agu_done),
-      .agu_configs(agu_configs),
-      .init_address(agu_init_address)
+      .activation(agu_activate),
+      .addr_valid(agu_valid),
+      .addr(agu_address),
+      .done(),
+      .is_configured()
     );
 
-    genvar i;
-    generate
-      for (i = 0; i < NUM_AGUS; i++) begin : gen_agu
-        // NOTE: IO OUT disabled in iosram_top
-        if (i == 1 || i == 3) begin
-          assign agu_valid[i] = 1'b0;
-          assign agu_address[i] = '0;
-          assign agu_done[i] = 1'b0;
-        end else begin
-          localparam int AGU_ADDR_WIDTH = (i == 0 || i == 1) ? IO_ADDR_WIDTH : SRAM_ADDR_WIDTH;
-          logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
-          agu_rtr #(
-            .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
-            .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-            .REP_ITER_WIDTH(REP_ITER_WIDTH),
-            .REP_STEP_WIDTH(REP_STEP_WIDTH),
-            .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
-            .NUMBER_OR(NUMBER_OR),
-            .NUMBER_MT(NUMBER_MT),
-            .NUMBER_IR(NUMBER_IR)
-          ) agu_inst (
-            .clk(clk),
-            .rst_n(rst_n),
-            .enable(1'b1),
-            .activation(agu_activate[i]),
-            .cfg(agu_configs[i]),
-            .addr_valid(agu_valid[i]),
-            .addr(agu_addr_inner),
-            .done(agu_done[i])
-          );
-          assign agu_address[i] = ADDRESS_WIDTH'(agu_addr_inner);
-        end
-      end
-    endgenerate
+    // Datapath. Owns the SRAM and routes data between it, the IO input port
+    // and the bulk port.
+    {{name}}_{{fingerprint}}_logic logic_inst (
+      .clk(clk),
 
-    // merge the IO writing and normal writing to SRAM, IO has higher priority.
-    // merge the writing and reading, writing has higher priority.
-    logic [SRAM_ADDR_WIDTH-1:0] sram_in_addr;
-    logic sram_in_en;
-    logic [BULK_BITWIDTH-1:0] sram_in_data;
-    logic [SRAM_ADDR_WIDTH-1:0] sram_out_addr;
-    logic sram_out_en;
-    logic [BULK_BITWIDTH-1:0] sram_out_data;
+      .agu_valid  (agu_valid),
+      .agu_address(agu_address),
 
-    // input ports
-    always_comb begin
-        // SRAM IN (AGU 2 - SLOT 0 PORT 2)
-        if (agu_valid[2]) begin
-            sram_in_en = 1;
-            sram_in_addr = agu_final_address[2];
-            sram_in_data = io_data_in;
-        end
-        // BULK IN (AGU 4 - SLOT 1 PORT 2)
-        else if (agu_valid[4]) begin
-            sram_in_en = 1;
-            sram_in_addr = agu_final_address[4];
-            sram_in_data = bulk_data_in_1;
-        end
-        else begin
-            sram_in_en = 0;
-            sram_in_addr = 0;
-            sram_in_data = 0;
-        end
-    end
+      .bulk_data_in (bulk_data_in_1),
+      .bulk_data_out(bulk_data_out_1),
 
-    // output ports
-    always_comb begin
-        // SRAM OUT (AGU 3 - SLOT 0 PORT 3)
-        // if (agu_valid[3]) begin
-        //     sram_out_en = 1;
-        //     sram_out_addr = agu_final_address[3];
-        //     io_data_out = sram_out_data;
-        //     bulk_data_out_1 = 0;
-        // end
-        // else
-        // NOTE: IO OUT disabled in iosram_top
-
-        // BULK OUT (AGU 5 - SLOT 1 PORT 3)
-        if (agu_valid[5]) begin
-            sram_out_en = 1;
-            sram_out_addr = agu_final_address[5];
-            // io_data_out = 0;
-            bulk_data_out_1 = sram_out_data;
-        end
-        else begin
-            sram_out_en = 0;
-            sram_out_addr = 0;
-            // io_data_out = 0;
-            bulk_data_out_1 = 0;
-        end
-    end
-
-    // IO IN (AGU 0 - SLOT 0 PORT 0)
-    assign io_en_in = agu_valid[0];
-    assign io_addr_in = agu_final_address[0];
-
-    // // IO OUT (AGU 1 - SLOT 0 PORT 1)
-    // assign io_en_out = agu_valid[1];
-    // assign io_addr_out = agu_final_address[1];
-    // NOTE: IO OUT disabled in iosram_top
-
-    sram #(
-        .DEPTH(DEPTH),
-        .WIDTH(WIDTH)
-    ) sram_inst (
-        .clk(clk),
-        .enable_a_n(~sram_in_en),
-        .enable_b_n(~sram_out_en),
-        .write_enable_a_n(~sram_in_en),
-        .write_enable_b_n(1'b1),
-        .address_a(sram_in_addr),
-        .address_b(sram_out_addr),
-        .data_a(sram_in_data),
-        .data_b('0),
-        .q_a(),
-        .q_b(sram_out_data)
+      .io_en_in  (io_en_in),
+      .io_addr_in(io_addr_in),
+      .io_data_in(io_data_in)
     );
+
 endmodule
 
 // Instruction decoder, generated from isa.json (lib/common/jinja/decoder.j2)
