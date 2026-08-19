@@ -9,4 +9,5 @@ sources:
   - ./rtl/dpu_pkg.sv
   - ./rtl/adder.sv
   - ./rtl/multiplier.sv
+  - ./rtl/logic.sv
   - ./rtl/dpu.sv

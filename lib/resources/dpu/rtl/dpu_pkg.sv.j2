@@ -10,14 +10,14 @@ package {{name}}_{{fingerprint}}_pkg;
 
   parameter int FSM_MAX_STATES = 4;
   parameter int FSM_DELAY_WIDTH = 3;
-  parameter int DPU_MODE_WIDTH = 6;
+  parameter int DPU_MODE_WIDTH = 5; // ISA conf._mode
   parameter int DPU_IMMEDIATE_WIDTH = 16; // ISA conf._immediate
 
-  // Configuration registers: one per FSM state, holding mode + immediate.
-  // CONF spends $clog2(FSM_MAX_STATES) payload bits on the option and the
-  // remainder on data, which is exactly DPU_MODE_WIDTH + DPU_IMMEDIATE_WIDTH.
-  parameter int CONF_NUM_OPTIONS = FSM_MAX_STATES;
-  parameter int CONF_REG_WIDTH   = DPU_MODE_WIDTH + DPU_IMMEDIATE_WIDTH;
+  // Configuration registers: one per FSM state, holding mode + immediate. CONF
+  // addresses one with its `option` field and carries that register's whole
+  // contents in `mode` + `immediate`; the payload's low bit is left unused.
+  parameter int CONF_NUM_REGISTERS = FSM_MAX_STATES;
+  parameter int CONF_REG_WIDTH     = DPU_MODE_WIDTH + DPU_IMMEDIATE_WIDTH;
   parameter int BITWIDTH = 16;
 
   // AGU RTR params

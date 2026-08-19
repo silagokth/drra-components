@@ -1,0 +1,150 @@
+// dpu datapath.
+//
+// Owns everything that knows what the bits mean: it picks the live
+// configuration register from the AGU address, decodes it into mode and
+// immediate, and runs the calculation. The top module only wires this to the
+// decoder, the configuration registers and the AGU array.
+
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_logic
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    // Configuration registers (lib/common/config_controller), decoded below.
+    input logic [CONF_NUM_REGISTERS-1:0][CONF_REG_WIDTH-1:0] config_regs,
+
+    // AGU 0 walks the configuration registers; AGU 1 only strobes the
+    // accumulator reset.
+    input logic [NUM_AGUS-1:0]                    agu_valid,
+    input logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address,
+    input logic [NUM_AGUS-1:0]                    agu_activate,
+
+    input  logic [WORD_BITWIDTH-1:0] in0,
+    input  logic [WORD_BITWIDTH-1:0] in1,
+    output logic [WORD_BITWIDTH-1:0] out0
+);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Configuration register decoding
+  // ─────────────────────────────────────────────────────────────────────────
+  // AGU 0's address is the index of the live register. Hold the last index it
+  // presented, so the configuration stays applied after the address strobe
+  // goes away.
+  logic [AGU_DPU_ADDR_WIDTH-1:0] selected, last_selected;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      last_selected <= '0;
+    end else if (agu_valid[0]) begin
+      last_selected <= agu_address[0][AGU_DPU_ADDR_WIDTH-1:0];
+    end
+  end
+  assign selected = agu_valid[0] ? agu_address[0][AGU_DPU_ADDR_WIDTH-1:0]
+                                 : last_selected;
+
+  logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
+  logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
+
+  assign dpu_mode = config_regs[selected][CONF_REG_WIDTH-1 -: DPU_MODE_WIDTH];
+  // Immediate reads as zero unless the AGU is presenting an address this
+  // cycle. No mode consumes it yet.
+  assign immediate = agu_valid[0] ? config_regs[selected][DPU_IMMEDIATE_WIDTH-1:0]
+                                  : '0;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Calculation logic
+  // ─────────────────────────────────────────────────────────────────────────
+  logic reset_accumulator;
+  assign reset_accumulator = agu_valid[1];
+
+  logic [WORD_BITWIDTH-1:0] out0_next;
+  logic accumulator_valid;
+  logic signed [BITWIDTH-1:0] acc0, acc0_next;
+  logic signed [BITWIDTH-1:0] acc0_current;
+  logic signed [BITWIDTH-1:0] adder_in0;
+  logic signed [BITWIDTH-1:0] adder_in1;
+  logic signed [BITWIDTH-1:0] adder_out;
+  logic signed [BITWIDTH-1:0] mult_in0;
+  logic signed [BITWIDTH-1:0] mult_in1;
+  logic signed [BITWIDTH-1:0] mult_out;
+
+  assign acc0_current = (reset_accumulator | agu_activate[1]) ? '0 : acc0;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      acc0 <= '0;
+      accumulator_valid <= 1'b0;
+    end else begin
+      acc0 <= acc0_next;
+      accumulator_valid <= 1'b1;
+    end
+  end
+
+  always_comb begin
+    out0_next = 0;
+    adder_in0 = 0;
+    adder_in1 = 0;
+    mult_in0 = 0;
+    mult_in1 = 0;
+    acc0_next = 0;
+
+    case (dpu_mode)
+      CONF_MODE_ADD: begin
+        adder_in0 = in0;
+        adder_in1 = in1;
+        out0_next = adder_out;
+      end
+      CONF_MODE_MAC: begin
+        mult_in0  = in0;
+        mult_in1  = in1;
+        adder_in0 = mult_out;
+        if (accumulator_valid) begin
+          adder_in1 = acc0_current;
+        end else begin
+          adder_in1 = '0;
+        end
+        acc0_next = adder_out;
+        out0_next = adder_out;
+      end
+      CONF_MODE_MULT: begin
+        mult_in0 = in0;
+        mult_in1 = in1;
+        out0_next = mult_out;
+      end
+
+      default: begin
+        out0_next = '0;
+      end
+    endcase
+  end
+
+  // in future we will use ChipWare blocks for pipelined and such
+  {{name}}_{{fingerprint}}_adder adder_inst (
+      .in1(adder_in0),
+      .in2(adder_in1),
+      .saturate(1'b1),
+      .out(adder_out),
+      .overflow(), // unused
+      .underflow() // unused
+  );
+
+  {{name}}_{{fingerprint}}_multiplier mult_inst (
+      .in1(mult_in0),
+      .in2(mult_in1),
+      .saturate(1'b1),
+      .out(mult_out),
+      .overflow(), // unused
+      .underflow() // unused
+  );
+
+  // register output
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      out0 <= 0;
+    end else begin
+      out0 <= out0_next;
+    end
+  end
+
+endmodule
