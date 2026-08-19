@@ -6,4 +6,5 @@ dependencies:
 
 sources:
   - ./rtl/rf_pkg.sv
+  - ./rtl/logic.sv
   - ./rtl/rf.sv

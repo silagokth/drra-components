@@ -40,7 +40,15 @@ void Rf::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void Rf::handleCONF(const RF_PKG::CONFInstruction &instr) {
-  out.output("conf (slot=%d)\n", instr.slot);
+  out.output("conf (slot=%d, address=%d, value=%d)\n", instr.slot,
+             instr.address, instr.value);
+
+  if (instr.address >= register_file_size) {
+    out.fatal(CALL_INFO, -1, "Invalid CONF address (greater than RF size)\n");
+  }
+
+  // CONF initialises one register directly from the instruction stream.
+  registers[instr.address] = uint64ToVector(instr.value);
 }
 
 void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
