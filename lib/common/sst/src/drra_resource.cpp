@@ -322,3 +322,40 @@ std::vector<uint8_t> DRRAResource::int64ToVector(int64_t data, bool saturate) {
   assert(result.size() == word_bitwidth / 8);
   return result;
 }
+
+void DRRAResource::handleREP(uint32_t slot, uint32_t port, bool ext,
+                             uint32_t iter, uint32_t step, uint32_t delay,
+                             uint32_t iter_bits, uint32_t step_bits,
+                             uint32_t delay_bits) {
+  uint32_t port_num = getRelativePortNum(slot, port);
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             slot, ext, port_num, iter, step, delay);
+
+  try {
+    if (!ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[port_num].addRepetition(iter, delay, step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[port_num].getLastRepetitionOperator();
+      agus[port_num].adjustRepetition(
+          (iter << iter_bits) | repetition_op.getIterations(),
+          (delay << delay_bits) | repetition_op.getDelay(),
+          (step << step_bits) | repetition_op.getStep());
+    }
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
+  }
+}
+
+void DRRAResource::handleTRANS(uint32_t slot, uint32_t port, uint32_t delay) {
+  uint32_t port_num = getRelativePortNum(slot, port);
+  out.output("trans (slot=%d, port=%d, delay=%d)\n", slot, port_num, delay);
+
+  try {
+    agus[port_num].addTransition(delay);
+    current_event_number++;
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
+  }
+}

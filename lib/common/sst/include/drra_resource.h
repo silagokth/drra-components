@@ -25,6 +25,24 @@ public:
 
   void handleEventBase(Event *event);
 
+  // REP and TRANS are pure AGU programming: every resource does the same thing
+  // with them, so the base owns the behaviour and the generated instruction
+  // dispatch calls these directly. They take plain fields rather than a
+  // resource's generated REPInstruction / TRANSInstruction type, which is what
+  // lets one implementation serve every resource. A resource that needs
+  // something different overrides -- using this signature, or it will hide
+  // these rather than replace them.
+  //
+  // A base REP (ext = 0) carries the low half of iter / step / delay and a
+  // REPX (ext = 1) folds the high half into the repetition it follows, so the
+  // shift widths are the resource's own ISA segment widths, passed in by the
+  // generated dispatch.
+  virtual void handleREP(uint32_t slot, uint32_t port, bool ext, uint32_t iter,
+                         uint32_t step, uint32_t delay, uint32_t iter_bits,
+                         uint32_t step_bits, uint32_t delay_bits);
+
+  virtual void handleTRANS(uint32_t slot, uint32_t port, uint32_t delay);
+
 protected:
   static inline std::vector<SST::ElementInfoParam> getBaseParams() {
     std::vector<SST::ElementInfoParam> params = DRRAComponent::getBaseParams();
@@ -145,4 +163,8 @@ protected:
 
   // std::map<std::string, std::function<void()>> events_handlers_map;
   std::map<uint32_t, int32_t> port_last_rep_level;
+
+  // Names the events a resource registers in handleEVT. Only a label, but it
+  // was duplicated identically in five resources.
+  uint32_t current_event_number = 0;
 };

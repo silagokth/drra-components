@@ -51,8 +51,6 @@ public:
   using DRRAResource::format;
   void handleCONF(const IO_PKG::CONFInstruction &instr);
   void handleEVT(const IO_PKG::EVTInstruction &instr);
-  void handleREP(const IO_PKG::REPInstruction &instr);
-  void handleTRANS(const IO_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 
@@ -76,11 +74,9 @@ private:
   void bulkOutput();
   void bulkInput();
 
-  uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
   std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
-
 
   void updatePortAGUs(uint32_t port) {
     int64_t address_offset =

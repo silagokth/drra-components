@@ -53,8 +53,6 @@ public:
   // Instruction format
   using DRRAResource::format;
   void handleEVT(const DPU_PKG::EVTInstruction &instr);
-  void handleREP(const DPU_PKG::REPInstruction &instr);
-  void handleTRANS(const DPU_PKG::TRANSInstruction &instr);
   void handleCONF(const DPU_PKG::CONFInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;

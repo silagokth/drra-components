@@ -53,8 +53,6 @@ public:
   using DRRAResource::format;
   void handleCONF(const RF_PKG::CONFInstruction &instr);
   void handleEVT(const RF_PKG::EVTInstruction &instr);
-  void handleREP(const RF_PKG::REPInstruction &instr);
-  void handleTRANS(const RF_PKG::TRANSInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
@@ -72,11 +70,9 @@ private:
   void writeWide();
   void writeNarrow();
 
-  uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
   std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
-
 
   void updatePortAGUs(uint32_t port) {
     port_agus[port] = port_agus_init[port] +

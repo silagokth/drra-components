@@ -144,43 +144,6 @@ void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
   };
 }
 
-void Dpu::handleREP(const DPU_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.ext, instr.port == 0 ? "dpu" : "rst", instr.iter,
-             instr.step, instr.delay);
-
-  try {
-    if (!instr.ext) {
-      // base: add a new repetition (low half of iter/step/delay)
-      agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
-    } else {
-      // extension: fold the high bits into the last repetition
-      auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-      uint32_t iter = instr.iter << DPU_PKG::DPU_INSTR_REP_ITER_BITWIDTH |
-                      repetition_op.getIterations();
-      uint32_t step = instr.step << DPU_PKG::DPU_INSTR_REP_STEP_BITWIDTH |
-                      repetition_op.getStep();
-      uint32_t delay = instr.delay << DPU_PKG::DPU_INSTR_REP_DELAY_BITWIDTH |
-                       repetition_op.getDelay();
-      agus[instr.port].adjustRepetition(iter, delay, step);
-    }
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
-  }
-}
-
-void Dpu::handleTRANS(const DPU_PKG::TRANSInstruction &instr) {
-  out.output("trans (slot=%d, port=%s, delay=%d)\n", instr.slot,
-             instr.port == 0 ? "dpu" : "rst", instr.delay);
-
-  // Add transition to the timing model
-  try {
-    agus[instr.port].addTransition(instr.delay);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
-  }
-}
-
 void Dpu::handleOperation(std::string name,
                           std::function<int64_t(int64_t, int64_t)> operation) {
   // Ensure both buffers exist

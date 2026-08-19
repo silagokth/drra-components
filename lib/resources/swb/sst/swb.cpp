@@ -224,36 +224,6 @@ void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
       1);
 }
 
-void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.ext,
-             instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
-                                                       : "intercell",
-             instr.iter, instr.step, instr.delay);
-
-  if (!instr.ext) {
-    // base: add a new repetition (low half of iter/step/delay)
-    agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
-  } else {
-    // extension: fold the high bits into the last repetition
-    auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-    uint32_t iter = instr.iter << SWB_PKG::SWB_INSTR_REP_ITER_BITWIDTH |
-                    repetition_op.getIterations();
-    uint32_t step = instr.step << SWB_PKG::SWB_INSTR_REP_STEP_BITWIDTH |
-                    repetition_op.getStep();
-    uint32_t delay = instr.delay << SWB_PKG::SWB_INSTR_REP_DELAY_BITWIDTH |
-                     repetition_op.getDelay();
-    agus[instr.port].adjustRepetition(iter, delay, step);
-  }
-}
-
-void Swb::handleTRANS(const SWB_PKG::TRANSInstruction &instr) {
-  out.output("trans (slot=%d, port=%d, delay=%d)\n", instr.slot, instr.port,
-             instr.delay);
-
-  agus[instr.port].addTransition(instr.delay);
-}
-
 void Swb::switchToNextOption_swb() {
   currentFsmOption_swb++;
   out.output("Switching to FSM port %u\n", currentFsmOption_swb);

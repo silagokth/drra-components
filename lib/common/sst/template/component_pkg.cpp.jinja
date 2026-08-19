@@ -14,7 +14,22 @@ std::unordered_map<uint32_t, std::function<void(uint32_t)>>
         auto segment_defs = getIsaDefinitions().at(OpCode::{{ instruction.name | upper }});
         Instruction instruction(instr, {{ kind | lower }}_obj->format, segment_defs);
         {{ instruction.name | upper }}Instruction decoded_instr(instruction{% if instruction.variants %}, instr{% endif %});
+        {% if instruction.name == 'rep' %}
+        // REP and TRANS are pure AGU programming and identical in every
+        // resource, so they go straight to DRRAResource's implementation.
+        // A resource that needs different behaviour overrides that virtual.
+        {{ kind | lower }}_obj->handleREP(
+            decoded_instr.slot, decoded_instr.port, decoded_instr.ext,
+            decoded_instr.iter, decoded_instr.step, decoded_instr.delay,
+            {{ kind | upper }}_INSTR_REP_ITER_BITWIDTH,
+            {{ kind | upper }}_INSTR_REP_STEP_BITWIDTH,
+            {{ kind | upper }}_INSTR_REP_DELAY_BITWIDTH);
+        {% elif instruction.name == 'trans' %}
+        {{ kind | lower }}_obj->handleTRANS(
+            decoded_instr.slot, decoded_instr.port, decoded_instr.delay);
+        {% else %}
         {{ kind | lower }}_obj->handle{{ instruction.name | upper }}(decoded_instr);
+        {% endif %}
       }
     }{% if not loop.last %},{% endif %}
     {% endfor %}

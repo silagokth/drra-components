@@ -114,46 +114,6 @@ void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
   current_event_number++;
 }
 
-void Rf::handleREP(const RF_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
-             instr.delay);
-
-  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-
-  try {
-    if (!instr.ext) {
-      // base: add a new repetition (low half of iter/step/delay)
-      agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
-    } else {
-      // extension: fold the high bits into the last repetition
-      auto repetition_op = agus[port_num].getLastRepetitionOperator();
-      uint32_t iter = instr.iter << RF_PKG::RF_INSTR_REP_ITER_BITWIDTH |
-                      repetition_op.getIterations();
-      uint32_t step = instr.step << RF_PKG::RF_INSTR_REP_STEP_BITWIDTH |
-                      repetition_op.getStep();
-      uint32_t delay = instr.delay << RF_PKG::RF_INSTR_REP_DELAY_BITWIDTH |
-                       repetition_op.getDelay();
-      agus[port_num].adjustRepetition(iter, delay, step);
-    }
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
-  }
-}
-
-void Rf::handleTRANS(const RF_PKG::TRANSInstruction &instr) {
-  out.output("trans (slot=%d, port=%s, delay=%d)\n", instr.slot,
-             instr.port == 0 ? "dpu" : "rst", instr.delay);
-
-  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-  try {
-    agus[port_num].addTransition(instr.delay);
-    current_event_number++;
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
-  }
-}
-
 void Rf::readWide() {
   std::vector<uint8_t> data;
   uint32_t addr =

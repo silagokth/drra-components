@@ -163,55 +163,6 @@ void Iosram_both::handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr) {
   out.output("conf (slot=%d)\n", instr.slot);
 }
 
-void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
-             instr.delay);
-
-  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-
-  try {
-    if (!instr.ext) {
-      // base: add a new repetition (low half of iter/step/delay)
-      agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
-      out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
-                 instr.iter, instr.step);
-    } else {
-      // extension: fold the high bits into the last repetition
-      auto repetition_op = agus[port_num].getLastRepetitionOperator();
-      uint32_t iter = instr.iter
-                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH |
-                      repetition_op.getIterations();
-      uint32_t step = instr.step
-                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_STEP_BITWIDTH |
-                      repetition_op.getStep();
-      uint32_t delay =
-          instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH |
-          repetition_op.getDelay();
-      out.output(
-          "Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
-          port_num, iter, step, delay);
-      agus[port_num].adjustRepetition(iter, delay, step);
-    }
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
-  }
-}
-
-void Iosram_both::handleTRANS(const IOSRAM_BOTH_PKG::TRANSInstruction &instr) {
-  out.output("trans (slot=%d, port=%d, delay=%d)\n", instr.slot, instr.port,
-             instr.delay);
-
-  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-
-  try {
-    agus[port_num].addTransition(instr.delay);
-    current_event_number++;
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
-  }
-}
-
 void Iosram_both::readFromIO() {
   sram_read_from_io_address_buffer =
       agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO].getAddressForCycle(
