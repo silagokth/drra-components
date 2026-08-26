@@ -2,8 +2,26 @@
 #include "activationEvent.h"
 #include "sequencer_pkg.h"
 #include <bitset>
+#include <cstdint>
 
 using namespace SST;
+
+namespace {
+// Sign-extend the low `bits` of a raw unsigned field into a signed offset. The
+// generated instruction structs expose every segment as unsigned, so signed
+// segments (e.g. brn branch targets) must be extended before arithmetic.
+int32_t sign_extend(uint32_t value, uint32_t bits) {
+  uint32_t mask = 1u << (bits - 1);
+  return static_cast<int32_t>((value ^ mask) - mask);
+}
+
+// Scalar register whose value is broadcast as the loop iteration index with
+// every activation. Matches the compiler's depth-0 loop counter (r15).
+// TODO: nested loops use distinct counters (r15..r13); a single fixed register
+// only covers single-level loops. Revisit when the loop-variable register is
+// selected per activation.
+constexpr uint32_t LOOP_VAR_REG = 15;
+} // namespace
 
 Sequencer::Sequencer(SST::ComponentId_t id, SST::Params &params)
     : DRRAController(id, params) {
@@ -54,8 +72,14 @@ bool Sequencer::clockTick(SST::Cycle_t currentSSTCycle) {
                    {"instruction", instrObj.toString()},
                    {"instruction_bin", instrObj.toBinaryString()},
                    {"instruction_hex", instrObj.toHexString()}});
+    // A branch handler computes the next PC itself (relative to this
+    // instruction's own PC); suppress the default increment in that case so
+    // the target is not shifted by one.
+    branchTaken = false;
     decodeInstr(instruction);
-    pc++;
+    if (!branchTaken) {
+      pc++;
+    }
 
     if (readyToFinish) {
       primaryComponentOKToEndSim();
@@ -124,11 +148,17 @@ void Sequencer::handleACT(const SEQUENCER_PKG::ACTInstruction &instr) {
   out.output("act (slot=%d, ports=%d, mode=%d, param=%d)\n", instr.slot,
              instr.ports, instr.mode, instr.param);
 
+  // Sample the loop-variable register once; every act event this instruction
+  // broadcasts carries it (0 when not inside a loop, so no address offset).
+  currentLoopVar =
+      LOOP_VAR_REG < scalarRegisters.size() ? scalarRegisters[LOOP_VAR_REG] : 0;
+
   logTraceEvent("activation", 0, false, 'X',
                 {{"pc", static_cast<int>(pc)},
                  {"action_mode", static_cast<int>(instr.mode)},
                  {"action_ports", static_cast<int>(instr.ports)},
-                 {"action_param", static_cast<int>(instr.param)}});
+                 {"action_param", static_cast<int>(instr.param)},
+                 {"loop_var", static_cast<int>(currentLoopVar)}});
 
   switch (instr.mode) {
   case SEQUENCER_PKG::ACT_MODE_CONTIGUOUS:
@@ -270,22 +300,30 @@ void Sequencer::handleCALC(const SEQUENCER_PKG::CALCInstruction &instr) {
 }
 
 void Sequencer::handleBRN(const SEQUENCER_PKG::BRNInstruction &instr) {
+  // Branch targets are signed offsets (ISA is_signed) relative to this
+  // instruction's own PC, but the generated struct exposes them as raw
+  // unsigned bit fields; sign-extend before use so backward branches work.
+  int32_t target_true = sign_extend(
+      instr.target_true,
+      SEQUENCER_PKG::SEQUENCER_INSTR_BRN_TARGET_TRUE_BITWIDTH);
+  int32_t target_false = sign_extend(
+      instr.target_false,
+      SEQUENCER_PKG::SEQUENCER_INSTR_BRN_TARGET_FALSE_BITWIDTH);
+
   out.output("brn (slot=%d, reg=%d, target_true=%d, target_false=%d)\n",
-             instr.slot, instr.reg, instr.target_true, instr.target_false);
+             instr.slot, instr.reg, target_true, target_false);
 
-  logTraceEvent(
-      "branch", 0, false, 'X',
-      {{"pc", static_cast<int>(pc)},
-       {"branch_reg", static_cast<int>(instr.reg)},
-       {"branch_target_true", static_cast<int>(instr.target_true)},
-       {"branch_target_false", static_cast<int>(instr.target_false)}});
+  logTraceEvent("branch", 0, false, 'X',
+                {{"pc", static_cast<int>(pc)},
+                 {"branch_reg", static_cast<int>(instr.reg)},
+                 {"branch_target_true", static_cast<int>(target_true)},
+                 {"branch_target_false", static_cast<int>(target_false)}});
 
-  // Compute new PC
-  if (scalarRegisters[instr.reg]) {
-    pc += instr.target_true;
-  } else {
-    pc += instr.target_false;
-  }
+  // New PC is relative to the branch's own PC. branchTaken suppresses the
+  // fetch loop's default increment so the offset is not shifted by one.
+  int32_t offset = scalarRegisters[instr.reg] ? target_true : target_false;
+  pc = static_cast<uint32_t>(static_cast<int32_t>(pc) + offset);
+  branchTaken = true;
 }
 
 void Sequencer::handle_continuous_port_mode(uint32_t ports, uint32_t param) {
@@ -385,6 +423,7 @@ void Sequencer::sendActEvent(uint32_t slot_id, uint32_t ports_mask) {
   ActEvent *event = new ActEvent();
   event->slot_id = slot_id;
   event->ports = ports_mask;
+  event->loop_var = currentLoopVar;
   if (slot_links[slot_id]->isConfigured())
     slot_links[slot_id]->send(event);
   else

@@ -19,7 +19,12 @@ module agu_controller #(
     parameter int REP_DELAY_WIDTH   = 6,
     parameter int REP_ITER_WIDTH    = 6,
     parameter int REP_STEP_WIDTH    = 6,
-    parameter int TRANS_DELAY_WIDTH = 12
+    parameter int TRANS_DELAY_WIDTH = 12,
+    // Width of the EVT init_addr ISA field. May be narrower than
+    // ADDRESS_WIDTH (the datapath/address-bus width); the value is
+    // zero-extended internally. Defaults to ADDRESS_WIDTH for consumers that
+    // tie the port off (swb/dpu/rf).
+    parameter int EVT_INIT_ADDR_WIDTH = ADDRESS_WIDTH
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -27,8 +32,8 @@ module agu_controller #(
     // EVT — resource top supplies the already-resolved port (incl. any slot
     // offset) and the init address.
     input  logic                          evt_valid,
-    input  logic [$clog2(NUM_AGUS)-1:0]   evt_port,
-    input  logic [ADDRESS_WIDTH-1:0]      evt_init_addr,
+    input  logic [$clog2(NUM_AGUS)-1:0]     evt_port,
+    input  logic [EVT_INIT_ADDR_WIDTH-1:0]  evt_init_addr,
 
     // REP — half-width fields; base/ext halves selected by rep_ext.
     input  logic                          rep_valid,
@@ -223,8 +228,13 @@ module agu_controller #(
     if (!rst_n) begin
       agu_init_address <= '0;
     end else if (evt_valid) begin
-      agu_init_address[agu_index] <= evt_init_addr;
+      agu_init_address[agu_index] <= ADDRESS_WIDTH'(evt_init_addr);
     end
+  end
+
+  if (EVT_INIT_ADDR_WIDTH > ADDRESS_WIDTH) begin : gen_evt_init_addr_width_check
+    $error("EVT_INIT_ADDR_WIDTH (%0d) wider than ADDRESS_WIDTH (%0d): init address would truncate",
+           EVT_INIT_ADDR_WIDTH, ADDRESS_WIDTH);
   end
   assign init_address = agu_init_address;
 

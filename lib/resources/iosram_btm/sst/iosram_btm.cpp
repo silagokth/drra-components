@@ -76,16 +76,16 @@ void Iosram_btm::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void Iosram_btm::handleEVT(const IOSRAM_BTM_PKG::EVTInstruction &instr) {
-  out.output(
-      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
-      instr.slot, instr.port, instr.option, instr.init_addr_sd,
-      instr.init_addr);
+  out.output("evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d)\n",
+             instr.slot, instr.port, instr.option, instr.init_addr,
+             instr.stride);
 
-  // Set initial address
+  // Set initial address and per-iteration stride
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
   agus[port_num].setInitialAddress(instr.init_addr);
-  out.output("Set initial address for port %d to %d\n", port_num,
-             instr.init_addr);
+  agus[port_num].setStride(instr.stride);
+  out.output("Set initial address for port %d to %d (stride %d)\n", port_num,
+             instr.init_addr, instr.stride);
 
   std::string event_name;
   switch (port_num) {

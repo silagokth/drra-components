@@ -126,9 +126,11 @@ void DRRAResource::handleEventBase(Event *event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
     if (actEvent) {
+      currentLoopVar = actEvent->loop_var;
       handleActivation(actEvent->slot_id, actEvent->ports);
       logTraceEvent("activation", slot_id, true, 'X',
-                    {{"ports", std::to_string(actEvent->ports)}});
+                    {{"ports", std::to_string(actEvent->ports)},
+                     {"loop_var", std::to_string(actEvent->loop_var)}});
       return;
     }
 
@@ -158,6 +160,9 @@ void DRRAResource::activatePort(uint32_t port) {
     agus[port].addEvent("default_act_" + std::to_string(port), [] {}, 1);
   }
   agus[port].build();
+  // Forward the current loop iteration index so a configured stride offsets
+  // this port's address generation (no-op when stride or loop_var is 0).
+  agus[port].setLoopVar(currentLoopVar);
   port_last_rep_level[port] = -1;
   active_ports_cycles[port] = 0;
 }

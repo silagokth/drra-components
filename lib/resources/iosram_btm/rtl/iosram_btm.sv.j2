@@ -144,7 +144,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
       .REP_STEP_WIDTH(REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .EVT_INIT_ADDR_WIDTH(EVT_INIT_ADDR_BITWIDTH)
     ) controller_inst (
       .clk(clk),
       .rst_n(rst_n),

@@ -8,8 +8,12 @@
   parameter int OPCODE_H = {{ payload_bitwidth + isa.format.instr_opcode_bitwidth - 1 }};
   parameter int INSTRUCTION_PAYLOAD_WIDTH = {{ isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_slot_bitwidth }};
   {% for instr in isa.instructions %}
+  {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth - (0 if instr.instr_type == 0 else isa.format.instr_slot_bitwidth) %}
   parameter int OPCODE_{{instr.name | upper }} = {{instr.opcode}};
   {% if instr.segments is defined and instr.segments|length > 0 %}
+    {% for segment in instr.segments %}
+  parameter int {{ instr.name | upper }}_{{ segment.name | upper }}_BITWIDTH = {{ segment.bitwidth }};
+    {% endfor %}
     {% for segment in instr.segments %}
       {% if segment.verbo_map is defined and segment.verbo_map | length > 0 %}
         {% for map in segment.verbo_map %}
@@ -62,6 +66,9 @@
   parameter int {{ instr.name | upper }}_VARIANT_OPCODE_BITWIDTH = {{ instr.variant_opcode_bitwidth }};
     {% for variant in instr.variants %}
   parameter int OPCODE_{{ variant.name | upper }} = {{ variant.opcode }};
+      {% for segment in variant.segments %}
+  parameter int {{ variant.name | upper }}_{{ segment.name | upper }}_BITWIDTH = {{ segment.bitwidth }};
+      {% endfor %}
       {% for segment in variant.segments %}
         {% if segment.verbo_map is defined and segment.verbo_map | length > 0 %}
           {% for map in segment.verbo_map %}

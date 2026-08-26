@@ -213,13 +213,13 @@
         },
         {
           "name": "target_true",
-          "comment": "The PC to jump to in case the condition is true. The PC is relative to the current PC.",
+          "comment": "Branch target taken when the flag register is non-zero. Signed offset added to this instruction's own PC (+1 is the next instruction, 0 re-executes this branch, negative values branch backward). Range is bounded by the signed field width.",
           "is_signed": true,
           "bitwidth": 9
         },
         {
           "name": "target_false",
-          "comment": "The PC to jump to in case the condition is false. The PC is relative to the current PC.",
+          "comment": "Branch target taken when the flag register is zero. Signed offset added to this instruction's own PC (+1 is the next instruction, 0 re-executes this branch, negative values branch backward). Range is bounded by the signed field width.",
           "is_signed": true,
           "bitwidth": 9
         }

@@ -116,6 +116,9 @@ protected:
   // Activation
   std::map<uint32_t, bool> active_ports;
   std::map<uint32_t, uint32_t> active_ports_cycles;
+  // Loop iteration index carried by the most recent activation, forwarded to
+  // each port's AGU so a configured stride offsets address generation.
+  uint32_t currentLoopVar = 0;
 
   // Event execution
   std::vector<std::shared_ptr<const TimingEvent>> events_for_cycle;

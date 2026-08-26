@@ -13,6 +13,10 @@ public:
   // Data members
   uint32_t slot_id;
   uint32_t ports;
+  // Current loop iteration index, broadcast to every activated resource. 0 when
+  // not inside a loop; resources with a configured stride offset their address
+  // generation by stride * loop_var.
+  uint32_t loop_var = 0;
 
   ActEvent *clone() override { return new ActEvent(*this); }
 

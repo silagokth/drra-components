@@ -12,6 +12,8 @@ private:
   size_t current_trans_index = 0;
   uint64_t current_rep_level = 0;
   uint64_t initial_address = 0;
+  uint64_t stride = 0;   // per-iteration address stride (evt config)
+  uint64_t loop_var = 0; // current loop iteration index (activation payload)
   TimingState *getCurrentLane();
   TimingState *getLaneAtIndex(size_t index);
   void printLaneExpressions() const;
@@ -51,6 +53,14 @@ public:
   DRRA_AGU &reset();
 
   void setInitialAddress(uint64_t address) { initial_address = address; }
+
+  // Per-iteration address offset support. `stride` is static configuration
+  // (from the evt instruction, 0 = disabled); `loop_var` is the current loop
+  // iteration index broadcast with the activation. Generated addresses are
+  // offset by stride * loop_var, so a resource replays its pattern shifted by
+  // a per-iteration amount without re-running its address setup.
+  void setStride(uint64_t s) { stride = s; }
+  void setLoopVar(uint64_t lv) { loop_var = lv; }
 
   int64_t getAddressForCycle(uint64_t cycle);
   uint64_t getLastScheduledCycle();

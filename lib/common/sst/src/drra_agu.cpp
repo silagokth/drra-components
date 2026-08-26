@@ -244,7 +244,13 @@ int64_t DRRA_AGU::getAddressForCycle(uint64_t cycle) {
   if (isEmpty())
     return -1;
 
-  return timing_state->getAddressForCycle(cycle);
+  int64_t address = timing_state->getAddressForCycle(cycle);
+  if (address < 0)
+    return address; // preserve the gap sentinel (-1)
+  // Offset the generated address by the per-iteration amount. Both default to
+  // 0, so this is a no-op unless a stride was configured and a loop index was
+  // broadcast with the activation.
+  return address + static_cast<int64_t>(stride * loop_var);
 }
 
 uint64_t DRRA_AGU::getLastScheduledCycle() {

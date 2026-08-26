@@ -50,15 +50,15 @@ void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {
 }
 
 void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
-  out.output(
-      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
-      instr.slot, instr.port, instr.option, instr.init_addr_sd,
-      instr.init_addr);
+  out.output("evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d)\n",
+             instr.slot, instr.port, instr.option, instr.init_addr,
+             instr.stride);
 
-  // Set initial address
+  // Set initial address and per-iteration stride
   agus[instr.port].setInitialAddress(instr.init_addr);
-  out.output("Set initial address for port %d to %d\n", instr.port,
-             instr.init_addr);
+  agus[instr.port].setStride(instr.stride);
+  out.output("Set initial address for port %d to %d (stride %d)\n", instr.port,
+             instr.init_addr, instr.stride);
 
   std::string event_name;
   switch (instr.port) {

@@ -42,24 +42,14 @@
           ]
         },
         {
-          "name": "init_addr_sd",
-          "comment": "Is initial address static or dynamic?",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "s"
-            },
-            {
-              "key": 1,
-              "val": "d"
-            }
-          ]
-        },
-        {
           "name": "init_addr",
           "comment": "Initial address",
-          "bitwidth": 16
+          "bitwidth": 10
+        },
+        {
+          "name": "stride",
+          "comment": "Per-iteration address stride. 0 disables offsetting; otherwise the generated address is offset by stride * loop_var, where loop_var is the loop iteration index broadcast with the activation.",
+          "bitwidth": 10
         }
       ]
     },
