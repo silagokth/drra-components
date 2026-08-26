@@ -1,6 +1,7 @@
 #ifndef _SWB_H
 #define _SWB_H
 
+#include "conf_manager.h"
 #include "drra_resource.h"
 #include "swb_pkg.h"
 #include <cstdint>
@@ -47,39 +48,26 @@ public:
   /* Destructor */
   ~Swb() {};
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-
   // Instruction format
   using DRRAResource::format;
   void handleCONF(const SWB_PKG::CONFInstruction &instr);
-  void handleEVT(const SWB_PKG::EVTInstruction &instr);
   void handleSWB(const SWB_PKG::SWBInstruction &instr);
   void handleROUTE(const SWB_PKG::ROUTEInstruction &instr);
 
   using DRRAResource::out;
 
 private:
-  // Activation handler override from DRRAResource
-  void handleActivation(uint32_t slot_id, uint32_t ports) override;
-
-  void switchToNextOption_swb();
-  void resetOption_swb();
-  void switchToNextOption_route();
-  void resetOption_route();
+  // Which crossbar and route configuration is live follows the AGU address,
+  // so it is read from the AGU array rather than driven by an event.
+  void logic(uint32_t subcycle) override;
 
   // Communication handlers
   void handleSlotEventWithID(Event *event, uint32_t id);
   void handleCellEventWithID(Event *event, uint32_t id);
 
-  // Cell directions
-  enum CellDirection { NW, N, NE, W, C, E, SW, S, SE };
-  std::string cell_directions_str[9] = {"NW", "N",  "NE", "W", "C",
-                                        "E",  "SW", "S",  "SE"};
-
-  // Map input ports to output ports ([source] = target)
-  std::vector<std::map<uint32_t, uint32_t>> connection_maps;
-  std::vector<std::map<uint32_t, std::set<uint32_t>>> sending_routes_maps;
-  std::vector<std::map<uint32_t, std::set<uint32_t>>> receiving_routes_maps;
+  // The SWB's own configuration store (see conf_manager.h for why it is not
+  // the common one). Written by CONF, read at the option selected below.
+  SwbConfManager conf;
 
   // Slot links
   std::vector<Link *> slot_links;
@@ -87,13 +75,8 @@ private:
   // Cell links
   std::vector<Link *> cell_links;
 
-  std::vector<uint32_t> current_config_option = {0, 0};
-  std::vector<uint32_t> current_rep_level = {0, 0};
-  std::vector<uint32_t> last_config_trans = {0, 0};
-
   uint32_t currentFsmOption_swb = 0;
   uint32_t currentFsmOption_route = 0;
-
 };
 
 #endif // _SWB_H

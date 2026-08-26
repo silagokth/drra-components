@@ -1,3 +1,5 @@
+#pragma once
+
 
 #include "drra_component.h"
 #include "instructionEvent.h"

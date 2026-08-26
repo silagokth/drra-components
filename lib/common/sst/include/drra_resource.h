@@ -1,10 +1,12 @@
 #pragma once
 
-#include "drra_agu.h"
+#include "agu_array.h"
 #include "drra_component.h"
 #include "timingModel.h"
 
 #include <algorithm>
+#include <deque>
+#include <functional>
 #include <sst/core/link.h>
 #include <sst/core/params.h>
 #include <sst/core/timeConverter.h>
@@ -17,6 +19,29 @@ public:
 
   virtual ~DRRAResource() {}
 
+  // The subcycle contract every resource runs on. One DRRA cycle is ten SST
+  // subcycles; the base owns the first three and the resource's datapath uses
+  // the rest.
+  //
+  //   sub 0  activation strobes latched since the last cycle are applied
+  //   sub 1  an instruction sitting at the instruction port is decoded, so
+  //          EVT / REP / TRANS reach the AGU array and CONF reaches the
+  //          resource
+  //   sub 2  the AGU array advances one cycle and drives its output ports
+  //   sub 3+ addresses are stable: logic() may poll any AGU and get this
+  //          cycle's value
+  //
+  // Both the ACT and the instruction arrive on the controller link, which is
+  // wired at 0ns. SST runs clock handlers (CLOCKPRIORITY) before link
+  // deliveries (EVENTPRIORITY) at the same simulated time, so an event sent by
+  // the sequencer at subcycle 0 of a cycle lands after this component's own
+  // subcycle-0 tick. Buffering both and draining them at a fixed subcycle
+  // keeps that out of the resource's business.
+  static constexpr uint32_t SUB_ACTIVATE = 0;
+  static constexpr uint32_t SUB_INSTRUCTION = 1;
+  static constexpr uint32_t SUB_AGU_UPDATE = 2;
+  static constexpr uint32_t SUB_FIRST_ACTION = 3;
+
   virtual bool clockTick(Cycle_t currentCycle) override;
 
   virtual void decodeInstr(uint32_t instr);
@@ -25,14 +50,19 @@ public:
 
   void handleEventBase(Event *event);
 
-  // REP and TRANS are pure AGU programming: every resource does the same thing
-  // with them, so the base owns the behaviour and the generated instruction
-  // dispatch calls these directly. They take plain fields rather than a
-  // resource's generated REPInstruction / TRANSInstruction type, which is what
-  // lets one implementation serve every resource. A resource that needs
-  // something different overrides -- using this signature, or it will hide
-  // these rather than replace them.
+  // EVT, REP and TRANS are pure AGU programming: every resource does the same
+  // thing with them, so the base owns the behaviour and the generated
+  // instruction dispatch calls these directly. They take plain fields rather
+  // than a resource's generated EVTInstruction / REPInstruction /
+  // TRANSInstruction type, which is what lets one implementation serve every
+  // resource. A resource that needs something different overrides -- using
+  // this signature, or it will hide these rather than replace them.
   //
+  // A resource whose ISA declares no option or init_addr segment (dpu, swb)
+  // gets 0 for those.
+  virtual void handleEVT(uint32_t slot, uint32_t port, uint32_t option,
+                         uint64_t init_addr);
+
   // A base REP (ext = 0) carries the low half of iter / step / delay and a
   // REPX (ext = 1) folds the high half into the repetition it follows, so the
   // shift widths are the resource's own ISA segment widths, passed in by the
@@ -77,13 +107,42 @@ protected:
     return stats;
   }
 
-  bool isPortActive(uint32_t port) { return active_ports[port]; }
+  // The resource's datapath. Called every subcycle, after that subcycle's
+  // phase work. The default runs the registered port actions, which is all
+  // most resources need; a resource with behaviour that is not driven by an
+  // AGU address (dpu's FSM, swb's option tracking) overrides this and calls
+  // DRRAResource::logic() first if it also wants the table.
+  //
+  // AGU output ports are stable from SUB_AGU_UPDATE onwards.
+  virtual void logic(uint32_t subcycle);
 
-  void activatePort(uint32_t port);
+  // One thing a resource does when an AGU produces an address. Registered
+  // once in the constructor; the base fires it at `subcycle` on every cycle
+  // the port's AGU has a valid address, and hands it that address.
+  struct PortAction {
+    uint32_t port;
+    uint32_t subcycle;
+    std::string name;
+    std::function<void(int64_t)> action;
+    uint64_t max_address; // 0 = no bound
+  };
+
+  void registerPortAction(uint32_t port, uint32_t subcycle,
+                          const std::string &name,
+                          std::function<void(int64_t)> action,
+                          uint64_t max_address = 0);
+
+  // Reject an EVT on a port this resource does not implement. Used by the
+  // iosram variants, which share one ISA but only one IO direction each.
+  void forbidPort(uint32_t port, const std::string &reason);
+
+  bool isPortActive(uint32_t port) { return agu_array.active(port); }
+  bool isPortAddressValid(uint32_t port) { return agu_array.addrValid(port); }
+  int64_t getPortAddress(uint32_t port) { return agu_array.addr(port); }
+
+  void activatePort(uint32_t port) { agu_array.activate(port); }
 
   void activatePortsForSlot(uint32_t slot_id, uint32_t ports);
-
-  void checkAGULifetime(Cycle_t currentCycle);
 
   uint32_t getRelativePortNum(uint32_t slot_id, uint32_t port_id) {
     uint8_t slot_pos = std::distance(
@@ -91,34 +150,12 @@ protected:
     return slot_pos * PORTS_PER_SLOT + port_id;
   }
 
-  uint32_t getPortActiveCycle(uint32_t port) {
-    return active_ports_cycles[port];
-  }
-
-  void incrementPortActiveCycle(uint32_t port) { active_ports_cycles[port]++; }
-
-  std::set<std::shared_ptr<const TimingEvent>>
-  getPortEventsForCycle(uint32_t port, uint32_t cycle) {
-    return agus[port].getEventsForCycle(cycle);
-    // return {};
-  }
-
-  void executeScheduledEventsForCycle(Cycle_t currentSSTCycle);
-
-  // Idle when no port is active and no activation is pending. Keeping the clock
-  // alive while portsToActivate is non-empty ensures a deferred activation is
-  // applied on the same cycle it would be without pausing. (DPU opts out.)
+  // Idle when nothing is running and nothing is waiting to be applied.
+  // (DPU opts out.)
   bool isIdle() override {
-    for (const auto &p : active_ports) {
-      if (p.second)
-        return false;
-    }
-    return portsToActivate.empty();
+    return !agu_array.anyActive() && portsToActivate.empty() &&
+           instruction_queue.empty();
   }
-
-  // Activations arrive mid-cycle and are applied by clockTick at the next
-  // %10==0 boundary; common to every resource, owned by the base.
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   uint64_t vectorToUint64(std::vector<uint8_t> data);
   int64_t vectorToInt64(std::vector<uint8_t> data);
@@ -131,13 +168,11 @@ protected:
   Link *io_input_link = nullptr;
   Link *io_output_link = nullptr;
 
-  // Activation
-  std::map<uint32_t, bool> active_ports;
-  std::map<uint32_t, uint32_t> active_ports_cycles;
+  // Activations arrive mid-cycle and are applied at SUB_ACTIVATE.
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
-  // Event execution
-  std::vector<std::shared_ptr<const TimingEvent>> events_for_cycle;
-  std::vector<uint32_t> corresponding_ports;
+  // Instructions arrive mid-cycle and are decoded at SUB_INSTRUCTION.
+  std::deque<uint32_t> instruction_queue;
 
   // IO settings
   uint32_t io_data_width; // in bits
@@ -152,19 +187,14 @@ protected:
   // Data buffers
   std::map<uint32_t, std::vector<uint8_t>> data_buffers;
 
-  // Timing model state for each ports
-  // std::map<uint32_t, TimingState> current_timing_states;
-  // std::map<uint32_t, TimingState> next_timing_states;
-
-  // AGUs
+  // The shared AGU subsystem (lib/common/sst agu_array), one AGU per port.
   uint8_t num_agus;
-  std::map<uint32_t, DRRA_AGU> agus;
-  std::map<uint32_t, DRRA_AGU> next_agus;
+  AGUArray agu_array;
 
-  // std::map<std::string, std::function<void()>> events_handlers_map;
-  std::map<uint32_t, int32_t> port_last_rep_level;
+private:
+  void applyPendingActivations();
+  void drainInstructionPort();
 
-  // Names the events a resource registers in handleEVT. Only a label, but it
-  // was duplicated identically in five resources.
-  uint32_t current_event_number = 0;
+  std::vector<PortAction> port_actions;
+  std::map<uint32_t, std::string> forbidden_ports;
 };

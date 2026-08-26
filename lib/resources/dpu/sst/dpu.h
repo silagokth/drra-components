@@ -38,7 +38,6 @@ public:
   /* Destructor */
   ~Dpu() {};
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 
   void handleOperation(std::string name,
@@ -52,10 +51,7 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleEVT(const DPU_PKG::EVTInstruction &instr);
   void handleCONF(const DPU_PKG::CONFInstruction &instr);
-
-  void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
   // DPU drives its FSM/output every active cycle; the idle-skip pause/resume
   // desyncs that output, so it never idle-skips.
@@ -64,19 +60,17 @@ public:
   using DRRAResource::out;
 
 private:
+  // The DPU's datapath is not driven by an AGU address: it runs its configured
+  // operation on every cycle and only *selects* which one from the AGU.
+  void logic(uint32_t subcycle) override;
+
   std::vector<uint8_t> accumulate_register;
 
   std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>> dpuHandlers;
 
-  std::vector<std::function<void()>> eventsHandlers;
-
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
   std::vector<std::vector<uint8_t>> imm_buffers;
-
-  std::map<uint32_t, size_t> current_config_option;
-  int32_t last_config_level = -1;
-  int32_t last_config_trans = -1;
 };
 
 #endif // _DPU_H

@@ -56,17 +56,16 @@ public:
     logTraceEvent("memory", slot_id, true, 'E', {});
   }
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-  void handleActivation(uint32_t slot_id, uint32_t ports) override;
-
   // Instruction format
   using DRRAResource::format;
   void handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr);
-  void handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr);
 
   using DRRAResource::out;
 
 private:
+  // The AGU index each of this resource's transfers uses. Ports 0..3 are
+  // slot 0's, ports 4..7 slot 1's, so the bulk pair is slot 1 ports 2 and 3 --
+  // the same (slot, port) pairs the RTL top maps onto its four AGUs.
   enum DSU_RELATIVE_PORT {
     DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_BOTH_PKG::EVT_PORT_INPUT_BUFFER,
     DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_BOTH_PKG::EVT_PORT_OUTPUT_BUFFER,
@@ -79,7 +78,6 @@ private:
   std::string access_time;
 
   std::string dumpBackendContent();
-
   SST::MemHierarchy::Backend::Backing *backend = nullptr;
   ScratchBackendConvertor *backendConvertor = nullptr;
 
@@ -87,54 +85,17 @@ private:
   uint64_t iosram_depth;
   bool read_only;
 
-  SST::Link *self_link = nullptr;
-  int64_t sram_read_from_io_address_buffer = -1;
-  int64_t sram_read_from_io_initial_addr = -1;
-  int64_t sram_write_to_io_address_buffer = -1;
-  int64_t sram_write_to_io_initial_addr = -1;
+  // Staging buffers shared between the two halves of a transfer.
   std::vector<uint8_t> from_io_data_buffer;
   std::vector<uint8_t> to_io_data_buffer;
-  int64_t io_write_to_sram_address_buffer = -1;
-  int64_t io_write_to_sram_initial_addr = -1;
-  int64_t io_read_from_sram_address_buffer = -1;
-  int64_t io_read_from_sram_initial_addr = -1;
 
-  // Bulk read/write
-  int64_t read_bulk_address_buffer = -1;
-  int64_t write_bulk_address_buffer = -1;
-  int64_t read_bulk_initial_addr = -1;
-  int64_t write_bulk_initial_addr = -1;
-
-  void readFromIO();
-  void writeToIO();
-  void writeToSRAM();
-  void readFromSRAM();
-  void writeBulk();
-  void readBulk();
-
-  std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
-  std::map<uint32_t, uint32_t> port_agus;
-
-  void updatePortAGUs(uint32_t port) {
-    int64_t address_offset =
-        agus[port].getAddressForCycle(getPortActiveCycle(port));
-    if (address_offset < 0) {
-      out.fatal(CALL_INFO, -1,
-                "AGU for port %u returned negative address %d for cycle %d\n",
-                port, address_offset, getPortActiveCycle(port));
-    }
-    port_agus[port] = port_agus_init[port] + address_offset;
-    uint64_t max_addr = iosram_depth;
-    if (port == DSU_PORT_SRAM_READ_FROM_IO ||
-        port == DSU_PORT_SRAM_WRITE_TO_IO) {
-      max_addr = iosram_depth * (io_data_width / word_bitwidth);
-    }
-    if (port_agus[port] >= max_addr) {
-      out.fatal(CALL_INFO, -1, "Invalid AGU address %u for port %u (max %lu)\n",
-                port_agus[port], port, max_addr);
-    }
-  }
+  // Datapath. Each takes the address its AGU generated for this cycle.
+  void readFromIO(int64_t address);
+  void writeToIO(int64_t address);
+  void writeToSRAM(int64_t address);
+  void readFromSRAM(int64_t address);
+  void writeBulk(int64_t address);
+  void readBulk(int64_t address);
 };
 
 #endif // _IOSRAM_BOTH_H

@@ -16,27 +16,29 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
   }
   instructionHandlers = RF_PKG::createInstructionHandlers(this);
 
+  // What this resource does with each AGU's address. The base fires these on
+  // every cycle the port's AGU produces an address; reads land early in the
+  // cycle and writes late, so a value produced by another resource this cycle
+  // is written back on the next one.
+  registerPortAction(
+      RF_PKG::EVT_PORT_WORD_READ, 3, "rf_read_narrow",
+      [this](int64_t address) { readNarrow(address); }, register_file_size);
+  registerPortAction(
+      RF_PKG::EVT_PORT_BULK_READ, 3, "rf_read_wide",
+      [this](int64_t address) { readWide(address); }, register_file_size);
+  registerPortAction(
+      RF_PKG::EVT_PORT_WORD_WRITE, 8, "rf_write_narrow",
+      [this](int64_t address) { writeNarrow(address); }, register_file_size);
+  registerPortAction(
+      RF_PKG::EVT_PORT_BULK_WRITE, 8, "rf_write_wide",
+      [this](int64_t address) { writeWide(address); }, register_file_size);
+
   std::string registers_content;
   for (auto &reg : registers) {
     registers_content += formatRawDataToWords(reg.second) + " ";
   }
   logTraceEvent("registers", slot_id, true, 'B',
                 {{"registers", registers_content}});
-}
-
-bool Rf::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-    }
-    portsToActivate.clear();
-  }
-  return result;
-}
-
-void Rf::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
 }
 
 void Rf::handleCONF(const RF_PKG::CONFInstruction &instr) {
@@ -51,73 +53,19 @@ void Rf::handleCONF(const RF_PKG::CONFInstruction &instr) {
   registers[instr.address] = uint64ToVector(instr.value);
 }
 
-void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
-  out.output(
-      "evt (slot=%d, option=%d, port=%d, init_addr_sd=%d, init_addr=%d)\n",
-      instr.slot, instr.option, instr.port, instr.init_addr_sd,
-      instr.init_addr);
-
-  auto evt = instr;
-
-  port_agus_init[evt.port] = evt.init_addr;
-  current_option_config[instr.port] = evt.option;
-
-  // Add the event handler
-  std::string event_name;
-  switch (evt.port) {
-  case DataEvent::PortType::ReadNarrow:
-    event_name = "evt_read_narrow_" + std::to_string(current_event_number);
-    agus[evt.port].addEvent(
-        event_name,
-        [this, event_name] {
-          updatePortAGUs(DataEvent::PortType::ReadNarrow);
-          readNarrow();
-        },
-        1);
-    break;
-  case DataEvent::PortType::ReadWide:
-    event_name = "evt_read_wide_" + std::to_string(current_event_number);
-    agus[evt.port].addEvent(
-        event_name,
-        [this, event_name] {
-          updatePortAGUs(DataEvent::PortType::ReadWide);
-          readWide();
-        },
-        1);
-    break;
-  case DataEvent::PortType::WriteNarrow:
-    event_name = "evt_write_narrow_" + std::to_string(current_event_number);
-    agus[evt.port].addEvent(
-        event_name,
-        [this, event_name] {
-          updatePortAGUs(DataEvent::PortType::WriteNarrow);
-          writeNarrow();
-        },
-        8);
-    break;
-  case DataEvent::PortType::WriteWide:
-    event_name = "evt_write_wide_" + std::to_string(current_event_number);
-    agus[evt.port].addEvent(
-        event_name,
-        [this, event_name] {
-          updatePortAGUs(DataEvent::PortType::WriteWide);
-          writeWide();
-        },
-        8);
-    break;
-
-  default:
-    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
+void Rf::logRegisters() {
+  std::string registers_content;
+  for (auto &reg : registers) {
+    registers_content += formatRawDataToWords(reg.second) + " ";
   }
-
-  // Add event handler
-  current_event_number++;
+  logTraceEvent("registers", slot_id, true, 'E', {});
+  logTraceEvent("registers", slot_id, true, 'B',
+                {{"registers", registers_content}});
 }
 
-void Rf::readWide() {
+void Rf::readWide(int64_t address) {
   std::vector<uint8_t> data;
-  uint32_t addr =
-      port_agus[DataEvent::PortType::ReadWide] * io_data_width / word_bitwidth;
+  uint32_t addr = address * io_data_width / word_bitwidth;
 
   out.output("Reading bulk data (");
   std::vector<uint8_t> current_data;
@@ -142,32 +90,31 @@ void Rf::readWide() {
   data_links[0]->send(dataEvent);
 
   logTraceEvent("rf_read_wide", slot_id, true, 'X',
-                {{"address", (int)port_agus[DataEvent::PortType::ReadWide]},
+                {{"address", (int)address},
                  {"size", (int)(io_data_width / 8)},
                  {"data", formatRawDataToWords(data)}});
 }
 
-void Rf::readNarrow() {
+void Rf::readNarrow(int64_t address) {
   DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
-  std::vector<uint8_t> data =
-      registers[port_agus[DataEvent::PortType::ReadNarrow]];
+  std::vector<uint8_t> data = registers[address];
   data.resize(word_bitwidth / 8); // Resize to word size
 
   dataEvent->size = word_bitwidth;
   dataEvent->payload = data;
-  out.output("Reading narrow data (addr=%d, size=%dbits, data=%s)\n",
-             port_agus[DataEvent::PortType::ReadNarrow], word_bitwidth,
+  out.output("Reading narrow data (addr=%ld, size=%dbits, data=%s)\n",
+             (long)address, word_bitwidth,
              formatRawDataToWords(data).c_str());
 
   data_links[0]->send(dataEvent);
 
   logTraceEvent("rf_read_narrow", slot_id, true, 'X',
-                {{"address", (int)port_agus[DataEvent::PortType::ReadNarrow]},
+                {{"address", (int)address},
                  {"size", (int)(word_bitwidth / 8)},
                  {"data", formatRawDataToWords(data)}});
 }
 
-void Rf::writeWide() {
+void Rf::writeWide(int64_t address) {
   Event *temp_event = nullptr;
   DataEvent *data_event = nullptr;
   do {
@@ -188,8 +135,7 @@ void Rf::writeWide() {
     out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
 
   // Calculate starting address
-  uint32_t addr =
-      port_agus[DataEvent::PortType::WriteWide] * io_data_width / word_bitwidth;
+  uint32_t addr = address * io_data_width / word_bitwidth;
 
   out.output("Writing bulk data (");
   std::vector<uint8_t> data;
@@ -208,20 +154,14 @@ void Rf::writeWide() {
   out.print(")\n");
 
   logTraceEvent("rf_write_wide", slot_id, true, 'X',
-                {{"address", (int)port_agus[DataEvent::PortType::WriteWide]},
+                {{"address", (int)address},
                  {"size", (int)(data_event->size / 8)},
                  {"data", formatRawDataToWords(data_event->payload)}});
 
-  std::string registers_content;
-  for (auto &reg : registers) {
-    registers_content += formatRawDataToWords(reg.second) + " ";
-  }
-  logTraceEvent("registers", slot_id, true, 'E', {});
-  logTraceEvent("registers", slot_id, true, 'B',
-                {{"registers", registers_content}});
+  logRegisters();
 }
 
-void Rf::writeNarrow() {
+void Rf::writeNarrow(int64_t address) {
   Event *temp_event = nullptr;
   DataEvent *data_event = nullptr;
   do {
@@ -246,24 +186,16 @@ void Rf::writeNarrow() {
   for (int i = 0; i < word_bitwidth / 8; i++) {
     data[i] = data_event->payload[i];
   }
-  registers[port_agus[DataEvent::PortType::WriteNarrow]] = data;
+  registers[address] = data;
 
-  out.output("Writing narrow data (addr=%d, size=%dbits, data=%s)\n",
-             port_agus[DataEvent::PortType::WriteNarrow], word_bitwidth,
-             formatRawDataToWords(
-                 registers[port_agus[DataEvent::PortType::WriteNarrow]])
-                 .c_str());
+  out.output("Writing narrow data (addr=%ld, size=%dbits, data=%s)\n",
+             (long)address, word_bitwidth,
+             formatRawDataToWords(registers[address]).c_str());
 
   logTraceEvent("rf_write_narrow", slot_id, true, 'X',
-                {{"address", (int)port_agus[DataEvent::PortType::WriteNarrow]},
+                {{"address", (int)address},
                  {"size", (int)(word_bitwidth / 8)},
                  {"data", formatRawDataToWords(data_event->payload)}});
 
-  std::string registers_content;
-  for (auto &reg : registers) {
-    registers_content += formatRawDataToWords(reg.second) + " ";
-  }
-  logTraceEvent("registers", slot_id, true, 'E', {});
-  logTraceEvent("registers", slot_id, true, 'B',
-                {{"registers", registers_content}});
+  logRegisters();
 }

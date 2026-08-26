@@ -23,24 +23,12 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
 
   // Resource size
   resource_size = params.find<uint8_t>("resource_size", 1);
-  for (uint8_t i = 0; i < resource_size; i++) {
-    for (uint8_t j = 0; j < PORTS_PER_SLOT; j++) {
-      active_ports[i * PORTS_PER_SLOT + j] = false;
-      active_ports_cycles[i * PORTS_PER_SLOT + j] = 0;
-      // next_timing_states[i * PORTS_PER_SLOT + j] = TimingState();
-      // next_timing_states[i * PORTS_PER_SLOT + j].addEvent("event_0",
-      //                                                     [this] {});
-      port_last_rep_level[i * PORTS_PER_SLOT + j] = -1;
-    }
-  }
   num_fsms = resource_size * params.find<uint32_t>("fsm_per_slot", 4);
 
-  // AGUs
-  // num_agus = params.find<uint8_t>("num_agus", 1);
+  // One AGU per port. The AGU index is the relative port number, so
+  // getRelativePortNum() is the only place (slot, port) is mapped to an AGU.
   num_agus = resource_size * params.find<uint32_t>("fsm_per_slot", 4);
-  for (uint8_t i = 0; i < num_agus; i++) {
-    agus[i] = DRRA_AGU();
-  }
+  agu_array.init(num_agus, &out);
 
   // Initialize data buffers to zero
   for (int i = 0; i < resource_size; i++) {
@@ -67,8 +55,6 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
 
     if (isPortConnected("data_port" + std::to_string(i))) {
       data_links.push_back(configureLink("data_port" + std::to_string(i)));
-      //, new Event::Handler<DRRAResource>(this,
-      //&DRRAResource::handleEvent)));
     } else {
       data_links.push_back(nullptr);
     }
@@ -103,9 +89,102 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
   }
 }
 
+// The subcycle contract. See the comment on SUB_ACTIVATE in drra_resource.h.
 bool DRRAResource::clockTick(Cycle_t currentCycle) {
-  executeScheduledEventsForCycle(currentCycle);
+  const uint32_t subcycle = currentCycle % 10;
+
+  switch (subcycle) {
+  case SUB_ACTIVATE:
+    applyPendingActivations();
+    break;
+  case SUB_INSTRUCTION:
+    drainInstructionPort();
+    break;
+  case SUB_AGU_UPDATE:
+    agu_array.update();
+    break;
+  default:
+    break;
+  }
+
+  logic(subcycle);
   return false;
+}
+
+void DRRAResource::applyPendingActivations() {
+  if (portsToActivate.empty())
+    return;
+  for (const auto &[slot, ports] : portsToActivate) {
+    activatePortsForSlot(slot, ports);
+  }
+  portsToActivate.clear();
+}
+
+void DRRAResource::drainInstructionPort() {
+  while (!instruction_queue.empty()) {
+    uint32_t instr = instruction_queue.front();
+    instruction_queue.pop_front();
+
+    instrBuffer = instr;
+    decodeInstr(instr);
+
+    if (debug_enabled) {
+      Instruction instruction(instr);
+      logTraceEvent("instruction", slot_id, true, 'X',
+                    {{"instruction", instruction.toString()},
+                     {"instruction_bin", instruction.toBinaryString()},
+                     {"instruction_hex", instruction.toHexString()}});
+    }
+  }
+}
+
+void DRRAResource::logic(uint32_t subcycle) {
+  for (const PortAction &action : port_actions) {
+    if (action.subcycle != subcycle)
+      continue;
+    if (!agu_array.addrValid(action.port))
+      continue;
+
+    const int64_t address = agu_array.addr(action.port);
+    if (action.max_address != 0 &&
+        static_cast<uint64_t>(address) >= action.max_address) {
+      out.fatal(CALL_INFO, -1,
+                "Invalid AGU address %ld on port %u (%s), max %lu\n",
+                static_cast<long>(address), action.port, action.name.c_str(),
+                action.max_address);
+    }
+
+    out.output("Port %u: %s @ %ld\n", action.port, action.name.c_str(),
+               static_cast<long>(address));
+    action.action(address);
+
+    logTraceEvent(action.name, slot_id, true, 'X',
+                  {{"port", static_cast<int>(action.port)},
+                   {"address", static_cast<int>(address)}});
+  }
+}
+
+void DRRAResource::registerPortAction(uint32_t port, uint32_t subcycle,
+                                      const std::string &name,
+                                      std::function<void(int64_t)> action,
+                                      uint64_t max_address) {
+  if (subcycle < SUB_FIRST_ACTION || subcycle > 9) {
+    out.fatal(CALL_INFO, -1,
+              "Port action '%s' registered at subcycle %u: AGU addresses are "
+              "only stable from subcycle %u\n",
+              name.c_str(), subcycle, SUB_FIRST_ACTION);
+  }
+  if (port >= agu_array.size()) {
+    out.fatal(CALL_INFO, -1,
+              "Port action '%s' on port %u, but the resource has %u AGUs\n",
+              name.c_str(), port, agu_array.size());
+  }
+  port_actions.push_back({port, subcycle, name, std::move(action),
+                          max_address});
+}
+
+void DRRAResource::forbidPort(uint32_t port, const std::string &reason) {
+  forbidden_ports[port] = reason;
 }
 
 void DRRAResource::decodeInstr(uint32_t instr) {
@@ -115,76 +194,32 @@ void DRRAResource::decodeInstr(uint32_t instr) {
 };
 
 void DRRAResource::handleActivation(uint32_t slot_id, uint32_t ports) {
-  activatePortsForSlot(slot_id, ports);
+  portsToActivate[slot_id] = ports;
 }
 
 void DRRAResource::handleEventBase(Event *event) {
   // Controller events are handler-delivered (clock-independent); wake the clock
   // if the idle-skip paused it.
   ensureClockRunning();
-  if (event) {
-    // Check if the event is an ActEvent
-    ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
-    if (actEvent) {
-      handleActivation(actEvent->slot_id, actEvent->ports);
-      logTraceEvent("activation", slot_id, true, 'X',
-                    {{"ports", std::to_string(actEvent->ports)}});
-      return;
-    }
+  if (!event)
+    return;
 
-    // Check if the event is an InstrEvent
-    InstrEvent *instrEvent = dynamic_cast<InstrEvent *>(event);
-    if (instrEvent) {
-      instrBuffer = instrEvent->instruction;
-      Instruction instruction(instrBuffer);
-      decodeInstr(instrBuffer);
-      logTraceEvent("instruction", slot_id, true, 'X',
-                    {{"instruction", instruction.toString()},
-                     {"instruction_bin", instruction.toBinaryString()},
-                     {"instruction_hex", instruction.toHexString()}});
-      return;
-    }
+  // Check if the event is an ActEvent
+  ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
+  if (actEvent) {
+    handleActivation(actEvent->slot_id, actEvent->ports);
+    logTraceEvent("activation", slot_id, true, 'X',
+                  {{"ports", std::to_string(actEvent->ports)}});
+    return;
   }
-}
 
-void DRRAResource::activatePort(uint32_t port) {
-  out.output("Activating port %d\n", port);
-  active_ports[port] = true;
-  out.output("Building AGU for port %d\n", port);
-  if (agus[port].isEmpty()) {
-    // RTL AGU with no explicit config still produces one default address
-    // cycle. Model it with a single event so checkAGULifetime can retire the
-    // port instead of leaving it active across epochs.
-    agus[port].addEvent("default_act_" + std::to_string(port), [] {}, 1);
-  }
-  agus[port].build();
-  port_last_rep_level[port] = -1;
-  active_ports_cycles[port] = 0;
-}
-
-void DRRAResource::checkAGULifetime(Cycle_t currentSSTCycle) {
-  // Check if AGUs should be disabled
-  for (int i = 0; i < num_agus; i++) {
-    if (isPortActive(i)) {
-      if (agus[i].isEmpty())
-        continue;
-
-      uint64_t last_agu_cycle = agus[i].getLastScheduledCycle();
-      Cycle_t current_active_cycle = getPortActiveCycle(i);
-      out.output(
-          "Checking AGU %d lifetime: current cycle %lu. AGU has been "
-          "active for %lu. AGU should be active for %lu more cycles (%lu "
-          "cycles in total).\n",
-          i, currentSSTCycle / 10, current_active_cycle + 1,
-          last_agu_cycle - current_active_cycle, last_agu_cycle + 1);
-      if (current_active_cycle >= last_agu_cycle) {
-        out.output("Deactivating port %d as AGU is inactive\n", i);
-        active_ports[i] = false;
-        active_ports_cycles[i] = 0;
-        agus[i].reset();
-        out.output("AGU %d disabled at cycle %lu\n", i, currentSSTCycle / 10);
-      }
-    }
+  // Check if the event is an InstrEvent. The instruction port is registered:
+  // the instruction is buffered here and decoded at SUB_INSTRUCTION, so decode
+  // never races with a clock handler at the same simulated time.
+  InstrEvent *instrEvent = dynamic_cast<InstrEvent *>(event);
+  if (instrEvent) {
+    instruction_queue.push_back(instrEvent->instruction);
+    return;
   }
 }
 
@@ -199,70 +234,49 @@ void DRRAResource::activatePortsForSlot(uint32_t slot_id, uint32_t ports) {
   }
 }
 
-void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
-  // if second subcycle of the cycle -> gather events for the cycle
-  if (currentSSTCycle % 10 == 1) {
-    for (auto &port : active_ports) { // for each port
-      if (isPortActive(port.first)) { // if port is active
-        auto events =
-            getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
-        if (std::getenv("VESYLA_DEBUG"))
-          out.output(
-              "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
-              port.first, events.size(), currentSSTCycle / 10,
-              getPortActiveCycle(port.first));
-        // add events to the list
-        for (auto event : events) {
-          events_for_cycle.push_back(event);
-          corresponding_ports.push_back(port.first);
-        }
-      }
-    }
-    // if (events_for_cycle.size() > 0) {
-    //   out.output("Events to execute for cycle %lu: %lu (", currentSSTCycle /
-    //   10,
-    //              events_for_cycle.size());
-    //   for (int i = 0; i < events_for_cycle.size(); i++) {
-    //     auto event = events_for_cycle[i];
-    //     out.print("name %s,", event->getName().c_str());
-    //     auto port = corresponding_ports[i];
-    //     out.print("port %d prio %d", port, event->getPriority());
-    //     if (i != events_for_cycle.size() - 1) {
-    //       out.print(", ");
-    //     }
-    //   }
-    //   out.print(")\n");
-    // }
+void DRRAResource::handleEVT(uint32_t slot, uint32_t port, uint32_t option,
+                             uint64_t init_addr) {
+  uint32_t port_num = getRelativePortNum(slot, port);
+  out.output("evt (slot=%u, port=%u -> agu %u, option=%u, init_addr=%lu)\n",
+             slot, port, port_num, option, init_addr);
+
+  auto forbidden = forbidden_ports.find(port_num);
+  if (forbidden != forbidden_ports.end()) {
+    out.fatal(CALL_INFO, -1, "EVT on unsupported port %u: %s\n", port_num,
+              forbidden->second.c_str());
   }
 
-  // execute events with priority equal to the current subcycle
-  for (size_t i = 0; i < events_for_cycle.size(); i++) {
-    auto event = events_for_cycle[i];
-    auto port = corresponding_ports[i];
-    if (event->getPriority() == currentSSTCycle % 10) {
-      out.output("Executing event port %d prio %d\n", port,
-                 event->getPriority());
-      event->execute();
-      if (trace_name != "") {
-        logTraceEvent(event->getName(), slot_id, true, 'X',
-                      {{"port", (int)port}, {"event", event->getName()}});
-      }
-      // current_timing_states[port].incrementLevels();
-      // out.output("port %d incremented levels\n", port);
-    }
+  try {
+    agu_array.evt(port_num, init_addr);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "EVT failed: %s\n", e.what());
   }
+}
 
-  if (currentSSTCycle % 10 == 9) {
-    checkAGULifetime(currentSSTCycle);
-    for (auto &port : active_ports) {
-      if (isPortActive(port.first)) {
-        // out.output("incrementing port %d active cycle (old: %lu)\n",
-        //            port.first, getPortActiveCycle(port.first));
-        incrementPortActiveCycle(port.first);
-      }
-    }
-    events_for_cycle.clear();
-    corresponding_ports.clear();
+void DRRAResource::handleREP(uint32_t slot, uint32_t port, bool ext,
+                             uint32_t iter, uint32_t step, uint32_t delay,
+                             uint32_t iter_bits, uint32_t step_bits,
+                             uint32_t delay_bits) {
+  uint32_t port_num = getRelativePortNum(slot, port);
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             slot, ext, port_num, iter, step, delay);
+
+  try {
+    agu_array.rep(port_num, ext, iter, step, delay, iter_bits, step_bits,
+                  delay_bits);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
+  }
+}
+
+void DRRAResource::handleTRANS(uint32_t slot, uint32_t port, uint32_t delay) {
+  uint32_t port_num = getRelativePortNum(slot, port);
+  out.output("trans (slot=%d, port=%d, delay=%d)\n", slot, port_num, delay);
+
+  try {
+    agu_array.trans(port_num, delay);
+  } catch (const std::exception &e) {
+    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
   }
 }
 
@@ -321,41 +335,4 @@ std::vector<uint8_t> DRRAResource::int64ToVector(int64_t data, bool saturate) {
   }
   assert(result.size() == word_bitwidth / 8);
   return result;
-}
-
-void DRRAResource::handleREP(uint32_t slot, uint32_t port, bool ext,
-                             uint32_t iter, uint32_t step, uint32_t delay,
-                             uint32_t iter_bits, uint32_t step_bits,
-                             uint32_t delay_bits) {
-  uint32_t port_num = getRelativePortNum(slot, port);
-  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             slot, ext, port_num, iter, step, delay);
-
-  try {
-    if (!ext) {
-      // base: add a new repetition (low half of iter/step/delay)
-      agus[port_num].addRepetition(iter, delay, step);
-    } else {
-      // extension: fold the high bits into the last repetition
-      auto repetition_op = agus[port_num].getLastRepetitionOperator();
-      agus[port_num].adjustRepetition(
-          (iter << iter_bits) | repetition_op.getIterations(),
-          (delay << delay_bits) | repetition_op.getDelay(),
-          (step << step_bits) | repetition_op.getStep());
-    }
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
-  }
-}
-
-void DRRAResource::handleTRANS(uint32_t slot, uint32_t port, uint32_t delay) {
-  uint32_t port_num = getRelativePortNum(slot, port);
-  out.output("trans (slot=%d, port=%d, delay=%d)\n", slot, port_num, delay);
-
-  try {
-    agus[port_num].addTransition(delay);
-    current_event_number++;
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
-  }
 }

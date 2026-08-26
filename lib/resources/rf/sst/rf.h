@@ -47,14 +47,9 @@ public:
     logTraceEvent("registers", slot_id, true, 'E', {});
   }
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-
   // Instruction format
   using DRRAResource::format;
   void handleCONF(const RF_PKG::CONFInstruction &instr);
-  void handleEVT(const RF_PKG::EVTInstruction &instr);
-
-  void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
   using DRRAResource::out;
 
@@ -65,22 +60,13 @@ private:
   std::string access_time;
   std::map<uint32_t, std::vector<uint8_t>> registers;
 
-  void readWide();
-  void readNarrow();
-  void writeWide();
-  void writeNarrow();
+  // Datapath. Each takes the address its AGU generated for this cycle.
+  void readWide(int64_t address);
+  void readNarrow(int64_t address);
+  void writeWide(int64_t address);
+  void writeNarrow(int64_t address);
 
-  std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
-  std::map<uint32_t, uint32_t> port_agus;
-
-  void updatePortAGUs(uint32_t port) {
-    port_agus[port] = port_agus_init[port] +
-                      agus[port].getAddressForCycle(getPortActiveCycle(port));
-    if (port_agus[port] >= register_file_size) {
-      out.fatal(CALL_INFO, -1, "Invalid AGU address (greater than RF size)\n");
-    }
-  }
+  void logRegisters();
 };
 
 #endif // _RF_H

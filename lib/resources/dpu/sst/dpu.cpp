@@ -11,34 +11,30 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
   imm_buffers.resize(num_fsms);
   dpuHandlers = DPU_Operations::createHandlers(this);
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
-  // initialize current configuration options to 0
-  for (int i = 0; i < 2; i++) {
-    current_config_option[i] = 0;
-    port_last_rep_level[i] = -1;
-  }
   for (uint32_t i = 0; i < num_fsms; i++) {
     fsmHandlers[i] = dpuHandlers.at(DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
   }
+
+  // The DPU port only selects the FSM, which logic() reads straight off the
+  // AGU, so it registers no action. The reset port does have one.
+  registerPortAction(DPU_PKG::EVT_PORT::EVT_PORT_RST, 5, "dpu_reset",
+                     [this](int64_t) {
+                       out.output(" DPU accumulate register cleared\n");
+                       accumulate_register.clear();
+                     });
 }
 
-bool Dpu::clockTick(SST::Cycle_t currentCycle) {
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-      current_config_option[port.first] = 0;
-    }
-    portsToActivate.clear();
-    last_config_level = -1;
-    last_config_trans = -1;
-  }
+void Dpu::logic(uint32_t subcycle) {
+  DRRAResource::logic(subcycle);
 
-  if (currentCycle % 10 == 0) {
+  if (subcycle == 0) {
     for (int i = 0; i < resource_size; i++) {
       std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
     }
   }
 
-  // Deal with data events
+  // Operands can land at any subcycle: the producing resource reads early in
+  // the cycle and the switchbox forwards in its link handler.
   for (int i = 0; i < resource_size; i++) {
     Event *event = data_links[i]->recv();
     if (event) {
@@ -46,47 +42,28 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     }
   }
 
-  // Execute DPU operation at sub 9 BEFORE the base clockTick runs the
-  // lifetime check (which would otherwise deactivate port 0 on its last
-  // active cycle, causing the final MULT to be skipped).
-  if (currentCycle % 10 == 9) {
-    out.output(" Current FSM: %u\n", current_fsm);
-    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-    fsmHandlers[current_fsm]();
+  if (subcycle != 9)
+    return;
 
-    // Update FSM for next execution based on AGU output (one cycle delayed).
-    for (const auto &[port_id, is_active] : active_ports) {
-      if (!is_active || port_id != 0) {
-        continue;
-      }
+  out.output(" Current FSM: %u\n", current_fsm);
+  out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+  fsmHandlers[current_fsm]();
 
-      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
-      if (agu_address >= 0 && agu_address != current_fsm) {
-        current_fsm = agu_address;
-        out.output(" FSM switched to FSM #%u\n", current_fsm);
-      }
-      break;
+  // Update the FSM for the next execution from the AGU output (one cycle
+  // delayed). Port 0 is still active here even on its last scheduled cycle:
+  // the AGU array retires a port at subcycle 2 of the following cycle.
+  if (isPortAddressValid(DPU_PKG::EVT_PORT::EVT_PORT_DPU)) {
+    int64_t agu_address = getPortAddress(DPU_PKG::EVT_PORT::EVT_PORT_DPU);
+    if (agu_address != current_fsm) {
+      current_fsm = agu_address;
+      out.output(" FSM switched to FSM #%u\n", current_fsm);
     }
   }
-
-  bool result = DRRAResource::clockTick(currentCycle);
-  return result;
-}
-
-void Dpu::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
 }
 
 void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   if (dataEvent) {
-    bool anyPortActive = false;
-    for (const auto &port : active_ports) {
-      if (isPortActive(port.first)) {
-        anyPortActive = true;
-        break;
-      }
-    }
     if (dataEvent->portType != DataEvent::PortType::WriteNarrow)
       out.fatal(CALL_INFO, -1, "Invalid port type\n");
 
@@ -115,33 +92,6 @@ void Dpu::handleCONF(const DPU_PKG::CONFInstruction &instr) {
   // Add the event handler to the config index
   fsmHandlers[instr.option] =
       DPU_Operations::getDPUHandler(this, (DPU_PKG::CONF_MODE)instr.mode);
-}
-
-void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
-  out.output("evt (slot=%d, port=%d)\n", instr.slot, instr.port);
-
-  switch (instr.port) {
-  case DPU_PKG::EVT_PORT::EVT_PORT_DPU:
-    agus[DPU_PKG::EVT_PORT::EVT_PORT_DPU].addEvent(
-        "dpu_event_" +
-            std::to_string(
-                current_config_option[DPU_PKG::EVT_PORT::EVT_PORT_DPU]),
-        [this] {});
-    break;
-  case DPU_PKG::EVT_PORT::EVT_PORT_RST:
-    agus[DPU_PKG::EVT_PORT::EVT_PORT_RST].addEvent(
-        "dpu_reset_" +
-            std::to_string(
-                current_config_option[DPU_PKG::EVT_PORT::EVT_PORT_RST]),
-        [this] {
-          out.output(" DPU accumulate register cleared\n");
-          accumulate_register.clear();
-        });
-    break;
-  default:
-    out.fatal(CALL_INFO, -1, "Invalid EVT port: %d\n", instr.port);
-    break;
-  };
 }
 
 void Dpu::handleOperation(std::string name,

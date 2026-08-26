@@ -44,20 +44,14 @@ public:
     logTraceEvent("memory", slot_id, true, 'E', {});
   }
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-  void handleActivation(uint32_t slot_id, uint32_t ports) override;
-
   // Instruction format
   using DRRAResource::format;
   void handleCONF(const IO_PKG::CONFInstruction &instr);
-  void handleEVT(const IO_PKG::EVTInstruction &instr);
 
   using DRRAResource::out;
 
 private:
   SST::Link *self_link = nullptr;
-  int64_t read_from_io_address_buffer = -1;
-  int64_t write_to_io_address_buffer = -1;
 
   // Separate input/output staging buffers so that simultaneous use of
   // EVT_PORT_INPUT_BUFFER (read path) and EVT_PORT_OUTPUT_BUFFER (write path)
@@ -69,25 +63,17 @@ private:
   std::vector<uint8_t> io_input_data_buffer;
   std::vector<uint8_t> io_output_data_buffer;
 
-  void readFromIO();
-  void writeToIO();
-  void bulkOutput();
-  void bulkInput();
-
-  std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
-  std::map<uint32_t, uint32_t> port_agus;
-
-  void updatePortAGUs(uint32_t port) {
-    int64_t address_offset =
-        agus[port].getAddressForCycle(getPortActiveCycle(port));
-    if (address_offset < 0) {
-      out.fatal(CALL_INFO, -1,
-                "AGU for port %u returned negative address %d for cycle %d\n",
-                port, address_offset, getPortActiveCycle(port));
-    }
-    port_agus[port] = port_agus_init[port] + address_offset;
-  }
+  // Datapath. Each takes the address its AGU generated for this cycle.
+  //
+  // bulkOutput and bulkInput are the second half of each port's transfer, so
+  // they are registered as port actions too. Being driven by addr_valid is
+  // what keeps them out of the gap cycles between outer repetitions, where the
+  // port is still active but the AGU produces no address -- firing them there
+  // used to recv() data that was never requested.
+  void readFromIO(int64_t address);
+  void writeToIO(int64_t address);
+  void bulkOutput(int64_t address);
+  void bulkInput(int64_t address);
 };
 
 #endif // _IO_H

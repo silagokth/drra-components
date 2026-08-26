@@ -1,3 +1,5 @@
+#pragma once
+
 #include "timingExpression.h"
 #include "timingModel.h"
 #include "timingOperators.h"

@@ -14,10 +14,27 @@ std::unordered_map<uint32_t, std::function<void(uint32_t)>>
         auto segment_defs = getIsaDefinitions().at(OpCode::{{ instruction.name | upper }});
         Instruction instruction(instr, {{ kind | lower }}_obj->format, segment_defs);
         {{ instruction.name | upper }}Instruction decoded_instr(instruction{% if instruction.variants %}, instr{% endif %});
-        {% if instruction.name == 'rep' %}
-        // REP and TRANS are pure AGU programming and identical in every
+        {% if instruction.name == 'evt' %}
+        // EVT, REP and TRANS are pure AGU programming and identical in every
         // resource, so they go straight to DRRAResource's implementation.
         // A resource that needs different behaviour overrides that virtual.
+        //
+        // The option and initial-address segments are not in every resource's
+        // ISA (dpu and swb declare neither), so they are picked up only when
+        // the segment exists and default to 0 otherwise.
+        uint32_t evt_option = 0;
+        uint64_t evt_init_addr = 0;
+        {% for segment in instruction.segments %}
+        {% if segment.name | lower == 'option' %}
+        evt_option = decoded_instr.option;
+        {% endif %}
+        {% if segment.name | lower == 'init_addr' %}
+        evt_init_addr = decoded_instr.init_addr;
+        {% endif %}
+        {% endfor %}
+        {{ kind | lower }}_obj->handleEVT(
+            decoded_instr.slot, decoded_instr.port, evt_option, evt_init_addr);
+        {% elif instruction.name == 'rep' %}
         {{ kind | lower }}_obj->handleREP(
             decoded_instr.slot, decoded_instr.port, decoded_instr.ext,
             decoded_instr.iter, decoded_instr.step, decoded_instr.delay,
