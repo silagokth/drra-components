@@ -81,7 +81,7 @@ module agu_controller #(
   // A REP nest deeper than NUMBER_IR spills its outer levels into the OR levels.
   // The level counter must therefore span IR *and* OR (else it wraps modulo
   // NUMBER_IR and silently overwrites IR level 0). OR_CNT/OR_IDX_W guard the
-  // NUMBER_OR==0 resources (iosram_btm/both) where or_configs is a 1-deep dummy.
+  // NUMBER_OR==0 case, where or_configs is a 1-deep dummy array.
   localparam int OR_CNT   = (NUMBER_OR > 0) ? NUMBER_OR : 1;
   localparam int OR_IDX_W = (OR_CNT > 1) ? $clog2(OR_CNT) : 1;
   localparam int IR_IDX_W = (NUMBER_IR > 1) ? $clog2(NUMBER_IR) : 1;
@@ -124,8 +124,9 @@ module agu_controller #(
     rep_to_or = use_or_reg[agu_index]
                 || ((NUMBER_OR > 0) && (abs_lvl >= NUMBER_IR));
     ir_lvl    = abs_lvl[IR_IDX_W-1:0];
-    or_lvl    = use_or_reg[agu_index] ? abs_lvl[OR_IDX_W-1:0]
-                                      : (abs_lvl - NUMBER_IR);
+    or_lvl    = (NUMBER_OR > 0) ? (use_or_reg[agu_index] ? abs_lvl[OR_IDX_W-1:0]
+                                                   : OR_IDX_W'(abs_lvl - LVL_W'(NUMBER_IR)))
+                              : '0;
   end
 
   always_ff @(posedge clk or negedge rst_n) begin : ff_agu_config_process
