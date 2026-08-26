@@ -86,15 +86,17 @@ module agu_controller #(
   localparam int OR_IDX_W = (OR_CNT > 1) ? $clog2(OR_CNT) : 1;
   localparam int IR_IDX_W = (NUMBER_IR > 1) ? $clog2(NUMBER_IR) : 1;
   localparam int LVL_W    = $clog2(NUMBER_IR + OR_CNT + 1);
+  localparam int MT_CNT   = (NUMBER_MT > 0) ? NUMBER_MT : 1;
+  localparam int MT_IDX_W = (MT_CNT > 1) ? $clog2(MT_CNT + 1) : 1;  
 
   agu_config_t agu_configs_reg     [NUM_AGUS];
   logic        use_or_reg          [NUM_AGUS];
   logic        or_configured_reg   [NUM_AGUS];
 
   logic [$clog2(NUM_AGUS)-1:0]    agu_config_index;
-  logic [$clog2(NUMBER_MT+1)-1:0] current_lane_index  [NUM_AGUS];
+  logic [MT_IDX_W-1:0] current_lane_index  [NUM_AGUS];
   logic [LVL_W-1:0]               current_rep_level   [NUM_AGUS];
-  logic [$clog2(NUMBER_MT+1)-1:0] current_trans_index [NUM_AGUS];
+  logic [MT_IDX_W-1:0] current_trans_index [NUM_AGUS];
 
   // Active target AGU: the EVT's own port while an EVT is dispatched, otherwise
   // the index latched at the last EVT.
