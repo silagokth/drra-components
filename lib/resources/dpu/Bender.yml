@@ -2,8 +2,8 @@ package:
   name: dpu
 
 dependencies:
-  agu_array: { path: ../../common/rtl/agu_array }
-  config_controller: { path: ../../common/rtl/config_controller }
+  agu_array: { path: ../../common/agu_array }
+  config_controller: { path: ../../common/config_controller }
 
 sources:
   - ./rtl/dpu_pkg.sv

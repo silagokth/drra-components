@@ -2,7 +2,7 @@ package:
   name: rf
 
 dependencies:
-  agu_array: { path: ../../common/rtl/agu_array }
+  agu_array: { path: ../../common/agu_array }
 
 sources:
   - ./rtl/rf_pkg.sv
