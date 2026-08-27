@@ -49,7 +49,9 @@ fn get_timing_model(op: Op) -> String {
     for instr in op.body {
         let instr_segments = instr.params;
         match instr.kind.as_str() {
-            "conf" => { continue; }
+            "conf" => {
+                // NOTE: configuration does not affect the timing model
+            }
             "evt" => {
                 segments.push(format!("e{}", event_counter));
                 event_counter += 1;
@@ -130,6 +132,7 @@ fn reshape_instr(op: Op) -> Op {
                     delayx = delay / 2i64.pow(DELAY_BITWIDTH);
                     delay %= 2i64.pow(DELAY_BITWIDTH);
                 }
+
                 if needs_ext {
                     let mut base_instr = instr.clone(); // low half  (ext=0)
                     let mut ext_instr = instr.clone();  // high half (ext=1)
@@ -404,7 +407,7 @@ mod tests {
     #[test]
     fn test_transit_with_two_repeats() {
         let op = make_op(vec![
-            make_instr("evt", vec![("option", "0"), ("init_addr", "0")]),
+            make_instr("evt", vec![("option", "0")]),
             make_instr(
                 "rep",
                 vec![
@@ -414,7 +417,7 @@ mod tests {
                     ("delay", "0"),
                 ],
             ),
-            make_instr("evt", vec![("option", "1"), ("init_addr", "18")]),
+            make_instr("evt", vec![("option", "1")]),
             make_instr(
                 "rep",
                 vec![
