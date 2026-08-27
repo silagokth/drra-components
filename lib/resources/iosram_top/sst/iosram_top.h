@@ -83,6 +83,7 @@ private:
 
   // Backing store parameters
   uint64_t iosram_depth;
+  uint32_t io_address_width; // bits of the io input/output buffer address space
   bool read_only;
 
   // Staging buffers shared between the two halves of a transfer.

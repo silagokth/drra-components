@@ -14,6 +14,8 @@ package {{name}}_{{fingerprint}}_pkg;
 
   // AGU RTR params
   parameter int ADDRESS_WIDTH = IO_ADDR_WIDTH;
+  // Widths must be twice the isa.json rep field widths (base + repx half).
+  // isa_refactor sets io rep iter/step/delay to 7 bits each.
   parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
   parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
   parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX

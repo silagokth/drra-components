@@ -12,11 +12,15 @@ Iosram_both::Iosram_both(SST::ComponentId_t id, SST::Params &params)
   instructionHandlers = IOSRAM_BOTH_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
   iosram_depth = 1ULL << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  io_address_width = params.find<uint32_t>("IO_ADDR_WIDTH", 16);
   read_only = params.find<bool>("read_only", false);
 
-  // Ports addressing the IO side count in io_data_width words, the SRAM side
-  // in SRAM rows.
-  const uint64_t io_side_depth = iosram_depth * (io_data_width / word_bitwidth);
+  // Ports addressing the IO side are bounded by the io address space, not by
+  // the local SRAM geometry -- they address the external io input/output
+  // buffer. (Carried forward from 757bfe8, which fixed this in the hand-written
+  // bounds check that registerPortAction's max_addr replaced.) SRAM-side ports
+  // are bounded by iosram_depth below.
+  const uint64_t io_side_depth = 1ULL << io_address_width;
 
   // What this resource does with each AGU's address, and when in the
   // cycle it does it. The base fires each one on every cycle its port's
@@ -205,6 +209,31 @@ void Iosram_both::writeBulk(int64_t address) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
   if (dataEvent == nullptr)
     out.fatal(CALL_INFO, -1, "No data received\n");
+
+  // RTL SRAM write-port arbitration (iosram_both.sv "input ports" always_comb):
+  //   if (agu_valid[2]) [io_write_to_sram]  <-- priority
+  //   else if (agu_valid[4]) [write_bulk / drain]
+  // The io_write_to_sram (input-staging) AGU has priority over the write_bulk
+  // (drain) AGU at the shared single SRAM write port. When input-staging is
+  // producing an address in the same cycle, RTL masks the drain write entirely
+  // (the routed drain data still arrives on bulk_data_in but is discarded by
+  // the write mux). SST otherwise models the two writes as independent
+  // backend->set() calls, silently committing a drain that RTL drops -- this is
+  // the F1 double-buffer divergence (mul_512_1_1_db entries 0,1). Reproduce the
+  // arbitration so the SST (m2) matches the RTL (m3).
+  // agu_array.addrValid() is the direct replacement for the retired
+  // getAddressForCycle(getPortActiveCycle(port)) >= 0: both mean "this
+  // AGU produces an address this cycle". Safe to read here -- outputs
+  // settle at subcycle 2, io_write_to_sram runs at 7 and write_bulk at 8.
+  bool io_write_to_sram_active =
+      isPortActive(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM) &&
+      isPortAddressValid(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM);
+  if (io_write_to_sram_active) {
+    logTraceEvent("iosram_write_bulk_dropped", slot_id, true, 'X',
+                  {{"address", (int)address}});
+    delete dataEvent;
+    return;
+  }
 
   // Write data to the backend
   backend->set(address, dataEvent->size / 8, dataEvent->payload);
