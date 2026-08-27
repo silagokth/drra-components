@@ -1,0 +1,190 @@
+// swb datapath.
+//
+// Owns everything that knows what the bits mean: the CONF unpacking for the
+// swb and route variants, the configuration store, and the two switching
+// networks -- word channels between slots, and bulk channels between slots and
+// the four neighbouring cells. The top module only wires this to the decoder
+// and the AGU array.
+//
+// The configuration store stays in its own module ({{name}}_{{fingerprint}}_conf_manager)
+// rather than the common config_controller: swb's configuration is
+// two-dimensional (option x link) and one CONF writes one link, which a
+// register file with whole-register write granularity cannot express.
+
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_logic
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    // CONF -- one instruction writes one link of one option.
+    input logic   swb_valid,
+    input swb_t   swb_instr,
+    input logic   route_valid,
+    input route_t route_instr,
+
+    // One AGU per configuration bank; the address is the option index.
+    //   AGU_SWB_INDEX    the word-channel crossbar
+    //   AGU_ROUTE_INDEX  the bulk-channel send and receive links
+    input logic [NUM_AGUS-1:0]                    agu_valid,
+    input logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address,
+
+    // Word channels, slot to slot within the cell.
+    input  logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_channels_in,
+    output logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_channels_out,
+
+    // Bulk channels, slot to slot and cell to cell.
+    input  logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_intracell_in,
+    output logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_intracell_out,
+    input  logic [BULK_BITWIDTH-1:0] bulk_intercell_n_in,
+    input  logic [BULK_BITWIDTH-1:0] bulk_intercell_w_in,
+    input  logic [BULK_BITWIDTH-1:0] bulk_intercell_e_in,
+    input  logic [BULK_BITWIDTH-1:0] bulk_intercell_s_in,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_n_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_w_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_e_out,
+    output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out
+);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONF unpacking
+  // ─────────────────────────────────────────────────────────────────────────
+  // A CONF names an option and a single link within it. These carry the write
+  // to the configuration store below; the *_configs arrays hold the new value
+  // at [option_index][link] and are read back at exactly that index.
+  logic                          swb_conf_valid;
+  logic                          route_in_conf_valid;
+  logic                          route_out_conf_valid;
+  logic [$clog2(NUM_OPTIONS)-1:0] option_index;
+  logic [$clog2(NUM_SLOTS)-1:0]  swb_conf_link;
+  logic [$clog2(NUM_DIRS)-1:0]   route_in_conf_link;
+  logic [$clog2(NUM_SLOTS)-1:0]  route_out_conf_link;
+
+  swb_config_t           swb_configs       [NUM_OPTIONS];
+  route_receive_config_t route_in_configs  [NUM_OPTIONS];
+  route_send_config_t    route_out_configs [NUM_OPTIONS];
+
+  assign swb_conf_link       = swb_instr._source;
+  assign route_in_conf_link  = route_instr._source;
+  assign route_out_conf_link = route_instr._source;
+
+  always_comb begin
+    option_index = '0;
+
+    swb_conf_valid       = 0;
+    route_in_conf_valid  = 0;
+    route_out_conf_valid = 0;
+
+    swb_configs       = '{default: '{default: '0}};
+    route_in_configs  = '{default: '{default: '0}};
+    route_out_configs = '{default: '{default: '0}};
+
+    if (swb_valid) begin
+      swb_configs[swb_instr._option].slot_link[swb_instr._source] = swb_instr._target;
+      swb_conf_valid = 1;
+      option_index   = swb_instr._option;
+    end else if (route_valid) begin
+      if (route_instr._sr == ROUTE_SR_SEND) begin  // send
+        route_out_configs[route_instr._option].send_links[route_instr._source] = route_instr._target[NUM_DIRS-1:0];
+        route_out_conf_valid = 1;
+        option_index         = route_instr._option;
+      end else begin  // receive
+        route_in_configs[route_instr._option].receive_links[route_instr._source] = route_instr._target;
+        route_in_conf_valid = 1;
+        option_index        = route_instr._option;
+      end
+    end
+  end
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Configuration store
+  // ─────────────────────────────────────────────────────────────────────────
+  // Holds every option and selects the current one from the live AGU address.
+  swb_config_t           curr_swb_configs;
+  route_receive_config_t curr_route_in_configs;
+  route_send_config_t    curr_route_out_configs;
+
+  {{name}}_{{fingerprint}}_conf_manager conf_manager_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+
+    .agu_enable(agu_valid),
+    .agu_address(agu_address),
+
+    .swb_conf_valid(swb_conf_valid),
+    .route_in_conf_valid(route_in_conf_valid),
+    .route_out_conf_valid(route_out_conf_valid),
+    .option_index(option_index),
+
+    .swb_conf_link(swb_conf_link),
+    .route_in_conf_link(route_in_conf_link),
+    .route_out_conf_link(route_out_conf_link),
+
+    .swb_configs(swb_configs),
+    .route_in_configs(route_in_configs),
+    .route_out_configs(route_out_configs),
+
+    .current_swb_config(curr_swb_configs),
+    .current_route_in_config(curr_route_in_configs),
+    .current_route_out_config(curr_route_out_configs)
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Word channel crossbar
+  // ─────────────────────────────────────────────────────────────────────────
+  always_comb
+    for (int i = 0; i < NUM_SLOTS; i++)
+      word_channels_out[curr_swb_configs.slot_link[i]] = word_channels_in[i];
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bulk channel routing
+  // ─────────────────────────────────────────────────────────────────────────
+  logic [BULK_BITWIDTH-1:0] bulk_local_channel;
+
+  // ROUTE send links
+  always_comb begin
+    // Default assignments
+    bulk_intercell_n_out = '0;
+    bulk_intercell_w_out = '0;
+    bulk_local_channel   = '0;
+    bulk_intercell_e_out = '0;
+    bulk_intercell_s_out = '0;
+
+    for (int i = 0; i < NUM_SLOTS; i++) begin
+      if (curr_route_out_configs.send_links[i][DIR_NORTH])
+        bulk_intercell_n_out = bulk_intracell_in[i];
+      if (curr_route_out_configs.send_links[i][DIR_WEST])
+        bulk_intercell_w_out = bulk_intracell_in[i];
+      if (curr_route_out_configs.send_links[i][DIR_LOCAL])
+        bulk_local_channel = bulk_intracell_in[i];
+      if (curr_route_out_configs.send_links[i][DIR_EAST])
+        bulk_intercell_e_out = bulk_intracell_in[i];
+      if (curr_route_out_configs.send_links[i][DIR_SOUTH])
+        bulk_intercell_s_out = bulk_intracell_in[i];
+    end
+  end
+
+  // ROUTE receive links
+  always_comb begin
+    for (int i = 0; i < NUM_SLOTS; i++)
+      bulk_intracell_out[i] = '0; // Default assignment
+
+    for (int d = 0; d < NUM_DIRS; d++) begin
+      for (int i = 0; i < NUM_SLOTS; i++) begin
+        if (curr_route_in_configs.receive_links[d][i]) begin
+          case (d)
+            DIR_NORTH: bulk_intracell_out[i] = bulk_intercell_n_in;
+            DIR_WEST:  bulk_intracell_out[i] = bulk_intercell_w_in;
+            DIR_LOCAL: bulk_intracell_out[i] = bulk_local_channel;
+            DIR_EAST:  bulk_intracell_out[i] = bulk_intercell_e_in;
+            DIR_SOUTH: bulk_intracell_out[i] = bulk_intercell_s_in;
+            default:   bulk_intracell_out[i] = '0; // Unsupported directions
+          endcase
+        end
+      end
+    end
+  end
+
+endmodule
