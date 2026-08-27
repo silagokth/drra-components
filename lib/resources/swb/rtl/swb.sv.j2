@@ -73,7 +73,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_instr(trans_instr)
     );
 
-    // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr
+    // Shared AGU subsystem (lib/common/rtl/agu_array): controller + one agu_rtr
     // per port. The switchbox's AGUs are uniform and all present, and it has
     // no init-address path, so evt_init_addr is tied off.
     agu_array #(

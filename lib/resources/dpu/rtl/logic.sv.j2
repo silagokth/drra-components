@@ -13,7 +13,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic clk,
     input logic rst_n,
 
-    // Configuration registers (lib/common/config_controller), decoded below.
+    // Configuration registers (lib/common/rtl/config_controller), decoded below.
     input logic [CONF_NUM_REGISTERS-1:0][CONF_REG_WIDTH-1:0] config_regs,
 
     // AGU 0 walks the configuration registers; AGU 1 only strobes the

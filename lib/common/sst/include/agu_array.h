@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-// AGUArray -- the SST twin of lib/common/agu_array/rtl/src/agu_array.sv.
+// AGUArray -- the SST twin of lib/common/rtl/agu_array/rtl/src/agu_array.sv.
 //
 // Owns every AGU of a resource and everything between the resource's
 // instruction port and its datapath: the configuration EVT / REP / TRANS

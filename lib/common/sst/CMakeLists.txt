@@ -33,6 +33,9 @@ endif()
 # Compile timing model
 add_subdirectory(timing_model)
 
+# SST-only components that ship with the common library
+add_subdirectory(io_buffer)
+
 # Add the executable
 file(GLOB SOURCES src/*.cpp src/*.c)
 add_library(drra_sst_utils STATIC ${SOURCES})

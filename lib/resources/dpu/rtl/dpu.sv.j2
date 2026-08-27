@@ -79,7 +79,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .trans_instr(trans_instr)
   );
 
-  // Shared AGU subsystem (lib/common/agu_array): controller + one agu_rtr per
+  // Shared AGU subsystem (lib/common/rtl/agu_array): controller + one agu_rtr per
   // port. The two AGUs address different things -- AGU 0 walks the mode table,
   // AGU 1 only strobes the accumulator reset -- so they get individual address
   // widths. dpu has no init-address path, so evt_init_addr is tied off.
@@ -119,7 +119,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .is_configured()
   );
 
-  // Configuration registers (lib/common/config_controller). One per FSM state,
+  // Configuration registers (lib/common/rtl/config_controller). One per FSM state,
   // addressed by the CONF instruction's own option field. Selecting between
   // them and interpreting their contents is the logic module's job.
   config_controller #(
