@@ -19,14 +19,10 @@
     }
   ],
   "required_parameters": [
-    "IO_DATA_WIDTH",
-    "IO_ADDR_WIDTH",
     "RESOURCE_INSTR_WIDTH",
     "BULK_BITWIDTH",
     "WORD_BITWIDTH",
-    "NUM_SLOTS",
     "FSM_PER_SLOT",
-    "INSTR_OPCODE_BITWIDTH",
     "INSTR_PAYLOAD_BITWIDTH"
   ]
 }
