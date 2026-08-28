@@ -4,15 +4,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
 {% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
 // vesyla_template_end module_head
 (
-    input logic signed [SCALAR_REG_WIDTH-1:0] in1,
-    input logic signed [SCALAR_REG_WIDTH-1:0] in2,
+    input logic unsigned [SCALAR_REG_WIDTH-1:0] in1,
+    input logic unsigned [SCALAR_REG_WIDTH-1:0] in2,
     input logic unsigned [{{calc_mode_bitwidth}}-1:0] mode,
-    output logic signed [SCALAR_REG_WIDTH-1:0] out
+    output logic unsigned [SCALAR_REG_WIDTH-1:0] out
 );
 
-  localparam logic signed [SCALAR_REG_WIDTH-1:0] MAX_RESULT = (1 << (SCALAR_REG_WIDTH - 1)) - 1;
-  localparam logic signed [SCALAR_REG_WIDTH-1:0] MIN_RESULT = -MAX_RESULT - 1;
-  logic signed [SCALAR_REG_WIDTH:0] temp_result;
+  // The scalar registers hold unsigned values (addresses, loop counts and
+  // activation bitmasks). The SST reference model (model 2) treats them as
+  // unsigned uint32 with modular wrap and no saturation, so the RTL ALU must
+  // match. Signed saturation here diverges from the reference -- e.g. it
+  // collapses the mask 0x8000 down to 0x7FFF, corrupting ACT mode-2
+  // activations that target port 3 of a slot (bit 15 of a register chunk).
+  logic unsigned [SCALAR_REG_WIDTH:0] temp_result;
 
   always_comb begin
     temp_result = 0;
@@ -21,9 +25,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     else if (mode == 2)
       temp_result = in1 - in2;
     else if (mode == 3)
-      temp_result = in1 <<< in2;
+      temp_result = in1 << in2;
     else if (mode == 4)
-      temp_result = in1 >>> in2;
+      temp_result = in1 >> in2;
     else if (mode == 8)
       temp_result = in1 & in2;
     else if (mode == 9)
@@ -59,13 +63,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     else
       temp_result = 0; // default case, should not happen
 
-    // saturate the result
-    if (temp_result > MAX_RESULT) begin
-      out = MAX_RESULT;
-    end else if (temp_result < MIN_RESULT) begin
-      out = MIN_RESULT;
-    end else begin
-      out = temp_result[SCALAR_REG_WIDTH-1:0];
-    end
+    // Unsigned modular result: keep the low SCALAR_REG_WIDTH bits (wrap on
+    // overflow), matching the SST reference model. No signed saturation.
+    out = temp_result[SCALAR_REG_WIDTH-1:0];
   end
 endmodule

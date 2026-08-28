@@ -10,9 +10,13 @@ Sequencer::Sequencer(SST::ComponentId_t id, SST::Params &params)
 
   assemblyProgramPath = params.find<std::string>("assembly_program_path");
 
-  // Register params
-  registerSize = params.find<int>("register_size", 16);
-  numRegisters = params.find<int>("num_registers", 16);
+  // Register params. Vesyla emits these as the SCALAR_REG_WIDTH / NUM_SCALAR_REGS
+  // custom_properties (verbatim, uppercase); the lowercase "register_size" /
+  // "num_registers" are never emitted, so read uppercase first.
+  registerSize = params.find<int>("SCALAR_REG_WIDTH",
+                                  params.find<int>("register_size", 16));
+  numRegisters = params.find<int>("NUM_SCALAR_REGS",
+                                  params.find<int>("num_registers", 16));
 
   // Instruction handlers
   instructionHandlers = SEQUENCER_PKG::createInstructionHandlers(this);
