@@ -8,8 +8,13 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
-  parameter int NUM_OPTIONS = 4;
-  parameter int FSM_MAX_STATES = 4;
+  // The route/swb config-table depth is NUM_CONFIGS: how many stored crossbar/
+  // route configurations the instruction's `option` field selects among. It is a
+  // per-resource concept, declared as a NUM_CONFIGS custom_property in arch.json
+  // and emitted by the package_macro above (shared with the SST model's
+  // num_configs). It is DISTINCT from FSM_PER_SLOT (the `activate` wire width /
+  // number of control ports) and from NUM_AGUS (the physical AGU count, below).
+  // Its width sets the option field (ADDRESS_WIDTH = $clog2(NUM_CONFIGS), below).
   parameter int FSM_DELAY_WIDTH = 3;
   parameter int OPCODE_WIDTH = 4;
   parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
@@ -34,8 +39,8 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int DIR_SOUTH_EAST = 8; // NOTE: not supported
 
   // AGU RTR params
-  parameter int ADDRESS_WIDTH = $clog2(NUM_OPTIONS);
-  parameter int REP_OPTION_WIDTH = $clog2(NUM_OPTIONS);
+  parameter int ADDRESS_WIDTH = $clog2(NUM_CONFIGS);
+  parameter int REP_OPTION_WIDTH = $clog2(NUM_CONFIGS);
   parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
   parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
   parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX

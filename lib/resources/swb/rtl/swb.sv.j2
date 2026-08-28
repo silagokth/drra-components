@@ -40,19 +40,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     // SWB and ROUTE configuration signals
     logic swb_conf_valid, route_in_conf_valid, route_out_conf_valid;
-    logic [$clog2(NUM_OPTIONS)-1:0] option_index;
+    logic [$clog2(NUM_CONFIGS)-1:0] option_index;
     logic [$clog2(NUM_SLOTS)-1:0] swb_conf_link;
     logic [$clog2(NUM_DIRS)-1:0]  route_in_conf_link;
     logic [$clog2(NUM_SLOTS)-1:0] route_out_conf_link;
 
     // Instruction valid signals
-    logic [NUM_OPTIONS-1:0] rep_valid;
-    logic [NUM_OPTIONS-1:0] trans_valid;
+    logic [FSM_PER_SLOT-1:0] rep_valid;
+    logic [FSM_PER_SLOT-1:0] trans_valid;
 
     // SWB and ROUTE configurations signals
-    swb_config_t swb_configs [NUM_OPTIONS];
-    route_receive_config_t route_in_src_configs [NUM_OPTIONS];
-    route_send_config_t    route_out_src_configs [NUM_OPTIONS];
+    swb_config_t swb_configs [NUM_CONFIGS];
+    route_receive_config_t route_in_src_configs [NUM_CONFIGS];
+    route_send_config_t    route_out_src_configs [NUM_CONFIGS];
     swb_config_t curr_swb_configs;
     route_receive_config_t curr_route_in_configs;
     route_send_config_t    curr_route_out_configs;
@@ -113,6 +113,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .agu_enable(agu_enable),
       .agu_address(agu_address),
       .agu_is_configured(agu_is_configured),
+      .agu_done(agu_done),
 
       .swb_conf_valid(swb_conf_valid),
       .route_in_conf_valid(route_in_conf_valid),

@@ -69,9 +69,27 @@ private:
   void switchToNextOption_route();
   void resetOption_route();
 
+  // Advance one conf_manager option register by a clock: commit the applied
+  // option `cur` (Q) from the AGU next-state `nxt` (D), then re-sample D from
+  // the AGU on `port`. See latchOption() in swb.cpp for the register semantics.
+  void latchOption(uint32_t port, uint32_t &cur, uint32_t &nxt,
+                   const char *tag);
+
   // Communication handlers
   void handleSlotEventWithID(Event *event, uint32_t id);
   void handleCellEventWithID(Event *event, uint32_t id);
+
+  // ---- Register/wire routing engine ------------------------------------
+  // The link handlers snapshot every producer's output wire; evaluate() routes
+  // them in one pure-function pass per cycle at the Route phase. Mirrors the
+  // swb.sv.j2 always_comb crossbar and adds no intracell latency.
+  void deliverToSlot(uint32_t target_slot, PortChannel ch,
+                     const PortValue &value);
+  void deliverToCell(uint32_t dir, const PortValue &value);
+  // Route phase: recompute every consumer input wire, cell output wire and the
+  // intracell local channel as a pure function of (latched config, producer
+  // snapshots, neighbor cell inputs). Unrouted wires are driven to 0.
+  void evaluate();
 
   // Cell directions
   enum CellDirection { NW, N, NE, W, C, E, SW, S, SE };
@@ -89,13 +107,43 @@ private:
   // Cell links
   std::vector<Link *> cell_links;
 
+  // Register-model routing state.
+  //   slot_out_snapshot : (source slot, channel) -> last value the source drove
+  //   cell_in_snapshot  : direction -> last bulk value from that neighbor
+  //   local_channel_snapshot : intracell bulk local channel (DIR_LOCAL)
+  //   *_delivered : last value pushed to each target, to suppress redundant
+  //                 forwards (change-driven propagation).
+  std::map<PortKey, PortValue> slot_out_snapshot;
+  std::map<uint32_t, PortValue> cell_in_snapshot;
+  PortValue local_channel_snapshot;
+  std::map<PortKey, PortValue> slot_in_delivered;
+  std::map<uint32_t, PortValue> cell_out_delivered;
+
   std::vector<uint32_t> current_config_option = {0, 0};
   std::vector<uint32_t> current_rep_level = {0, 0};
   std::vector<uint32_t> last_config_trans = {0, 0};
 
-  uint32_t currentFsmOption_swb = 0;
-  uint32_t currentFsmOption_route = 0;
+  // Per-option "touched-this-epoch" flags (sized num_configs). An option holds a
+  // complete crossbar/route snapshot, but each swb/route instruction writes only
+  // one link. Reusing an option in a later epoch must REPLACE it, not merge new
+  // links onto the stale ones, so the first (re)configuration of an option after
+  // its selecting AGU has finished clears the whole option before applying the
+  // link. The epoch boundary is the port going active->inactive (checkAGULifetime
+  // retires the AGU), tracked by prev_*_port_active below. Mirrors swb_opt_touched
+  // / route_opt_touched in conf_manager.sv.j2.
+  std::vector<uint8_t> swb_opt_touched;
+  std::vector<uint8_t> route_opt_touched;
+  bool prev_swb_port_active = false;
+  bool prev_route_port_active = false;
+
+  // conf_manager's current_option register (see latchOption()): current* is the
+  // applied option Q read by evaluate(); next* is the AGU next-state D.
+  uint32_t currentFsmOption_swb = 0;   // Q: SWB (intracell) option
+  uint32_t currentFsmOption_route = 0; // Q: ROUTE (intercell) option
+  uint32_t nextFsmOption_swb = 0;      // D: SWB agu_address
+  uint32_t nextFsmOption_route = 0;    // D: ROUTE agu_address
   uint32_t currentEventNumber = 0;
+
 
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
 };

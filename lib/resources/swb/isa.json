@@ -14,7 +14,7 @@
         {
           "name": "option",
           "comment": "Configuration option where the current route will be stored",
-          "bitwidth": 2
+          "bitwidth": 3
         },
         {
           "name": "channel",
@@ -41,7 +41,7 @@
         {
           "name": "option",
           "comment": "Configuration option where the current route will be stored",
-          "bitwidth": 2
+          "bitwidth": 3
         },
         {
           "name": "sr",
@@ -78,7 +78,7 @@
         {
           "name": "option",
           "comment": "Configuration option.",
-          "bitwidth": 2
+          "bitwidth": 3
         },
         {
           "name": "port",
