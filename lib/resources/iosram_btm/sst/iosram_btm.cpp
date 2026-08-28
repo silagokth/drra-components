@@ -61,6 +61,8 @@ Iosram_btm::Iosram_btm(SST::ComponentId_t id, SST::Params &params)
 
 bool Iosram_btm::clockTick(SST::Cycle_t currentCycle) {
   bool result = DRRAResource::clockTick(currentCycle);
+  // Latch any delivered value into the held bulk input wire before writeBulk().
+  receiveDataInputs();
   if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
     for (const auto &port : portsToActivate) {
       activatePortsForSlot(port.first, port.second);
@@ -136,7 +138,7 @@ void Iosram_btm::handleEVT(const IOSRAM_BTM_PKG::EVTInstruction &instr) {
           updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK);
           writeBulk();
         },
-        8, instr.init_addr);
+        7, instr.init_addr);
     break;
   case EVT_RELATIVE_PORT::EVT_PORT_READ_BULK:
     event_name = "evt_read_bulk_" + std::to_string(current_event_number);
@@ -146,7 +148,7 @@ void Iosram_btm::handleEVT(const IOSRAM_BTM_PKG::EVTInstruction &instr) {
           updatePortAGUs(EVT_RELATIVE_PORT::EVT_PORT_READ_BULK);
           readBulk();
         },
-        1, instr.init_addr);
+        2, instr.init_addr);
     break;
 
   default:
@@ -326,7 +328,6 @@ void Iosram_btm::readBulk() {
           getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_READ_BULK));
   out.output("Initiating bulk read (addr=%d, size=%dbits)\n",
              read_bulk_address_buffer, io_data_width);
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
   vector<uint8_t> data;
   backend->get(read_bulk_address_buffer, io_data_width / 8, data);
   out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
@@ -336,9 +337,8 @@ void Iosram_btm::readBulk() {
                 {{"address", (int)read_bulk_address_buffer},
                  {"size", (int)(io_data_width / 8)},
                  {"data", formatRawDataToWords(data)}});
-  dataEvent->size = io_data_width;
-  dataEvent->payload = data;
-  data_links[1]->send(dataEvent);
+  // Combinational read output onto the bulk wire (slot 1).
+  driveOutput(1, PortChannel::BULK, data, io_data_width, /*registered=*/false);
 }
 
 void Iosram_btm::writeBulk() {
@@ -346,22 +346,24 @@ void Iosram_btm::writeBulk() {
       agus[EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK].getAddressForCycle(
           getPortActiveCycle(EVT_RELATIVE_PORT::EVT_PORT_WRITE_BULK));
 
-  // Check if some data was received
-  DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
-  if (dataEvent == nullptr)
-    out.fatal(CALL_INFO, -1, "No data received\n");
+  // Sample the held bulk input wire (latched by receiveDataInputs()).
+  const PortValue &in = readInput(1, PortChannel::BULK);
+  if (in.data.empty()) {
+    out.output("writeBulk: no data on bulk input wire; skipping\n");
+    return;
+  }
 
-  // Write data to the backend
-  backend->set(write_bulk_address_buffer, dataEvent->size / 8,
-               dataEvent->payload);
+  // Write data to the backend (set() takes a non-const vector&).
+  std::vector<uint8_t> data = in.data;
+  backend->set(write_bulk_address_buffer, in.bits / 8, data);
 
-  out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
-             write_bulk_address_buffer, dataEvent->size,
-             formatRawDataToWords(dataEvent->payload).c_str());
+  out.output("Writing bulk data (addr=%d, size=%zubits, data=%s)\n",
+             write_bulk_address_buffer, in.bits,
+             formatRawDataToWords(in.data).c_str());
   logTraceEvent("iosram_write_bulk", slot_id, true, 'X',
                 {{"address", (int)write_bulk_address_buffer},
-                 {"size", (int)(dataEvent->size / 8)},
-                 {"data", formatRawDataToWords(dataEvent->payload)}});
+                 {"size", (int)(in.bits / 8)},
+                 {"data", formatRawDataToWords(in.data)}});
 
   // Log memory state
   logTraceEvent("memory", slot_id, true, 'E', {});

@@ -107,7 +107,9 @@ long double nccScore(const NccTerms &terms) {
 
 Ncc_cmp::Ncc_cmp(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
-  bulk_bitwidth     = params.find<size_t>("bulk_bitwidth", 64);
+  // BULK_BITWIDTH is emitted verbatim (uppercase); lowercase is never emitted.
+  bulk_bitwidth     = params.find<size_t>(
+      "BULK_BITWIDTH", params.find<size_t>("bulk_bitwidth", 64));
   k_log2            = params.find<size_t>("K_LOG2", 14);
   linear_bitwidth   = params.find<size_t>("LINEAR_BITWIDTH", 28);
   quad_bitwidth     = params.find<size_t>("QUAD_BITWIDTH", 42);
@@ -149,24 +151,20 @@ bool Ncc_cmp::clockTick(SST::Cycle_t currentCycle) {
     portsToActivate.clear();
   }
 
-  // Clear input buffers at the start of each logical cycle so that gap cycles
-  // are modelled correctly.
-  if (currentCycle % 10 == 0) {
-    for (int i = 0; i < resource_size; i++) {
-      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
-    }
-  }
-
-  // Absorb any incoming data events on this cycle.
+  // Input wires are held registers now; gap cycles are modelled by the
+  // producer/SWB driving 0, not by clearing here. Drain any values the SWB
+  // delivered into the held input buffers.
   for (int i = 0; i < resource_size; i++) {
-    Event *event = data_links[i]->recv();
-    if (event) {
+    while (Event *event = data_links[i]->recv()) {
       handleEventWithSlotID(event, i);
+      delete event;
     }
   }
 
-  // Execute ncc / rst at priority 9.
-  if (currentCycle % 10 == 9) {
+  // Execute ncc / rst at the Sample phase (sub-7): the input routed by the SWB
+  // at the Route phase (sub-5) is available, and max_cnt drives the registered
+  // word output, committed at sub-9 -> one cycle of latency.
+  if (currentCycle % 10 == 7) {
     if (isPortActive(0)) {
       int64_t agu_addr = agus[0].getAddressForCycle(getPortActiveCycle(0));
       uint32_t config = static_cast<uint32_t>(agu_addr) &
@@ -226,6 +224,9 @@ void Ncc_cmp::doLoad(uint32_t mode) {
         bytesToSignedSlice(data_buffers[0], linear_bitwidth, linear_rshift);
     s_a_cur = v;
     out.output(" NCC_CMP load S_A  = %lld\n", static_cast<long long>(v));
+    logTraceEvent("ncc_load", slot_id, true, 'X',
+                  {{"reg", std::string("S_A")},
+                   {"value", static_cast<long long>(v)}});
     break;
   }
   case NCC_CMP_PKG::NCC_MODE_LOAD_S_A2: {
@@ -233,6 +234,9 @@ void Ncc_cmp::doLoad(uint32_t mode) {
         bytesToSignedSlice(data_buffers[0], quad_bitwidth, getQuadRshift());
     s_a2_cur = v;
     out.output(" NCC_CMP load S_A2 = %lld\n", static_cast<long long>(v));
+    logTraceEvent("ncc_load", slot_id, true, 'X',
+                  {{"reg", std::string("S_A2")},
+                   {"value", static_cast<long long>(v)}});
     break;
   }
   case NCC_CMP_PKG::NCC_MODE_LOAD_S_AB: {
@@ -240,6 +244,9 @@ void Ncc_cmp::doLoad(uint32_t mode) {
         bytesToSignedSlice(data_buffers[0], quad_bitwidth, getQuadRshift());
     s_ab_cur = v;
     out.output(" NCC_CMP load S_AB = %lld\n", static_cast<long long>(v));
+    logTraceEvent("ncc_load", slot_id, true, 'X',
+                  {{"reg", std::string("S_AB")},
+                   {"value", static_cast<long long>(v)}});
     break;
   }
   case NCC_CMP_PKG::NCC_MODE_LOAD_S_B: {
@@ -247,6 +254,9 @@ void Ncc_cmp::doLoad(uint32_t mode) {
         bytesToSignedSlice(data_buffers[0], linear_bitwidth, linear_rshift);
     s_b = v;
     out.output(" NCC_CMP load S_B  = %lld\n", static_cast<long long>(v));
+    logTraceEvent("ncc_load", slot_id, true, 'X',
+                  {{"reg", std::string("S_B")},
+                   {"value", static_cast<long long>(v)}});
     break;
   }
   default:
@@ -265,8 +275,8 @@ void Ncc_cmp::doCompare() {
                static_cast<unsigned long long>(max_cnt));
     logTraceEvent(
         "ncc_update", slot_id, true, 'X',
-        {{"position", static_cast<int>(max_cnt)},
-         {"local_cnt", static_cast<int>(local_cnt)}});
+        {{"position", static_cast<long long>(max_cnt)},
+         {"local_cnt", static_cast<long long>(local_cnt)}});
   } else {
     out.output(" NCC_CMP no update at position %llu (local_cnt=%llu)\n",
                static_cast<unsigned long long>(pos),
@@ -299,6 +309,7 @@ void Ncc_cmp::promoteBest() {
 void Ncc_cmp::doReset() {
   out.output(" NCC_CMP reset\n");
   clearAllState();
+  logTraceEvent("ncc_reset", slot_id, true, 'X', {});
   emitMaxCount();
 }
 
@@ -312,14 +323,14 @@ void Ncc_cmp::clearAllState() {
 }
 
 void Ncc_cmp::emitMaxCount() {
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
-  dataEvent->size = word_bitwidth;
   uint64_t masked =
       (word_bitwidth >= 64)
           ? max_cnt
           : (max_cnt & ((static_cast<uint64_t>(1) << word_bitwidth) - 1));
-  dataEvent->payload = uintToBytes(masked, word_bitwidth);
-  data_links[0]->send(dataEvent);
+  // Registered output from max_cnt: latched at the clock edge -> 1 cycle
+  // latency, matching ncc_cmp.sv.j2.
+  driveOutput(0, PortChannel::WORD, uintToBytes(masked, word_bitwidth),
+              word_bitwidth, /*registered=*/true);
   out.output(" NCC_CMP emit word max_cnt=%llu\n",
              static_cast<unsigned long long>(masked));
 }

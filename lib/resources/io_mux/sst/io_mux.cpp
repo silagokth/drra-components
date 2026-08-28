@@ -20,15 +20,21 @@ Io_mux::Io_mux(SST::ComponentId_t id, SST::Params &params)
     out.fatal(CALL_INFO, -1,
               "io_mux requires at least one input and one output pattern AGU\n");
   }
+  // io_mux's physical AGU count is data-dependent: one AGU per input/output
+  // pattern plus the selector AGUs. It addresses AGUs at contiguous indices
+  // [0, required_physical_agus). If that exceeds the base default port space,
+  // grow num_agus so checkAGULifetime covers them. (Replaces the old guard that
+  // fataled when required exceeded the FSM_PER_SLOT-derived count.)
   if (required_physical_agus > num_agus) {
-    out.fatal(CALL_INFO, -1,
-              "io_mux requires %u physical AGUs but DRRAResource created %u\n",
-              required_physical_agus, num_agus);
+    setNumAgus(required_physical_agus);
   }
 }
 
 bool Io_mux::clockTick(SST::Cycle_t currentCycle) {
   bool result = DRRAResource::clockTick(currentCycle);
+
+  // Latch any delivered value into the held bulk input wire before bulkInput().
+  receiveDataInputs();
 
   if (!portsToActivate.empty() && currentCycle % 10 == 0) {
     for (const auto &port : portsToActivate) {
@@ -240,9 +246,11 @@ bool Io_mux::selectedPatternIndex(uint32_t port, uint32_t cycle,
 
   int64_t selector_value = agus[selectorIndex(port)].getAddressForCycle(cycle);
   if (selector_value < 0) {
-    out.fatal(CALL_INFO, -1,
-              "Selector AGU for port %u returned negative address for cycle %u\n",
-              port, cycle);
+    // The selector AGU produced no address for this cycle: it is idle or has
+    // retired ahead of the pattern AGUs. The io_mux datapath gates io_en on
+    // selector_valid, so an absent selector value means the port drives no
+    // output this cycle — it is idle, not an error.
+    return false;
   }
 
   uint32_t width = selectorIndexWidth(patternCount(port));
@@ -279,7 +287,9 @@ bool Io_mux::isLogicalPortActive(uint32_t port) {
 void Io_mux::readFromIO() {
   read_from_io_address_buffer = addressForLogicalPort(INPUT_PORT);
   if (read_from_io_address_buffer < 0) {
-    out.fatal(CALL_INFO, -1, "Input io_mux selected a negative address\n");
+    // No pattern is selected this cycle (selector idle or an unused selector
+    // encoding): stay idle and issue no IO read.
+    return;
   }
 
   IOReadRequest *readReq = new IOReadRequest();
@@ -289,7 +299,7 @@ void Io_mux::readFromIO() {
 
   out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
              read_from_io_address_buffer, io_data_width);
-  logTraceEvent("io_mux_evt_read_from_input_", slot_id, true, 'X',
+  logTraceEvent("io_mux_read_from_input", slot_id, true, 'X',
                 {{"address", (int)read_from_io_address_buffer},
                  {"size", (int)(io_data_width / 8)}});
 
@@ -299,7 +309,9 @@ void Io_mux::readFromIO() {
 void Io_mux::writeToIO() {
   write_to_io_address_buffer = addressForLogicalPort(OUTPUT_PORT);
   if (write_to_io_address_buffer < 0) {
-    out.fatal(CALL_INFO, -1, "Output io_mux selected a negative address\n");
+    // No pattern is selected this cycle (selector idle or an unused selector
+    // encoding): stay idle and issue no IO write.
+    return;
   }
 
   IOWriteRequest *writeReq = new IOWriteRequest();
@@ -310,7 +322,7 @@ void Io_mux::writeToIO() {
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
              writeReq->address, writeReq->data.size() * 8,
              formatRawDataToWords(writeReq->data).c_str());
-  logTraceEvent("io_mux_evt_write_to_output_", slot_id, true, 'X',
+  logTraceEvent("io_mux_write_to_output", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
                  {"size", (int)(io_output_data_buffer.size())},
                  {"data", formatRawDataToWords(io_output_data_buffer)}});
@@ -323,14 +335,11 @@ void Io_mux::bulkInput() {
               getPortActiveCycle(activeRepresentativeAgu(OUTPUT_PORT)));
   }
 
-  DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[0]->recv());
-  if (dataEvent == nullptr) {
-    out.fatal(CALL_INFO, -1, "No data received on bulk input port\n");
-  }
+  // Sample the held bulk input wire (latched by receiveDataInputs()).
+  io_output_data_buffer = readInput(0, PortChannel::BULK).data;
 
-  out.output("Received bulk data (size=%dbits, data=%s)\n", dataEvent->size,
-             formatRawDataToWords(dataEvent->payload).c_str());
-  io_output_data_buffer = dataEvent->payload;
+  out.output("Received bulk data (data=%s)\n",
+             formatRawDataToWords(io_output_data_buffer).c_str());
 
   logTraceEvent("io_mux_bulk_input", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_output_data_buffer)}});
@@ -358,10 +367,10 @@ void Io_mux::bulkOutput() {
     out.fatal(CALL_INFO, -1, "No response received from IO\n");
   }
 
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
-  dataEvent->size = io_data_width;
-  dataEvent->payload = io_input_data_buffer;
-  data_links[0]->send(dataEvent);
+  // Combinational passthrough of the IO read data onto the bulk wire
+  // (io_mux.sv.j2: bulk_data_out_0 = io_en_in ? io_data_in : '0).
+  driveOutput(0, PortChannel::BULK, io_input_data_buffer, io_data_width,
+              /*registered=*/false);
 
   logTraceEvent("io_mux_bulk_output", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_input_data_buffer)}});

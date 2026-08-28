@@ -25,12 +25,32 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
 }
 
 bool Rf::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
   if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
     for (const auto &port : portsToActivate) {
       activatePortsForSlot(port.first, port.second);
     }
     portsToActivate.clear();
+  }
+
+  // Latch values the SWB delivered into the held input wires before the write
+  // events (priority 8) sample them.
+  receiveDataInputs();
+
+  bool result = DRRAResource::clockTick(currentCycle); // runs read/write events
+
+  // Comb read outputs at the Drive phase (sub-2): the read events (priority 2,
+  // run inside DRRAResource::clockTick above) drive the value on firing cycles;
+  // on active cycles where the read AGU is NOT firing, drive 0 here -- matching
+  // the RTL (word_data_out_0='0 when !word_r_en).
+  if (currentCycle % 10 == 2) {
+    const std::pair<uint32_t, PortChannel> read_ports[] = {
+        {DataEvent::PortType::ReadNarrow, PortChannel::WORD},
+        {DataEvent::PortType::ReadWide, PortChannel::BULK}};
+    for (auto [port, ch] : read_ports) {
+      if (isPortActive(port) &&
+          agus[port].getAddressForCycle(getPortActiveCycle(port)) < 0)
+        driveOutputIdle(0, ch, false);
+    }
   }
   return result;
 }
@@ -60,7 +80,7 @@ void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::ReadNarrow);
           readNarrow();
         },
-        1, evt.init_addr);
+        2, evt.init_addr);
     break;
   case DataEvent::PortType::ReadWide:
     event_name = "evt_read_wide_" + std::to_string(current_event_number);
@@ -70,7 +90,7 @@ void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::ReadWide);
           readWide();
         },
-        1, evt.init_addr);
+        2, evt.init_addr);
     break;
   case DataEvent::PortType::WriteNarrow:
     event_name = "evt_write_narrow_" + std::to_string(current_event_number);
@@ -80,7 +100,7 @@ void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::WriteNarrow);
           writeNarrow();
         },
-        8, evt.init_addr);
+        7, evt.init_addr);
     break;
   case DataEvent::PortType::WriteWide:
     event_name = "evt_write_wide_" + std::to_string(current_event_number);
@@ -90,7 +110,7 @@ void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
           updatePortAGUs(DataEvent::PortType::WriteWide);
           writeWide();
         },
-        8, evt.init_addr);
+        7, evt.init_addr);
     break;
 
   default:
@@ -172,11 +192,8 @@ void Rf::readWide() {
   }
   out.print(")\n");
 
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
-  dataEvent->size = io_data_width;
-  dataEvent->payload = data;
-
-  data_links[0]->send(dataEvent);
+  // Combinational read output onto the bulk wire.
+  driveOutput(0, PortChannel::BULK, data, io_data_width, /*registered=*/false);
 
   logTraceEvent("rf_read_wide", slot_id, true, 'X',
                 {{"address", (int)port_agus[DataEvent::PortType::ReadWide]},
@@ -185,18 +202,16 @@ void Rf::readWide() {
 }
 
 void Rf::readNarrow() {
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
   std::vector<uint8_t> data =
       registers[port_agus[DataEvent::PortType::ReadNarrow]];
   data.resize(word_bitwidth / 8); // Resize to word size
 
-  dataEvent->size = word_bitwidth;
-  dataEvent->payload = data;
   out.output("Reading narrow data (addr=%d, size=%dbits, data=%s)\n",
              port_agus[DataEvent::PortType::ReadNarrow], word_bitwidth,
              formatRawDataToWords(data).c_str());
 
-  data_links[0]->send(dataEvent);
+  // Combinational read output onto the word wire.
+  driveOutput(0, PortChannel::WORD, data, word_bitwidth, /*registered=*/false);
 
   logTraceEvent("rf_read_narrow", slot_id, true, 'X',
                 {{"address", (int)port_agus[DataEvent::PortType::ReadNarrow]},
@@ -205,24 +220,12 @@ void Rf::readNarrow() {
 }
 
 void Rf::writeWide() {
-  Event *temp_event = nullptr;
-  DataEvent *data_event = nullptr;
-  do {
-    temp_event = data_links[0]->recv();
-    if (temp_event != nullptr) {
-      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
-      if (new_data_event != nullptr) {
-        if (data_event != nullptr)
-          delete data_event;
-        data_event = new_data_event;
-      }
-    }
-  } while (temp_event != nullptr);
-
-  if (data_event == nullptr)
-    out.fatal(CALL_INFO, -1, "Failed to receive data event (writeWide)\n");
-  if (data_event->portType != DataEvent::PortType::WriteWide)
-    out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
+  // Sample the held bulk input wire (latched by receiveDataInputs()).
+  const PortValue &in = readInput(0, PortChannel::BULK);
+  if (in.data.empty()) {
+    out.output("writeWide: no data on bulk input wire; skipping\n");
+    return;
+  }
 
   // Calculate starting address
   uint32_t addr =
@@ -230,12 +233,12 @@ void Rf::writeWide() {
 
   out.output("Writing bulk data (");
   std::vector<uint8_t> data;
-  for (int i = 0; i < data_event->payload.size(); i++) {
-    data.push_back(data_event->payload[i]);
+  for (size_t i = 0; i < in.data.size(); i++) {
+    data.push_back(in.data[i]);
     if (data.size() == word_bitwidth / 8) {
       registers[addr] = data;
       out.print("@%d: %s", addr, formatRawDataToWords(data).c_str());
-      if (i < data_event->payload.size() - 1) {
+      if (i < in.data.size() - 1) {
         out.print(", ");
       }
       data.clear();
@@ -246,8 +249,8 @@ void Rf::writeWide() {
 
   logTraceEvent("rf_write_wide", slot_id, true, 'X',
                 {{"address", (int)port_agus[DataEvent::PortType::WriteWide]},
-                 {"size", (int)(data_event->size / 8)},
-                 {"data", formatRawDataToWords(data_event->payload)}});
+                 {"size", (int)(in.bits / 8)},
+                 {"data", formatRawDataToWords(in.data)}});
 
   std::string registers_content;
   for (auto &reg : registers) {
@@ -259,29 +262,13 @@ void Rf::writeWide() {
 }
 
 void Rf::writeNarrow() {
-  Event *temp_event = nullptr;
-  DataEvent *data_event = nullptr;
-  do {
-    temp_event = data_links[0]->recv();
-    if (temp_event != nullptr) {
-      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
-      if (new_data_event != nullptr) {
-        if (data_event != nullptr)
-          delete data_event;
-        data_event = new_data_event;
-      }
-    }
-  } while (temp_event != nullptr);
-
-  if (data_event == nullptr)
-    out.fatal(CALL_INFO, -1, "Failed to receive data event (writeNarrow)\n");
-  if (data_event->portType != DataEvent::PortType::WriteNarrow)
-    out.fatal(CALL_INFO, -1, "Invalid port type\n");
+  // Sample the held word input wire (latched by receiveDataInputs()).
+  const PortValue &in = readInput(0, PortChannel::WORD);
 
   std::vector<uint8_t> data;
   data.resize(word_bitwidth / 8);
-  for (int i = 0; i < word_bitwidth / 8; i++) {
-    data[i] = data_event->payload[i];
+  for (size_t i = 0; i < word_bitwidth / 8 && i < in.data.size(); i++) {
+    data[i] = in.data[i];
   }
   registers[port_agus[DataEvent::PortType::WriteNarrow]] = data;
 
@@ -294,7 +281,7 @@ void Rf::writeNarrow() {
   logTraceEvent("rf_write_narrow", slot_id, true, 'X',
                 {{"address", (int)port_agus[DataEvent::PortType::WriteNarrow]},
                  {"size", (int)(word_bitwidth / 8)},
-                 {"data", formatRawDataToWords(data_event->payload)}});
+                 {"data", formatRawDataToWords(in.data)}});
 
   std::string registers_content;
   for (auto &reg : registers) {

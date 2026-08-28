@@ -8,7 +8,10 @@
 using namespace SST;
 
 Acc::Acc(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
-  bulk_bitwidth = params.find<size_t>("bulk_bitwidth", 64);
+  // Vesyla emits the BULK_BITWIDTH required_parameter verbatim (uppercase); the
+  // lowercase "bulk_bitwidth" is never emitted, so read uppercase first.
+  bulk_bitwidth = params.find<size_t>(
+      "BULK_BITWIDTH", params.find<size_t>("bulk_bitwidth", 64));
   size_t default_acc_reg_bitwidth =
       params.find<size_t>("acc_reg_bitwidth", bulk_bitwidth);
   acc_reg_bitwidth =
@@ -28,7 +31,9 @@ Acc::Acc(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) 
               acc_reg_bitwidth);
   }
 
-  fsmHandlers.resize(num_fsms);
+  // Mode table is indexed by the config field (AGU address), so it is sized by
+  // the config-table depth (num_configs = NUM_CONFIGS), not the FSM count.
+  fsmHandlers.resize(num_configs);
   accHandlers = ACC_Operations::createHandlers(this, include_multiplier);
   instructionHandlers = ACC_PKG::createInstructionHandlers(this);
 
@@ -36,7 +41,7 @@ Acc::Acc(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) 
     current_config_option[i] = 0;
     port_last_rep_level[i] = -1;
   }
-  for (uint32_t i = 0; i < num_fsms; i++) {
+  for (uint32_t i = 0; i < num_configs; i++) {
     fsmHandlers[i] = accHandlers.at(ACC_PKG::ACC_MODE::ACC_MODE_IDLE);
   }
 }
@@ -53,45 +58,21 @@ bool Acc::clockTick(SST::Cycle_t currentCycle) {
     last_config_trans = -1;
   }
 
-  // Clear input buffers at the start of each logical cycle so that gap cycles
-  // (where the RF AGU enable is 0 and its output is 0) are modelled correctly.
-  if (currentCycle % 10 == 0) {
-    for (int i = 0; i < resource_size; i++) {
-      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
-    }
-  }
-
-  // Absorb any incoming data events on this cycle.
+  // Input wires are held registers now. Gap cycles (RF AGU enable 0) are
+  // modelled by the producer/SWB driving 0, not by clearing here. Drain any
+  // values the SWB delivered into the held input buffers.
   for (int i = 0; i < resource_size; i++) {
-    Event *event = data_links[i]->recv();
-    if (event) {
+    while (Event *event = data_links[i]->recv()) {
       handleEventWithSlotID(event, i);
+      delete event;
     }
   }
 
-  // Execute accumulation at priority 9.
-  if (currentCycle % 10 == 9) {
-    
-    // Update FSM for next execution based on AGU output (one cycle delayed).
-    for (const auto &[port_id, is_active] : active_ports) {
-      if (!is_active)
-      continue;
-      if (port_id == 0) {
-        int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
-        if (agu_address >= 0 && static_cast<uint32_t>(agu_address) != current_fsm) {
-          current_fsm = static_cast<uint32_t>(agu_address);
-          out.output(" ACC FSM switched to #%u\n", current_fsm);
-        }
-        break;
-      }
-    }
-    // Gated on port 0 being active.
-    if (isPortActive(0)) {
-      out.output(" Current FSM: %u\n", current_fsm);
-      out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-      fsmHandlers[current_fsm]();
-    }
-  }
+  // The accumulation is driven by the ACC AGU event (see handleEVT), which
+  // fires only on cycles where the AGU produces a valid address. This matches
+  // the RTL, where acc_reg updates are gated on agu_valid[0] rather than on the
+  // whole port-active window. Executing it here from the (stale) port-active
+  // state would keep accumulating during AGU gap/delay cycles.
 
   bool result = DRRAResource::clockTick(currentCycle);
   return result;
@@ -131,8 +112,13 @@ void Acc::handleEVT(const ACC_PKG::EVTInstruction &instr) {
 
   switch (instr.port) {
   case ACC_PKG::EVT_PORT::EVT_PORT_ACC:
+    // Accumulate only on cycles where the ACC AGU produces a valid address
+    // (RTL: `else if (agu_valid[0])`). Run at the Sample phase (priority 7):
+    // the input routed by the SWB at the Route phase (sub-5) is available, and
+    // the result drives the registered bulk output, committed at sub-9.
     agus[ACC_PKG::EVT_PORT::EVT_PORT_ACC].addEvent(
-        "acc_event", [this] {}, 5, instr.init_addr);
+        "acc_event", [this] { executeAccumulateForCycle(); }, 7,
+        instr.init_addr);
     break;
   case ACC_PKG::EVT_PORT::EVT_PORT_RST:
     agus[ACC_PKG::EVT_PORT::EVT_PORT_RST].addEvent(
@@ -141,6 +127,31 @@ void Acc::handleEVT(const ACC_PKG::EVTInstruction &instr) {
   default:
     out.fatal(CALL_INFO, -1, "Invalid ACC EVT port: %d\n", instr.port);
   }
+}
+
+void Acc::executeAccumulateForCycle() {
+  // Registered as the ACC AGU event handler, so this runs only on cycles where
+  // the AGU emits an address (RTL: acc_reg update gated on agu_valid[0]). The
+  // address for this cycle selects the config/mode (RTL: acc_mode selector uses
+  // acc_agu_address when acc_agu_valid).
+  int64_t agu_address =
+      agus[ACC_PKG::EVT_PORT::EVT_PORT_ACC].getAddressForCycle(
+          getPortActiveCycle(ACC_PKG::EVT_PORT::EVT_PORT_ACC));
+  if (agu_address < 0) {
+    return;
+  }
+
+  uint32_t config = static_cast<uint32_t>(agu_address);
+  if (config >= fsmHandlers.size()) {
+    out.fatal(CALL_INFO, -1,
+              "ACC AGU address %u out of range (num_configs=%zu)\n", config,
+              fsmHandlers.size());
+  }
+  if (config != current_fsm) {
+    current_fsm = config;
+    out.output(" ACC FSM switched to #%u\n", current_fsm);
+  }
+  fsmHandlers[current_fsm]();
 }
 
 void Acc::handleREP(const ACC_PKG::REPInstruction &instr) {
@@ -199,8 +210,8 @@ void Acc::handleOperation(std::string name,
 
   logTraceEvent("accumulate", slot_id, true, 'X',
                 {{"mode", name},
-                 {"input", static_cast<int>(input)},
-                 {"accumulator", static_cast<int>(accumulate_register)}});
+                 {"input", static_cast<long long>(input)},
+                 {"accumulator", static_cast<long long>(accumulate_register)}});
 
   emitAccumulator();
 }
@@ -235,13 +246,14 @@ void Acc::handleVectorOperation(std::string name,
              name.c_str(), words.size(), before, accumulate_register);
   logTraceEvent("accumulate", slot_id, true, 'X',
                 {{"mode", name},
-                 {"accumulator", static_cast<int>(accumulate_register)}});
+                 {"accumulator", static_cast<long long>(accumulate_register)}});
   emitAccumulator();
 }
 
 void Acc::clearAccumulator() {
   out.output(" ACC accumulator register cleared\n");
   accumulate_register = 0;
+  logTraceEvent("acc_clear", slot_id, true, 'X', {});
   emitAccumulator();
 }
 
@@ -288,10 +300,10 @@ void Acc::setOperandRegister(std::vector<int64_t> value) {
 }
 
 void Acc::emitAccumulator() {
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
-  dataEvent->size = bulk_bitwidth;
-  dataEvent->payload = int64ToBulkVector(accumulate_register);
-  data_links[0]->send(dataEvent);
+  // Registered output from acc_reg: latched at the clock edge -> 1 cycle
+  // latency, matching acc.sv.j2.
+  driveOutput(0, PortChannel::BULK, int64ToBulkVector(accumulate_register),
+              bulk_bitwidth, /*registered=*/true);
   out.output(" ACC emit bulk (value=%ld, bits=%zu)\n", accumulate_register,
              bulk_bitwidth);
 }

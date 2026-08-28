@@ -7,8 +7,11 @@ using namespace SST;
 
 Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
-  fsmHandlers.resize(num_fsms);
-  imm_buffers.resize(num_fsms);
+  // Mode/immediate tables are indexed by the DPU instruction's config field, so
+  // they are sized by the config-table depth (num_configs = NUM_CONFIGS), NOT by
+  // the FSM/activation-port count.
+  fsmHandlers.resize(num_configs);
+  imm_buffers.resize(num_configs);
   dpuHandlers = DPU_Operations::createHandlers(this);
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
   // initialize current configuration options to 0
@@ -16,7 +19,7 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     current_config_option[i] = 0;
     port_last_rep_level[i] = -1;
   }
-  for (uint32_t i = 0; i < num_fsms; i++) {
+  for (uint32_t i = 0; i < num_configs; i++) {
     fsmHandlers[i] = dpuHandlers.at(DPU_PKG::DPU_MODE::DPU_MODE_IDLE);
   }
 }
@@ -32,24 +35,22 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     last_config_trans = -1;
   }
 
-  if (currentCycle % 10 == 0) {
-    for (int i = 0; i < resource_size; i++) {
-      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
-    }
-  }
-
-  // Deal with data events
+  // Input wires are held registers now: the producer/SWB drives 0 on idle
+  // cycles, so we no longer clear data_buffers ourselves. Drain any values the
+  // SWB delivered this cycle into the held input buffers.
   for (int i = 0; i < resource_size; i++) {
-    Event *event = data_links[i]->recv();
-    if (event) {
+    while (Event *event = data_links[i]->recv()) {
       handleEventWithSlotID(event, i);
+      delete event;
     }
   }
 
-  // Execute DPU operation at sub 9 BEFORE the base clockTick runs the
-  // lifetime check (which would otherwise deactivate port 0 on its last
-  // active cycle, causing the final MULT to be skipped).
-  if (currentCycle % 10 == 9) {
+  // Execute the DPU operation at the Sample phase (sub-7): inputs routed by the
+  // SWB at the Route phase (sub-5) are available, and this runs before the base
+  // clockTick's lifetime check (sub-9) which would otherwise deactivate port 0
+  // on its last active cycle and skip the final MULT. The result drives out0 as
+  // a registered output, committed at sub-9 -> one cycle of latency.
+  if (currentCycle % 10 == 7) {
     out.output(" Current FSM: %u\n", current_fsm);
     out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
     fsmHandlers[current_fsm]();
@@ -138,6 +139,7 @@ void Dpu::handleEVT(const DPU_PKG::EVTInstruction &instr) {
         [this] {
           out.output(" DPU accumulate register cleared\n");
           accumulate_register.clear();
+          logTraceEvent("dpu_acc_clear", slot_id, true, 'X', {});
         },
         5, instr.init_addr);
     break;
@@ -207,21 +209,19 @@ void Dpu::handleOperation(std::string name,
   int64_t data1 = vectorToInt64(data_buffers[1]);
   int64_t result = operation(data0, data1);
 
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
-  dataEvent->size = word_bitwidth;
-  dataEvent->payload = int64ToVector(result);
-  data_links[0]->send(dataEvent);
+  // Registered output (out0_reg): latched at the clock edge -> 1 cycle latency,
+  // matching dpu.sv.j2.
+  driveOutput(0, PortChannel::WORD, int64ToVector(result), word_bitwidth,
+              /*registered=*/true);
 
+  int64_t acc = accumulate_register.size() > 0
+                    ? vectorToInt64(accumulate_register)
+                    : 0;
   out.output("DPU %s operation (in0=%ld, in1=%ld, out=%ld, acc=%ld)\n",
-             name.c_str(), data0, data1, result,
-             accumulate_register.size() > 0 ? vectorToInt64(accumulate_register)
-                                            : 0);
-  logTraceEvent(
-      "operation", slot_id, true, 'X',
-      {{"data0", static_cast<int>(data0)},
-       {"data1", static_cast<int>(data1)},
-       {"result", static_cast<int>(result)},
-       {"accumulator", static_cast<int>(accumulate_register.size() > 0
-                                            ? vectorToInt64(accumulate_register)
-                                            : 0)}});
+             name.c_str(), data0, data1, result, acc);
+  logTraceEvent("dpu_operation", slot_id, true, 'X',
+                {{"data0", static_cast<long long>(data0)},
+                 {"data1", static_cast<long long>(data1)},
+                 {"result", static_cast<long long>(result)},
+                 {"accumulator", static_cast<long long>(acc)}});
 }

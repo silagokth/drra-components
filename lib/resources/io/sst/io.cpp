@@ -13,6 +13,10 @@ Io::Io(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
 bool Io::clockTick(SST::Cycle_t currentCycle) {
   bool result = DRRAResource::clockTick(currentCycle);
 
+  // Latch any value the SWB delivered into the held bulk input wire before
+  // bulkInput() (sub-7) samples it.
+  receiveDataInputs();
+
   if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
     for (const auto &port : portsToActivate) {
       activatePortsForSlot(port.first, port.second);
@@ -143,7 +147,7 @@ void Io::readFromIO() {
 
   out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
              read_from_io_address_buffer, io_data_width);
-  logTraceEvent("io_evt_read_from_input_", slot_id, true, 'X',
+  logTraceEvent("io_read_from_input", slot_id, true, 'X',
                 {{"address", (int)read_from_io_address_buffer},
                  {"size", (int)(io_data_width / 8)}});
 
@@ -163,7 +167,7 @@ void Io::writeToIO() {
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
              writeReq->address, writeReq->data.size() * 8,
              formatRawDataToWords(writeReq->data).c_str());
-  logTraceEvent("io_evt_write_to_output_", slot_id, true, 'X',
+  logTraceEvent("io_write_to_output", slot_id, true, 'X',
                 {{"address", (int)write_to_io_address_buffer},
                  {"size", (int)(io_output_data_buffer.size())},
                  {"data", formatRawDataToWords(io_output_data_buffer)}});
@@ -178,16 +182,10 @@ void Io::bulkInput() {
               getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER));
   };
 
-  // Drain the bulk input link's FIFO, keeping only the freshest payload in
-  // io_output_data_buffer. Routing fabrics can queue stale loopbacks ahead of
-  // the live event; consuming until the last one ensures writeToIO uses the
-  // payload that's actually on the wire this cycle.
-  while (Event *event = data_links[0]->recv()) {
-    if (DataEvent *dataEvent = dynamic_cast<DataEvent *>(event)) {
-      io_output_data_buffer = dataEvent->payload;
-    }
-    delete event;
-  }
+  // Sample the held bulk input wire (latched by receiveDataInputs()). The held
+  // register naturally holds the value that's on the wire this cycle, replacing
+  // the old drain-the-FIFO-for-freshest-payload hack.
+  io_output_data_buffer = readInput(0, PortChannel::BULK).data;
 
   out.output("Received bulk data (data=%s)\n",
              formatRawDataToWords(io_output_data_buffer).c_str());
@@ -221,12 +219,10 @@ void Io::bulkOutput() {
     out.fatal(CALL_INFO, -1, "No response received from IO\n");
   }
 
-  // Send data to output bulk port (using the dedicated input-path buffer to
-  // avoid clobbering the output path's io_output_data_buffer).
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
-  dataEvent->size = io_data_width;
-  dataEvent->payload = io_input_data_buffer;
-  data_links[0]->send(dataEvent);
+  // Combinational passthrough of the IO read data onto the bulk wire
+  // (io.sv.j2: bulk_data_out_0 = io_data_in).
+  driveOutput(0, PortChannel::BULK, io_input_data_buffer, io_data_width,
+              /*registered=*/false);
 
   logTraceEvent("io_bulk_output", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_input_data_buffer)}});

@@ -40,10 +40,6 @@ public:
   /* Destructor */
   ~Io() {};
 
-  void complete(unsigned int phase) override {
-    logTraceEvent("memory", slot_id, true, 'E', {});
-  }
-
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 

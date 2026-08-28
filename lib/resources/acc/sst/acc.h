@@ -52,6 +52,9 @@ public:
   bool clockTick(SST::Cycle_t currentCycle) override;
 
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
+  // Runs one accumulation for the current cycle. Registered as the ACC AGU
+  // event handler so it fires only on cycles where the AGU emits an address.
+  void executeAccumulateForCycle();
   void handleOperation(std::string name, std::function<void(int64_t)> operation);
   void handleVectorOperation(std::string name,
                              std::function<void(std::vector<int64_t>)> operation);
@@ -59,6 +62,25 @@ public:
   void clearAccumulator();
   void emitAccumulator();
   void normalizeAccumulator();
+  // Trace the operand-register capture (called from the capture handler, which
+  // lives in acc_operations.cpp and has no access to the protected slot_id).
+  // Serializes the operand register as "[a, b, c]" for tracing and logging.
+  std::string operandRegisterToString() const {
+    std::string data = "[";
+    for (size_t i = 0; i < operand_register.size(); i++) {
+      data += std::to_string(operand_register[i]);
+      if (i + 1 < operand_register.size()) {
+        data += ", ";
+      }
+    }
+    data += "]";
+    return data;
+  }
+  void traceCapture() {
+    logTraceEvent("acc_capture", slot_id, true, 'X',
+                  {{"words", static_cast<long long>(operand_register.size())},
+                   {"data", operandRegisterToString()}});
+  }
   int64_t getAccumulateRegister() const { return accumulate_register; }
   void setAccumulateRegister(int64_t value) { accumulate_register = value; }
 

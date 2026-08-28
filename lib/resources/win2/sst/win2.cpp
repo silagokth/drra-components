@@ -26,7 +26,9 @@ const char *portName(uint32_t port) {
 
 Win2::Win2(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
-  bulk_bitwidth = params.find<size_t>("bulk_bitwidth", 256);
+  // BULK_BITWIDTH is emitted verbatim (uppercase); lowercase is never emitted.
+  bulk_bitwidth = params.find<size_t>(
+      "BULK_BITWIDTH", params.find<size_t>("bulk_bitwidth", 256));
   word_bitwidth = params.find<size_t>("word_bitwidth", 16);
 
   if (word_bitwidth == 0) {
@@ -57,15 +59,21 @@ bool Win2::clockTick(SST::Cycle_t currentCycle) {
     portsToActivate.clear();
   }
 
-  // Let AGU-gated events fire first (default priority is 5). The input AGU
-  // lambda may shift the buffer; the offset AGU lambda may latch offset_reg.
+  // Latch the bulk input wire into the held input register before the input
+  // AGU event (absorbAndShift) samples it.
+  receiveDataInputs();
+
+  // Sample phase (sub-7): the AGU-gated state updates run inside the base
+  // clockTick -- input absorbAndShift and offset latch, both at priority 7 (see
+  // handleEVT). The SWB routed this cycle's bulk input at the Route phase
+  // (sub-5), so absorb samples the current value.
   bool result = DRRAResource::clockTick(currentCycle);
 
-  // Emit the aligned slice every logical cycle, after any same-cycle AGU
-  // events have run. The RTL drives bulk_data_out_0 combinationally from
-  // {line_B, line_A} and offset_reg every cycle; this DataEvent send is the
-  // SST-level model of that continuous output.
-  if (currentCycle % 10 == 8) {
+  // Emit the aligned slice at the Sample phase (sub-7), AFTER absorb/offset have
+  // updated the window above. The slice is a registered output (win2.sv.j2's
+  // registered bulk_data_out_0): driveOutput defers to the sub-9 commit, so it
+  // appears one cycle later.
+  if (currentCycle % 10 == 7) {
     emitSlice();
   }
 
@@ -77,25 +85,18 @@ void Win2::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void Win2::absorbAndShift() {
-  // Drain the input data link's FIFO, keeping only the freshest payload in
-  // data_buffers[0]. This is the event-based approximation of "sample the
-  // wire right now" — stale loopbacks queued by upstream routing are
-  // discarded so the shift uses the most recent payload.
-  while (Event *event = data_links[0]->recv()) {
-    if (DataEvent *dataEvent = dynamic_cast<DataEvent *>(event)) {
-      data_buffers[0] = dataEvent->payload;
-    }
-    delete event;
-  }
+  // Sample the held bulk input wire (latched by receiveDataInputs()). The held
+  // register naturally holds the value on the wire this cycle, replacing the
+  // old drain-the-FIFO-for-freshest-payload hack.
+  const std::vector<uint8_t> &in = readInput(0, PortChannel::BULK).data;
 
   line_A = line_B;
   line_B.assign(bulk_bytes, 0);
-  size_t take = std::min(data_buffers[0].size(), bulk_bytes);
-  std::copy(data_buffers[0].begin(), data_buffers[0].begin() + take,
-            line_B.begin());
+  size_t take = std::min(in.size(), bulk_bytes);
+  std::copy(in.begin(), in.begin() + take, line_B.begin());
 
   out.output(" WIN2 shift buffer: line_A<-line_B, line_B<-bulk_in (data=%s)\n",
-             formatRawDataToWords(data_buffers[0]).c_str());
+             formatRawDataToWords(in).c_str());
   logTraceEvent("win2_buffer_shift", slot_id, true, 'X',
                 {{"line_A", formatRawDataToWords(line_A)},
                  {"line_B", formatRawDataToWords(line_B)}});
@@ -115,15 +116,13 @@ void Win2::latchOffset() {
 }
 
 void Win2::emitSlice() {
-  // Continuous-output model: every logical cycle, send a DataEvent carrying
-  // window[offset_reg*WORD +: BULK]. No gate on AGU validity, matching the
-  // RTL combinational assign.
   std::vector<uint8_t> payload = takeAlignedSlice(offset_reg);
 
-  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
-  dataEvent->size = bulk_bitwidth;
-  dataEvent->payload = payload;
-  data_links[0]->send(dataEvent);
+  // Registered output: driveOutput defers to the clock-edge commit
+  // (commitOutputRegisters at sub-9), so the slice computed from this cycle's
+  // window appears one cycle later, matching the registered bulk_data_out_0 in
+  // win2.sv.j2.
+  driveOutput(0, PortChannel::BULK, payload, bulk_bitwidth, /*registered=*/true);
 
   out.output(" WIN2 emit aligned slice (offset=%u, data=%s)\n", offset_reg,
              formatRawDataToWords(payload).c_str());
@@ -178,15 +177,18 @@ void Win2::handleEVT(const WIN2_PKG::EVTInstruction &instr) {
   // Install the AGU-gated work as the event lambda. The base class fires
   // these only on cycles where the AGU has a valid address (mirroring the
   // RTL's agu_valid). The per-lane initial address is attached to this
-  // event so chained lanes each keep their own base address.
+  // event so chained lanes each keep their own base address. Priority 7 places
+  // the window/offset update at the Sample phase (sub-7), after the SWB routed
+  // this cycle's bulk input (sub-5) and before emitSlice (which runs after the
+  // base clockTick in the same sub-7 tick, reading the just-updated window).
   switch (instr.port) {
   case PORT_INPUT:
     agus[PORT_INPUT].addEvent(
-        event_name, [this] { absorbAndShift(); }, 5, instr.init_addr);
+        event_name, [this] { absorbAndShift(); }, 7, instr.init_addr);
     break;
   case PORT_OFFSET:
     agus[PORT_OFFSET].addEvent(
-        event_name, [this] { latchOffset(); }, 5, instr.init_addr);
+        event_name, [this] { latchOffset(); }, 7, instr.init_addr);
     break;
   default:
     out.fatal(CALL_INFO, -1, "Invalid WIN2 EVT port: %d\n", instr.port);

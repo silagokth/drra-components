@@ -60,8 +60,10 @@ void handleCapture(Acc *acc) {
     return;
   }
   acc->setOperandRegister(acc->byteVectorToInt64Vector(buf));
-  acc->getOutput().output(" ACC captured operand register (%zu words)\n",
-                          acc->getOperandRegister().size());
+  acc->getOutput().output(" ACC captured operand register (%zu words): %s\n",
+                          acc->getOperandRegister().size(),
+                          acc->operandRegisterToString().c_str());
+  acc->traceCapture();
 }
 
 void handleVmacAdd(Acc *acc) {
