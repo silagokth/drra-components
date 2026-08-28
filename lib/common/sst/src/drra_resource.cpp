@@ -1,5 +1,6 @@
 #include "drra_resource.h"
 #include "activationEvent.h"
+#include "dataEvent.h"
 #include "instructionEvent.h"
 
 #include <cmath>
@@ -33,11 +34,36 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
       port_last_rep_level[i * PORTS_PER_SLOT + j] = -1;
     }
   }
-  num_fsms = resource_size * params.find<uint32_t>("fsm_per_slot", 4);
+  // FSM_PER_SLOT = number of control/activation ports a slot exposes (the width
+  // of the `activate` wire in RTL). Vesyla's SST conf emits this per resource as
+  // "number_of_fsms" (= the resource's resolved FSM_PER_SLOT, see vs-component
+  // sst_sim_template.py.jinja) and also passes the required_parameter verbatim
+  // as "FSM_PER_SLOT". It never emits the lowercase "fsm_per_slot". Read
+  // "number_of_fsms" first, fall back to "FSM_PER_SLOT", then to the default.
+  // num_fsms is that count scaled by the resource's slot count. It is the FSM
+  // count ONLY -- not the AGU count and not the config-table depth.
+  const uint32_t fsm_per_slot = params.find<uint32_t>(
+      "number_of_fsms", params.find<uint32_t>("FSM_PER_SLOT", 4));
+  num_fsms = resource_size * fsm_per_slot;
 
-  // AGUs
-  // num_agus = params.find<uint8_t>("num_agus", 1);
-  num_agus = resource_size * params.find<uint32_t>("fsm_per_slot", 4);
+  // NUM_CONFIGS = config-table depth: how many stored configurations the
+  // instruction's option/config field selects among (the RTL NUM_CONFIGS,
+  // formerly FSM_MAX_STATES). A per-resource concept declared as an arch.json
+  // custom_property and emitted verbatim (uppercase). Resources with an option
+  // table (dpu/acc/swb) size it by num_configs; the rest ignore it.
+  num_configs = params.find<uint32_t>("NUM_CONFIGS", 4);
+
+  // AGUs. In the SST model num_agus is the AGU/port-management space that
+  // checkAGULifetime iterates -- one AGU sequencer per (slot, port) position,
+  // addressed by getRelativePortNum() = slot_pos*PORTS_PER_SLOT + port. It is
+  // therefore sized resource_size * PORTS_PER_SLOT, a FIXED structural quantity
+  // that is deliberately NOT tied to the cell's FSM_PER_SLOT (the old
+  // resource_size*fsm_per_slot coupling only "worked" because FSM_PER_SLOT
+  // happened to equal PORTS_PER_SLOT). This is distinct from the RTL NUM_AGUS
+  // pkg constant (the true count of physical AGUs the hardware instantiates,
+  // which may be fewer): a resource whose physical AGU count differs, or whose
+  // count is data-dependent (io_mux), grows this via setNumAgus().
+  num_agus = resource_size * PORTS_PER_SLOT;
   for (uint8_t i = 0; i < num_agus; i++) {
     agus[i] = DRRA_AGU();
   }
@@ -157,6 +183,14 @@ void DRRAResource::activatePort(uint32_t port) {
   active_ports_cycles[port] = 0;
 }
 
+void DRRAResource::setNumAgus(uint8_t n) {
+  num_agus = n;
+  for (uint8_t i = 0; i < num_agus; i++) {
+    if (agus.find(i) == agus.end())
+      agus[i] = DRRA_AGU();
+  }
+}
+
 void DRRAResource::checkAGULifetime(Cycle_t currentSSTCycle) {
   // Check if AGUs should be disabled
   for (int i = 0; i < num_agus; i++) {
@@ -248,6 +282,9 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
   }
 
   if (currentSSTCycle % 10 == 9) {
+    // Clock edge: latch registered output wires (q <= d) and emit changes.
+    // Runs after this cycle's compute/AGU events have set their next-state.
+    commitOutputRegisters();
     checkAGULifetime(currentSSTCycle);
     for (auto &port : active_ports) {
       if (isPortActive(port.first)) {
@@ -259,6 +296,90 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
     events_for_cycle.clear();
     corresponding_ports.clear();
   }
+}
+
+// ---- Register/wire data model (Phase 0 scaffolding) ---------------------
+// These helpers are not yet wired into the per-component data paths; they are
+// the infrastructure the Phase 1+ migration builds on. Behaviour is unchanged
+// until components start calling driveOutput/readInput instead of raw
+// data_links send/recv.
+
+void DRRAResource::emitPortChange(uint32_t port, PortChannel ch,
+                                  const PortValue &value) {
+  if (port >= data_links.size() || data_links[port] == nullptr)
+    return;
+  DataEvent *ev =
+      new DataEvent(ch == PortChannel::WORD ? DataEvent::PortType::WriteNarrow
+                                            : DataEvent::PortType::WriteWide);
+  ev->source_slot = (port < slot_ids.size()) ? slot_ids[port] : port;
+  ev->channel = ch;
+  ev->payload = value.data;
+  ev->size = value.bits;
+  data_links[port]->send(ev);
+}
+
+void DRRAResource::driveOutput(uint32_t port, PortChannel ch,
+                               std::vector<uint8_t> data, size_t bits,
+                               bool registered) {
+  PortRegister &reg = out_ports[{port, ch}];
+  reg.registered = registered;
+  PortValue next(std::move(data), bits);
+  if (registered) {
+    // Latched at the clock edge by commitOutputRegisters().
+    reg.d = std::move(next);
+  } else if (reg.q != next) {
+    // Combinational output: propagate immediately on a value change.
+    reg.q = next;
+    reg.d = reg.q;
+    emitPortChange(port, ch, reg.q);
+  }
+}
+
+void DRRAResource::driveOutputIdle(uint32_t port, PortChannel ch,
+                                   bool registered) {
+  auto it = out_ports.find({port, ch});
+  size_t bits = (it != out_ports.end() && it->second.q.bits != 0)
+                    ? it->second.q.bits
+                    : (ch == PortChannel::WORD ? word_bitwidth : io_data_width);
+  driveOutput(port, ch, std::vector<uint8_t>((bits + 7) / 8, 0), bits,
+              registered);
+}
+
+void DRRAResource::commitOutputRegisters() {
+  for (auto &entry : out_ports) {
+    PortRegister &reg = entry.second;
+    if (!reg.registered)
+      continue;
+    if (reg.q != reg.d) {
+      reg.q = reg.d;
+      emitPortChange(entry.first.first, entry.first.second, reg.q);
+    }
+  }
+}
+
+void DRRAResource::latchInput(uint32_t port, PortChannel ch, PortValue value) {
+  in_ports[{port, ch}] = std::move(value);
+}
+
+void DRRAResource::receiveDataInputs() {
+  for (size_t i = 0; i < data_links.size(); i++) {
+    if (data_links[i] == nullptr)
+      continue;
+    while (Event *e = data_links[i]->recv()) {
+      if (DataEvent *de = dynamic_cast<DataEvent *>(e)) {
+        PortChannel ch = (de->portType == DataEvent::PortType::WriteWide ||
+                          de->portType == DataEvent::PortType::ReadWide)
+                             ? PortChannel::BULK
+                             : PortChannel::WORD;
+        latchInput(i, ch, PortValue(de->payload, de->size));
+      }
+      delete e;
+    }
+  }
+}
+
+const PortValue &DRRAResource::readInput(uint32_t port, PortChannel ch) {
+  return in_ports[{port, ch}];
 }
 
 uint64_t DRRAResource::vectorToUint64(std::vector<uint8_t> data) {

@@ -1,6 +1,7 @@
 #ifndef _DATAEVENT_H
 #define _DATAEVENT_H
 
+#include "port_register.h"
 #include <sst/core/event.h>
 
 using namespace SST;
@@ -16,6 +17,12 @@ public:
 
   enum PortType { WriteNarrow, ReadNarrow, WriteWide, ReadWide };
   PortType portType; // Port type
+
+  // Register-model tags (Phase 0+): identify which source wire drove this
+  // value so the SWB can maintain per-source snapshots and forward on change.
+  // Defaulted so existing event constructions are unaffected.
+  uint32_t source_slot = 0;
+  PortChannel channel = PortChannel::WORD;
 
   DataEvent(PortType portType) : portType(portType) {
     switch (portType) {
