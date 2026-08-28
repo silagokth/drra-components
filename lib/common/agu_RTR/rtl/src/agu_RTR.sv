@@ -5,9 +5,9 @@ module agu_rtr
     parameter int NUMBER_IR         = 4,
     parameter int NUMBER_MT         = 3,
     parameter int NUMBER_OR         = 4,
-    parameter int REP_DELAY_WIDTH   = 6,
-    parameter int REP_ITER_WIDTH    = 6,
-    parameter int REP_STEP_WIDTH    = 6,
+    parameter int REP_DELAY_WIDTH   = 14,
+    parameter int REP_ITER_WIDTH    = 14,
+    parameter int REP_STEP_WIDTH    = 12,
     parameter int TRANS_DELAY_WIDTH = 12
 ) (
     input logic clk,
