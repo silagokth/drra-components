@@ -7,9 +7,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic instruction_valid,
     input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
 
-    input logic [FSM_PER_SLOT-1:0] agu_done,
+    input logic [NUM_AGUS-1:0] agu_done,
 
-    agu_cfg_if.producer agu_configs[FSM_PER_SLOT]
+    agu_cfg_if.producer agu_configs[NUM_AGUS]
 );
 
     // Instruction type valid signals
@@ -39,14 +39,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     localparam int ITER_HI  = REP_ITER_WIDTH/2;
     localparam int STEP_HI  = REP_STEP_WIDTH/2;
 
-    agu_config_t agu_configs_reg    [FSM_PER_SLOT];
-    logic        use_or_reg        [FSM_PER_SLOT];
-    logic        or_configured_reg [FSM_PER_SLOT];
+    agu_config_t agu_configs_reg    [NUM_AGUS];
+    logic        use_or_reg        [NUM_AGUS];
+    logic        or_configured_reg [NUM_AGUS];
 
-    logic [$clog2(FSM_PER_SLOT)-1:0]  agu_config_index;
-    logic [$clog2(NUMBER_MT+1)-1:0]   current_lane_index  [FSM_PER_SLOT];
-    logic [$clog2(NUMBER_IR)-1:0]     current_rep_level   [FSM_PER_SLOT];
-    logic [$clog2(NUMBER_MT+1)-1:0]   current_trans_index [FSM_PER_SLOT];
+    logic [$clog2(NUM_AGUS)-1:0]  agu_config_index;
+    logic [$clog2(NUMBER_MT+1)-1:0]   current_lane_index  [NUM_AGUS];
+    logic [$clog2(NUMBER_IR)-1:0]     current_rep_level   [NUM_AGUS];
+    logic [$clog2(NUMBER_MT+1)-1:0]   current_trans_index [NUM_AGUS];
 
     // Combinational signals derived from instructions
     logic [$clog2(NUM_AGUS)-1:0]       evt_port;
@@ -80,7 +80,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         current_rep_level   <= '{default: '0};
         current_trans_index <= '{default: '0};
       end else begin
-        for (int i = 0; i < FSM_PER_SLOT; i++) begin
+        for (int i = 0; i < NUM_AGUS; i++) begin
           if (agu_done[i]) begin
             agu_configs_reg[i]     <= '0;
             use_or_reg[i]          <= 1'b0;
@@ -149,7 +149,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     genvar gi;
     generate
-      for (gi = 0; gi < FSM_PER_SLOT; gi++) begin : gen_cfg_drive
+      for (gi = 0; gi < NUM_AGUS; gi++) begin : gen_cfg_drive
         assign agu_configs[gi].or_configs = agu_configs_reg[gi].or_configs;
         assign agu_configs[gi].mt_configs = agu_configs_reg[gi].mt_configs;
         assign agu_configs[gi].ir_configs = agu_configs_reg[gi].ir_configs;
