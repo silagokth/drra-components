@@ -15,7 +15,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   output logic [NCC_MODE_WIDTH-1:0] ncc_mode
 );
   logic [AGU_NCC_ADDR_WIDTH-1:0] mode_index;
-  logic [NCC_MODE_WIDTH-1:0] mode_memory [FSM_MAX_STATES];
+  logic [NCC_MODE_WIDTH-1:0] mode_memory [NUM_CONFIGS];
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin

@@ -17,8 +17,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
 );
   logic [AGU_DPU_ADDR_WIDTH-1:0]  dpu_mode_index;
-  logic [DPU_MODE_WIDTH-1:0]      mode_memory      [FSM_MAX_STATES];
-  logic [DPU_IMMEDIATE_WIDTH-1:0] immediate_memory [FSM_MAX_STATES];
+  logic [DPU_MODE_WIDTH-1:0]      mode_memory      [NUM_CONFIGS];
+  logic [DPU_IMMEDIATE_WIDTH-1:0] immediate_memory [NUM_CONFIGS];
 
   // ─────────────────────────────────────────────────────────────────────────
   // DPU mode index registration

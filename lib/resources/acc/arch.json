@@ -16,6 +16,10 @@
     {
       "name": "INCLUDE_MULTIPLIER",
       "value": 1
+    },
+    {
+      "name": "NUM_CONFIGS",
+      "value": 4
     }
   ],
   "required_parameters": [

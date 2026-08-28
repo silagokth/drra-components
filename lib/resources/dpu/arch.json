@@ -4,7 +4,12 @@
   "size": 2,
   "io_input": false,
   "io_output": false,
-  "custom_properties": [],
+  "custom_properties": [
+    {
+      "name": "NUM_CONFIGS",
+      "value": 4
+    }
+  ],
   "required_parameters": [
     "IO_DATA_WIDTH",
     "IO_ADDR_WIDTH",

@@ -21,7 +21,11 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int QUAD_SHIFTED_W   = QUAD_BITWIDTH   - QUAD_RSHIFT;
 
   // AGU configuration: Port 0 = ncc, Port 1 = reset.
-  parameter int FSM_MAX_STATES = 1 << NCC_CONFIG_WIDTH;
+  // NUM_CONFIGS (config-table depth; formerly FSM_MAX_STATES) is intrinsically
+  // tied to the config field width here, so it stays a derived pkg constant
+  // rather than an arch.json custom_property. Distinct from FSM_PER_SLOT
+  // (control ports) and NUM_AGUS (physical AGUs).
+  parameter int NUM_CONFIGS = 1 << NCC_CONFIG_WIDTH;
   parameter int NUM_AGUS = 2;
   parameter int AGU_NCC_ADDR_WIDTH = NCC_CONFIG_WIDTH;
   parameter int AGU_RST_ADDR_WIDTH  = 1;
@@ -37,15 +41,7 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int NUMBER_MT = 1;
   parameter int NUMBER_IR = 4;
 
-  typedef agu_config_class#(
-    .NUMBER_IR         (NUMBER_IR),
-    .NUMBER_MT         (NUMBER_MT),
-    .NUMBER_OR         (NUMBER_OR),
-    .REP_DELAY_WIDTH   (REP_DELAY_WIDTH),
-    .REP_ITER_WIDTH    (REP_ITER_WIDTH),
-    .REP_STEP_WIDTH    (REP_STEP_WIDTH),
-    .TRANS_DELAY_WIDTH (TRANS_DELAY_WIDTH)
-  )::agu_config_t agu_config_t;
+  {% include "agu_config.j2" %}
 
   // Counter width matches the word port so max_cnt fits a single word lane.
   parameter int COUNTER_WIDTH = WORD_BITWIDTH;

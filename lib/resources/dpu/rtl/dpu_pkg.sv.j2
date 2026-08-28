@@ -8,7 +8,9 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
-  parameter int FSM_MAX_STATES = 4;
+  // NUM_CONFIGS (config-table depth; formerly FSM_MAX_STATES) is provided by the
+  // package_macro above from the NUM_CONFIGS custom_property in arch.json. It is
+  // distinct from FSM_PER_SLOT (control ports) and NUM_AGUS (physical AGUs).
   parameter int FSM_DELAY_WIDTH = 3;
   parameter int DPU_MODE_WIDTH = 6;
   parameter int DPU_IMMEDIATE_WIDTH = 8;
@@ -20,10 +22,10 @@ package {{name}}_{{fingerprint}}_pkg;
 
   // AGU RTR params
   parameter int NUM_AGUS = 2;
-  parameter int AGU_DPU_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_DPU_ADDR_WIDTH = $clog2(NUM_CONFIGS);
   parameter int AGU_RST_ADDR_WIDTH = 1;
   parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
-  // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
+  // parameter int REP_OPTION_WIDTH = $clog2(NUM_CONFIGS);
   parameter int REP_LEVEL_WIDTH = 3;
   parameter int REP_DELAY_WIDTH = 6 * 2; // REP + REPX
   parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
