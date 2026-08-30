@@ -21,9 +21,11 @@ package {{name}}_{{fingerprint}}_pkg;
 
   // AGU RTR params
   parameter int ADDRESS_WIDTH = IO_ADDR_WIDTH;
-  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
-  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 8 * 2; // REP + REPX
+  // Widths must be twice the isa.json rep field widths: a full-width value is
+  // assembled from a base REP (ext=0, low half) and its extension (ext=1).
+  parameter int REP_ITER_WIDTH = 7 * 2;
+  parameter int REP_DELAY_WIDTH = 7 * 2;
+  parameter int REP_STEP_WIDTH = 7 * 2;
   parameter int TRANS_DELAY_WIDTH = 23;
   parameter int NUMBER_OR = 4;
   parameter int NUMBER_MT = 3;

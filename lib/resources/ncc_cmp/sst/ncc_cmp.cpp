@@ -10,17 +10,17 @@ namespace {
 
 const char *nccModeName(uint32_t mode) {
   switch (mode) {
-  case NCC_CMP_PKG::NCC_MODE_IDLE:
+  case NCC_CMP_PKG::CONF_MODE_IDLE:
     return "idle";
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_A:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_A:
     return "load_s_a";
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_A2:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_A2:
     return "load_s_a2";
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_AB:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_AB:
     return "load_s_ab";
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_B:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_B:
     return "load_s_b";
-  case NCC_CMP_PKG::NCC_MODE_CMP:
+  case NCC_CMP_PKG::CONF_MODE_CMP:
     return "cmp";
   default:
     return "idle";
@@ -139,7 +139,7 @@ Ncc_cmp::Ncc_cmp(SST::ComponentId_t id, SST::Params &params)
   }
 
   instructionHandlers = NCC_CMP_PKG::createInstructionHandlers(this);
-  ncc_modes.fill(NCC_CMP_PKG::NCC_MODE_IDLE);
+  ncc_modes.fill(NCC_CMP_PKG::CONF_MODE_IDLE);
 }
 
 bool Ncc_cmp::clockTick(SST::Cycle_t currentCycle) {
@@ -197,15 +197,15 @@ void Ncc_cmp::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
 
 void Ncc_cmp::doNcc(uint32_t mode) {
   switch (mode) {
-  case NCC_CMP_PKG::NCC_MODE_IDLE:
+  case NCC_CMP_PKG::CONF_MODE_IDLE:
     return;
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_A:
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_A2:
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_AB:
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_B:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_A:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_A2:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_AB:
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_B:
     doLoad(mode);
     return;
-  case NCC_CMP_PKG::NCC_MODE_CMP:
+  case NCC_CMP_PKG::CONF_MODE_CMP:
     doCompare();
     return;
   default:
@@ -219,7 +219,7 @@ void Ncc_cmp::doLoad(uint32_t mode) {
     return;
   }
   switch (mode) {
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_A: {
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_A: {
     int64_t v =
         bytesToSignedSlice(data_buffers[0], linear_bitwidth, linear_rshift);
     s_a_cur = v;
@@ -229,7 +229,7 @@ void Ncc_cmp::doLoad(uint32_t mode) {
                    {"value", static_cast<long long>(v)}});
     break;
   }
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_A2: {
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_A2: {
     int64_t v =
         bytesToSignedSlice(data_buffers[0], quad_bitwidth, getQuadRshift());
     s_a2_cur = v;
@@ -239,7 +239,7 @@ void Ncc_cmp::doLoad(uint32_t mode) {
                    {"value", static_cast<long long>(v)}});
     break;
   }
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_AB: {
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_AB: {
     int64_t v =
         bytesToSignedSlice(data_buffers[0], quad_bitwidth, getQuadRshift());
     s_ab_cur = v;
@@ -249,7 +249,7 @@ void Ncc_cmp::doLoad(uint32_t mode) {
                    {"value", static_cast<long long>(v)}});
     break;
   }
-  case NCC_CMP_PKG::NCC_MODE_LOAD_S_B: {
+  case NCC_CMP_PKG::CONF_MODE_LOAD_S_B: {
     int64_t v =
         bytesToSignedSlice(data_buffers[0], linear_bitwidth, linear_rshift);
     s_b = v;
@@ -335,13 +335,13 @@ void Ncc_cmp::emitMaxCount() {
              static_cast<unsigned long long>(masked));
 }
 
-void Ncc_cmp::handleNCC(const NCC_CMP_PKG::NCCInstruction &instr) {
-  if (instr.config >= ncc_modes.size()) {
-    out.fatal(CALL_INFO, -1, "Invalid NCC config: %d\n", instr.config);
+void Ncc_cmp::handleCONF(const NCC_CMP_PKG::CONFInstruction &instr) {
+  if (instr.option >= ncc_modes.size()) {
+    out.fatal(CALL_INFO, -1, "Invalid NCC config: %d\n", instr.option);
   }
-  out.output("ncc (slot=%d, config=%d, mode=%s)\n", instr.slot, instr.config,
-             nccModeName(instr.mode));
-  ncc_modes[instr.config] = instr.mode;
+  out.output("conf (slot=%d, option=%d, mode=%s)\n", instr.slot,
+             instr.option, nccModeName(instr.mode));
+  ncc_modes[instr.option] = instr.mode;
 }
 
 void Ncc_cmp::handleEVT(const NCC_CMP_PKG::EVTInstruction &instr) {
@@ -359,35 +359,29 @@ void Ncc_cmp::handleREP(const NCC_CMP_PKG::REPInstruction &instr) {
   if (instr.port >= 2) {
     out.fatal(CALL_INFO, -1, "Invalid NCC REP port: %d\n", instr.port);
   }
-  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, portName(instr.port), instr.iter, instr.step,
-             instr.delay);
+  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, portName(instr.port), instr.iter,
+             instr.step, instr.delay);
   try {
-    agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+      uint32_t iter = instr.iter
+                          << NCC_CMP_PKG::NCC_CMP_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step
+                          << NCC_CMP_PKG::NCC_CMP_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay = instr.delay
+                           << NCC_CMP_PKG::NCC_CMP_INSTR_REP_DELAY_BITWIDTH |
+                       repetition_op.getDelay();
+      agus[instr.port].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "NCC_CMP REP failed: %s\n", e.what());
-  }
-}
-
-void Ncc_cmp::handleREPX(const NCC_CMP_PKG::REPXInstruction &instr) {
-  if (instr.port >= 2) {
-    out.fatal(CALL_INFO, -1, "Invalid NCC REPX port: %d\n", instr.port);
-  }
-  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, portName(instr.port), instr.iter, instr.step,
-             instr.delay);
-  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-  uint32_t iter = instr.iter << NCC_CMP_PKG::NCC_CMP_INSTR_REP_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step << NCC_CMP_PKG::NCC_CMP_INSTR_REP_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = instr.delay
-                       << NCC_CMP_PKG::NCC_CMP_INSTR_REP_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-  try {
-    agus[instr.port].adjustRepetition(iter, delay, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "NCC_CMP REPX failed: %s\n", e.what());
   }
 }
 

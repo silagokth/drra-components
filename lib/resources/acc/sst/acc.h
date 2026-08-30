@@ -90,10 +90,9 @@ public:
 
   // Instruction handlers (called from auto-generated pkg dispatcher)
   using DRRAResource::format;
-  void handleACC(const ACC_PKG::ACCInstruction &instr);
+  void handleCONF(const ACC_PKG::CONFInstruction &instr);
   void handleEVT(const ACC_PKG::EVTInstruction &instr);
   void handleREP(const ACC_PKG::REPInstruction &instr);
-  void handleREPX(const ACC_PKG::REPXInstruction &instr);
   void handleTRANS(const ACC_PKG::TRANSInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
@@ -115,7 +114,7 @@ private:
   // Operand register for capture/vmac modes: stores the captured vector.
   std::vector<int64_t> operand_register;
 
-  std::unordered_map<ACC_PKG::ACC_MODE, std::function<void()>> accHandlers;
+  std::unordered_map<ACC_PKG::CONF_MODE, std::function<void()>> accHandlers;
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
 

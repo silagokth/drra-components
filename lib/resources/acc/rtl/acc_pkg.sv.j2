@@ -11,9 +11,6 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int ACC_OPCODE_WIDTH = 3;
   parameter int ACC_MODE_WIDTH = 4;
   parameter int ACC_CONFIG_WIDTH = 2;
-  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
-  parameter int OPCODE_H = 26;
-  parameter int OPCODE_L = 24;
 
   // NUM_CONFIGS (config-table depth; formerly FSM_MAX_STATES) comes from the
   // package_macro above via the NUM_CONFIGS custom_property in arch.json. It is
@@ -24,9 +21,9 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int AGU_RST_ADDR_WIDTH = 1;
   parameter int ADDRESS_WIDTH = (AGU_ACC_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_ACC_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
   parameter int REP_LEVEL_WIDTH = 3;
-  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
-  parameter int REP_ITER_WIDTH  = 8 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH  = 7 * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = 7 * 2;
+  parameter int REP_ITER_WIDTH  = 7 * 2;
+  parameter int REP_STEP_WIDTH  = 7 * 2;
   parameter int TRANS_DELAY_WIDTH = 23;
   parameter int NUMBER_OR = 1;
   parameter int NUMBER_MT = 1;

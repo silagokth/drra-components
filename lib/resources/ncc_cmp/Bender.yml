@@ -2,13 +2,12 @@ package:
   name: ncc_cmp
 
 dependencies:
-  fsm: { path: ../../common/fsm }
   agu_rtr: { path: ../../common/agu_RTR }
+  agu_controller: { path: ../../common/agu_controller }
 
 sources:
   - ./rtl/compare_unit.sv
   - ./rtl/ncc_cmp_pkg.sv
   - ./rtl/decoder.sv
-  - ./rtl/controller.sv
   - ./rtl/mode_selector.sv
   - ./rtl/ncc_cmp.sv

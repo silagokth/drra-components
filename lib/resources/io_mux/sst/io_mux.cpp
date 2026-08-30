@@ -91,43 +91,41 @@ void Io_mux::handleEVT(const IO_MUX_PKG::EVTInstruction &instr) {
   current_event_number++;
 }
 
+void Io_mux::handleCONF(const IO_MUX_PKG::CONFInstruction &instr) {
+  // io_mux has no stored configuration; conf is accepted and ignored.
+  out.output("conf (slot=%d)\n", instr.slot);
+}
+
 void Io_mux::handleREP(const IO_MUX_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
+             instr.delay);
 
   if (!current_target_valid) {
     out.fatal(CALL_INFO, -1, "REP issued before a valid EVT target\n");
   }
 
   try {
-    agus[current_target_agu].addRepetition(instr.iter, instr.delay, instr.step);
-    out.output("Added repetition to physical AGU %u (iter=%d, step=%d)\n",
-               current_target_agu, instr.iter, instr.step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[current_target_agu].addRepetition(instr.iter, instr.delay,
+                                             instr.step);
+      out.output("Added repetition to physical AGU %u (iter=%d, step=%d)\n",
+                 current_target_agu, instr.iter, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[current_target_agu].getLastRepetitionOperator();
+      uint32_t iter = instr.iter << IO_MUX_PKG::IO_MUX_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step << IO_MUX_PKG::IO_MUX_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay =
+          instr.delay << IO_MUX_PKG::IO_MUX_INSTR_REP_DELAY_BITWIDTH |
+          repetition_op.getDelay();
+      agus[current_target_agu].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
-}
-
-void Io_mux::handleREPX(const IO_MUX_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
-
-  if (!current_target_valid) {
-    out.fatal(CALL_INFO, -1, "REPX issued before a valid EVT target\n");
-  }
-
-  auto repetition_op = agus[current_target_agu].getLastRepetitionOperator();
-  uint32_t iter = instr.iter << IO_MUX_PKG::IO_MUX_INSTR_REPX_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step << IO_MUX_PKG::IO_MUX_INSTR_REPX_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = instr.delay << IO_MUX_PKG::IO_MUX_INSTR_REPX_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-
-  try {
-    agus[current_target_agu].adjustRepetition(iter, delay, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 

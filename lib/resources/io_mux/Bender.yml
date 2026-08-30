@@ -1,8 +1,11 @@
 package:
   name: io_mux
 
+dependencies:
+  agu_rtr: { path: ../../common/agu_RTR }
+  agu_controller: { path: ../../common/agu_controller }
+
 sources:
   - ./rtl/io_mux_pkg.sv
   - ./rtl/io_mux.sv
-  - ./rtl/controller.sv
   - ./rtl/decoder.sv

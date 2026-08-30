@@ -42,7 +42,7 @@ Acc::Acc(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) 
     port_last_rep_level[i] = -1;
   }
   for (uint32_t i = 0; i < num_configs; i++) {
-    fsmHandlers[i] = accHandlers.at(ACC_PKG::ACC_MODE::ACC_MODE_IDLE);
+    fsmHandlers[i] = accHandlers.at(ACC_PKG::CONF_MODE::CONF_MODE_IDLE);
   }
 }
 
@@ -93,16 +93,16 @@ void Acc::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
   data_buffers[slot_id] = dataEvent->payload;
 }
 
-void Acc::handleACC(const ACC_PKG::ACCInstruction &instr) {
-  auto mode = static_cast<ACC_PKG::ACC_MODE>(instr.mode);
-  out.output("acc (slot=%d, config=%d, mode=%d)\n", instr.slot, instr.config,
-             instr.mode);
+void Acc::handleCONF(const ACC_PKG::CONFInstruction &instr) {
+  auto mode = static_cast<ACC_PKG::CONF_MODE>(instr.mode);
+  out.output("conf (slot=%d, option=%d, mode=%d)\n", instr.slot,
+             instr.option, instr.mode);
   auto handler = accHandlers.find(mode);
   if (handler == accHandlers.end()) {
     out.fatal(CALL_INFO, -1, "Unsupported ACC mode: %d\n",
               static_cast<int>(mode));
   }
-  fsmHandlers[instr.config] = handler->second;
+  fsmHandlers[instr.option] = handler->second;
 }
 
 void Acc::handleEVT(const ACC_PKG::EVTInstruction &instr) {
@@ -155,31 +155,26 @@ void Acc::executeAccumulateForCycle() {
 }
 
 void Acc::handleREP(const ACC_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port == 0 ? "acc" : "rst", instr.iter, instr.step,
-             instr.delay);
+  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port == 0 ? "acc" : "rst", instr.iter,
+             instr.step, instr.delay);
   try {
-    agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+      uint32_t iter = instr.iter << ACC_PKG::ACC_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step << ACC_PKG::ACC_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay = instr.delay << ACC_PKG::ACC_INSTR_REP_DELAY_BITWIDTH |
+                       repetition_op.getDelay();
+      agus[instr.port].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "ACC REP failed: %s\n", e.what());
-  }
-}
-
-void Acc::handleREPX(const ACC_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port == 0 ? "acc" : "rst", instr.iter,
-             instr.step, instr.delay);
-  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-  uint32_t iter = instr.iter << ACC_PKG::ACC_INSTR_REP_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step << ACC_PKG::ACC_INSTR_REP_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = instr.delay << ACC_PKG::ACC_INSTR_REP_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-  try {
-    agus[instr.port].adjustRepetition(iter, delay, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "ACC REPX failed: %s\n", e.what());
   }
 }
 

@@ -11,9 +11,6 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int NCC_OPCODE_WIDTH = 3;
   parameter int NCC_MODE_WIDTH = 3;
   parameter int NCC_CONFIG_WIDTH = 3;
-  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
-  parameter int OPCODE_H = 26;
-  parameter int OPCODE_L = 24;
 
   // Derived bit-widths for the comparator datapath.
   parameter int QUAD_RSHIFT      = 2 * LINEAR_RSHIFT;
@@ -33,9 +30,9 @@ package {{name}}_{{fingerprint}}_pkg;
       (AGU_NCC_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_NCC_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
 
   parameter int REP_LEVEL_WIDTH   = 3;
-  parameter int REP_DELAY_WIDTH   = 7 * 2;  // REP + REPX
-  parameter int REP_ITER_WIDTH    = 8 * 2;  // REP + REPX
-  parameter int REP_STEP_WIDTH    = 7 * 2;  // REP + REPX
+  parameter int REP_DELAY_WIDTH   = 7 * 2;
+  parameter int REP_ITER_WIDTH    = 7 * 2;
+  parameter int REP_STEP_WIDTH    = 7 * 2;
   parameter int TRANS_DELAY_WIDTH = 23;
   parameter int NUMBER_OR = 1;
   parameter int NUMBER_MT = 1;

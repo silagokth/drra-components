@@ -64,10 +64,9 @@ public:
 
   // Instruction handlers (called from auto-generated pkg dispatcher)
   using DRRAResource::format;
-  void handleNCC(const NCC_CMP_PKG::NCCInstruction &instr);
+  void handleCONF(const NCC_CMP_PKG::CONFInstruction &instr);
   void handleEVT(const NCC_CMP_PKG::EVTInstruction &instr);
   void handleREP(const NCC_CMP_PKG::REPInstruction &instr);
-  void handleREPX(const NCC_CMP_PKG::REPXInstruction &instr);
   void handleTRANS(const NCC_CMP_PKG::TRANSInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
@@ -117,7 +116,7 @@ private:
   size_t product_bitwidth;
 
   std::array<uint32_t,
-             1u << NCC_CMP_PKG::NCC_CMP_INSTR_NCC_CONFIG_BITWIDTH>
+             1u << NCC_CMP_PKG::NCC_CMP_INSTR_CONF_OPTION_BITWIDTH>
       ncc_modes;
 };
 

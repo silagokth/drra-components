@@ -197,37 +197,35 @@ void Win2::handleEVT(const WIN2_PKG::EVTInstruction &instr) {
   current_event_number++;
 }
 
+void Win2::handleCONF(const WIN2_PKG::CONFInstruction &instr) {
+  // win2 has no stored configuration; conf is accepted and ignored.
+  out.output("conf (slot=%d)\n", instr.slot);
+}
+
 void Win2::handleREP(const WIN2_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             portName(instr.port), instr.iter, instr.step, instr.delay);
+  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, portName(instr.port), instr.iter,
+             instr.step, instr.delay);
   if (instr.port >= 2) {
     out.fatal(CALL_INFO, -1, "Invalid WIN2 REP port: %d\n", instr.port);
   }
   try {
-    agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+      uint32_t iter = instr.iter << WIN2_PKG::WIN2_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step << WIN2_PKG::WIN2_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay = instr.delay << WIN2_PKG::WIN2_INSTR_REP_DELAY_BITWIDTH |
+                       repetition_op.getDelay();
+      agus[instr.port].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "WIN2 REP failed: %s\n", e.what());
-  }
-}
-
-void Win2::handleREPX(const WIN2_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, portName(instr.port), instr.iter, instr.step,
-             instr.delay);
-  if (instr.port >= 2) {
-    out.fatal(CALL_INFO, -1, "Invalid WIN2 REPX port: %d\n", instr.port);
-  }
-  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-  uint32_t iter = instr.iter << WIN2_PKG::WIN2_INSTR_REPX_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step << WIN2_PKG::WIN2_INSTR_REPX_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = instr.delay << WIN2_PKG::WIN2_INSTR_REPX_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-  try {
-    agus[instr.port].adjustRepetition(iter, delay, step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "WIN2 REPX failed: %s\n", e.what());
   }
 }
 

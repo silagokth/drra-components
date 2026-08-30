@@ -50,9 +50,9 @@ public:
 
   // Instruction handlers (called from auto-generated pkg dispatcher).
   using DRRAResource::format;
+  void handleCONF(const WIN2_PKG::CONFInstruction &instr);
   void handleEVT(const WIN2_PKG::EVTInstruction &instr);
   void handleREP(const WIN2_PKG::REPInstruction &instr);
-  void handleREPX(const WIN2_PKG::REPXInstruction &instr);
   void handleTRANS(const WIN2_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;

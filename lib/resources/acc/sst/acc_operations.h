@@ -10,7 +10,7 @@ class Acc;
 
 namespace ACC_Operations {
 
-std::unordered_map<ACC_PKG::ACC_MODE, std::function<void()>>
+std::unordered_map<ACC_PKG::CONF_MODE, std::function<void()>>
 createHandlers(Acc *acc, bool include_multiplier);
 
 namespace Impl {

@@ -4,21 +4,21 @@
 
 namespace ACC_Operations {
 
-std::unordered_map<ACC_PKG::ACC_MODE, std::function<void()>>
+std::unordered_map<ACC_PKG::CONF_MODE, std::function<void()>>
 createHandlers(Acc *acc, bool include_multiplier) {
-  std::unordered_map<ACC_PKG::ACC_MODE, std::function<void()>> handlers = {
-      {ACC_PKG::ACC_MODE::ACC_MODE_IDLE,  [acc] { Impl::handleIdle(acc); }},
-      {ACC_PKG::ACC_MODE::ACC_MODE_ADD,   [acc] { Impl::handleAdd(acc); }},
-      {ACC_PKG::ACC_MODE::ACC_MODE_SUB,   [acc] { Impl::handleSub(acc); }},
-      {ACC_PKG::ACC_MODE::ACC_MODE_VADD,  [acc] { Impl::handleVadd(acc); }},
-      {ACC_PKG::ACC_MODE::ACC_MODE_VSUB,  [acc] { Impl::handleVsub(acc); }},
+  std::unordered_map<ACC_PKG::CONF_MODE, std::function<void()>> handlers = {
+      {ACC_PKG::CONF_MODE::CONF_MODE_IDLE,  [acc] { Impl::handleIdle(acc); }},
+      {ACC_PKG::CONF_MODE::CONF_MODE_ADD,   [acc] { Impl::handleAdd(acc); }},
+      {ACC_PKG::CONF_MODE::CONF_MODE_SUB,   [acc] { Impl::handleSub(acc); }},
+      {ACC_PKG::CONF_MODE::CONF_MODE_VADD,  [acc] { Impl::handleVadd(acc); }},
+      {ACC_PKG::CONF_MODE::CONF_MODE_VSUB,  [acc] { Impl::handleVsub(acc); }},
   };
   if (include_multiplier) {
-    handlers[ACC_PKG::ACC_MODE::ACC_MODE_CAPTURE]    = [acc] { Impl::handleCapture(acc); };
-    handlers[ACC_PKG::ACC_MODE::ACC_MODE_VMAC_ADD]   = [acc] { Impl::handleVmacAdd(acc); };
-    handlers[ACC_PKG::ACC_MODE::ACC_MODE_VMAC_SUB]   = [acc] { Impl::handleVmacSub(acc); };
-    handlers[ACC_PKG::ACC_MODE::ACC_MODE_SQUARE_ADD] = [acc] { Impl::handleSquareAdd(acc); };
-    handlers[ACC_PKG::ACC_MODE::ACC_MODE_SQUARE_SUB] = [acc] { Impl::handleSquareSub(acc); };
+    handlers[ACC_PKG::CONF_MODE::CONF_MODE_CAPTURE]    = [acc] { Impl::handleCapture(acc); };
+    handlers[ACC_PKG::CONF_MODE::CONF_MODE_VMAC_ADD]   = [acc] { Impl::handleVmacAdd(acc); };
+    handlers[ACC_PKG::CONF_MODE::CONF_MODE_VMAC_SUB]   = [acc] { Impl::handleVmacSub(acc); };
+    handlers[ACC_PKG::CONF_MODE::CONF_MODE_SQUARE_ADD] = [acc] { Impl::handleSquareAdd(acc); };
+    handlers[ACC_PKG::CONF_MODE::CONF_MODE_SQUARE_SUB] = [acc] { Impl::handleSquareSub(acc); };
   }
   return handlers;
 }

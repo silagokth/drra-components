@@ -42,9 +42,9 @@ public:
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
   using DRRAResource::format;
+  void handleCONF(const IO_MUX_PKG::CONFInstruction &instr);
   void handleEVT(const IO_MUX_PKG::EVTInstruction &instr);
   void handleREP(const IO_MUX_PKG::REPInstruction &instr);
-  void handleREPX(const IO_MUX_PKG::REPXInstruction &instr);
   void handleTRANS(const IO_MUX_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
