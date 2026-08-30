@@ -16,11 +16,6 @@ package {{name}}_{{fingerprint}}_pkg;
   // number of control ports) and from NUM_AGUS (the physical AGU count, below).
   // Its width sets the option field (ADDRESS_WIDTH = $clog2(NUM_CONFIGS), below).
   parameter int FSM_DELAY_WIDTH = 3;
-  parameter int OPCODE_WIDTH = 4;
-  parameter int INSTRUCTION_PAYLOAD_WIDTH = 27;
-  parameter int OPCODE_H = 26;
-  parameter int OPCODE_L = 24;
-
   parameter int NUM_AGUS = 2;
   parameter int AGU_SWB_INDEX = 0;
   parameter int AGU_SWB_PORTNUM = 0;
@@ -41,8 +36,10 @@ package {{name}}_{{fingerprint}}_pkg;
   // AGU RTR params
   parameter int ADDRESS_WIDTH = $clog2(NUM_CONFIGS);
   parameter int REP_OPTION_WIDTH = $clog2(NUM_CONFIGS);
-  parameter int REP_ITER_WIDTH = 8 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
+  // Halves of the full-width REP fields; widths follow the rep segments in
+  // isa.json (iter 7, step 6, delay 8), assembled from REP + its ext half.
+  parameter int REP_ITER_WIDTH = 7 * 2;
+  parameter int REP_STEP_WIDTH = 6 * 2;
   parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
   parameter int TRANS_DELAY_WIDTH = 23;
   parameter int NUMBER_OR = 4;

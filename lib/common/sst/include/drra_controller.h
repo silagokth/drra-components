@@ -56,31 +56,34 @@ public:
       cycle_file << _currentSSTCycle / 10 << std::endl;
       cycle_file.close();
 
-      // Open trace file to modify the last line
-      trace_file.open(trace_name, std::ios::app);
-      // Find the last comma and remove it
-      std::ifstream trace_file_read(trace_name);
-      std::string line;
-      std::string last_line;
-      while (std::getline(trace_file_read, line)) {
-        last_line = line;
-      }
-      trace_file_read.close();
-      size_t last_comma = last_line.find_last_of(',');
-      if (last_comma != std::string::npos) {
-        last_line = last_line.substr(0, last_comma);
-      }
-      trace_file << last_line << std::endl;
-      // Add the closing bracket
-      trace_file << "], \"displayTimeUnit\": \"ns\"}" << std::endl;
-      trace_file.flush();
-      trace_file.close();
-      // Move the trace file to the output directory
-      std::string command = "mv " + trace_name + " trace_complete.json";
-      int returnCode = system(command.c_str());
-      if (returnCode != 0) {
-        out.output(
-            "WARN: Could not copy the trace file to trace_complete.json");
+      // Finalize the JSON trace file (only when debug/monitoring is enabled)
+      if (debug_enabled) {
+        // Open trace file to modify the last line
+        trace_file.open(trace_name, std::ios::app);
+        // Find the last comma and remove it
+        std::ifstream trace_file_read(trace_name);
+        std::string line;
+        std::string last_line;
+        while (std::getline(trace_file_read, line)) {
+          last_line = line;
+        }
+        trace_file_read.close();
+        size_t last_comma = last_line.find_last_of(',');
+        if (last_comma != std::string::npos) {
+          last_line = last_line.substr(0, last_comma);
+        }
+        trace_file << last_line << std::endl;
+        // Add the closing bracket
+        trace_file << "], \"displayTimeUnit\": \"ns\"}" << std::endl;
+        trace_file.flush();
+        trace_file.close();
+        // Move the trace file to the output directory
+        std::string command = "mv " + trace_name + " trace_complete.json";
+        int returnCode = system(command.c_str());
+        if (returnCode != 0) {
+          out.output(
+              "WARN: Could not copy the trace file to trace_complete.json");
+        }
       }
     }
   }

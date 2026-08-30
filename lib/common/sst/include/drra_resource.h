@@ -115,6 +115,29 @@ protected:
 
   void executeScheduledEventsForCycle(Cycle_t currentSSTCycle);
 
+  // Idle when no port is active, no activation is pending, and no registered
+  // output still has a value waiting to be latched. Keeping the clock alive
+  // while portsToActivate is non-empty ensures a deferred activation is applied
+  // on the same cycle it would be without pausing; keeping it alive while a
+  // registered output has q != d ensures commitOutputRegisters() still runs at
+  // the sub-9 edge that latches it, so the last value a resource drives before
+  // going quiet is not held back a cycle. (DPU opts out.)
+  bool isIdle() override {
+    for (const auto &p : active_ports) {
+      if (p.second)
+        return false;
+    }
+    for (const auto &o : out_ports) {
+      if (o.second.registered && o.second.q != o.second.d)
+        return false;
+    }
+    return portsToActivate.empty();
+  }
+
+  // Activations arrive mid-cycle and are applied by clockTick at the next
+  // %10==0 boundary; common to every resource, owned by the base.
+  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
   // ---- Register/wire data model (Phase 0 scaffolding) -------------------
   // Drive an output wire. `port` is the data-link index (0..resource_size-1).
   //   registered == false : combinational output, propagates this cycle on a

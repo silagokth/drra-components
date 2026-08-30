@@ -12,6 +12,7 @@ Iosram_both::Iosram_both(SST::ComponentId_t id, SST::Params &params)
   instructionHandlers = IOSRAM_BOTH_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
   iosram_depth = 1ULL << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  io_address_width = params.find<uint32_t>("IO_ADDR_WIDTH", 16);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
@@ -157,43 +158,42 @@ void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
   current_event_number++;
 }
 
-void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port, instr.iter, instr.step, instr.delay);
-
-  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-
-  // add repetition to the timing model
-  try {
-    agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
-    out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
-               instr.iter, instr.step);
-  } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
-  }
+void Iosram_both::handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr) {
+  out.output("conf (slot=%d)\n", instr.slot);
 }
 
-void Iosram_both::handleREPX(const IOSRAM_BOTH_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
+void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
+             instr.delay);
 
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
-  auto repetition_op = agus[port_num].getLastRepetitionOperator();
-  uint32_t iter = instr.iter
-                      << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step
-                      << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay =
-      instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_DELAY_BITWIDTH |
-      repetition_op.getDelay();
-  out.output("Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
-             port_num, iter, step, delay);
+
   try {
-    agus[port_num].adjustRepetition(iter, delay, step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
+      out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
+                 instr.iter, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[port_num].getLastRepetitionOperator();
+      uint32_t iter = instr.iter
+                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step
+                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay =
+          instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH |
+          repetition_op.getDelay();
+      out.output(
+          "Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
+          port_num, iter, step, delay);
+      agus[port_num].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 
@@ -250,6 +250,8 @@ void Iosram_both::writeToIO() {
 }
 
 std::string Iosram_both::dumpBackendContent() {
+  if (!debug_enabled)
+    return ""; // debug disabled: skip full-SRAM dump built for trace args
   std::string result;
   std::vector<uint8_t> data;
   for (uint32_t addr = 0; addr < iosram_depth; addr++) {
@@ -348,6 +350,29 @@ void Iosram_both::writeBulk() {
   const PortValue &in = readInput(1, PortChannel::BULK);
   if (in.data.empty()) {
     out.output("writeBulk: no data on bulk input wire; skipping\n");
+    return;
+  }
+
+  // RTL SRAM write-port arbitration (iosram_both.sv "input ports" always_comb):
+  //   if (agu_valid[2]) [io_write_to_sram]  <-- priority
+  //   else if (agu_valid[4]) [write_bulk / drain]
+  // The io_write_to_sram (input-staging) AGU has priority over the write_bulk
+  // (drain) AGU at the shared single SRAM write port. When input-staging is
+  // producing an address in the same cycle, RTL masks the drain write entirely
+  // (the routed drain data still arrives on bulk_data_in but is discarded by
+  // the write mux). SST otherwise models the two writes as independent
+  // backend->set() calls, silently committing a drain that RTL drops -- this is
+  // the F1 double-buffer divergence (mul_512_1_1_db entries 0,1). Reproduce the
+  // arbitration so the SST (m2) matches the RTL (m3).
+  bool io_write_to_sram_active =
+      isPortActive(EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM) &&
+      agus[EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
+          getPortActiveCycle(
+              EVT_RELATIVE_PORT::EVT_PORT_IO_WRITE_TO_SRAM)) >= 0;
+  if (io_write_to_sram_active) {
+    logTraceEvent("iosram_write_bulk_dropped", slot_id, true, 'X',
+                  {{"address", (int)write_bulk_address_buffer}});
+    // Nothing to free: the bulk input is a held wire, not a consumed event.
     return;
   }
 

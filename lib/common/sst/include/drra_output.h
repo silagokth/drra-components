@@ -12,6 +12,7 @@ private:
   // Optional pointer to the owning component's subcycle counter. When bound,
   // every output() line is tagged with the current time as "cycle.subcycle",
   const uint64_t *cycle_ptr = nullptr;
+  bool enabled = false; // gated by the component's debug flag; off by default
 
   std::string cyclePrefix() const {
     if (!cycle_ptr)
@@ -27,7 +28,14 @@ public:
 
   void bindCycle(const uint64_t *ptr) { cycle_ptr = ptr; }
 
+  // Enable/disable the free-form output() stream (debug logging). fatal() and
+  // verbose() are unaffected.
+  void setEnabled(bool e) { enabled = e; }
+  bool isEnabled() const { return enabled; }
+
   template <typename... Args> void output(const char *format, Args... args) {
+    if (!enabled)
+      return; // debug logging disabled
     std::string prefixed_format = cyclePrefix() + prefix + format;
     if constexpr (sizeof...(args) == 0) {
       Output::output("%s", prefixed_format.c_str());

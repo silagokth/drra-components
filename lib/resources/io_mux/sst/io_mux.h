@@ -69,7 +69,6 @@ private:
   std::vector<uint8_t> io_output_data_buffer;
 
   uint32_t current_event_number = 0;
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   bool hasInputSelector() const { return num_input_patterns > 1; }
   bool hasOutputSelector() const { return num_output_patterns > 1; }

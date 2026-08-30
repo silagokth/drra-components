@@ -116,15 +116,17 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
     }
   }
 
-  // Write to trace file
-  trace_file.open(trace_name, std::ios::app);
-  trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
-                "\"tid\": 1"
-             << std::setw(3) << std::setfill('0') << cell_coordinates[0]
-             << std::setw(3) << std::setfill('0') << cell_coordinates[1]
-             << std::setw(3) << std::setfill('0') << slot_id
-             << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
-  trace_file.close();
+  // Write to trace file (only when debug/monitoring is enabled)
+  if (debug_enabled) {
+    trace_file.open(trace_name, std::ios::app);
+    trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
+                  "\"tid\": 1"
+               << std::setw(3) << std::setfill('0') << cell_coordinates[0]
+               << std::setw(3) << std::setfill('0') << cell_coordinates[1]
+               << std::setw(3) << std::setfill('0') << slot_id
+               << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
+    trace_file.close();
+  }
 }
 
 bool DRRAResource::clockTick(Cycle_t currentCycle) {
@@ -143,6 +145,9 @@ void DRRAResource::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void DRRAResource::handleEventBase(Event *event) {
+  // Controller events are handler-delivered (clock-independent); wake the clock
+  // if the idle-skip paused it.
+  ensureClockRunning();
   if (event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
@@ -391,11 +396,21 @@ uint64_t DRRAResource::vectorToUint64(std::vector<uint8_t> data) {
 }
 
 int64_t DRRAResource::vectorToInt64(std::vector<uint8_t> data) {
-  int64_t result = 0;
+  uint64_t raw = 0;
   for (size_t i = 0; i < data.size(); i++) {
-    result |= data[i] << (i * 8);
+    raw |= static_cast<uint64_t>(data[i]) << (i * 8);
   }
-  return result;
+  // Sign-extend from word_bitwidth to 64 bits. RTL DPU operand ports are
+  // `logic signed` (see multiplier.sv.j2 / dpu.sv.j2), so an operand whose
+  // MSB is set is negative. Symmetric with int64ToVector, which writes
+  // signed-saturated values.
+  if (word_bitwidth > 0 && word_bitwidth < 64) {
+    uint64_t sign_bit = 1ULL << (word_bitwidth - 1);
+    if (raw & sign_bit) {
+      raw |= ~((1ULL << word_bitwidth) - 1);
+    }
+  }
+  return static_cast<int64_t>(raw);
 }
 
 std::vector<uint8_t> DRRAResource::uint64ToVector(uint64_t data,

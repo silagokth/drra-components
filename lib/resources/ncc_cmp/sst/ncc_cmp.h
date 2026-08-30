@@ -119,7 +119,6 @@ private:
   std::array<uint32_t,
              1u << NCC_CMP_PKG::NCC_CMP_INSTR_NCC_CONFIG_BITWIDTH>
       ncc_modes;
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 };
 
 #endif // _NCC_CMP_H

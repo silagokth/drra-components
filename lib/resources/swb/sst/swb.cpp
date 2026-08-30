@@ -17,8 +17,7 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
   for (uint32_t i = 0; i < num_configs; i++) {
     connection_maps.push_back(std::map<uint32_t, uint32_t>());
     sending_routes_maps.push_back(std::map<uint32_t, std::set<uint32_t>>());
-    receiving_routes_maps.push_back(
-        std::map<uint32_t, std::set<uint32_t>>());
+    receiving_routes_maps.push_back(std::map<uint32_t, std::set<uint32_t>>());
   }
   swb_opt_touched.assign(num_configs, 0);
   route_opt_touched.assign(num_configs, 0);
@@ -129,6 +128,27 @@ bool Swb::clockTick(SST::Cycle_t currentCycle) {
   }
 
   return result;
+}
+
+void Swb::handleCONF(const SWB_PKG::CONFInstruction &instr) {
+  // Decode the variant selector and forward to the existing handler, rebuilding
+  // the instruction with the variant's own segment layout.
+  switch (instr.variant) {
+  case SWB_PKG::OPCODE_SWB: {
+    auto defs = SWB_PKG::getSwbSegmentDefs();
+    Instruction in(instr.raw, instr.format, defs);
+    handleSWB(SWB_PKG::SWBInstruction(in));
+    break;
+  }
+  case SWB_PKG::OPCODE_ROUTE: {
+    auto defs = SWB_PKG::getRouteSegmentDefs();
+    Instruction in(instr.raw, instr.format, defs);
+    handleROUTE(SWB_PKG::ROUTEInstruction(in));
+    break;
+  }
+  default:
+    out.fatal(CALL_INFO, -1, "Invalid CONF variant: %u\n", instr.variant);
+  }
 }
 
 void Swb::handleSWB(const SWB_PKG::SWBInstruction &instr) {
@@ -250,31 +270,26 @@ void Swb::handleEVT(const SWB_PKG::EVTInstruction &instr) {
 }
 
 void Swb::handleREP(const SWB_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
+  out.output("rep (slot=%d, ext=%d, port=%s, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext,
              instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell"
                                                        : "intercell",
              instr.iter, instr.step, instr.delay);
 
-  // add repetition to the timing model
-  agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
-}
-
-void Swb::handleREPX(const SWB_PKG::REPXInstruction &instr) {
-  out.output(
-      "repx (slot=%d, port=%s, iter=%d, step=%d, delay=%d)\n", instr.slot,
-      instr.port == SWB_PKG::REP_PORT_INTRACELL ? "intracell" : "intercell",
-      instr.iter, instr.step, instr.delay);
-
-  auto repx = instr;
-  auto repetition_op = agus[instr.port].getLastRepetitionOperator();
-  uint32_t iter = repx.iter << SWB_PKG::SWB_INSTR_REP_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = repx.step << SWB_PKG::SWB_INSTR_REP_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay = repx.delay << SWB_PKG::SWB_INSTR_REP_DELAY_BITWIDTH |
-                   repetition_op.getDelay();
-
-  agus[instr.port].adjustRepetition(iter, delay, step);
+  if (!instr.ext) {
+    // base: add a new repetition (low half of iter/step/delay)
+    agus[instr.port].addRepetition(instr.iter, instr.delay, instr.step);
+  } else {
+    // extension: fold the high bits into the last repetition
+    auto repetition_op = agus[instr.port].getLastRepetitionOperator();
+    uint32_t iter = instr.iter << SWB_PKG::SWB_INSTR_REP_ITER_BITWIDTH |
+                    repetition_op.getIterations();
+    uint32_t step = instr.step << SWB_PKG::SWB_INSTR_REP_STEP_BITWIDTH |
+                    repetition_op.getStep();
+    uint32_t delay = instr.delay << SWB_PKG::SWB_INSTR_REP_DELAY_BITWIDTH |
+                     repetition_op.getDelay();
+    agus[instr.port].adjustRepetition(iter, delay, step);
+  }
 }
 
 void Swb::handleTRANS(const SWB_PKG::TRANSInstruction &instr) {

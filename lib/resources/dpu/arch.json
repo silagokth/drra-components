@@ -8,6 +8,14 @@
     {
       "name": "NUM_CONFIGS",
       "value": 4
+    },
+    {
+      "name": "FRACTIONAL_BITWIDTH",
+      "value": 0
+    },
+    {
+      "name": "IS_SIGNED",
+      "value": 1
     }
   ],
   "required_parameters": [

@@ -61,9 +61,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
+  void handleCONF(const IOSRAM_BTM_PKG::CONFInstruction &instr);
   void handleEVT(const IOSRAM_BTM_PKG::EVTInstruction &instr);
   void handleREP(const IOSRAM_BTM_PKG::REPInstruction &instr);
-  void handleREPX(const IOSRAM_BTM_PKG::REPXInstruction &instr);
   void handleTRANS(const IOSRAM_BTM_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
@@ -87,6 +87,7 @@ private:
 
   // Backing store parameters
   uint64_t iosram_depth;
+  uint32_t io_address_width; // bits of the io input/output buffer address space
   bool read_only;
 
   SST::Link *self_link = nullptr;
@@ -118,7 +119,6 @@ private:
   std::map<uint32_t, size_t> current_option_config;
   std::map<uint32_t, uint32_t> port_agus;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   void updatePortAGUs(uint32_t port) {
     int64_t address_offset =
@@ -132,7 +132,10 @@ private:
     uint64_t max_addr = iosram_depth;
     if (port == EVT_PORT_SRAM_READ_FROM_IO ||
         port == EVT_PORT_SRAM_WRITE_TO_IO) {
-      max_addr = iosram_depth * (io_data_width / word_bitwidth);
+      // These ports address the external io input/output buffer, whose range
+      // is the io address space (2^io_address_width), not the local SRAM
+      // geometry. (Previously mis-bounded by iosram_depth * words-per-line.)
+      max_addr = 1ULL << io_address_width;
     }
     if (port_agus[port] >= max_addr) {
       out.fatal(CALL_INFO, -1, "Invalid AGU address %u for port %u (max %lu)\n",

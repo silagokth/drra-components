@@ -79,7 +79,6 @@ private:
   size_t word_bytes    = 2;
   size_t num_lanes     = 16;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   uint32_t current_event_number = 0;
 

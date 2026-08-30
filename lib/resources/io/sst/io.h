@@ -45,9 +45,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
+  void handleCONF(const IO_PKG::CONFInstruction &instr);
   void handleEVT(const IO_PKG::EVTInstruction &instr);
   void handleREP(const IO_PKG::REPInstruction &instr);
-  void handleREPX(const IO_PKG::REPXInstruction &instr);
   void handleTRANS(const IO_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
@@ -76,7 +76,6 @@ private:
   std::map<uint32_t, size_t> current_option_config;
   std::map<uint32_t, uint32_t> port_agus;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   void updatePortAGUs(uint32_t port) {
     int64_t address_offset =

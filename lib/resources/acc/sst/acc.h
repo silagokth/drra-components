@@ -119,7 +119,6 @@ private:
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   // Helpers for bulk sized byte vectors.
   std::vector<uint8_t> int64ToBulkVector(int64_t data) const;

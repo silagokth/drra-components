@@ -49,11 +49,18 @@ public:
 
   bool clockTick(SST::Cycle_t currentCycle) override;
 
+  // Never idle. The switch box routes on behalf of the other resources, so its
+  // useful work is not captured by its own port-active state: evaluate() must
+  // run every Route phase for as long as any producer might drive a wire. The
+  // base isIdle() would pause the clock whenever the swb's own ports are quiet
+  // and stall the fabric.
+  bool isIdle() override { return false; }
+
   // Instruction format
   using DRRAResource::format;
+  void handleCONF(const SWB_PKG::CONFInstruction &instr);
   void handleEVT(const SWB_PKG::EVTInstruction &instr);
   void handleREP(const SWB_PKG::REPInstruction &instr);
-  void handleREPX(const SWB_PKG::REPXInstruction &instr);
   void handleTRANS(const SWB_PKG::TRANSInstruction &instr);
   void handleSWB(const SWB_PKG::SWBInstruction &instr);
   void handleROUTE(const SWB_PKG::ROUTEInstruction &instr);
@@ -144,8 +151,6 @@ private:
   uint32_t nextFsmOption_route = 0;    // D: ROUTE agu_address
   uint32_t currentEventNumber = 0;
 
-
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 };
 
 #endif // _SWB_H
