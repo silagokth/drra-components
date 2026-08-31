@@ -49,7 +49,6 @@ public:
   std::vector<uint8_t> &getAccumulateRegister() { return accumulate_register; }
 
   using DRRAResource::int64ToVector;
-  using DRRAResource::uint64ToVector;
   using DRRAResource::vectorToInt64;
 
   // Instruction format
@@ -74,7 +73,6 @@ private:
 
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
-  std::vector<std::vector<uint8_t>> imm_buffers;
 };
 
 #endif // _DPU_H

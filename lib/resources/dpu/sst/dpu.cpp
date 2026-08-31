@@ -11,7 +11,6 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
   fractional_bitwidth = params.find<uint32_t>("FRACTIONAL_BITWIDTH", 0);
 
   fsmHandlers.resize(num_fsms);
-  imm_buffers.resize(num_fsms);
   dpuHandlers = DPU_Operations::createHandlers(this);
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
   for (uint32_t i = 0; i < num_fsms; i++) {
@@ -82,15 +81,6 @@ void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
 void Dpu::handleCONF(const DPU_PKG::CONFInstruction &instr) {
   out.output("conf (slot=%d, option=%d, mode=%d, immediate=%d)\n", instr.slot,
              instr.option, instr.mode, instr.immediate);
-
-  // Add the immediate value to the imm_buffers if the mode requires it
-  if (instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_ADD_CONST ||
-      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_SUBT_ABS ||
-      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_MULT_CONST ||
-      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_MAX_MIN_CONST ||
-      instr.mode == DPU_PKG::CONF_MODE::CONF_MODE_LD_IR) {
-    imm_buffers[instr.option] = uint64ToVector(instr.immediate);
-  }
 
   // Add the event handler to the config index
   fsmHandlers[instr.option] =

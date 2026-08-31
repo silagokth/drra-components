@@ -18,12 +18,7 @@ createHandlers(Dpu *dpu);
 namespace Impl {
 void handleIdle(Dpu *dpu);
 void handleAdd(Dpu *dpu);
-void handleAddConst(Dpu *dpu);
-void handleSubt(Dpu *dpu);
-void handleSubtAbs(Dpu *dpu);
 void handleMult(Dpu *dpu);
-void handleMultConst(Dpu *dpu);
-void handleLoadIR(Dpu *dpu);
 void handleMAC(Dpu *dpu);
 } // namespace Impl
 
