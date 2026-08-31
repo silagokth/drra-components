@@ -129,6 +129,12 @@ function(add_drra_folder TYPE_NAME)
         # Copy all JSON files
         file(GLOB JSON_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/*.json")
         file(COPY ${JSON_FILES} DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
+
+        # Copy the functional description, if the component ships one. The
+        # instruction selector loads these from the installed library, so they
+        # have to travel with arch.json / isa.json rather than stay in-tree.
+        file(GLOB MLIR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/*.mlir")
+        file(COPY ${MLIR_FILES} DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
       endif()
 
       # Copy RTL folder if it exists
