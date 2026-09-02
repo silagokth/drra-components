@@ -5,3 +5,9 @@ packages:
     source:
       Path: ../../common/fsm
     dependencies: []
+  signal_selector:
+    revision: null
+    version: null
+    source:
+      Path: ../../common/signal_selector
+    dependencies: []

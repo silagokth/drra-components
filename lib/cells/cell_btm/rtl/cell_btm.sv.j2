@@ -46,16 +46,24 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [BULK_BITWIDTH-1:0] bulk_intercell_s_out
 );
 
-  logic [NUM_SLOTS-1:0] resource_clk;
-  logic [NUM_SLOTS-1:0] resource_rst_n;
-  logic [NUM_SLOTS-1:0] instr_valid;
-  logic [NUM_SLOTS-1:0][RESOURCE_INSTR_WIDTH-1:0] instr;
-  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
-
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_in;
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_out;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_in;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_out;
+
+  logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus [NUM_SLOTS-1:0]; // Shared instruction bus
+  logic clk_feedthrough_resource [NUM_SLOTS-1:0];
+  logic rst_n_feedthrough_resource [NUM_SLOTS-1:0];
+  logic [NUM_SLOTS-1:0] instr_valid_resource [NUM_SLOTS-1:0];                     // Valid when sending to slot {{i}}
+  logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate_resource [NUM_SLOTS-1:0];     // Per-FSM activation bits for slot {{i}}
+  logic [$clog2(NUM_SLOTS)-1:0] resource_address [NUM_SLOTS-1:0];
+
+  logic clk_feedthrough_swb;
+  logic rst_n_feedthrough_swb;
+  logic [RESOURCE_INSTR_WIDTH-1:0] instr_bus_swb; // Shared instruction bus
+  logic instr_valid_swb;                     // Valid when sending to slot {{i}}
+  logic [FSM_PER_SLOT-1:0] activate_swb;     // Per-FSM activation bits for slot {{i}}
+
 
     // Controller
     `{{controller.name}} controller_inst
@@ -63,13 +71,17 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .clk(clk),
         .rst_n(rst_n),
         .call(call_in),
-        {% for i in range(16) %}
-        .instr_valid_{{i}}(instr_valid[{{i}}]),
-        .instr_{{i}}(instr[{{i}}]),
-        .activate_{{i}}(activate[{{i}}]),
-        .clk_{{i}}(resource_clk[{{i}}]),
-        .rst_n_{{i}}(resource_rst_n[{{i}}]),
-        {% endfor %}
+        .instr_bus_resource(instr_bus[0]), 
+        .clk_feedthrough_resource(clk_feedthrough_resource[0]),
+        .rst_n_feedthrough_resource(rst_n_feedthrough_resource[0]),
+        .instr_valid_resource(instr_valid_resource[0]),                     
+        .activate_resource(activate_resource[0]),     
+        .resource_address(resource_address[0]),
+        .clk_feedthrough_swb(clk_feedthrough_swb),
+        .rst_n_feedthrough_swb(rst_n_feedthrough_swb),
+        .instr_bus_swb(instr_bus_swb), 
+        .instr_valid_swb(instr_valid_swb),                     
+        .activate_swb(activate_swb),     
         .instr_load_data_in(instr_data_in),
         .instr_load_addr_in(instr_addr_in),
         .instr_load_hops_in(instr_hops_in),
@@ -88,11 +100,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     `{{res.name}} resource_{{res.slot}}_inst
     (
       {% for i in range(res.size) %}
-        .clk_{{i}}(resource_clk[{{res.slot + i}}]),
-        .rst_n_{{i}}(resource_rst_n[{{res.slot + i}}]),
-        .instr_en_{{i}}(instr_valid[{{res.slot + i}}]),
-        .instr_{{i}}(instr[{{res.slot + i}}]),
-        .activate_{{i}}(activate[{{ res.slot+i }}]),
+        .clk_{{i}}(clk_feedthrough_swb),
+        .rst_n_{{i}}(rst_n_feedthrough_swb),
+        .instr_en_{{i}}(instr_valid_swb),
+        .instr_{{i}}(instr_bus_swb),
+        .activate_{{i}}(activate_swb),
       {% endfor %}
         .word_channels_in(word_data_out),
         .word_channels_out(word_data_in),
@@ -113,16 +125,23 @@ import {{name}}_{{fingerprint}}_pkg::*;
     `{{res.name}} resource_{{res.slot}}_inst
     (
         {% for i in range(res.size) %}
-        .clk_{{i}}(resource_clk[{{res.slot + i}}]),
-        .rst_n_{{i}}(resource_rst_n[{{res.slot + i}}]),
-        .instr_en_{{i}}(instr_valid[{{res.slot + i}}]),
-        .instr_{{i}}(instr[{{res.slot + i}}]),
-        .activate_{{i}}(activate[{{ res.slot+i }}]),
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
         .word_data_out_{{i}}(word_data_out[{{res.slot+i}}]),
         .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),
-        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]){% if i < res.size-1 %},{% endif %}
+        .bulk_data_out_{{i}}(bulk_data_out[{{res.slot+i}}]), {% if i < res.size-1 %}{% endif %}
         {% endfor %}
+        .clk(clk_feedthrough_resource[{{res.slot}}-1]),
+        .rst_n(rst_n_feedthrough_resource[{{res.slot}}-1]),
+        .clk_out(clk_feedthrough_resource[{{res.slot+res.size}}-1]),
+        .rst_n_out(rst_n_feedthrough_resource[{{res.slot+res.size}}-1]),
+        .instr_en_resource(instr_valid_resource[{{res.slot}}-1]),
+        .instr_en_resource_out(instr_valid_resource[{{res.slot+res.size}}-1]),
+        .instr(instr_bus[{{res.slot}}-1]),
+        .instr_out(instr_bus[{{res.slot+res.size}}-1]),
+        .activate(activate_resource[{{res.slot}}-1]),
+        .activate_out(activate_resource[{{res.slot+res.size}}-1]),
+        .resource_address(resource_address[{{res.slot}}-1]),
+        .resource_address_out(resource_address[{{res.slot+res.size}}-1])
         {% if res.io_input %},
         .io_en_in(io_en_in),
         .io_addr_in(io_addr_in),

@@ -1,8 +1,3 @@
-{% for key, value in fingerprint_table | items %}
-`define {{key}} {{key}}_{{value}}
-`define {{key}}_pkg {{key}}_{{value}}_pkg
-{% endfor %}
-
 package fabric_pkg;
     {% for p in parameters %}
     parameter {{p}} = {{parameters[p]}};
@@ -64,13 +59,25 @@ import fabric_pkg::*;
         assign instr_en_out[i] = instr_en_net[i][COLS];
     end
 
+    logic clk_feedthrough_swb [ROWS:0][COLS:0];
+    logic clk_feedthrough_resource [ROWS:0][COLS:0];
+
+    for(genvar i=0; i<COLS; i++) begin
+        assign clk_feedthrough_swb[0][i]= clk;
+        assign clk_feedthrough_resource[0][i]= clk;
+    end
+
     {% set max_r = cells | map(attribute='coordinates.row') | max %}
     {% set max_c = cells | map(attribute='coordinates.col') | max %}
     {% for cell in cells %}
     {% set r=cell.coordinates.row %}
     {% set c=cell.coordinates.col %}
-    `{{cell.cell.name}} cell_{{r}}_{{c}}_inst (
-        .clk(clk),
+
+    {{cell.cell.name}}_{{cell.cell.fingerprint}} cell_{{r}}_{{c}}_inst (
+        .clk_swb(clk_feedthrough_swb[{{r}}][{{c}}]),
+        .clk_resource(clk_feedthrough_resource[{{r}}][{{c}}]),
+        .clk_out_swb(clk_feedthrough_swb[{{r}}+1][{{c}}]),
+        .clk_out_resource(clk_feedthrough_resource[{{r}}+1][{{c}}]),
         .rst_n(rst_n),
         .call_in(call_net[{{r}}][{{c}}]),
         .call_out(call_net[{{r}}][{{c + 1}}]),

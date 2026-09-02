@@ -1,3 +1,4 @@
+  parameter int RESOURCE_SLOTS = {{ size }};
   {% for p in parameters %}
   parameter int {{p}} = {{parameters[p]}};
   {% endfor %}
