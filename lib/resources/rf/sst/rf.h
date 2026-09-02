@@ -51,9 +51,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const RF_PKG::DSUInstruction &instr);
+  void handleCONF(const RF_PKG::CONFInstruction &instr);
+  void handleEVT(const RF_PKG::EVTInstruction &instr);
   void handleREP(const RF_PKG::REPInstruction &instr);
-  void handleREPX(const RF_PKG::REPXInstruction &instr);
   void handleTRANS(const RF_PKG::TRANSInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
@@ -77,7 +77,6 @@ private:
   std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
 
   void updatePortAGUs(uint32_t port) {
     port_agus[port] = port_agus_init[port] +

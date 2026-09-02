@@ -7,8 +7,15 @@
   },
   "instructions": [
     {
-      "name": "dsu",
-      "opcode": 6,
+      "name": "conf",
+      "opcode": 0,
+      "instr_type": 1,
+      "segments": [
+      ]
+    },
+    {
+      "name": "evt",
+      "opcode": 1,
       "instr_type": 1,
       "segments": [
         {
@@ -67,9 +74,14 @@
     },
     {
       "name": "rep",
-      "opcode": 0,
+      "opcode": 2,
       "instr_type": 1,
       "segments": [
+        {
+          "name": "ext",
+          "comment": "0 = base (low half), 1 = extension (high MSBs) of iter/step/delay",
+          "bitwidth": 1
+        },
         {
           "name": "port",
           "comment": "Select which port the repetition applies to.",
@@ -100,7 +112,7 @@
         {
           "name": "iter",
           "comment": "Number of iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         },
         {
           "name": "step",
@@ -117,59 +129,8 @@
       ]
     },
     {
-      "name": "repx",
-      "opcode": 1,
-      "instr_type": 1,
-      "segments": [
-        {
-          "name": "port",
-          "comment": "Select which port the repetition extension applies to.",
-          "bitwidth": 2,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "word_write",
-              "comment": "write to rf (word)"
-            },
-            {
-              "key": 1,
-              "val": "word_read",
-              "comment": "read from rf (word)"
-            },
-            {
-              "key": 2,
-              "val": "bulk_write",
-              "comment": "write to rf (bulk)"
-            },
-            {
-              "key": 3,
-              "val": "bulk_read",
-              "comment": "read from rf (bulk)"
-            }
-          ]
-        },
-        {
-          "name": "iter",
-          "comment": "most significant bits to apply to the `iter` value of the repetition operator.",
-          "bitwidth": 8
-        },
-        {
-          "name": "step",
-          "comment": "most significant bits to apply to the `step` value of the repetition operator.",
-          "bitwidth": 7,
-          "default_val": 1,
-          "is_signed": true
-        },
-        {
-          "name": "delay",
-          "comment": "most significant bits to apply to the `delay` value of the repetition operator.",
-          "bitwidth": 7
-        }
-      ]
-    },
-    {
       "name": "trans",
-      "opcode": 2,
+      "opcode": 3,
       "instr_type": 1,
       "segments": [
         {

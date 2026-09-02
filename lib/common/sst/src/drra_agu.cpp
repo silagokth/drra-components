@@ -37,6 +37,7 @@ DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
   if (auto lane = getLaneAtIndex(current_lane_index)) {
     auto expr = lane->getExpression();
     lane->addEvent(name, handler, priority);
+    lane_initial_addresses.push_back(initial_address);
     current_rep_level = 0;
     current_lane_index++;
   } else {
@@ -208,6 +209,7 @@ DRRA_AGU &DRRA_AGU::build() {
   if (std::getenv("VESYLA_DEBUG"))
     std::cout << "Timing state expression: "
               << timing_state->getExpression()->toString() << "\n";
+  timing_state->setEventInitialAddresses(lane_initial_addresses);
   timing_state->build();
   if (std::getenv("VESYLA_DEBUG"))
     std::cout << "Timing state built successfully\n";
@@ -223,6 +225,7 @@ DRRA_AGU &DRRA_AGU::reset() {
                                : "none")
               << "\n";
   lanes.clear();
+  lane_initial_addresses.clear();
   timing_state = nullptr;
   current_lane_index = 0;
   current_trans_index = 0;
@@ -241,11 +244,7 @@ int64_t DRRA_AGU::getAddressForCycle(uint64_t cycle) {
   if (isEmpty())
     return -1;
 
-  int64_t address = timing_state->getAddressForCycle(cycle);
-  if (address != -1)
-    address += initial_address;
-
-  return address;
+  return timing_state->getAddressForCycle(cycle);
 }
 
 uint64_t DRRA_AGU::getLastScheduledCycle() {

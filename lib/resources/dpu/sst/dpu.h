@@ -14,6 +14,9 @@ public:
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
     auto params = DRRAResource::getBaseParams();
+    params.push_back({"FRACTIONAL_BITWIDTH",
+                      "Number of fractional bits for fixed-point operations",
+                      "0"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -54,19 +57,22 @@ public:
   using DRRAResource::format;
   void handleEVT(const DPU_PKG::EVTInstruction &instr);
   void handleREP(const DPU_PKG::REPInstruction &instr);
-  void handleREPX(const DPU_PKG::REPXInstruction &instr);
   void handleTRANS(const DPU_PKG::TRANSInstruction &instr);
-  void handleDPU(const DPU_PKG::DPUInstruction &instr);
+  void handleCONF(const DPU_PKG::CONFInstruction &instr);
 
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
+
+  // DPU drives its FSM/output every active cycle; the idle-skip pause/resume
+  // desyncs that output, so it never idle-skips.
+  bool isIdle() override { return false; }
 
   using DRRAResource::out;
+  uint32_t fractional_bitwidth;
 
 private:
   std::vector<uint8_t> accumulate_register;
 
-  std::unordered_map<DPU_PKG::DPU_MODE, std::function<void()>> dpuHandlers;
+  std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>> dpuHandlers;
 
   std::vector<std::function<void()>> eventsHandlers;
 

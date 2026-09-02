@@ -33,7 +33,6 @@ use serde_json::json;
  *
  */
 use serde_json::Value;
-use std::collections::HashMap;
 use std::env;
 use std::ops::{Deref, DerefMut};
 
@@ -44,31 +43,34 @@ include!("isa_config.rs");
  ******************************************************************************/
 
 fn get_timing_model(op: Op) -> String {
-    let mut current_rep = 0;
-    let mut current_trans = 0;
-    let mut t: HashMap<i64, String> = HashMap::new();
-    let mut r: HashMap<i64, (String, String)> = HashMap::new();
-    let mut expr = "e0".to_string();
+    let mut segments: Vec<String> = Vec::new();
+    let mut event_counter = 0;
 
     for instr in op.body {
         let instr_segments = instr.params;
         match instr.kind.as_str() {
-            "dsu" => {
-                current_rep = 0;
-                current_trans = 0;
+            "conf" => {
+                continue;
+            }
+            "evt" => {
+                segments.push(format!("e{}", event_counter));
+                event_counter += 1;
             }
             "rep" => {
+                if instr_segments.get_value("ext") == "1" { continue; }
                 let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
-                r.insert(current_rep, (iter.to_string(), delay.to_string()));
-                current_rep += 1;
+                if let Some(last) = segments.last_mut() {
+                    *last = format!("R<{},{}>({})", iter, delay, last);
+                }
             }
-            "repx" => {}
-            "fsm" => {
+            "trans" => {
                 let delay = instr_segments.get_value("delay");
-                t.insert(current_trans, delay);
-                current_rep = 0;
-                current_trans += 1;
+                if segments.len() >= 2 {
+                    let right = segments.pop().unwrap();
+                    let left = segments.pop().unwrap();
+                    segments.push(format!("T<{}>({},{})", delay, left, right));
+                }
             }
             _ => {
                 panic!("Unknown instruction kind: {}", instr.kind);
@@ -76,31 +78,7 @@ fn get_timing_model(op: Op) -> String {
         }
     }
 
-    let mut event_counter = 1;
-    let mut t_keys: Vec<_> = t.keys().cloned().collect();
-    t_keys.sort();
-    for i in t_keys {
-        if let Some(delay) = t.get(&i) {
-            if delay != "0" {
-                expr = format!("T<{}>({}, e{})", delay, expr, event_counter);
-                event_counter += 1;
-            } else {
-                break;
-            }
-        }
-    }
-
-    let mut r_keys: Vec<_> = r.keys().cloned().collect();
-    r_keys.sort();
-    for i in r_keys {
-        if let Some(values) = r.get(&i) {
-            expr = format!("R<{},{}>({})", values.0, values.1, expr);
-        } else {
-            break;
-        }
-    }
-
-    expr
+    segments.pop().unwrap_or_else(|| "e0".to_string())
 }
 
 fn reshape_instr(op: Op) -> Op {
@@ -135,52 +113,60 @@ fn reshape_instr(op: Op) -> Op {
                     .get_value("delay")
                     .parse::<i64>()
                     .expect("Failed to parse delay as i64");
-                let mut repx_flag = false;
+                let mut needs_ext = false;
                 let mut iterx = 0;
                 let mut delayx = 0;
                 let mut stepx = 0;
                 if iter > 2i64.pow(ITER_BITWIDTH) - 1 {
-                    repx_flag = true;
+                    needs_ext = true;
                     iterx = iter / 2i64.pow(ITER_BITWIDTH);
                     iter %= 2i64.pow(ITER_BITWIDTH);
                 }
                 if step > 2i64.pow(STEP_BITWIDTH) - 1 {
-                    repx_flag = true;
+                    needs_ext = true;
                     stepx = step / 2i64.pow(STEP_BITWIDTH);
                     step %= 2i64.pow(STEP_BITWIDTH);
                 }
                 if delay > 2i64.pow(DELAY_BITWIDTH) - 1 {
-                    repx_flag = true;
+                    needs_ext = true;
                     delayx = delay / 2i64.pow(DELAY_BITWIDTH);
                     delay %= 2i64.pow(DELAY_BITWIDTH);
                 }
-                if repx_flag {
-                    let mut rep_instr = instr.clone();
-                    let mut repx_instr = instr.clone();
-                    rep_instr.kind = "rep".to_string();
-                    repx_instr.kind = "repx".to_string();
-                    for field in rep_instr.params.iter_mut() {
+                if needs_ext {
+                    let mut base_instr = instr.clone(); // low half  (ext=0)
+                    let mut ext_instr = instr.clone();  // high half (ext=1)
+                    for field in base_instr.params.iter_mut() {
                         if field.0 == "iter" {
                             field.1 = iter.to_string();
                         } else if field.0 == "delay" {
                             field.1 = delay.to_string();
                         } else if field.0 == "step" {
                             field.1 = step.to_string();
+                        } else if field.0 == "ext" {
+                            field.1 = "0".to_string();
                         }
                     }
-                    for field in repx_instr.params.iter_mut() {
+                    for field in ext_instr.params.iter_mut() {
                         if field.0 == "iter" {
                             field.1 = iterx.to_string();
                         } else if field.0 == "delay" {
                             field.1 = delayx.to_string();
                         } else if field.0 == "step" {
                             field.1 = stepx.to_string();
+                        } else if field.0 == "ext" {
+                            field.1 = "1".to_string();
+                        }
+                    }
+                    new_body.push(base_instr); // both stay kind = "rep"
+                    new_body.push(ext_instr);
+                } else {
+                    let mut rep_instr = instr.clone();
+                    for field in rep_instr.params.iter_mut() {
+                        if field.0 == "ext" {
+                            field.1 = "0".to_string();
                         }
                     }
                     new_body.push(rep_instr);
-                    new_body.push(repx_instr);
-                } else {
-                    new_body.push(instr.clone());
                 }
             }
             _ => {
@@ -385,5 +371,63 @@ fn main() {
             std::fs::write(output_file, serde_json::to_string(&reshaped_json).unwrap()).unwrap();
         }
         _ => panic!("Unknown subcommand: {}", subcommand),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_instr(kind: &str, params: Vec<(&str, &str)>) -> Instr {
+        Instr {
+            kind: kind.to_string(),
+            id: "".to_string(),
+            params: InstrSegments::new(
+                params
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect(),
+            ),
+        }
+    }
+
+    fn make_op(body: Vec<Instr>) -> Op {
+        Op {
+            kind: "rop".to_string(),
+            id: "test".to_string(),
+            row: 0,
+            col: 0,
+            slot: 0,
+            port: 0,
+            body,
+        }
+    }
+
+    #[test]
+    fn test_transit_with_two_repeats() {
+        let op = make_op(vec![
+            make_instr("evt", vec![("option", "0"), ("init_addr", "0")]),
+            make_instr(
+                "rep",
+                vec![
+                    ("option", "0"),
+                    ("iter", "4"),
+                    ("step", "1"),
+                    ("delay", "0"),
+                ],
+            ),
+            make_instr("evt", vec![("option", "1"), ("init_addr", "18")]),
+            make_instr(
+                "rep",
+                vec![
+                    ("option", "1"),
+                    ("iter", "4"),
+                    ("step", "1"),
+                    ("delay", "0"),
+                ],
+            ),
+            make_instr("trans", vec![("delay", "0")]),
+        ]);
+        assert_eq!(get_timing_model(op), "T<0>(R<4,0>(e0),R<4,0>(e1))");
     }
 }

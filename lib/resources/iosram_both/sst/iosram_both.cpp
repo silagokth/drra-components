@@ -11,7 +11,8 @@ Iosram_both::Iosram_both(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   instructionHandlers = IOSRAM_BOTH_PKG::createInstructionHandlers(this);
   access_time = params.find<std::string>("access_time", "0ns");
-  iosram_depth = 2 ^ params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  iosram_depth = 1ULL << params.find<uint32_t>("SRAM_ADDR_WIDTH", 6);
+  io_address_width = params.find<uint32_t>("IO_ADDR_WIDTH", 16);
   read_only = params.find<bool>("read_only", false);
 
   // Backing store
@@ -74,9 +75,11 @@ void Iosram_both::handleActivation(uint32_t slot_id, uint32_t ports) {
   portsToActivate[slot_id] = ports;
 }
 
-void Iosram_both::handleDSU(const IOSRAM_BOTH_PKG::DSUInstruction &instr) {
-  out.output("dsu (slot=%d, init_addr_sd=%d, init_addr=%d, port=%d)\n",
-             instr.slot, instr.init_addr_sd, instr.init_addr, instr.port);
+void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
+  out.output(
+      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
+      instr.slot, instr.port, instr.option, instr.init_addr_sd,
+      instr.init_addr);
 
   // Set initial address
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
@@ -84,160 +87,173 @@ void Iosram_both::handleDSU(const IOSRAM_BOTH_PKG::DSUInstruction &instr) {
   out.output("Set initial address for port %d to %d\n", port_num,
              instr.init_addr);
 
+  std::string event_name;
   switch (port_num) {
   case DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO:
-    readFromIO();
+    event_name =
+        "dsu_sram_read_from_io_" + std::to_string(current_event_number);
+    agus[port_num].addEvent(
+        event_name,
+        [this, event_name] {
+          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO);
+          readFromIO();
+        },
+        1);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO:
-    writeToIO();
+    event_name = "dsu_sram_write_to_io_" + std::to_string(current_event_number);
+    agus[port_num].addEvent(
+        event_name,
+        [this, event_name] {
+          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO);
+          writeToIO();
+        },
+        8);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM:
-    writeToSRAM();
+    event_name = "dsu_io_write_to_sram_" + std::to_string(current_event_number);
+    agus[port_num].addEvent(
+        event_name,
+        [this, event_name] {
+          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM);
+          writeToSRAM();
+        },
+        7);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM:
-    readFromSRAM();
+    event_name =
+        "dsu_io_read_from_sram_" + std::to_string(current_event_number);
+    agus[port_num].addEvent(
+        event_name,
+        [this, event_name] {
+          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM);
+          readFromSRAM();
+        },
+        2);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK:
-    writeBulk();
+    event_name = "dsu_write_bulk_" + std::to_string(current_event_number);
+    agus[port_num].addEvent(
+        event_name,
+        [this, event_name] {
+          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK);
+          writeBulk();
+        },
+        8);
     break;
   case DSU_RELATIVE_PORT::DSU_PORT_READ_BULK:
-    readBulk();
+    event_name = "dsu_read_bulk_" + std::to_string(current_event_number);
+    agus[port_num].addEvent(
+        event_name,
+        [this, event_name] {
+          updatePortAGUs(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK);
+          readBulk();
+        },
+        1);
     break;
 
   default:
-    out.fatal(CALL_INFO, -1, "Invalid DSU mode\n");
+    out.fatal(CALL_INFO, -1, "Invalid EVT mode\n");
   }
 
   // Add event handler
   current_event_number++;
 }
 
+void Iosram_both::handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr) {
+  out.output("conf (slot=%d)\n", instr.slot);
+}
+
 void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
-  out.output("rep (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n", instr.slot,
-             instr.port, instr.iter, instr.step, instr.delay);
+  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
+             instr.slot, instr.ext, instr.port, instr.iter, instr.step,
+             instr.delay);
 
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), instr.slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + instr.port;
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
 
-  // // For now, we only support increasing repetition levels (and no skipping)
-  // if (instr.level != port_last_rep_level[port_num] + 1) {
-  //   out.output("port_num = %d\n", port_num);
-  //   out.fatal(
-  //       CALL_INFO, -1,
-  //       "Invalid repetition level (last=%d, curr=%d), instruction: (slot: "
-  //       "%d, port: %d, level: %d, iter: %d, step: %d, delay: %d)\n",
-  //       port_last_rep_level[port_num], instr.level, instr.slot, instr.port,
-  //       instr.level, instr.iter, instr.step, instr.delay);
-  // } else {
-  //   port_last_rep_level[port_num] = instr.level;
-  // }
-
-  // add repetition to the timing model
   try {
-    agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
-    out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
-               instr.iter, instr.step);
+    if (!instr.ext) {
+      // base: add a new repetition (low half of iter/step/delay)
+      agus[port_num].addRepetition(instr.iter, instr.delay, instr.step);
+      out.output("Added repetition to port %d (iter=%d, step=%d)\n", port_num,
+                 instr.iter, instr.step);
+    } else {
+      // extension: fold the high bits into the last repetition
+      auto repetition_op = agus[port_num].getLastRepetitionOperator();
+      uint32_t iter = instr.iter
+                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_ITER_BITWIDTH |
+                      repetition_op.getIterations();
+      uint32_t step = instr.step
+                          << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_STEP_BITWIDTH |
+                      repetition_op.getStep();
+      uint32_t delay =
+          instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REP_DELAY_BITWIDTH |
+          repetition_op.getDelay();
+      out.output(
+          "Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
+          port_num, iter, step, delay);
+      agus[port_num].adjustRepetition(iter, delay, step);
+    }
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "Failed to add repetition: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 
-void Iosram_both::handleREPX(const IOSRAM_BOTH_PKG::REPXInstruction &instr) {
-  out.output("repx (slot=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             instr.slot, instr.port, instr.iter, instr.step, instr.delay);
+void Iosram_both::handleTRANS(const IOSRAM_BOTH_PKG::TRANSInstruction &instr) {
+  out.output("trans (slot=%d, port=%d, delay=%d)\n", instr.slot, instr.port,
+             instr.delay);
 
-  uint32_t port_num = 0;
-  auto it = std::find(slot_ids.begin(), slot_ids.end(), instr.slot);
-  if (it != slot_ids.end()) {
-    port_num = std::distance(slot_ids.begin(), it);
-  } else {
-    out.fatal(CALL_INFO, -1, "Slot ID not found\n");
-  }
-  port_num = port_num * 4 + instr.port;
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
 
-  auto repetition_op = agus[port_num].getLastRepetitionOperator();
-  uint32_t iter = instr.iter
-                      << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_ITER_BITWIDTH |
-                  repetition_op.getIterations();
-  uint32_t step = instr.step
-                      << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_STEP_BITWIDTH |
-                  repetition_op.getStep();
-  uint32_t delay =
-      instr.delay << IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_REPX_DELAY_BITWIDTH |
-      repetition_op.getDelay();
-  out.output("Adjusting repetition for port %d (iter=%d, step=%d, delay=%d)\n",
-             port_num, iter, step, delay);
   try {
-    agus[port_num].adjustRepetition(iter, delay, step);
+    agus[port_num].addTransition(instr.delay);
+    current_event_number++;
   } catch (const std::exception &e) {
-    out.fatal(CALL_INFO, -1, "REPX failed: %s\n", e.what());
+    out.fatal(CALL_INFO, -1, "Failed to add transition: %s\n", e.what());
   }
 }
 
 void Iosram_both::readFromIO() {
-  std::string event_name =
-      "dsu_read_from_io_" + std::to_string(current_event_number);
-  // Reading data from the IO to the buffer
-  agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO].addEvent(
-      event_name,
-      [this, event_name] {
-        sram_read_from_io_address_buffer =
-            agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO]
-                .getAddressForCycle(getPortActiveCycle(
-                    DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO));
+  sram_read_from_io_address_buffer =
+      agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO].getAddressForCycle(
+          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_SRAM_READ_FROM_IO));
 
-        IOReadRequest *readReq = new IOReadRequest();
-        readReq->address = sram_read_from_io_address_buffer;
-        readReq->size = io_data_width / 8;
-        readReq->column_id = cell_coordinates[1];
+  IOReadRequest *readReq = new IOReadRequest();
+  readReq->address = sram_read_from_io_address_buffer;
+  readReq->size = io_data_width / 8;
+  readReq->column_id = cell_coordinates[1];
 
-        out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
-                   sram_read_from_io_address_buffer, io_data_width);
-        logTraceEvent(event_name, slot_id, true, 'X',
-                      {{"address", (int)sram_read_from_io_address_buffer},
-                       {"size", (int)(io_data_width / 8)}});
+  out.output("Sending read request to IO (addr=%d, size=%dbits)\n",
+             sram_read_from_io_address_buffer, io_data_width);
+  logTraceEvent("iosram_read_from_io", slot_id, true, 'X',
+                {{"address", (int)sram_read_from_io_address_buffer},
+                 {"size", (int)(io_data_width / 8)}});
 
-        io_input_link->send(readReq);
-      },
-      1);
+  io_input_link->send(readReq);
 }
 
 void Iosram_both::writeToIO() {
-  std::string event_name =
-      "dsu_write_to_io_" + std::to_string(current_event_number);
-  // Writing buffer data to the IO
-  agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO].addEvent(
-      event_name,
-      [this, event_name] {
-        sram_write_to_io_address_buffer =
-            agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO]
-                .getAddressForCycle(getPortActiveCycle(
-                    DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO));
+  sram_write_to_io_address_buffer =
+      agus[DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO].getAddressForCycle(
+          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_SRAM_WRITE_TO_IO));
 
-        IOWriteRequest *writeReq = new IOWriteRequest();
-        writeReq->address = sram_write_to_io_address_buffer;
-        writeReq->data = to_io_data_buffer;
-        io_output_link->send(writeReq);
+  IOWriteRequest *writeReq = new IOWriteRequest();
+  writeReq->address = sram_write_to_io_address_buffer;
+  writeReq->data = to_io_data_buffer;
+  io_output_link->send(writeReq);
 
-        out.output(
-            "Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
-            writeReq->address, writeReq->data.size() * 8,
-            formatRawDataToWords(writeReq->data).c_str());
-        logTraceEvent(event_name, slot_id, true, 'X',
-                      {{"address", (int)sram_write_to_io_address_buffer},
-                       {"size", (int)(to_io_data_buffer.size())},
-                       {"data", formatRawDataToWords(to_io_data_buffer)}});
-      },
-      9);
+  out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
+             writeReq->address, writeReq->data.size() * 8,
+             formatRawDataToWords(writeReq->data).c_str());
+  logTraceEvent("iosram_write_to_io", slot_id, true, 'X',
+                {{"address", (int)sram_write_to_io_address_buffer},
+                 {"size", (int)(to_io_data_buffer.size())},
+                 {"data", formatRawDataToWords(to_io_data_buffer)}});
 }
 
 std::string Iosram_both::dumpBackendContent() {
+  if (!debug_enabled)
+    return ""; // debug disabled: skip full-SRAM dump built for trace args
   std::string result;
   std::vector<uint8_t> data;
   for (uint32_t addr = 0; addr < iosram_depth; addr++) {
@@ -249,143 +265,133 @@ std::string Iosram_both::dumpBackendContent() {
 }
 
 void Iosram_both::writeToSRAM() {
-  std::string event_name =
-      "dsu_write_to_sram_" + std::to_string(current_event_number);
-  // Writing buffer data to the backend
-  agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].addEvent(
-      event_name,
-      [this, event_name] {
-        // Check if the IO responded
-        IOReadResponse *ioReadResponse =
-            dynamic_cast<IOReadResponse *>(io_input_link->recv());
-        if (ioReadResponse) {
-          out.output("Received read response from IO (addr=%d, size=%dbits, "
-                     "data=%s)\n",
-                     ioReadResponse->address, ioReadResponse->data.size() * 8,
-                     formatRawDataToWords(ioReadResponse->data).c_str());
-          from_io_data_buffer = ioReadResponse->data;
-          if (from_io_data_buffer.size() == 0) {
-            out.fatal(CALL_INFO, -1, "No data from IO\n");
-          }
-        } else {
-          out.fatal(CALL_INFO, -1, "No response from IO\n");
-        }
+  // Check if the IO responded
+  IOReadResponse *ioReadResponse =
+      dynamic_cast<IOReadResponse *>(io_input_link->recv());
+  if (ioReadResponse) {
+    out.output("Received read response from IO (addr=%d, size=%dbits, "
+               "data=%s)\n",
+               ioReadResponse->address, ioReadResponse->data.size() * 8,
+               formatRawDataToWords(ioReadResponse->data).c_str());
+    from_io_data_buffer = ioReadResponse->data;
+    if (from_io_data_buffer.size() == 0) {
+      out.fatal(CALL_INFO, -1, "No data from IO\n");
+    }
+  } else {
+    out.fatal(CALL_INFO, -1, "No response from IO\n");
+  }
 
-        // Calculate the SRAM address
-        io_write_to_sram_address_buffer =
-            agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM]
-                .getAddressForCycle(getPortActiveCycle(
-                    DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM));
+  // Calculate the SRAM address
+  io_write_to_sram_address_buffer =
+      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
+          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM));
 
-        // Write data to the backend (SRAM)
-        backend->set(io_write_to_sram_address_buffer,
-                     from_io_data_buffer.size(), from_io_data_buffer);
-        out.output("Writing to SRAM (addr=%d, size=%dbits, data=%s)\n",
-                   io_write_to_sram_address_buffer,
-                   from_io_data_buffer.size() * 8,
-                   formatRawDataToWords(from_io_data_buffer).c_str());
-        logTraceEvent(event_name, slot_id, true, 'X',
-                      {{"address", (int)io_write_to_sram_address_buffer},
-                       {"size", (int)(from_io_data_buffer.size())},
-                       {"data", formatRawDataToWords(from_io_data_buffer)}});
+  // Write data to the backend (SRAM)
+  backend->set(io_write_to_sram_address_buffer, from_io_data_buffer.size(),
+               from_io_data_buffer);
+  out.output("Writing to SRAM (addr=%d, size=%dbits, data=%s)\n",
+             io_write_to_sram_address_buffer, from_io_data_buffer.size() * 8,
+             formatRawDataToWords(from_io_data_buffer).c_str());
+  logTraceEvent("io_write_to_sram", slot_id, true, 'X',
+                {{"address", (int)io_write_to_sram_address_buffer},
+                 {"size", (int)(from_io_data_buffer.size())},
+                 {"data", formatRawDataToWords(from_io_data_buffer)}});
 
-        // Clear the buffer
-        from_io_data_buffer.clear();
+  // Clear the buffer
+  from_io_data_buffer.clear();
 
-        // Log memory state
-        logTraceEvent("memory", slot_id, true, 'E', {});
-        logTraceEvent("memory", slot_id, true, 'B',
-                      {{"memory", dumpBackendContent()}});
-      },
-      8);
+  // Log memory state
+  logTraceEvent("memory", slot_id, true, 'E', {});
+  logTraceEvent("memory", slot_id, true, 'B',
+                {{"memory", dumpBackendContent()}});
 }
 
 void Iosram_both::readFromSRAM() {
-  std::string event_name =
-      "dsu_read_from_sram_" + std::to_string(current_event_number);
-  // Reading data from the backend to the buffer
-  agus[DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM].addEvent(
-      event_name,
-      [this, event_name] {
-        io_read_from_sram_address_buffer =
-            agus[DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM]
-                .getAddressForCycle(getPortActiveCycle(
-                    DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM));
+  io_read_from_sram_address_buffer =
+      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM].getAddressForCycle(
+          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_IO_READ_FROM_SRAM));
 
-        to_io_data_buffer.clear();
-        backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
-                     to_io_data_buffer);
+  to_io_data_buffer.clear();
+  backend->get(io_read_from_sram_address_buffer, io_data_width / 8,
+               to_io_data_buffer);
 
-        out.output("Reading from SRAM (addr=%d, size=%dbits, data=%s)\n",
-                   io_read_from_sram_address_buffer, io_data_width,
-                   formatRawDataToWords(to_io_data_buffer).c_str());
-        logTraceEvent(event_name, slot_id, true, 'X',
-                      {{"address", (int)io_read_from_sram_address_buffer},
-                       {"size", (int)(io_data_width / 8)},
-                       {"data", formatRawDataToWords(to_io_data_buffer)}});
-      },
-      2);
+  out.output("Reading from SRAM (addr=%d, size=%dbits, data=%s)\n",
+             io_read_from_sram_address_buffer, io_data_width,
+             formatRawDataToWords(to_io_data_buffer).c_str());
+  logTraceEvent("io_read_from_sram", slot_id, true, 'X',
+                {{"address", (int)io_read_from_sram_address_buffer},
+                 {"size", (int)(io_data_width / 8)},
+                 {"data", formatRawDataToWords(to_io_data_buffer)}});
 }
 
 void Iosram_both::readBulk() {
-  std::string event_name =
-      "dsu_read_bulk_" + std::to_string(current_event_number);
-  agus[DSU_RELATIVE_PORT::DSU_PORT_READ_BULK].addEvent(
-      event_name,
-      [this, event_name] {
-        read_bulk_address_buffer =
-            agus[DSU_RELATIVE_PORT::DSU_PORT_READ_BULK].getAddressForCycle(
-                getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK));
-        out.output("Initiating bulk read (addr=%d, size=%dbits)\n",
-                   read_bulk_address_buffer, io_data_width);
-        DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
-        vector<uint8_t> data;
-        backend->get(read_bulk_address_buffer, io_data_width / 8, data);
-        out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
-                   read_bulk_address_buffer, io_data_width,
-                   formatRawDataToWords(data).c_str());
-        logTraceEvent(event_name, slot_id, true, 'X',
-                      {{"address", (int)read_bulk_address_buffer},
-                       {"size", (int)(io_data_width / 8)},
-                       {"data", formatRawDataToWords(data)}});
-        dataEvent->size = io_data_width;
-        dataEvent->payload = data;
-        data_links[1]->send(dataEvent);
-      },
-      1);
+  read_bulk_address_buffer =
+      agus[DSU_RELATIVE_PORT::DSU_PORT_READ_BULK].getAddressForCycle(
+          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_READ_BULK));
+  out.output("Initiating bulk read (addr=%d, size=%dbits)\n",
+             read_bulk_address_buffer, io_data_width);
+  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteWide);
+  vector<uint8_t> data;
+  backend->get(read_bulk_address_buffer, io_data_width / 8, data);
+  out.output("Reading bulk data (addr=%d, size=%dbits, data=%s)\n",
+             read_bulk_address_buffer, io_data_width,
+             formatRawDataToWords(data).c_str());
+  logTraceEvent("iosram_read_bulk", slot_id, true, 'X',
+                {{"address", (int)read_bulk_address_buffer},
+                 {"size", (int)(io_data_width / 8)},
+                 {"data", formatRawDataToWords(data)}});
+  dataEvent->size = io_data_width;
+  dataEvent->payload = data;
+  data_links[1]->send(dataEvent);
 }
 
 void Iosram_both::writeBulk() {
-  std::string event_name =
-      "dsu_write_bulk_" + std::to_string(current_event_number);
-  agus[DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK].addEvent(
-      event_name,
-      [this, event_name] {
-        write_bulk_address_buffer =
-            agus[DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK].getAddressForCycle(
-                getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK));
+  write_bulk_address_buffer =
+      agus[DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK].getAddressForCycle(
+          getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK));
 
-        // Check if some data was received
-        DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
-        if (dataEvent == nullptr)
-          out.fatal(CALL_INFO, -1, "No data received\n");
+  // Check if some data was received
+  DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
+  if (dataEvent == nullptr)
+    out.fatal(CALL_INFO, -1, "No data received\n");
 
-        // Write data to the backend
-        backend->set(write_bulk_address_buffer, dataEvent->size / 8,
-                     dataEvent->payload);
+  // RTL SRAM write-port arbitration (iosram_both.sv "input ports" always_comb):
+  //   if (agu_valid[2]) [io_write_to_sram]  <-- priority
+  //   else if (agu_valid[4]) [write_bulk / drain]
+  // The io_write_to_sram (input-staging) AGU has priority over the write_bulk
+  // (drain) AGU at the shared single SRAM write port. When input-staging is
+  // producing an address in the same cycle, RTL masks the drain write entirely
+  // (the routed drain data still arrives on bulk_data_in but is discarded by
+  // the write mux). SST otherwise models the two writes as independent
+  // backend->set() calls, silently committing a drain that RTL drops -- this is
+  // the F1 double-buffer divergence (mul_512_1_1_db entries 0,1). Reproduce the
+  // arbitration so the SST (m2) matches the RTL (m3).
+  bool io_write_to_sram_active =
+      isPortActive(DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM) &&
+      agus[DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM].getAddressForCycle(
+          getPortActiveCycle(
+              DSU_RELATIVE_PORT::DSU_PORT_IO_WRITE_TO_SRAM)) >= 0;
+  if (io_write_to_sram_active) {
+    logTraceEvent("iosram_write_bulk_dropped", slot_id, true, 'X',
+                  {{"address", (int)write_bulk_address_buffer}});
+    delete dataEvent;
+    return;
+  }
 
-        out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
-                   write_bulk_address_buffer, dataEvent->size,
-                   formatRawDataToWords(dataEvent->payload).c_str());
-        logTraceEvent(event_name, slot_id, true, 'X',
-                      {{"address", (int)write_bulk_address_buffer},
-                       {"size", (int)(dataEvent->size / 8)},
-                       {"data", formatRawDataToWords(dataEvent->payload)}});
+  // Write data to the backend
+  backend->set(write_bulk_address_buffer, dataEvent->size / 8,
+               dataEvent->payload);
 
-        // Log memory state
-        logTraceEvent("memory", slot_id, true, 'E', {});
-        logTraceEvent("memory", slot_id, true, 'B',
-                      {{"memory", dumpBackendContent()}});
-      },
-      9);
+  out.output("Writing bulk data (addr=%d, size=%dbits, data=%s)\n",
+             write_bulk_address_buffer, dataEvent->size,
+             formatRawDataToWords(dataEvent->payload).c_str());
+  logTraceEvent("iosram_write_bulk", slot_id, true, 'X',
+                {{"address", (int)write_bulk_address_buffer},
+                 {"size", (int)(dataEvent->size / 8)},
+                 {"data", formatRawDataToWords(dataEvent->payload)}});
+
+  // Log memory state
+  logTraceEvent("memory", slot_id, true, 'E', {});
+  logTraceEvent("memory", slot_id, true, 'B',
+                {{"memory", dumpBackendContent()}});
 }

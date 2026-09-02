@@ -90,15 +90,17 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
     }
   }
 
-  // Write to trace file
-  trace_file.open(trace_name, std::ios::app);
-  trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
-                "\"tid\": 1"
-             << std::setw(3) << std::setfill('0') << cell_coordinates[0]
-             << std::setw(3) << std::setfill('0') << cell_coordinates[1]
-             << std::setw(3) << std::setfill('0') << slot_id
-             << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
-  trace_file.close();
+  // Write to trace file (only when debug/monitoring is enabled)
+  if (debug_enabled) {
+    trace_file.open(trace_name, std::ios::app);
+    trace_file << "{\"name\": \"thread_name\", \"ph\": \"M\", \"pid\": 0, "
+                  "\"tid\": 1"
+               << std::setw(3) << std::setfill('0') << cell_coordinates[0]
+               << std::setw(3) << std::setfill('0') << cell_coordinates[1]
+               << std::setw(3) << std::setfill('0') << slot_id
+               << ", \"args\": {\"name\": \"" << getType() << "\"}},\n";
+    trace_file.close();
+  }
 }
 
 bool DRRAResource::clockTick(Cycle_t currentCycle) {
@@ -117,6 +119,9 @@ void DRRAResource::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void DRRAResource::handleEventBase(Event *event) {
+  // Controller events are handler-delivered (clock-independent); wake the clock
+  // if the idle-skip paused it.
+  ensureClockRunning();
   if (event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
@@ -146,11 +151,13 @@ void DRRAResource::activatePort(uint32_t port) {
   out.output("Activating port %d\n", port);
   active_ports[port] = true;
   out.output("Building AGU for port %d\n", port);
-  if (!agus[port].isEmpty())
-    agus[port].build();
-  // current_timing_states[port] = next_timing_states[port];
-  // next_timing_states[port] = TimingState();
-  // current_timing_states[port].build();
+  if (agus[port].isEmpty()) {
+    // RTL AGU with no explicit config still produces one default address
+    // cycle. Model it with a single event so checkAGULifetime can retire the
+    // port instead of leaving it active across epochs.
+    agus[port].addEvent("default_act_" + std::to_string(port), [] {}, 1);
+  }
+  agus[port].build();
   port_last_rep_level[port] = -1;
   active_ports_cycles[port] = 0;
 }
@@ -168,9 +175,9 @@ void DRRAResource::checkAGULifetime(Cycle_t currentSSTCycle) {
           "Checking AGU %d lifetime: current cycle %lu. AGU has been "
           "active for %lu. AGU should be active for %lu more cycles (%lu "
           "cycles in total).\n",
-          i, currentSSTCycle / 10, current_active_cycle,
-          last_agu_cycle - current_active_cycle + 1, last_agu_cycle + 1);
-      if (current_active_cycle > last_agu_cycle) {
+          i, currentSSTCycle / 10, current_active_cycle + 1,
+          last_agu_cycle - current_active_cycle, last_agu_cycle + 1);
+      if (current_active_cycle >= last_agu_cycle) {
         out.output("Deactivating port %d as AGU is inactive\n", i);
         active_ports[i] = false;
         active_ports_cycles[i] = 0;
@@ -199,7 +206,11 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
       if (isPortActive(port.first)) { // if port is active
         auto events =
             getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
-
+        if (std::getenv("VESYLA_DEBUG"))
+          out.output(
+              "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
+              port.first, events.size(), currentSSTCycle / 10,
+              getPortActiveCycle(port.first));
         // add events to the list
         for (auto event : events) {
           events_for_cycle.push_back(event);
@@ -264,11 +275,21 @@ uint64_t DRRAResource::vectorToUint64(std::vector<uint8_t> data) {
 }
 
 int64_t DRRAResource::vectorToInt64(std::vector<uint8_t> data) {
-  int64_t result = 0;
+  uint64_t raw = 0;
   for (size_t i = 0; i < data.size(); i++) {
-    result |= data[i] << (i * 8);
+    raw |= static_cast<uint64_t>(data[i]) << (i * 8);
   }
-  return result;
+  // Sign-extend from word_bitwidth to 64 bits. RTL DPU operand ports are
+  // `logic signed` (see multiplier.sv.j2 / dpu.sv.j2), so an operand whose
+  // MSB is set is negative. Symmetric with int64ToVector, which writes
+  // signed-saturated values.
+  if (word_bitwidth > 0 && word_bitwidth < 64) {
+    uint64_t sign_bit = 1ULL << (word_bitwidth - 1);
+    if (raw & sign_bit) {
+      raw |= ~((1ULL << word_bitwidth) - 1);
+    }
+  }
+  return static_cast<int64_t>(raw);
 }
 
 std::vector<uint8_t> DRRAResource::uint64ToVector(uint64_t data,

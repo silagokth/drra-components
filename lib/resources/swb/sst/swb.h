@@ -5,6 +5,7 @@
 #include "swb_pkg.h"
 #include <cstdint>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 class Swb : public DRRAResource {
@@ -50,9 +51,9 @@ public:
 
   // Instruction format
   using DRRAResource::format;
+  void handleCONF(const SWB_PKG::CONFInstruction &instr);
   void handleEVT(const SWB_PKG::EVTInstruction &instr);
   void handleREP(const SWB_PKG::REPInstruction &instr);
-  void handleREPX(const SWB_PKG::REPXInstruction &instr);
   void handleTRANS(const SWB_PKG::TRANSInstruction &instr);
   void handleSWB(const SWB_PKG::SWBInstruction &instr);
   void handleROUTE(const SWB_PKG::ROUTEInstruction &instr);
@@ -79,13 +80,8 @@ private:
 
   // Map input ports to output ports ([source] = target)
   std::vector<std::map<uint32_t, uint32_t>> connection_maps;
-  std::vector<std::map<uint32_t, uint32_t>> next_connection_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>> sending_routes_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>>
-      next_sending_routes_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>> receiving_routes_maps;
-  std::vector<std::map<uint32_t, std::vector<uint32_t>>>
-      next_receiving_routes_maps;
+  std::vector<std::map<uint32_t, std::set<uint32_t>>> sending_routes_maps;
+  std::vector<std::map<uint32_t, std::set<uint32_t>>> receiving_routes_maps;
 
   // Slot links
   std::vector<Link *> slot_links;
@@ -100,6 +96,7 @@ private:
   uint32_t currentFsmOption_swb = 0;
   uint32_t currentFsmOption_route = 0;
   uint32_t currentEventNumber = 0;
+
 };
 
 #endif // _SWB_H

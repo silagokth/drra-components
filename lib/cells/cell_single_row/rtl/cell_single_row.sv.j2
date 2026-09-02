@@ -20,7 +20,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic clk_resource,
     output logic clk_out_swb,
     output logic clk_out_resource,
-    
+
     input logic rst_n,
     input logic call_in,
     output logic call_out,
@@ -74,16 +74,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .clk_0(clk_resource),
         .rst_n(rst_n),
         .call(call_in),
-        .instr_bus_resource(instr_bus[0]), 
+        .instr_bus_resource(instr_bus[0]),
         .clk_feedthrough_resource(clk_feedthrough_resource[0]),
         .rst_n_feedthrough_resource(rst_n_feedthrough_resource[0]),
-        .instr_valid_resource(instr_valid_resource[0]),                     
-        .activate_resource(activate_resource[0]),     
+        .instr_valid_resource(instr_valid_resource[0]),
+        .activate_resource(activate_resource[0]),
         .resource_address(resource_address[0]),
         .rst_n_feedthrough_swb(rst_n_feedthrough_swb),
-        .instr_bus_swb(instr_bus_swb), 
-        .instr_valid_swb(instr_valid_swb),                     
-        .activate_swb(activate_swb),     
+        .instr_bus_swb(instr_bus_swb),
+        .instr_valid_swb(instr_valid_swb),
+        .activate_swb(activate_swb),
         .instr_load_data_in(instr_data_in),
         .instr_load_addr_in(instr_addr_in),
         .instr_load_hops_in(instr_hops_in),
@@ -128,6 +128,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     `{{res.name}} resource_{{res.slot}}_inst
     (
         {% for i in range(res.size) %}
+        .clk_{{i}}(resource_clk[{{ res.slot+i }}]),
+        .rst_n_{{i}}(resource_rst_n[{{ res.slot+i }}]),
+        .instr_en_{{i}}(instr_valid[{{ res.slot+i }}]),
+        .instr_{{i}}(instr[{{ res.slot+i }}]),
+        .activate_{{i}}(activate[{{ res.slot+i }}]),
         .word_data_in_{{i}}(word_data_in[{{res.slot+i}}]),
         .word_data_out_{{i}}(word_data_out[{{res.slot+i}}]),
         .bulk_data_in_{{i}}(bulk_data_in[{{res.slot+i}}]),

@@ -79,8 +79,7 @@ endif()
 
 # The project version number.
 execute_process(
-  COMMAND bash -c "git describe --tags --exact-match 2>/dev/null || "
-          "git describe --always --tags"
+  COMMAND bash -c "git describe --tags --exact-match 2>/dev/null || git describe --always --tags"
   OUTPUT_VARIABLE DRRA_COMPONENTS_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 

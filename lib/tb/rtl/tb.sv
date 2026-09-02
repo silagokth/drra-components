@@ -29,21 +29,25 @@ module fabric_tb;
   logic ret_all;
   assign ret_all = &ret;
 
-  int   cycle_count = 0;
+  // `cycle_count` is the only variable an always_ff process writes here;
+  // dropped the `= 0` declaration initializer that triggered Questa's
+  // vlog-7061 (always_ff variable driven by another process — the
+  // initial-time variable-init counts as a second driver). The async
+  // reset branch below already initializes it.
+  int   cycle_count;
   logic start_counting = 0;
   always_ff @(posedge clk or negedge rst_n) begin
     if (~rst_n) begin
       cycle_count <= 0;
     end else if (start_counting) begin
       cycle_count <= cycle_count + 1;
-    end else begin
-      cycle_count <= cycle_count;
     end
   end
 
   int fd;
   int r, c;
   int index;
+  int total_cycles;
   string line;
   logic [INSTR_DATA_WIDTH-1:0] temp_instruction;
   realtime start_time, end_time;
@@ -103,11 +107,17 @@ module fabric_tb;
     @(posedge ret_all);
     // record simulation time
     @(negedge clk) end_time = $realtime;
-    $display("Simulation ends! Total cycles = %d", (end_time - start_time) / 10);
+    // `ret_all` is a registered output that asserts one clock cycle after the
+    // sequencer executes `halt`, so `cycle_count` has already ticked once for
+    // that propagation cycle. Subtract it to report the halt-execution cycle,
+    // matching the instruction-level (SST) model which stops the moment `halt`
+    // runs. (Verified cycle-for-cycle against SST across all testcases.)
+    total_cycles = (cycle_count > 0) ? (cycle_count - 1) : 0;
+    $display("Simulation ends! Total cycles = %d", total_cycles);
 
     // write the number of cycles to a file
     fd = $fopen("rtl_sim_cycles.txt", "w+");
-    $fwrite(fd, "%d\n", cycle_count);
+    $fwrite(fd, "%d\n", total_cycles);
     $fclose(fd);
 
     // display all the output buffer and write it to a file
@@ -132,7 +142,7 @@ module fabric_tb;
     while (!$feof(
         fd
     )) begin
-      $fscanf(fd, "%d %b", index, temp_data);
+      void'($fscanf(fd, "%d %b", index, temp_data));
       $display("index = %d, data = %b", index, temp_data);
       input_buffer[index] = temp_data;
     end

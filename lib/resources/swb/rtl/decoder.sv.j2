@@ -1,0 +1,51 @@
+
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_decoder
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic clk,
+    input logic rst_n,
+
+    input logic instruction_valid,
+    input logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload,
+
+    output logic   evt_valid,
+    output evt_t   evt_instr,
+    output logic   swb_valid,
+    output swb_t   swb_instr,
+    output logic   route_valid,
+    output route_t route_instr,
+    output logic   rep_valid,
+    output rep_t   rep_instr,
+    output logic   trans_valid,
+    output trans_t trans_instr
+);
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction Decoding
+  // ─────────────────────────────────────────────────────────────────────────
+  logic [OPCODE_WIDTH-1:0] opcode;
+  assign opcode = instruction_payload[OPCODE_H:OPCODE_L];
+
+  // Variant (sub-opcode) selector sits just below the top-level opcode
+  logic [CONF_VARIANT_OPCODE_BITWIDTH-1:0] conf_variant;
+  assign conf_variant = instruction_payload[OPCODE_L-1 -: CONF_VARIANT_OPCODE_BITWIDTH];
+
+  logic conf_valid;
+  assign conf_valid  = instruction_valid && (opcode == OPCODE_CONF);
+  assign evt_valid   = instruction_valid && (opcode == OPCODE_EVT);
+  assign swb_valid   = conf_valid && (conf_variant == OPCODE_SWB);
+  assign route_valid = conf_valid && (conf_variant == OPCODE_ROUTE);
+  assign rep_valid   = instruction_valid && (opcode == OPCODE_REP);
+  assign trans_valid = instruction_valid && (opcode == OPCODE_TRANS);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Instruction Unpacking
+  // ─────────────────────────────────────────────────────────────────────────
+  assign evt_instr   = evt_valid   ? unpack_evt(instruction_payload)   : '{default: 0};
+  assign swb_instr   = swb_valid   ? unpack_swb(instruction_payload)   : '{default: 0};
+  assign route_instr = route_valid ? unpack_route(instruction_payload) : '{default: 0};
+  assign rep_instr   = rep_valid   ? unpack_rep(instruction_payload)   : '{default: 0};
+  assign trans_instr = trans_valid ? unpack_trans(instruction_payload) : '{default: 0};
+
+endmodule

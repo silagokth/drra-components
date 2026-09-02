@@ -7,72 +7,78 @@
   },
   "instructions": [
     {
-      "name": "swb",
-      "opcode": 4,
+      "name": "conf",
+      "opcode": 0,
       "instr_type": 1,
-      "segments": [
+      "variant_opcode_bitwidth": 1,
+      "variants": [
         {
-          "name": "option",
-          "comment": "Configuration option where the current route will be stored",
-          "bitwidth": 2
-        },
-        {
-          "name": "channel",
-          "comment": "Bus channel. Note: as the SWB is currently implemented by a crossbar, the channel is always equals to the target slot.",
-          "bitwidth": 4
-        },
-        {
-          "name": "source",
-          "comment": "Source slot.",
-          "bitwidth": 4
-        },
-        {
-          "name": "target",
-          "comment": "Target slot.",
-          "bitwidth": 4
-        }
-      ]
-    },
-    {
-      "name": "route",
-      "opcode": 5,
-      "instr_type": 1,
-      "segments": [
-        {
-          "name": "option",
-          "comment": "Configuration option where the current route will be stored",
-          "bitwidth": 2
-        },
-        {
-          "name": "sr",
-          "comment": "Sending route (`0`) or a receiving route (`1`)",
-          "bitwidth": 1,
-          "verbo_map": [
+          "name": "swb",
+          "opcode": 0,
+          "segments": [
             {
-              "key": 0,
-              "val": "send"
+              "name": "option",
+              "comment": "Configuration option where the current route will be stored",
+              "bitwidth": 2
             },
             {
-              "key": 1,
-              "val": "receive"
+              "name": "channel",
+              "comment": "Bus channel. Note: as the SWB is currently implemented by a crossbar, the channel is always equals to the target slot.",
+              "bitwidth": 4
+            },
+            {
+              "name": "source",
+              "comment": "Source slot.",
+              "bitwidth": 4
+            },
+            {
+              "name": "target",
+              "comment": "Target slot.",
+              "bitwidth": 4
             }
           ]
         },
         {
-          "name": "source",
-          "comment": "If `sr=0`, indicates source slot number; if `sr=1`, indicates receiving direction (0:NW/1:N/2:NE/3:W/4:C/5:E/6:SW/7:S/8:SE).",
-          "bitwidth": 4
-        },
-        {
-          "name": "target",
-          "comment": "If `sr=0`, indicates sending direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates destination slot(s) (1-hot encoded)",
-          "bitwidth": 16
+          "name": "route",
+          "opcode": 1,
+          "segments": [
+            {
+              "name": "option",
+              "comment": "Configuration option where the current route will be stored",
+              "bitwidth": 2
+            },
+            {
+              "name": "sr",
+              "comment": "Sending route (`0`) or a receiving route (`1`)",
+              "bitwidth": 1,
+              "verbo_map": [
+                {
+                  "key": 0,
+                  "val": "send"
+                },
+                {
+                  "key": 1,
+                  "val": "receive"
+                }
+              ]
+            },
+            {
+              "name": "source",
+              "comment": "If `sr=0`, indicates source slot number; if `sr=1`, indicates receiving direction (0:NW/1:N/2:NE/3:W/4:C/5:E/6:SW/7:S/8:SE).",
+              "bitwidth": 4
+            },
+            {
+              "name": "target",
+              "comment": "If `sr=0`, indicates sending direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates destination slot(s) (1-hot encoded)",
+              "bitwidth": 16
+            }
+          ]
         }
       ]
     },
     {
       "name": "evt",
-      "opcode": 0,
+      "opcode": 1,
       "instr_type": 1,
       "segments": [
         {
@@ -94,9 +100,14 @@
     },
     {
       "name": "rep",
-      "opcode": 1,
+      "opcode": 2,
       "instr_type": 1,
       "segments": [
+        {
+          "name": "ext",
+          "comment": "0 = base (low half), 1 = extension (high MSBs) of iter/step/delay",
+          "bitwidth": 1
+        },
         {
           "name": "port",
           "comment": "Selects whether the repetition is applied intracell (0) or intercell (1).",
@@ -115,57 +126,18 @@
         {
           "name": "iter",
           "comment": "Number of iterations.",
-          "bitwidth": 8
+          "bitwidth": 7
         },
         {
           "name": "step",
           "comment": "Step size between iterations.",
-          "bitwidth": 7,
+          "bitwidth": 6,
           "default_val": 1,
           "is_signed": true
         },
         {
           "name": "delay",
           "comment": "Delay between iterations.",
-          "bitwidth": 8
-        }
-      ]
-    },
-    {
-      "name": "repx",
-      "opcode": 2,
-      "instr_type": 1,
-      "segments": [
-        {
-          "name": "port",
-          "comment": "Selects whether the repetition extension is applied intracell (0) or intercell (1).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "intracell"
-            },
-            {
-              "key": 1,
-              "val": "intercell"
-            }
-          ]
-        },
-        {
-          "name": "iter",
-          "comment": "Most significant bits to apply to the `iter` value of the repetition operator.",
-          "bitwidth": 8
-        },
-        {
-          "name": "step",
-          "comment": "Most significant bits to apply to the `step` value of the repetition operator.",
-          "bitwidth": 7,
-          "default_val": 1,
-          "is_signed": true
-        },
-        {
-          "name": "delay",
-          "comment": "Most significant bits to apply to the `delay` value of the repetition operator.",
           "bitwidth": 8
         }
       ]

@@ -1,0 +1,31 @@
+  // Local AGU configuration struct mirroring agu_cfg_if's signal layout
+  // so a controller can hold the registered configuration per AGU
+  // before driving it onto the interface.
+  //
+  // The widths and dimensions reference the resource-local parameters
+  // REP_DELAY_WIDTH, REP_ITER_WIDTH, REP_STEP_WIDTH, TRANS_DELAY_WIDTH,
+  // NUMBER_OR, NUMBER_MT, NUMBER_IR — those must already be declared in
+  // the including package.
+  //
+  // Layout MUST stay byte-identical to agu_cfg_if's sub-structs and array
+  // dimensions. The producer modport drives whole arrays via
+  //   `assign agu_configs[gi].* = agu_configs_reg[gi].*`
+  // so any drift between this typedef and agu_cfg_if silently misaligns
+  // bit fields.
+  typedef struct packed {
+    logic [REP_DELAY_WIDTH-1:0] delay;
+    logic [REP_ITER_WIDTH-1:0]  iter;
+    logic [REP_STEP_WIDTH-1:0]  step;
+    logic                       is_configured;
+  } rep_config_t;
+
+  typedef struct packed {
+    logic [TRANS_DELAY_WIDTH-1:0] delay;
+    logic                         is_configured;
+  } trans_config_t;
+
+  typedef struct packed {
+    rep_config_t   [((NUMBER_OR > 0) ? NUMBER_OR : 1)-1:0] or_configs;
+    trans_config_t [((NUMBER_MT > 0) ? NUMBER_MT : 1)-1:0] mt_configs;
+    rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0]            ir_configs;
+  } agu_config_t;

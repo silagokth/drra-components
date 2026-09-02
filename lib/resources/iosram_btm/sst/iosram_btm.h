@@ -59,23 +59,21 @@ public:
   bool clockTick(SST::Cycle_t currentCycle) override;
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
-  std::unordered_map<uint32_t, uint32_t> portsToActivate;
-
   // Instruction format
   using DRRAResource::format;
-  void handleDSU(const IOSRAM_BTM_PKG::DSUInstruction &instr);
+  void handleCONF(const IOSRAM_BTM_PKG::CONFInstruction &instr);
+  void handleEVT(const IOSRAM_BTM_PKG::EVTInstruction &instr);
   void handleREP(const IOSRAM_BTM_PKG::REPInstruction &instr);
-  void handleREPX(const IOSRAM_BTM_PKG::REPXInstruction &instr);
   void handleTRANS(const IOSRAM_BTM_PKG::TRANSInstruction &instr);
 
   using DRRAResource::out;
 
 private:
   enum DSU_RELATIVE_PORT {
-    DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_BTM_PKG::DSU_PORT_INPUT_BUFFER,
-    DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_BTM_PKG::DSU_PORT_OUTPUT_BUFFER,
-    DSU_PORT_IO_WRITE_TO_SRAM = IOSRAM_BTM_PKG::DSU_PORT_SRAM_WRITE,
-    DSU_PORT_IO_READ_FROM_SRAM = IOSRAM_BTM_PKG::DSU_PORT_SRAM_READ,
+    DSU_PORT_SRAM_READ_FROM_IO = IOSRAM_BTM_PKG::EVT_PORT_INPUT_BUFFER,
+    DSU_PORT_SRAM_WRITE_TO_IO = IOSRAM_BTM_PKG::EVT_PORT_OUTPUT_BUFFER,
+    DSU_PORT_IO_WRITE_TO_SRAM = IOSRAM_BTM_PKG::EVT_PORT_SRAM_WRITE,
+    DSU_PORT_IO_READ_FROM_SRAM = IOSRAM_BTM_PKG::EVT_PORT_SRAM_READ,
     DSU_PORT_WRITE_BULK = 6,
     DSU_PORT_READ_BULK = 7
   };
@@ -89,6 +87,7 @@ private:
 
   // Backing store parameters
   uint64_t iosram_depth;
+  uint32_t io_address_width; // bits of the io input/output buffer address space
   bool read_only;
 
   SST::Link *self_link = nullptr;
@@ -116,9 +115,34 @@ private:
   void writeBulk();
   void readBulk();
 
-  int32_t agu_initial_addr = -1;
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
+  std::map<uint32_t, uint32_t> port_agus_init;
+  std::map<uint32_t, uint32_t> port_agus;
+
+
+  void updatePortAGUs(uint32_t port) {
+    int64_t address_offset =
+        agus[port].getAddressForCycle(getPortActiveCycle(port));
+    if (address_offset < 0) {
+      out.fatal(CALL_INFO, -1,
+                "AGU for port %u returned negative address %d for cycle %d\n",
+                port, address_offset, getPortActiveCycle(port));
+    }
+    port_agus[port] = port_agus_init[port] + address_offset;
+    uint64_t max_addr = iosram_depth;
+    if (port == DSU_PORT_SRAM_READ_FROM_IO ||
+        port == DSU_PORT_SRAM_WRITE_TO_IO) {
+      // These ports address the external io input/output buffer, whose range
+      // is the io address space (2^io_address_width), not the local SRAM
+      // geometry. (Previously mis-bounded by iosram_depth * words-per-line.)
+      max_addr = 1ULL << io_address_width;
+    }
+    if (port_agus[port] >= max_addr) {
+      out.fatal(CALL_INFO, -1, "Invalid AGU address %u for port %u (max %lu)\n",
+                port_agus[port], port, max_addr);
+    }
+  }
 };
 
 #endif // _IOSRAM_BTM_H
