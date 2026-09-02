@@ -8,6 +8,19 @@
 // operand goes unused in every one of them: the AGU sweeps it, so it is not an
 // instruction operand -- the affine map is lifted onto the rop separately.
 //
+// Each replacement rop also says, in `uses`, which parts of the RF it holds
+// while it is active. An RF is not indivisible: rtl/logic.sv.j2 gives it four
+// independent access paths, and the AGU index there *is* the port number --
+// agu_valid[0] word write, [1] word read, [2] bulk write, [3] bulk read -- each
+// with its own data wires. So a word write and a bulk read want nothing in
+// common and can run on one RF, while two word reads cannot.
+//
+// The register array itself is deliberately not listed. Every access touches
+// it, so listing it would make every pair of accesses conflict and say nothing
+// more than "same resource" does. Two arrays sharing one RF is a question of
+// addresses and RF_DEPTH, not of parts; what keeps distinct arrays apart is the
+// storage identity the compiler lifts off the accessed memref.
+//
 // Widths are fixed to the reference configuration: WORD_BITWIDTH = 16,
 // RF_DEPTH = 64, IO_DATA_WIDTH = 256, so a bulk access is 16 words.
 
@@ -65,22 +78,26 @@ module @rf {
   module @replace {
 
     func.func @word_read(%registers: memref<64xi16>, %addr: index) -> i16 {
-      %v = drra.rop {evt = {port = 1 : i32}} : () -> i16
+      %v = drra.rop {evt = {port = 1 : i32},
+                    uses = ["agu:1", "output_narrow:0"]} : () -> i16
       return %v : i16
     }
 
     func.func @word_write(%registers: memref<64xi16>, %addr: index, %v: i16) {
-      drra.rop %v {evt = {port = 0 : i32}} : (i16) -> ()
+      drra.rop %v {evt = {port = 0 : i32},
+                  uses = ["agu:0", "input_narrow:0"]} : (i16) -> ()
       return
     }
 
     func.func @bulk_read(%registers: memref<64xi16>, %addr: index) -> vector<16xi16> {
-      %v = drra.rop {evt = {port = 3 : i32}} : () -> vector<16xi16>
+      %v = drra.rop {evt = {port = 3 : i32},
+                    uses = ["agu:3", "output_bulk:0"]} : () -> vector<16xi16>
       return %v : vector<16xi16>
     }
 
     func.func @bulk_write(%registers: memref<64xi16>, %addr: index, %v: vector<16xi16>) {
-      drra.rop %v {evt = {port = 2 : i32}} : (vector<16xi16>) -> ()
+      drra.rop %v {evt = {port = 2 : i32},
+                  uses = ["agu:2", "input_bulk:0"]} : (vector<16xi16>) -> ()
       return
     }
 
@@ -89,7 +106,8 @@ module @rf {
     // and there is no way to say that yet. That is the one thing standing
     // between this and being selectable.
     func.func @conf(%registers: memref<64xi16>, %addr: index, %value: i16) {
-      drra.rop %value {conf = {}} : (i16) -> ()
+      drra.rop %value {conf = {},
+                      uses = ["conf_write"]} : (i16) -> ()
       return
     }
   }

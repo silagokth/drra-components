@@ -22,6 +22,24 @@
 // paths are AGU-driven and nothing in such a program expresses them, so they
 // are loaded and then skipped.
 //
+// Each replacement rop also says, in `uses`, which parts of the resource it
+// holds while it is active. rtl/logic.sv.j2 gives the AGU map:
+//
+//   AGU 0  IO in                  @input_buffer
+//   AGU 1  IO out                 @output_buffer
+//   AGU 2  SRAM write from IO     @sram_write
+//   AGU 3  SRAM read to IO        @sram_read
+//   AGU 4  SRAM write from bulk   @bulk_write
+//   AGU 5  SRAM read to bulk      @bulk_read
+//
+// The SRAM is dual ported -- one write port, one read port -- and the RTL
+// arbitrates each with an if/else-if, so the two writers share the write port
+// and the two readers share the read port. That is what `sram_write_port` and
+// `sram_read_port` say, and it is the arbitration the @bulk_write note below
+// describes. The SRAM contents are deliberately not a part: every access
+// touches them, so listing them would make every pair conflict and say nothing
+// more than "same resource" does.
+//
 // Widths are fixed to the reference configuration: WORD_BITWIDTH = 16,
 // IO_DATA_WIDTH = 256 (16 words per transfer), SRAM_ADDR_WIDTH = 6 (64 rows),
 // IO_ADDR_WIDTH = 16.
@@ -84,32 +102,40 @@ module @iosram_both {
   module @replace {
 
     func.func @input_buffer(%io_buffer: memref<?xvector<16xi16>, 1>, %addr: index) -> vector<16xi16> {
-      %v = drra.rop {evt = {port = 0 : i32}} : () -> vector<16xi16>
+      %v = drra.rop {evt = {port = 0 : i32},
+                    uses = ["agu:0", "external_read:0"]} : () -> vector<16xi16>
       return %v : vector<16xi16>
     }
 
     func.func @output_buffer(%io_buffer: memref<?xvector<16xi16>, 1>, %addr: index, %v: vector<16xi16>) {
-      drra.rop %v {evt = {port = 1 : i32}} : (vector<16xi16>) -> ()
+      drra.rop %v {evt = {port = 1 : i32},
+                  uses = ["agu:1", "external_write:0"]} : (vector<16xi16>) -> ()
       return
     }
 
     func.func @sram_write(%sram: memref<64xvector<16xi16>>, %addr: index, %v: vector<16xi16>) {
-      drra.rop %v {evt = {port = 2 : i32}} : (vector<16xi16>) -> ()
+      drra.rop %v {evt = {port = 2 : i32},
+                  uses = ["agu:2", "sram_write_port:0"]} : (vector<16xi16>) -> ()
       return
     }
 
     func.func @sram_read(%sram: memref<64xvector<16xi16>>, %addr: index) -> vector<16xi16> {
-      %v = drra.rop {evt = {port = 3 : i32}} : () -> vector<16xi16>
+      %v = drra.rop {evt = {port = 3 : i32},
+                    uses = ["agu:3", "sram_read_port:0"]} : () -> vector<16xi16>
       return %v : vector<16xi16>
     }
 
     func.func @bulk_read(%sram: memref<64xvector<16xi16>>, %addr: index) -> vector<16xi16> {
-      %v = drra.rop {evt = {port = 3 : i32}, slot_offset = 1 : i32} : () -> vector<16xi16>
+      %v = drra.rop {evt = {port = 3 : i32}, slot_offset = 1 : i32,
+                    uses = ["agu:5", "sram_read_port:0", "output_bulk:0"]}
+          : () -> vector<16xi16>
       return %v : vector<16xi16>
     }
 
     func.func @bulk_write(%sram: memref<64xvector<16xi16>>, %addr: index, %v: vector<16xi16>) {
-      drra.rop %v {evt = {port = 2 : i32}, slot_offset = 1 : i32} : (vector<16xi16>) -> ()
+      drra.rop %v {evt = {port = 2 : i32}, slot_offset = 1 : i32,
+                  uses = ["agu:4", "sram_write_port:0", "input_bulk:0"]}
+          : (vector<16xi16>) -> ()
       return
     }
   }

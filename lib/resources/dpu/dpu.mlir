@@ -11,6 +11,18 @@
 // is how the accumulate register stays implicit in the DPU rather than being
 // special-cased in the compiler.
 //
+// Each replacement rop also says, in `uses`, which parts of the DPU it holds
+// while it is active. A DPU is not indivisible: it has four configuration
+// registers, two narrow inputs and a narrow output, and one AGU per event port.
+// %a arrives on input_narrow:1 and %b on input_narrow:0 -- the operand order of
+// the rop is not the port order, so the list is written in port order.
+// An arithmetic mode holds the config register its mode word sits in and the
+// datapath it drives; @rst holds only the AGU of the rst port. So a mac and a
+// rst want nothing in common and can run on the same DPU, while two arithmetic
+// modes cannot -- one config register holds one mode. That is what the compiler
+// intersects when it decides which operations may share an instance; the names
+// are ours, and it only ever asks whether two of them are spelled the same.
+//
 // These describe the arithmetic only. The hardware clamps every result to the
 // word rather than wrapping (rtl/adder.sv.j2 and rtl/multiplier.sv.j2 with
 // saturate = 1, and int64ToVector() on the SST side); that saturation is left
@@ -74,30 +86,41 @@ module @dpu {
     // Never selected -- @idle has no body to match -- but it is still a real
     // DPU mode, so the counterpart records what it would lower to.
     func.func @idle() {
-      drra.rop {conf = {mode = 0 : i32}} : () -> ()
+      drra.rop {conf = {mode = 0 : i32},
+                uses = ["conf_reg:0"]} : () -> ()
       return
     }
 
     func.func @add(%a: i16, %b: i16) -> i16 {
-      %r = drra.rop %a, %b {conf = {mode = 1 : i32}} : (i16, i16) -> i16
+      %r = drra.rop %a, %b {conf = {mode = 1 : i32},
+                           uses = ["conf_reg:0", "input_narrow:0",
+                                   "input_narrow:1", "output_narrow:1"]}
+          : (i16, i16) -> i16
       return %r : i16
     }
 
     func.func @mult(%a: i16, %b: i16) -> i16 {
-      %r = drra.rop %a, %b {conf = {mode = 7 : i32}} : (i16, i16) -> i16
+      %r = drra.rop %a, %b {conf = {mode = 7 : i32},
+                           uses = ["conf_reg:0", "input_narrow:0",
+                                   "input_narrow:1", "output_narrow:1"]}
+          : (i16, i16) -> i16
       return %r : i16
     }
 
     // %acc is unused: the accumulate register is not an instruction operand.
     func.func @mac(%acc: memref<i16>, %a: i16, %b: i16) -> i16 {
-      %r = drra.rop %a, %b {conf = {mode = 10 : i32}} : (i16, i16) -> i16
+      %r = drra.rop %a, %b {conf = {mode = 10 : i32},
+                           uses = ["conf_reg:0", "input_narrow:0",
+                                   "input_narrow:1", "output_narrow:1"]}
+          : (i16, i16) -> i16
       return %r : i16
     }
 
     // An evt on the rst port, on its own timing pattern. It still produces the
     // value the loop carries in.
     func.func @rst(%acc: memref<i16>) -> i16 {
-      %r = drra.rop {evt = {port = 1 : i32}} : () -> i16
+      %r = drra.rop {evt = {port = 1 : i32},
+                    uses = ["agu:1"]} : () -> i16
       return %r : i16
     }
   }
