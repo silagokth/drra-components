@@ -23,6 +23,27 @@
 // intersects when it decides which operations may share an instance; the names
 // are ours, and it only ever asks whether two of them are spelled the same.
 //
+// Each arithmetic replacement also says, in `endpoints`, which slot of the DPU
+// each of its operands and results uses, as an offset from the first slot the
+// instance occupies. A DPU is two slots wide, and that is not an accounting
+// detail: the switchbox addresses a channel by slot and knows nothing of ports,
+// so the two narrow inputs are reached as two different target slots. Two
+// operands left on one slot would share one channel and only one of them would
+// ever arrive. `uses` cannot answer this -- those names are ours, and the
+// compiler only ever asks whether two of them are spelled the same -- so the
+// slot each value travels on is stated separately, in the operation's own
+// result and operand order. A single-slot resource says nothing and gets the
+// one slot it has.
+//
+// Each arithmetic replacement also carries a `delay`: the cycles from the event
+// that starts one pass through the operation to that pass's result being there
+// to be taken. Per pass, not per loop -- the compiler multiplies it by the trip
+// count where a value is carried out of a loop, so an accumulation of three
+// taps at one cycle each is timed at three. Without a delay every step of a
+// chain reads as simultaneous, and the register file write is activated in the
+// same cycle as the reads feeding the DPU, sampling the output before there is
+// one.
+//
 // These describe the arithmetic only. The hardware clamps every result to the
 // word rather than wrapping (rtl/adder.sv.j2 and rtl/multiplier.sv.j2 with
 // saturate = 1, and int64ToVector() on the SST side); that saturation is left
@@ -93,6 +114,9 @@ module @dpu {
 
     func.func @add(%a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 1 : i32},
+                           delay = 1 : i32,
+                           endpoints = {results = [0 : i32],
+                                        operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
                                    "input_narrow:1", "output_narrow:1"]}
           : (i16, i16) -> i16
@@ -101,6 +125,9 @@ module @dpu {
 
     func.func @mult(%a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 7 : i32},
+                           delay = 1 : i32,
+                           endpoints = {results = [0 : i32],
+                                        operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
                                    "input_narrow:1", "output_narrow:1"]}
           : (i16, i16) -> i16
@@ -110,6 +137,9 @@ module @dpu {
     // %acc is unused: the accumulate register is not an instruction operand.
     func.func @mac(%acc: memref<i16>, %a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 10 : i32},
+                           delay = 1 : i32,
+                           endpoints = {results = [0 : i32],
+                                        operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
                                    "input_narrow:1", "output_narrow:1"]}
           : (i16, i16) -> i16
