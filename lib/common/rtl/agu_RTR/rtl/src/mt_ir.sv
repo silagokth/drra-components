@@ -15,7 +15,12 @@ module mt_ir
            agu_cfg_if.consumer                     cfg,
     output logic               [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                                   ir_valid,
-    output logic                                   ir_done
+    output logic                                   ir_done,
+
+    // The lane currently driving ir_addr. Each EVT opens its own lane and
+    // carries its own initial address, so whoever adds that base has to know
+    // which lane the address came from.
+    output logic [$clog2(NUMBER_MT+1)-1:0]         active_lane
 );
 
   // State machine states
@@ -74,6 +79,8 @@ module mt_ir
   // Since empty lanes is always done, step is done when lane is done
   logic step_done;
   assign step_done = ir_done_array[active_lane_ptr];
+
+  assign active_lane = current_mux_ptr;
 
   // Mux pointer logic
   always_comb begin

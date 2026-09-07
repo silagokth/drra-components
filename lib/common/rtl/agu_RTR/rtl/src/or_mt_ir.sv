@@ -16,7 +16,10 @@ module or_mt_ir
            agu_cfg_if.consumer                     cfg,
     output logic               [ADDRESS_WIDTH-1:0] ir_addr,
     output logic                                   ir_valid,
-    output logic                                   ir_done
+    output logic                                   ir_done,
+
+    // The lane the child is running; see mt_ir.
+    output logic [$clog2(NUMBER_MT+1)-1:0]         active_lane
 );
 
   // --------------------------------------------------------------------------
@@ -75,6 +78,7 @@ module or_mt_ir
       .rst_n   (rst_n),
       .enable  (child_enable),  // Controlled by OR State Machine
       .cfg     (cfg),
+      .active_lane(active_lane),
       .ir_addr (child_addr),
       .ir_valid(child_valid),
       .ir_done (child_done)

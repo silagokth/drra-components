@@ -92,6 +92,11 @@ module agu_controller #(
   logic [$clog2(NUM_AGUS)-1:0] agu_index;
   assign agu_index = evt_valid ? evt_port : agu_config_index;
 
+  // The lane an EVT opens: the one after the lane in use. current_lane_index
+  // resets to all-ones, so the first EVT on an AGU wraps it to lane 0.
+  logic [$clog2(NUMBER_MT+1)-1:0] evt_lane;
+  assign evt_lane = current_lane_index[agu_index] + 1'b1;
+
   // Selectors indexing the AGU currently being configured.
   //
   // A full-width REP field is assembled from two instructions: a base REP
@@ -135,12 +140,19 @@ module agu_controller #(
 
       if (evt_valid) begin
         agu_config_index              <= agu_index;
-        current_lane_index[agu_index] <= current_lane_index[agu_index] + 1;
+        current_lane_index[agu_index] <= evt_lane;
         current_rep_level[agu_index]  <= '0;
 
-        // NOTE: Default configuration of the AGU is return init_addr only
-        agu_configs_reg[agu_index].ir_configs[0][0].iter          <= 1;
-        agu_configs_reg[agu_index].ir_configs[0][0].is_configured <= 1'b1;
+        // Default configuration of the lane this EVT opens: one iteration,
+        // returning init_addr alone.
+        //
+        // It has to land on the lane being entered rather than on lane 0. A
+        // second EVT on the same port opens lane 1, and writing the default to
+        // lane 0 again left lane 1 with is_configured low, so mt_ir counted one
+        // lane, the transition had nothing to step into, and only the first
+        // lane ever ran.
+        agu_configs_reg[agu_index].ir_configs[evt_lane][0].iter          <= 1;
+        agu_configs_reg[agu_index].ir_configs[evt_lane][0].is_configured <= 1'b1;
 
       end else if (rep_valid) begin
 
@@ -195,12 +207,19 @@ module agu_controller #(
     end
   endgenerate
 
-  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+  logic [NUM_AGUS-1:0][NUMBER_MT:0][ADDRESS_WIDTH-1:0] agu_init_address;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       agu_init_address <= '0;
-    end else if (evt_valid) begin
-      agu_init_address[agu_index] <= evt_init_addr;
+    end else begin
+      for (int i = 0; i < NUM_AGUS; i++) begin
+        if (agu_done[i]) begin
+          agu_init_address[i] <= '0;
+        end
+      end
+      if (evt_valid) begin
+        agu_init_address[agu_index][evt_lane] <= evt_init_addr;
+      end
     end
   end
   assign init_address = agu_init_address;
