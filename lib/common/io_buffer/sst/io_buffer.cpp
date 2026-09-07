@@ -14,7 +14,7 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   clock = params.find<std::string>("clock", "100MHz");
   printFrequency = params.find<SST::Cycle_t>("printFrequency", 1000);
   io_data_width = params.find<uint32_t>("io_data_width", 256);
-  io_depth = params.find<uint32_t>("io_depth", 65536);
+  io_depth = params.find<uint32_t>("io_depth", 262144);
   word_bitwidth = params.find<uint32_t>("word_bitwidth", 16);
   access_time = params.find<std::string>("access_time", "0ns");
   num_columns = params.find<uint32_t>("num_columns", 1);
