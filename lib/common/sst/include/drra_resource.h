@@ -1,5 +1,6 @@
 #pragma once
 
+#include "activationEvent.h"
 #include "drra_agu.h"
 #include "drra_component.h"
 #include "timingModel.h"
@@ -116,9 +117,11 @@ protected:
   // Activation
   std::map<uint32_t, bool> active_ports;
   std::map<uint32_t, uint32_t> active_ports_cycles;
-  // Loop iteration index carried by the most recent activation, forwarded to
-  // each port's AGU so a configured stride offsets address generation.
-  uint32_t currentLoopVar = 0;
+  // Loop counters from the most recent activation, depth-indexed. Each port
+  // holds (stride, loop_level) offset terms that activatePort resolves against
+  // them; empty = no offset.
+  uint32_t currentLoopVars[ActEvent::NUM_LOOP_LEVELS] = {0, 0, 0};
+  std::map<uint32_t, std::vector<std::pair<uint64_t, uint32_t>>> portOffsetTerms;
 
   // Event execution
   std::vector<std::shared_ptr<const TimingEvent>> events_for_cycle;

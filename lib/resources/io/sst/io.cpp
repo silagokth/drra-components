@@ -50,15 +50,17 @@ void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {
 }
 
 void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
-  out.output("evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d)\n",
-             instr.slot, instr.port, instr.option, instr.init_addr,
-             instr.stride);
+  out.output(
+      "evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d, "
+      "loop_level=%d)\n",
+      instr.slot, instr.port, instr.option, instr.init_addr, instr.stride,
+      instr.loop_level);
 
-  // Set initial address and per-iteration stride
   agus[instr.port].setInitialAddress(instr.init_addr);
-  agus[instr.port].setStride(instr.stride);
-  out.output("Set initial address for port %d to %d (stride %d)\n", instr.port,
-             instr.init_addr, instr.stride);
+  // Offset term 0; evts appends the rest.
+  portOffsetTerms[instr.port] = {{instr.stride, instr.loop_level}};
+  out.output("Set initial address for port %d to %d (stride %d, loop_level %d)\n",
+             instr.port, instr.init_addr, instr.stride, instr.loop_level);
 
   std::string event_name;
   switch (instr.port) {
@@ -91,6 +93,20 @@ void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
 
   // Add event handler
   current_event_number++;
+}
+
+void Io::handleEVTX(const IO_PKG::EVTXInstruction &instr) {
+  out.output("evtx (slot=%d, port=%d, init_addr_high=%d)\n", instr.slot,
+             instr.port, instr.init_addr_high);
+  agus[instr.port].setInitialAddressHigh(
+      instr.init_addr_high, IO_PKG::IO_INSTR_EVT_INIT_ADDR_BITWIDTH);
+}
+
+void Io::handleEVTS(const IO_PKG::EVTSInstruction &instr) {
+  out.output("evts (slot=%d, port=%d, stride=%d, loop_level=%d)\n", instr.slot,
+             instr.port, instr.stride, instr.loop_level);
+  // One more loop dimension; issue after the port's evt.
+  portOffsetTerms[instr.port].push_back({instr.stride, instr.loop_level});
 }
 
 void Io::handleREP(const IO_PKG::REPInstruction &instr) {

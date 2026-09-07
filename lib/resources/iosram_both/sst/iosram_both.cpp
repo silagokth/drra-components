@@ -76,16 +76,19 @@ void Iosram_both::handleActivation(uint32_t slot_id, uint32_t ports) {
 }
 
 void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
-  out.output("evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d)\n",
-             instr.slot, instr.port, instr.option, instr.init_addr,
-             instr.stride);
+  out.output(
+      "evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d, "
+      "loop_level=%d)\n",
+      instr.slot, instr.port, instr.option, instr.init_addr, instr.stride,
+      instr.loop_level);
 
-  // Set initial address and per-iteration stride
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
   agus[port_num].setInitialAddress(instr.init_addr);
-  agus[port_num].setStride(instr.stride);
-  out.output("Set initial address for port %d to %d (stride %d)\n", port_num,
-             instr.init_addr, instr.stride);
+  // Offset term 0; evts appends the rest.
+  portOffsetTerms[port_num] = {{instr.stride, instr.loop_level}};
+  out.output(
+      "Set initial address for port %d to %d (stride %d, loop_level %d)\n",
+      port_num, instr.init_addr, instr.stride, instr.loop_level);
 
   std::string event_name;
   switch (port_num) {
@@ -162,6 +165,22 @@ void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
 
 void Iosram_both::handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr) {
   out.output("conf (slot=%d)\n", instr.slot);
+}
+
+void Iosram_both::handleEVTX(const IOSRAM_BOTH_PKG::EVTXInstruction &instr) {
+  out.output("evtx (slot=%d, port=%d, init_addr_high=%d)\n", instr.slot,
+             instr.port, instr.init_addr_high);
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
+  agus[port_num].setInitialAddressHigh(
+      instr.init_addr_high, IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_EVT_INIT_ADDR_BITWIDTH);
+}
+
+void Iosram_both::handleEVTS(const IOSRAM_BOTH_PKG::EVTSInstruction &instr) {
+  out.output("evts (slot=%d, port=%d, stride=%d, loop_level=%d)\n", instr.slot,
+             instr.port, instr.stride, instr.loop_level);
+  // Append an extra offset term (one more nested-loop dimension) to the port.
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
+  portOffsetTerms[port_num].push_back({instr.stride, instr.loop_level});
 }
 
 void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {

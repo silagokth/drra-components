@@ -52,6 +52,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic [NUM_SLOTS-1:0][RESOURCE_INSTR_WIDTH-1:0] instr;
   logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
 
+  {# Loop-variable bus, controller -> resources. Width must match the
+     sequencer and resource templates. #}
+  {% set num_loop_levels = 3 %}
+  {% set loop_var_width = 16 %}
+  logic [{{num_loop_levels * loop_var_width}}-1:0] loop_var_bus;
+
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_in;
   logic [NUM_SLOTS-1:0][WORD_BITWIDTH-1:0] word_data_out;
   logic [NUM_SLOTS-1:0][BULK_BITWIDTH-1:0] bulk_data_in;
@@ -70,6 +76,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         .clk_{{i}}(resource_clk[{{i}}]),
         .rst_n_{{i}}(resource_rst_n[{{i}}]),
         {% endfor %}
+        .loop_var_bus(loop_var_bus),
         .instr_load_data_in(instr_data_in),
         .instr_load_addr_in(instr_addr_in),
         .instr_load_hops_in(instr_hops_in),
@@ -112,6 +119,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     `{{res.name}} resource_{{res.slot}}_inst
     (
+        {% if res.kind in ["io", "iosram_both", "iosram_btm", "iosram_top"] %}
+        .loop_var_bus(loop_var_bus),
+        {% endif %}
         {% for i in range(res.size) %}
         .clk_{{i}}(clk),
         .rst_n_{{i}}(rst_n),

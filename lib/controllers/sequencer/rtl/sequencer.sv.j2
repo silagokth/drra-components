@@ -5,6 +5,9 @@
 {% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
 {% set wait_cycle_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'wait') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'cycle') | list | first).bitwidth %}
 {% set already_defined = false %}
+{# Loop-nesting levels broadcast to the resources. Fabric contract: must match
+   the compiler's loop-counter pool (r15..r13) and the cell/resource templates. #}
+{% set num_loop_levels = 3 %}
 {% if not already_defined %}
 // Package holds parameter constants and per-instruction pack/unpack helpers
 package {{name}}_{{fingerprint}}_pkg;
@@ -31,6 +34,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic clk_{{i}},
     output logic rst_n_{{i}},
     {% endfor %}
+
+    // Loop counters by nesting depth (0 = outermost), from scalar register
+    // (NUM_SCALAR_REGS-1-d). A resource picks the level evt.loop_level names.
+    output logic [{{num_loop_levels}}*SCALAR_REG_WIDTH-1:0] loop_var_bus,
 
     // Instruction-load daisy-chain interface (for programming IRAMs across tiles)
     input  logic [INSTR_DATA_WIDTH-1:0] instr_load_data_in,
@@ -350,6 +357,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
       end
     end
+
+    // Combinational: counters only change in a loop epilogue, so the value is
+    // stable across the body where activations fire.
+    genvar lvl;
+    generate
+      for (lvl = 0; lvl < {{num_loop_levels}}; lvl++) begin : gen_loop_var_bus
+        assign loop_var_bus[(lvl+1)*SCALAR_REG_WIDTH-1 -: SCALAR_REG_WIDTH]
+             = regs[NUM_SCALAR_REGS-1-lvl];
+      end
+    endgenerate
 
   {{name}}_{{fingerprint}}_alu alu_inst (
     .in1(calc_op1),

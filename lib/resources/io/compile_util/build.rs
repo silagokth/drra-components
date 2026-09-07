@@ -53,10 +53,28 @@ fn main() {
         .as_u64()
         .unwrap();
 
+    // Width of the evt init_addr field; reshape_instr splits wider values
+    // into evt (low bits) + evtx (high bits).
+    let evt_instr = instructions
+        .iter()
+        .find(|instr| instr["name"] == "evt")
+        .unwrap_or_else(|| {
+            eprintln!("Failed to find 'evt' instruction in ISA config");
+            std::process::exit(1);
+        });
+    let init_addr_bw = evt_instr["segments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|seg| seg["name"] == "init_addr")
+        .unwrap()["bitwidth"]
+        .as_u64()
+        .unwrap();
+
     let out = format!(
         "pub const ITER_BITWIDTH: u32 = {};\npub const STEP_BITWIDTH: u32 = {};\n\
-     pub const DELAY_BITWIDTH: u32 = {};",
-        iter_bw, step_bw, delay_bw
+     pub const DELAY_BITWIDTH: u32 = {};\npub const INIT_ADDR_BITWIDTH: u32 = {};",
+        iter_bw, step_bw, delay_bw, init_addr_bw
     );
 
     fs::write("src/isa_config.rs", out).unwrap_or_else(|e| {

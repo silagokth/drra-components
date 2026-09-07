@@ -12,8 +12,10 @@ private:
   size_t current_trans_index = 0;
   uint64_t current_rep_level = 0;
   uint64_t initial_address = 0;
-  uint64_t stride = 0;   // per-iteration address stride (evt config)
-  uint64_t loop_var = 0; // current loop iteration index (activation payload)
+  // Address offset terms, one per loop dimension: evt sets term 0, evts
+  // appends the rest. Empty = no offset.
+  std::vector<uint64_t> term_strides;
+  std::vector<uint64_t> term_loop_vars;
   TimingState *getCurrentLane();
   TimingState *getLaneAtIndex(size_t index);
   void printLaneExpressions() const;
@@ -54,13 +56,29 @@ public:
 
   void setInitialAddress(uint64_t address) { initial_address = address; }
 
-  // Per-iteration address offset support. `stride` is static configuration
-  // (from the evt instruction, 0 = disabled); `loop_var` is the current loop
-  // iteration index broadcast with the activation. Generated addresses are
-  // offset by stride * loop_var, so a resource replays its pattern shifted by
-  // a per-iteration amount without re-running its address setup.
-  void setStride(uint64_t s) { stride = s; }
-  void setLoopVar(uint64_t lv) { loop_var = lv; }
+  // Extend the initial address with the evtx high bits. addEvent already
+  // snapshotted initial_address into a lane, so patch that lane too: evtx
+  // configures the same lane as the preceding evt.
+  void setInitialAddressHigh(uint64_t high_bits, uint32_t low_width) {
+    uint64_t low_mask = (low_width >= 64) ? ~0ULL : ((1ULL << low_width) - 1);
+    if (!lane_initial_addresses.empty()) {
+      uint64_t &a = lane_initial_addresses.back();
+      a = (a & low_mask) | (high_bits << low_width);
+    }
+    initial_address = (initial_address & low_mask) | (high_bits << low_width);
+  }
+
+  // Rebuilt by the resource on every activation: `stride` is static config
+  // (evt/evts), `loop_var` the counter broadcast for that term's loop level.
+  // Lets a resource replay its pattern shifted without redoing address setup.
+  void clearOffsetTerms() {
+    term_strides.clear();
+    term_loop_vars.clear();
+  }
+  void addOffsetTerm(uint64_t stride, uint64_t loop_var) {
+    term_strides.push_back(stride);
+    term_loop_vars.push_back(loop_var);
+  }
 
   int64_t getAddressForCycle(uint64_t cycle);
   uint64_t getLastScheduledCycle();

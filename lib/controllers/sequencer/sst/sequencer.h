@@ -69,9 +69,9 @@ private:
   // loop skips its default PC increment for that instruction.
   bool branchTaken = false;
 
-  // Loop iteration index broadcast with every activation this controller
-  // issues. Sampled from the loop-variable register when an act executes.
-  uint32_t currentLoopVar = 0;
+  // Loop counters broadcast with every activation, sampled from registers
+  // r15..r13 when an act executes. Depth-indexed (level d = r15-d).
+  uint32_t currentLoopVars[3] = {0, 0, 0};
 
   // uint32_t cell_coordinates[2] = {0, 0};
   uint32_t cyclesToWait = 0;

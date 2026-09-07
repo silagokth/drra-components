@@ -63,6 +63,8 @@ public:
   using DRRAResource::format;
   void handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr);
   void handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr);
+  void handleEVTX(const IOSRAM_BOTH_PKG::EVTXInstruction &instr);
+  void handleEVTS(const IOSRAM_BOTH_PKG::EVTSInstruction &instr);
   void handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr);
   void handleTRANS(const IOSRAM_BOTH_PKG::TRANSInstruction &instr);
 

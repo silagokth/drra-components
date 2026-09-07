@@ -15,11 +15,8 @@ int32_t sign_extend(uint32_t value, uint32_t bits) {
   return static_cast<int32_t>((value ^ mask) - mask);
 }
 
-// Scalar register whose value is broadcast as the loop iteration index with
-// every activation. Matches the compiler's depth-0 loop counter (r15).
-// TODO: nested loops use distinct counters (r15..r13); a single fixed register
-// only covers single-level loops. Revisit when the loop-variable register is
-// selected per activation.
+// Top of the compiler's loop-counter pool: depth d uses (LOOP_VAR_REG - d),
+// i.e. r15..r13 for the 3 broadcast levels.
 constexpr uint32_t LOOP_VAR_REG = 15;
 } // namespace
 
@@ -148,17 +145,20 @@ void Sequencer::handleACT(const SEQUENCER_PKG::ACTInstruction &instr) {
   out.output("act (slot=%d, ports=%d, mode=%d, param=%d)\n", instr.slot,
              instr.ports, instr.mode, instr.param);
 
-  // Sample the loop-variable register once; every act event this instruction
-  // broadcasts carries it (0 when not inside a loop, so no address offset).
-  currentLoopVar =
-      LOOP_VAR_REG < scalarRegisters.size() ? scalarRegisters[LOOP_VAR_REG] : 0;
+  // Sample the loop counters once; every act event this instruction broadcasts
+  // carries them (0 outside a loop, so no address offset).
+  for (uint32_t d = 0; d < ActEvent::NUM_LOOP_LEVELS; d++) {
+    uint32_t reg = LOOP_VAR_REG - d;
+    currentLoopVars[d] =
+        reg < scalarRegisters.size() ? scalarRegisters[reg] : 0;
+  }
 
   logTraceEvent("activation", 0, false, 'X',
                 {{"pc", static_cast<int>(pc)},
                  {"action_mode", static_cast<int>(instr.mode)},
                  {"action_ports", static_cast<int>(instr.ports)},
                  {"action_param", static_cast<int>(instr.param)},
-                 {"loop_var", static_cast<int>(currentLoopVar)}});
+                 {"loop_var", static_cast<int>(currentLoopVars[0])}});
 
   switch (instr.mode) {
   case SEQUENCER_PKG::ACT_MODE_CONTIGUOUS:
@@ -423,7 +423,9 @@ void Sequencer::sendActEvent(uint32_t slot_id, uint32_t ports_mask) {
   ActEvent *event = new ActEvent();
   event->slot_id = slot_id;
   event->ports = ports_mask;
-  event->loop_var = currentLoopVar;
+  for (uint32_t d = 0; d < ActEvent::NUM_LOOP_LEVELS; d++) {
+    event->loop_vars[d] = currentLoopVars[d];
+  }
   if (slot_links[slot_id]->isConfigured())
     slot_links[slot_id]->send(event);
   else

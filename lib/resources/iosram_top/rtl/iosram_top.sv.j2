@@ -3,6 +3,10 @@
 `define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
 // vesyla_template_end defines
 
+{# Loop-variable bus contract: must match the sequencer and the cell. #}
+{% set num_loop_levels = 3 %}
+{% set loop_var_width = 16 %}
+
 // vesyla_template_start module_head
 {% if not already_defined %}
 module {{name}}_{{fingerprint}}
@@ -47,7 +51,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_3,
     output logic io_en_in,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_in,
-    input  logic [IO_DATA_WIDTH-1:0] io_data_in
+    input  logic [IO_DATA_WIDTH-1:0] io_data_in,
+    // Loop counters from the sequencer, level d at bits
+    // [(d+1)*LOOP_VAR_WIDTH-1 : d*LOOP_VAR_WIDTH]; evt.loop_level picks one.
+    input  logic [{{num_loop_levels * loop_var_width}}-1:0] loop_var_bus
 );
 
     // Useless outputs:
@@ -84,10 +91,37 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
     logic [NUM_AGUS-1:0] agu_done;
+
+    // Offset terms per port, one per nested loop: evt sets term 0, evts
+    // appends the rest. Each term is (stride, loop_level); the named counter is
+    // sampled off the bus at activation and held for the whole run.
+    localparam int LOOP_VAR_WIDTH = {{loop_var_width}};
+    localparam int NDIM = {{num_loop_levels}}; // max offset terms per port
+    logic [EVTS_STRIDE_BITWIDTH-1:0]    agu_stride  [NUM_AGUS-1:0][NDIM-1:0];
+    logic [EVT_LOOP_LEVEL_BITWIDTH-1:0] agu_level   [NUM_AGUS-1:0][NDIM-1:0];
+    logic [LOOP_VAR_WIDTH-1:0]          loop_var_q  [NUM_AGUS-1:0][NDIM-1:0];
+    logic [$clog2(NDIM+1)-1:0]          agu_nterm   [NUM_AGUS-1:0];
+
+    // High bits of the init address, from evtx.
+    logic [EVTX_INIT_ADDR_HIGH_BITWIDTH-1:0] agu_init_high [NUM_AGUS-1:0];
+
+    // Unused terms have stride 0, so summing all NDIM is safe.
+    logic [ADDRESS_WIDTH-1:0] agu_offset [NUM_AGUS-1:0];
+    always_comb begin
+      for (int i = 0; i < NUM_AGUS; i++) begin
+        agu_offset[i] = '0;
+        for (int t = 0; t < NDIM; t++) begin
+          agu_offset[i] += ADDRESS_WIDTH'(agu_stride[i][t] * loop_var_q[i][t]);
+        end
+      end
+    end
+
     genvar idx;
     generate
       for (idx = 0; idx < NUM_AGUS; idx++)
-        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx];
+        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx]
+             + (ADDRESS_WIDTH'(agu_init_high[idx]) << EVT_INIT_ADDR_BITWIDTH)
+             + agu_offset[idx];
     endgenerate
 
     logic [INSTR_PAYLOAD_BITWIDTH-1:0] instruction_payload;
@@ -117,6 +151,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     logic evt_valid;
     evt_t evt_instr;
+    logic evtx_valid;
+    evtx_t evtx_instr;
+    logic evts_valid;
+    evts_t evts_instr;
     logic rep_valid;
     rep_t rep_instr;
     logic trans_valid;
@@ -129,11 +167,74 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .instruction_payload(instruction_payload),
       .evt_valid(evt_valid),
       .evt_instr(evt_instr),
+      .evtx_valid(evtx_valid),
+      .evtx_instr(evtx_instr),
+      .evts_valid(evts_valid),
+      .evts_instr(evts_instr),
       .rep_valid(rep_valid),
       .rep_instr(rep_instr),
       .trans_valid(trans_valid),
       .trans_instr(trans_instr)
     );
+
+    // evt sets term 0 (clearing the rest), evts appends terms, evtx sets
+    // the init-address high bits.
+    // Same slot->AGU mapping as evt_port: slot>0 targets the upper AGU group.
+    logic [$clog2(NUM_AGUS)-1:0] evt_agu_index;
+    assign evt_agu_index = (instruction_slot == 0) ? evt_instr._port
+                                                   : evt_instr._port + 2;
+    logic [$clog2(NUM_AGUS)-1:0] evts_agu_index;
+    assign evts_agu_index = (instruction_slot == 0) ? evts_instr._port
+                                                    : evts_instr._port + 2;
+    logic [$clog2(NUM_AGUS)-1:0] evtx_agu_index;
+    assign evtx_agu_index = (instruction_slot == 0) ? evtx_instr._port
+                                                    : evtx_instr._port + 2;
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (~rst_n) begin
+        for (int j = 0; j < NUM_AGUS; j++) begin
+          for (int t = 0; t < NDIM; t++) begin
+            agu_stride[j][t] <= '0;
+            agu_level[j][t]  <= '0;
+          end
+          agu_nterm[j] <= '0;
+          agu_init_high[j] <= '0;
+        end
+      end else if (evt_valid) begin
+        agu_stride[evt_agu_index][0] <= evt_instr._stride;
+        agu_level[evt_agu_index][0]  <= evt_instr._loop_level;
+        for (int t = 1; t < NDIM; t++) begin
+          agu_stride[evt_agu_index][t] <= '0;
+          agu_level[evt_agu_index][t]  <= '0;
+        end
+        agu_nterm[evt_agu_index] <= 1;
+      end else if (evts_valid) begin
+        agu_stride[evts_agu_index][agu_nterm[evts_agu_index]] <= evts_instr._stride;
+        agu_level[evts_agu_index][agu_nterm[evts_agu_index]]  <= evts_instr._loop_level;
+        agu_nterm[evts_agu_index] <= agu_nterm[evts_agu_index] + 1;
+      end else if (evtx_valid) begin
+        agu_init_high[evtx_agu_index] <= evtx_instr._init_addr_high;
+      end
+    end
+
+    // Sample the selected loop counters when an AGU is activated; hold them for
+    // the whole run so every address in this activation uses the same offset.
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (~rst_n) begin
+        for (int j = 0; j < NUM_AGUS; j++) begin
+          for (int t = 0; t < NDIM; t++) begin
+            loop_var_q[j][t] <= '0;
+          end
+        end
+      end else begin
+        for (int j = 0; j < NUM_AGUS; j++) begin
+          if (agu_activate[j]) begin
+            for (int t = 0; t < NDIM; t++) begin
+              loop_var_q[j][t] <= loop_var_bus[agu_level[j][t]*LOOP_VAR_WIDTH +: LOOP_VAR_WIDTH];
+            end
+          end
+        end
+      end
+    end
 
     agu_controller #(
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
