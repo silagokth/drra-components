@@ -43,7 +43,11 @@ module agu_controller #(
 
     input  logic [NUM_AGUS-1:0]                    agu_done,
     agu_cfg_if.producer                            agu_configs  [NUM_AGUS],
-    output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address,
+
+    // One initial address per lane. Each EVT opens a lane and brings its own
+    // base with it, so a second EVT on a port must not overwrite the first's:
+    // held per AGU, both lanes swept from whichever base was written last.
+    output logic [NUM_AGUS-1:0][NUMBER_MT:0][ADDRESS_WIDTH-1:0] init_address,
 
     // High per AGU once any of its mt/ir configs has been written. Optional —
     // consumers that don't need it (io/iosram/rf/dpu) leave it unconnected.
