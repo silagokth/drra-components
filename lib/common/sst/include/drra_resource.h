@@ -132,8 +132,10 @@ protected:
                           std::function<void(int64_t)> action,
                           uint64_t max_address = 0);
 
-  // Reject an EVT on a port this resource does not implement. Used by the
-  // iosram variants, which share one ISA but only one IO direction each.
+  // Reject an EVT on a port this resource does not implement -- for a
+  // resource that shares an ISA with others but leaves part of it unwired.
+  // No resource in the library needs it today; the iosram variants, which
+  // did, are gone.
   void forbidPort(uint32_t port, const std::string &reason);
 
   bool isPortActive(uint32_t port) { return agu_array.active(port); }

@@ -7,9 +7,9 @@
 // top and passed in here as plain buses, so this module stays ISA-agnostic and
 // is compiled once and shared.
 //
-// Used by the io / iosram_top / iosram_btm / iosram_both resources. The only
-// per-resource variation is the EVT port (the iosram split adds a slot offset);
-// that is resolved in the resource top and passed in via `evt_port`.
+// Used by the io resource. A resource that spans several slots resolves its
+// own (slot, port) to an AGU index in its top and passes the result in via
+// `evt_port`, so this module never has to know the slot layout.
 module agu_controller #(
     parameter int ADDRESS_WIDTH     = 16,
     parameter int NUM_AGUS          = 2,
@@ -50,7 +50,7 @@ module agu_controller #(
     output logic [NUM_AGUS-1:0][NUMBER_MT:0][ADDRESS_WIDTH-1:0] init_address,
 
     // High per AGU once any of its mt/ir configs has been written. Optional —
-    // consumers that don't need it (io/iosram/rf/dpu) leave it unconnected.
+    // consumers that don't need it (io/rf/dpu) leave it unconnected.
     output logic [NUM_AGUS-1:0]                    agu_is_configured
 );
 

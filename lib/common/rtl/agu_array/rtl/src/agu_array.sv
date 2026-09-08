@@ -27,7 +27,7 @@ module agu_array #(
     parameter int TRANS_DELAY_WIDTH = 12,
 
     // Per-AGU address width. Resources whose AGUs address different things
-    // (dpu: mode table vs accumulator reset; iosram: IO vs SRAM) size the
+    // (dpu: mode table vs accumulator reset) size the
     // individual counters here. `addr` is always ADDRESS_WIDTH wide and each
     // AGU's narrower output is zero-extended into it.
     parameter int AGU_ADDR_WIDTH [NUM_AGUS] = '{default: ADDRESS_WIDTH},

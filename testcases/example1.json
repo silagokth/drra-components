@@ -6,12 +6,8 @@
       "kind": "swb"
     },
     {
-      "name": "iosram_top_impl",
-      "kind": "iosram_top"
-    },
-    {
-      "name": "iosram_btm_impl",
-      "kind": "iosram_btm"
+      "name": "io_impl",
+      "kind": "io"
     },
     {
       "name": "rf_impl",
