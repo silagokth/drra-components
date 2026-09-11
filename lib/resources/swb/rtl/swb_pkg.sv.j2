@@ -48,7 +48,13 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "agu_config.j2" %}
 
   typedef struct {
+    // Indexed by TARGET channel, holds the driving SOURCE slot. Target-keyed so a
+    // later conf for a channel REPLACES its driver (last-write-wins, matching the
+    // `channel == target` pasm contract). Source-keying let a stale entry from an
+    // earlier epoch keep driving a channel, and the mux then resolved the clash by
+    // source index rather than by which conf was written last.
     logic [$clog2(NUM_SLOTS)-1:0] slot_link [NUM_SLOTS];
+    logic [NUM_SLOTS-1:0]         link_valid;  // per-target: channel has a driver
   } swb_config_t;
 
   typedef struct {
