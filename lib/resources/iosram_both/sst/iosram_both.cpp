@@ -370,7 +370,28 @@ void Iosram_both::writeBulk() {
           getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK));
 
   // Check if some data was received
-  DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
+  // Drain the link queue and keep the NEWEST event, the way Rf::writeWide
+  // does. A single recv() pops the OLDEST queued event, which is only correct
+  // when the producer emits exactly one event per write. A combinational
+  // resource on the drain path (e.g. a vpu applying a fused ReLU) drives its
+  // registered output every cycle, so the queue builds a backlog and a
+  // one-recv() write reads a stale bulk -- the RTL wire always carries the
+  // latest value, so the newest event is the faithful one.
+  DataEvent *dataEvent = nullptr;
+  {
+    SST::Event *temp_event = nullptr;
+    do {
+      temp_event = data_links[1]->recv();
+      if (temp_event != nullptr) {
+        DataEvent *newest = dynamic_cast<DataEvent *>(temp_event);
+        if (newest != nullptr) {
+          if (dataEvent != nullptr)
+            delete dataEvent;
+          dataEvent = newest;
+        }
+      }
+    } while (temp_event != nullptr);
+  }
   if (dataEvent == nullptr)
     out.fatal(CALL_INFO, -1, "No data received\n");
 
