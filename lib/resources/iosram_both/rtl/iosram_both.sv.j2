@@ -210,6 +210,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
           agu_level[evt_agu_index][t]  <= '0;
         end
         agu_nterm[evt_agu_index] <= 1;
+        // evt fully re-specifies the init address, so drop any high bits a
+        // previous evtx left on this port (they are sticky otherwise, and a
+        // re-executed loop body would inherit them).
+        agu_init_high[evt_agu_index] <= '0;
       end else if (evts_valid) begin
         agu_stride[evts_agu_index][agu_nterm[evts_agu_index]] <= evts_instr._stride;
         agu_level[evts_agu_index][agu_nterm[evts_agu_index]]  <= evts_instr._loop_level;
