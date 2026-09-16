@@ -42,8 +42,11 @@ include!(concat!(env!("OUT_DIR"), "/isa_config.rs"));
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
 
+// The port's timing follows the selector AGU (highest agu_idx); the pattern
+// AGUs must span the same number of cycles.
 fn get_timing_model(op: Op) -> String {
     let mut segments: Vec<String> = Vec::new();
+    let mut agu_indices: Vec<i64> = Vec::new();
     let mut event_counter = 0;
 
     for instr in op.body {
@@ -54,6 +57,12 @@ fn get_timing_model(op: Op) -> String {
             }
             "evt" => {
                 segments.push(format!("e{}", event_counter));
+                agu_indices.push(
+                    instr_segments
+                        .get_value("agu_idx")
+                        .parse::<i64>()
+                        .unwrap_or(0),
+                );
                 event_counter += 1;
             }
             "rep" => {
@@ -73,7 +82,10 @@ fn get_timing_model(op: Op) -> String {
                 if segments.len() >= 2 {
                     let right = segments.pop().unwrap();
                     let left = segments.pop().unwrap();
+                    let ri = agu_indices.pop().unwrap();
+                    let li = agu_indices.pop().unwrap();
                     segments.push(format!("T<{}>({},{})", delay, left, right));
+                    agu_indices.push(li.max(ri));
                 }
             }
             _ => {
@@ -82,7 +94,12 @@ fn get_timing_model(op: Op) -> String {
         }
     }
 
-    segments.pop().unwrap_or_else(|| "e0".to_string())
+    agu_indices
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, idx)| **idx)
+        .map(|(pos, _)| segments[pos].clone())
+        .unwrap_or_else(|| "e0".to_string())
 }
 
 fn reshape_instr(op: Op) -> Op {
