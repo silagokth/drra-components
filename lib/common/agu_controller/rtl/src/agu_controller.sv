@@ -117,10 +117,11 @@ module agu_controller #(
   logic [$clog2(NUMBER_IR)-1:0]   rep_lvl;
   always_comb begin
     rep_opt = current_lane_index[agu_index];
+    // The subtraction wraps in the counter's own width, so it stays correct for
+    // a rop that fills every level: the counter reads 0 again and 0-1 lands back
+    // on NUMBER_IR-1, the entry the base REP just wrote.
     rep_lvl = !rep_ext ? current_rep_level[agu_index]
-                       : (current_rep_level[agu_index] == '0
-                            ? '0
-                            : current_rep_level[agu_index] - 1);
+                       : current_rep_level[agu_index] - 1'b1;
   end
 
   always_ff @(posedge clk or negedge rst_n) begin : ff_agu_config_process
