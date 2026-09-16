@@ -369,9 +369,17 @@ void Swb::handleCellEventWithID(Event *event, uint32_t id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   if (!dataEvent)
     return;
-  // Snapshot only; evaluate() routes cell inputs to receiving slots.
-  cell_in_snapshot[id] = PortValue(dataEvent->payload, dataEvent->size);
+  PortValue incoming(dataEvent->payload, dataEvent->size);
   delete dataEvent;
+
+  auto it = cell_in_snapshot.find(id);
+  if (it != cell_in_snapshot.end() && it->second == incoming)
+    return;
+  cell_in_snapshot[id] = incoming;
+
+  // The intercell path is always_comb in swb.sv.j2, so a neighbour's output
+  // must reach this cell's consumers in the same cycle. Re-evaluate on change.
+  evaluate();
 }
 
 void Swb::deliverToSlot(uint32_t target_slot, PortChannel ch,
