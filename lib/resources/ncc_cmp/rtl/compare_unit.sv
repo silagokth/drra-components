@@ -16,7 +16,7 @@
 
 module compare_unit #(
     // Input widths are post-load, post-shift widths.
-    parameter int LINEAR_BITWIDTH  = 23,
+    parameter int LINEAR_BITWIDTH  = 24,
     parameter int QUAD_BITWIDTH    = 32,
     parameter int K_LOG2           = 14,
     parameter int PRODUCT_BITWIDTH = 144,
