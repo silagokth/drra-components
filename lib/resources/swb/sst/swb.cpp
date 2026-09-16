@@ -208,7 +208,7 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
     // later epoch overwrites its previous routing instead of merging with it.
     auto &receive_targets = receiving_routes_maps[instr.option][instr.source];
     receive_targets.clear();
-    for (uint32_t i = 0; i < 16; i++) {
+    for (uint32_t i = 0; i < SWB_PKG::SWB_INSTR_ROUTE_TARGET_BITWIDTH; i++) {
       if (instr.target & (1 << i)) {
         targets.push_back(i);
         receive_targets.insert(i);
@@ -223,9 +223,12 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
     // REPLACE (not accumulate) the direction set for this (option, source):
     // the RTL conf_manager assigns the whole send_links[option][source] bitmask
     // per instruction (conf_manager.sv.j2).
+    // Only the low NUM_DIRS bits reach send_links in the RTL
+    // (controller.sv.j2); bits above that are not directions and would index
+    // cell_directions_str out of bounds.
     auto &send_targets = sending_routes_maps[instr.option][instr.source];
     send_targets.clear();
-    for (uint32_t i = 0; i < 16; i++) {
+    for (uint32_t i = 0; i <= SE; i++) {
       if (instr.target & (1 << i)) {
         targets.push_back(i);
         send_targets.insert(i);

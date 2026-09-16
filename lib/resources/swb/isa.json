@@ -19,7 +19,7 @@
             {
               "name": "option",
               "comment": "Configuration option where the current route will be stored",
-              "bitwidth": 2
+              "bitwidth": 3
             },
             {
               "name": "channel",
@@ -45,7 +45,7 @@
             {
               "name": "option",
               "comment": "Configuration option where the current route will be stored",
-              "bitwidth": 2
+              "bitwidth": 3
             },
             {
               "name": "sr",
@@ -69,8 +69,8 @@
             },
             {
               "name": "target",
-              "comment": "If `sr=0`, indicates sending direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates destination slot(s) (1-hot encoded)",
-              "bitwidth": 16
+              "comment": "If `sr=0`, indicates sending direction (bits 0 to 8: NW/N/NE/W/C/E/SW/S/SE); if `sr=1`, indicates destination slot(s) (1-hot encoded). One bit narrower than NUM_SLOTS: the top slot cannot be a receive destination.",
+              "bitwidth": 15
             }
           ]
         }
