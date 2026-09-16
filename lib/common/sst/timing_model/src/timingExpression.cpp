@@ -341,6 +341,14 @@ TimingState &TimingState::addRepetition(uint64_t iterations, uint64_t delay,
   return *this;
 }
 
+uint64_t TimingState::repetitionCount() const {
+  uint64_t count = 0;
+  for (const auto &op : operator_queue)
+    if (std::dynamic_pointer_cast<RepetitionOperator>(op))
+      count++;
+  return count;
+}
+
 TimingState &TimingState::adjustRepetition(uint64_t iterations, uint64_t delay,
                                            uint64_t level, uint64_t step) {
   // Find repetition operator with the same level

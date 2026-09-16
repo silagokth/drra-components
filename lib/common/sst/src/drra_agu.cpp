@@ -77,9 +77,12 @@ DRRA_AGU &DRRA_AGU::addRepetition(uint64_t iterations, uint64_t delay,
       throw std::runtime_error("Lane index " + std::to_string(index) +
                                " out of range");
 
-    current_rep_level++;
     printLaneExpressions();
   }
+
+  // Only the base REP advances the level; its REPX writes back to level-1.
+  // A TRANS resets the level, so the post-trans path must advance it too.
+  current_rep_level++;
 
   return *this;
 }
@@ -183,7 +186,9 @@ DRRA_AGU &DRRA_AGU::addTransition(uint64_t delay) {
     std::cout << "Timing state expression after adding transition: "
               << timing_state->getExpression()->toString() << "\n";
   current_trans_index++;
-  current_rep_level = 0;
+  // The merged queue keeps both lanes' repetitions, whose levels restart at 0
+  // per lane, so number the post-trans levels above all of them.
+  current_rep_level = timing_state->repetitionCount();
 
   timing_state->printOperatorQueue();
 

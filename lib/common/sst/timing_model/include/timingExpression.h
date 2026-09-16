@@ -105,6 +105,7 @@ public:
   static TimingState createFromEvent(const std::string &name);
 
   void printOperatorQueue() const;
+  uint64_t repetitionCount() const;
 
   TimingState &addEvent(
       const std::string &name = "", std::function<void()> handler = [] {},
