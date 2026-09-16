@@ -86,8 +86,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
   //
   // The switchbox feeds the decoded EVT/REP/TRANS fields straight in; the
   // controller latches the EVT port, assembles each AGU config, drives the
-  // agu_cfg_if producers, and reports agu_is_configured. The switchbox has no
-  // init-address path, so evt_init_addr is tied off and init_address is unused.
+  // agu_cfg_if producers, and reports agu_is_configured. The AGU address is
+  // the config-option index, so init_addr picks the starting option.
   // ─────────────────────────────────────────────────────────────────────────
   agu_controller #(
     .ADDRESS_WIDTH(ADDRESS_WIDTH),
@@ -105,7 +105,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     .evt_valid(evt_valid),
     .evt_port(evt_instr._port),
-    .evt_init_addr('0),
+    .evt_init_addr(ADDRESS_WIDTH'(evt_instr._init_addr)),
 
     .rep_valid(rep_valid),
     .rep_ext(rep_instr._ext),
@@ -118,7 +118,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     .agu_done(agu_done),
     .agu_configs(agu_configs),
-    .init_address(),
     .agu_is_configured(agu_is_configured)
   );
 

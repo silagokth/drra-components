@@ -13,8 +13,7 @@
 //
 // Initial addresses are held per IR lane, not per AGU: each EVT stores its
 // init_addr against the lane it opens, and ir.sv offsets that lane's generated
-// addresses by it. The scalar `init_address` output is the last EVT's address
-// per AGU and is retained only for ports that still name it.
+// addresses by it.
 module agu_controller #(
     parameter int ADDRESS_WIDTH     = 16,
     parameter int NUM_AGUS          = 2,
@@ -48,7 +47,6 @@ module agu_controller #(
 
     input  logic [NUM_AGUS-1:0]                    agu_done,
     agu_cfg_if.producer                            agu_configs  [NUM_AGUS],
-    output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address,
 
     // High per AGU once any of its mt/ir configs has been written. Optional —
     // consumers that don't need it (io/iosram/rf/dpu) leave it unconnected.
@@ -217,20 +215,6 @@ module agu_controller #(
       assign agu_configs[gi].init_addr  = agu_configs_reg[gi].init_addr;
     end
   endgenerate
-
-  // Scalar per-AGU initial address: the address carried by the most recent EVT
-  // on each AGU. Superseded by the per-lane agu_configs[*].init_addr above,
-  // which is what ir.sv actually consumes; kept because rf and dpu still name
-  // the port. Consumers that want per-lane behaviour must use the interface.
-  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      agu_init_address <= '0;
-    end else if (evt_valid) begin
-      agu_init_address[agu_index] <= evt_init_addr;
-    end
-  end
-  assign init_address = agu_init_address;
 
   // ───────────────────────────────────────────────────────────────────────────
   // AGU configured check

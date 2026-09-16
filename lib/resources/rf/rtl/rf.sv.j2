@@ -180,11 +180,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .clk(clk),
       .rst_n(rst_n),
 
-      // Single instruction slot: EVT port is used directly. rf has no init
-      // address path, so evt_init_addr is tied off and init_address is unused.
+      // Single instruction slot: EVT port and init address are used directly.
+      // The AGU addresses are the RF's word/bulk read and write addresses, so
+      // init_addr sets each port's base address.
       .evt_valid(evt_valid),
       .evt_port(evt_instr._port),
-      .evt_init_addr('0),
+      .evt_init_addr(ADDRESS_WIDTH'(evt_instr._init_addr)),
 
       .rep_valid(rep_valid),
       .rep_ext(rep_instr._ext),
@@ -196,8 +197,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_delay(trans_instr._delay),
 
       .agu_done(agu_done),
-      .agu_configs(agu_configs),
-      .init_address()
+      .agu_configs(agu_configs)
     );
 
 endmodule
