@@ -188,6 +188,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] mult_in0;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
+  // CONF_MODE_MAX_MIN_ACC operands. Explicitly signed: in0 is a plain (unsigned)
+  // `logic` port, and an unsigned compare would rank -1 (0xFFFF) above 100.
+  logic signed [BITWIDTH-1:0] max_in0;
+  logic signed [BITWIDTH-1:0] max_acc_prev;
 
   assign acc0_current = (reset_accumulator | agu_activate[1]) ? '0 : acc0;
   always_ff @(posedge clk or negedge rst_n) begin
@@ -207,6 +211,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     mult_in0 = 0;
     mult_in1 = 0;
     acc0_next = 0;
+    max_in0 = 0;
+    max_acc_prev = 0;
 
     case (dpu_mode)
       CONF_MODE_ADD: begin
@@ -225,6 +231,23 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
         acc0_next = adder_out;
         out0 = adder_out;
+      end
+      CONF_MODE_MAX_MIN_ACC: begin
+        // Accumulating max: acc = max(acc, in0); in1 is ignored. Shares the MAC
+        // accumulator and its reset path: evt(port=1) forces acc0_current to 0, so
+        // the reset value is 0 and a window computes max(0, x1..xn). That equals
+        // max(x1..xn) only for non-negative input (ResNet max pool: post-ReLU). With a
+        // zero-padded window it is exactly relu(maxpool(x)) for ANY signed x. An
+        // int16-min reset would need its own reset mux here and a mode-aware clear
+        // in SST, and would still not be signed-exact with a zero halo.
+        max_in0 = $signed(in0);
+        if (accumulator_valid) begin
+          max_acc_prev = acc0_current;
+        end else begin
+          max_acc_prev = '0;
+        end
+        acc0_next = (max_in0 > max_acc_prev) ? max_in0 : max_acc_prev;
+        out0 = acc0_next;
       end
       CONF_MODE_MULT: begin
         mult_in0 = in0;
