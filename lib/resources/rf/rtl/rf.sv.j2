@@ -113,10 +113,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign bulk_w_en = agu_enable[2];
     assign bulk_r_en = agu_enable[3];
 
-    assign word_w_agu = agu_address[0];
-    assign word_r_agu = agu_address[1];
-    assign bulk_w_agu = agu_address[2];
-    assign bulk_r_agu = agu_address[3];
+    // Add the evt init address to every AGU address, as SST does in rf.h
+    // (port_agus[port] = port_agus_init[port] + pattern).
+    logic [FSM_PER_SLOT-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
+    assign word_w_agu = agu_address[0] + agu_init_address[0];
+    assign word_r_agu = agu_address[1] + agu_init_address[1];
+    assign bulk_w_agu = agu_address[2] + agu_init_address[2];
+    assign bulk_r_agu = agu_address[3] + agu_init_address[3];
 
     genvar i;
     generate
@@ -179,11 +182,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .clk(clk),
       .rst_n(rst_n),
 
-      // Single instruction slot: EVT port is used directly. rf has no init
-      // address path, so evt_init_addr is tied off and init_address is unused.
+      // Single instruction slot: EVT port is used directly. The evt init address
+      // is added to the AGU address above (agu_init_address).
       .evt_valid(evt_valid),
       .evt_port(evt_instr._port),
-      .evt_init_addr('0),
+      .evt_init_addr(ADDRESS_WIDTH'(evt_instr._init_addr)),
 
       .rep_valid(rep_valid),
       .rep_ext(rep_instr._ext),
@@ -196,7 +199,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .agu_done(agu_done),
       .agu_configs(agu_configs),
-      .init_address()
+      .init_address(agu_init_address)
     );
 
 endmodule
