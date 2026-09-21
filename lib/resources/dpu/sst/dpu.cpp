@@ -46,6 +46,7 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     Event *event = data_links[i]->recv();
     if (event) {
       handleEventWithSlotID(event, i);
+      delete event;
     }
   }
 

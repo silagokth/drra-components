@@ -293,6 +293,7 @@ void Iosram_both::writeToSRAM() {
                ioReadResponse->address, ioReadResponse->data.size() * 8,
                formatRawDataToWords(ioReadResponse->data).c_str());
     from_io_data_buffer = ioReadResponse->data;
+    delete ioReadResponse;
     if (from_io_data_buffer.size() == 0) {
       out.fatal(CALL_INFO, -1, "No data from IO\n");
     }
@@ -434,4 +435,6 @@ void Iosram_both::writeBulk() {
   logTraceEvent("memory", slot_id, true, 'E', {});
   logTraceEvent("memory", slot_id, true, 'B',
                 {{"memory", dumpBackendContent()}});
+
+  delete dataEvent;
 }

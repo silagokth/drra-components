@@ -135,6 +135,7 @@ void IOBuffer::handleEventFromColumn(SST::Event *event, uint32_t column_id) {
                readReq->address, readReq->size * 8,
                formatRawDataToWords(data).c_str());
 
+    delete event; // handler-delivered events are owned by the receiver
     return;
   }
 
@@ -152,6 +153,8 @@ void IOBuffer::handleEventFromColumn(SST::Event *event, uint32_t column_id) {
       backend->set(writeReq->address, writeReq->data.size(), writeReq->data);
     }
 
+    delete event;
     return;
   }
+  delete event;
 }

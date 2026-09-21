@@ -133,6 +133,7 @@ void DRRAResource::handleEventBase(Event *event) {
       logTraceEvent("activation", slot_id, true, 'X',
                     {{"ports", std::to_string(actEvent->ports)},
                      {"loop_var", std::to_string(actEvent->loop_vars[0])}});
+      delete event;
       return;
     }
 
@@ -146,8 +147,11 @@ void DRRAResource::handleEventBase(Event *event) {
                     {{"instruction", instruction.toString()},
                      {"instruction_bin", instruction.toBinaryString()},
                      {"instruction_hex", instruction.toHexString()}});
+      delete event;
       return;
     }
+    // A handler-delivered event is owned by the receiver.
+    delete event;
   }
 }
 

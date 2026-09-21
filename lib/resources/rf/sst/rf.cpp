@@ -251,6 +251,8 @@ void Rf::writeWide() {
   logTraceEvent("registers", slot_id, true, 'E', {});
   logTraceEvent("registers", slot_id, true, 'B',
                 {{"registers", registers_content}});
+
+  delete data_event;
 }
 
 void Rf::writeNarrow() {
@@ -298,4 +300,6 @@ void Rf::writeNarrow() {
   logTraceEvent("registers", slot_id, true, 'E', {});
   logTraceEvent("registers", slot_id, true, 'B',
                 {{"registers", registers_content}});
+
+  delete data_event;
 }
