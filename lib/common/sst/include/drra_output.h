@@ -14,8 +14,8 @@ public:
 
   void setPrefix(const std::string &new_prefix) { prefix = new_prefix; }
 
-  // Enable/disable the free-form output() stream (debug logging). fatal() and
-  // verbose() are unaffected.
+  // Enable/disable the free-form output() and print() streams (debug logging).
+  // fatal() and verbose() are unaffected.
   void setEnabled(bool e) { enabled = e; }
   bool isEnabled() const { return enabled; }
 
@@ -59,6 +59,8 @@ public:
   }
 
   template <typename... Args> void print(const char *format, Args... args) {
+    if (!enabled)
+      return; // debug logging disabled
     if constexpr (sizeof...(args) == 0) {
       Output::output("%s", format);
     } else {

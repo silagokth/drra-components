@@ -10,10 +10,19 @@
 
 #include "instruction.h"
 #include "traceEvent.h"
+#include "vesylaDebug.h"
 
 using namespace SST;
 
 #define PORTS_PER_SLOT 4
+
+// Trace arguments (formatted payloads, register and memory dumps) cost more
+// than the simulation itself, so evaluate them only when tracing is on.
+#define logTraceEvent(...)                                                     \
+  do {                                                                         \
+    if (debug_enabled)                                                         \
+      logTraceEventImpl(__VA_ARGS__);                                          \
+  } while (0)
 
 class DRRAComponent : public Component {
 public:
@@ -31,7 +40,7 @@ public:
     // dumpBackendContent) short-circuit. Enabled either via the "debug" param
     // or the VESYLA_DEBUG environment variable.
     debug_enabled = params.find<bool>("debug", false) ||
-                    (std::getenv("VESYLA_DEBUG") != nullptr);
+                    vesylaDebug();
     out.setEnabled(debug_enabled);
 
     // Set statistics
@@ -124,12 +133,12 @@ public:
     }
   }
 
-  void logTraceEvent(
+  // Call through the logTraceEvent macro below, which skips building the
+  // arguments when tracing is off.
+  void logTraceEventImpl(
       std::string name, int slot_id, bool isResource = true, char phase = 'X',
       const std::unordered_map<std::string, std::variant<int, std::string>>
           &args = {}) {
-    if (!debug_enabled)
-      return; // tracing disabled
     trace_file.open(trace_name, std::ios::app);
     TraceEvent trace_event(name, _currentSSTCycle, 1, 0, phase);
     trace_event.setThreadId(isResource ? 1 : 2, cell_coordinates[0],

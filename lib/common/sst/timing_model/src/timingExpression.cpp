@@ -1,6 +1,7 @@
 #include "timingExpression.h"
 #include "timingModel.h"
 #include "timingOperators.h"
+#include "vesylaDebug.h"
 
 #include <algorithm>
 #include <cassert>
@@ -71,10 +72,10 @@ TimingState::TimingState(std::shared_ptr<TransitionOperator> transition)
     : eventCounter(0), lastScheduledCycle(0) {
   // Extract "from" event
   auto fromEvent = transition->getFrom();
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Extracting 'from' event from transition operator..."
               << std::endl;
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "fromEvent: " << transition->getFrom()->toString()
               << std::endl;
   if (!fromEvent) {
@@ -83,7 +84,7 @@ TimingState::TimingState(std::shared_ptr<TransitionOperator> transition)
   }
 
   // Extract "to" event
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Extracting 'to' event from transition operator..."
               << std::endl;
   auto toEvent = transition->getTo();
@@ -168,7 +169,7 @@ TimingState &TimingState::addEvent(const std::string &name,
   for (auto &op : operator_queue) {
     if (auto event = std::dynamic_pointer_cast<TimingEvent>(op)) {
       if (event->getName() == name) {
-        if (std::getenv("VESYLA_DEBUG"))
+        if (vesylaDebug())
           std::cout << "Merging event handlers for event: " << name
                     << std::endl;
         temp_event = event;
@@ -176,7 +177,7 @@ TimingState &TimingState::addEvent(const std::string &name,
         std::function<void()> merged_handler;
         if (existing_handler && handler) {
           merged_handler = [existing_handler, handler]() {
-            if (std::getenv("VESYLA_DEBUG"))
+            if (vesylaDebug())
               std::cout << "Executing merged handlers for event." << std::endl;
             existing_handler();
             handler();
@@ -201,7 +202,7 @@ TimingState &TimingState::addEvent(const std::string &name,
   if (!temp_event) {
     temp_event = std::make_shared<TimingEvent>(name, eventCounter++);
     std::function<void()> merged_handler = [handler]() {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "Executing handler for event." << std::endl;
       if (handler) {
         handler();
@@ -214,7 +215,7 @@ TimingState &TimingState::addEvent(const std::string &name,
   }
 
   // Print the current operator queue for debugging
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Current operator queue after adding event '" << name
               << "':" << std::endl;
   printOperatorQueue();
@@ -225,30 +226,30 @@ TimingState &TimingState::addEvent(const std::string &name,
 }
 
 void TimingState::printOperatorQueue() const {
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Operator queue (" << operator_queue.size()
               << " operators):" << std::endl;
   for (const auto &op : operator_queue) {
     if (auto event = std::dynamic_pointer_cast<TimingEvent>(op)) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "  - Event: " << event->getName()
                   << " (priority: " << (int)event->getPriority() << ")"
                   << std::endl;
     } else if (auto transition =
                    std::dynamic_pointer_cast<TransitionOperator>(op)) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "  - Transition (delay: " << transition->getDelay()
                   << ", next: " << transition->getNextEventName() << ")"
                   << std::endl;
     } else if (auto repetition =
                    std::dynamic_pointer_cast<RepetitionOperator>(op)) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "  - Repetition (level: " << repetition->getLevel()
                   << ", iterations: " << repetition->getIterations()
                   << ", delay: " << repetition->getDelay()
                   << ", step: " << repetition->getStep() << ")" << std::endl;
     } else {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "  - Unknown operator" << std::endl;
     }
   }
@@ -307,14 +308,14 @@ TimingState &TimingState::addTransition(uint64_t delay,
 
 TimingState &
 TimingState::addTransition(std::shared_ptr<TransitionOperator> transition) {
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Adding transition to operator queue (delay: "
               << transition->getDelay()
               << ", next: " << transition->getNextEventName() << ")"
               << std::endl;
   printOperatorQueue();
   this->operator_queue.push_back(transition);
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Current operator queue after adding transition:" << std::endl;
   printOperatorQueue();
   return *this;
@@ -333,7 +334,7 @@ TimingState &TimingState::addRepetition(uint64_t iterations, uint64_t delay,
   this->operator_queue.push_back(std::make_shared<RepetitionOperator>(
       iterations, delay, level, step, expression));
 
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Current operator queue after adding repetition (level: "
               << level << ", iterations: " << iterations << ", delay: " << delay
               << ", step: " << step << "):" << std::endl;
@@ -359,7 +360,7 @@ TimingState &TimingState::adjustRepetition(uint64_t iterations, uint64_t delay,
 }
 
 TimingState &TimingState::build() {
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Building timing state with " << operator_queue.size()
               << " operators." << std::endl;
 
@@ -390,17 +391,17 @@ TimingState &TimingState::build() {
       if (i != transition_count) {
         // std::swap(operator_queue[i], operator_queue[transition_count]);
       }
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "Found transition operator (delay: " << trans->getDelay()
                   << ")" << std::endl;
       transition_count++;
     } else if (auto event =
                    std::dynamic_pointer_cast<TimingEvent>(operator_queue[i])) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "Found event: " << event->getName() << std::endl;
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "id: " << event->toString() << std::endl;
-      // if(std::getenv("VESYLA_DEBUG")) std::cout << "Executing event handler
+      // if(vesylaDebug()) std::cout << "Executing event handler
       // for event: " << test->getName()
       //           << std::endl;
       // test->getHandler()(); // this works, it means it preserves the
@@ -408,7 +409,7 @@ TimingState &TimingState::build() {
       event_count++;
     } else if (auto rep = std::dynamic_pointer_cast<RepetitionOperator>(
                    operator_queue[i])) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "Found repetition operator (level: " << rep->getLevel()
                   << ", iterations: " << rep->getIterations()
                   << ", delay: " << rep->getDelay()
@@ -472,7 +473,7 @@ TimingState &TimingState::build() {
       segs.push_back(seg);
     } else if (auto transition =
                    std::dynamic_pointer_cast<TransitionOperator>(op)) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "Building transition operator (delay: "
                   << transition->getDelay() << ")" << std::endl;
       std::shared_ptr<TimingExpression> from_expr = expressions.front();
@@ -520,7 +521,7 @@ TimingState &TimingState::build() {
       trans_count++;
     } else if (auto repetition =
                    std::dynamic_pointer_cast<RepetitionOperator>(op)) {
-      if (std::getenv("VESYLA_DEBUG"))
+      if (vesylaDebug())
         std::cout << "Building repetition operator (level: "
                   << repetition->getLevel()
                   << ", iterations: " << repetition->getIterations()
@@ -583,7 +584,7 @@ TimingState &TimingState::build() {
   addr_last_cycle = concat_span;
   lastScheduledCycle = concat_span;
 
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Build complete, last scheduled cycle: " << lastScheduledCycle
               << std::endl;
 

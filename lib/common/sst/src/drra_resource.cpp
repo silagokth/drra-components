@@ -226,13 +226,12 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
       if (isPortActive(port.first)) { // if port is active
         auto events =
             getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
-        if (std::getenv("VESYLA_DEBUG"))
-          out.output(
-              "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
-              port.first, events.size(), currentSSTCycle / 10,
-              getPortActiveCycle(port.first));
+        out.output(
+            "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
+            port.first, events.size(), currentSSTCycle / 10,
+            getPortActiveCycle(port.first));
         // add events to the list
-        for (auto event : events) {
+        for (const auto &event : events) {
           events_for_cycle.push_back(event);
           corresponding_ports.push_back(port.first);
         }
@@ -263,10 +262,8 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
       out.output("Executing event port %d prio %d\n", port,
                  event->getPriority());
       event->execute();
-      if (trace_name != "") {
-        logTraceEvent(event->getName(), slot_id, true, 'X',
-                      {{"port", (int)port}, {"event", event->getName()}});
-      }
+      logTraceEvent(event->getName(), slot_id, true, 'X',
+                    {{"port", (int)port}, {"event", event->getName()}});
       // current_timing_states[port].incrementLevels();
       // out.output("port %d incremented levels\n", port);
     }
