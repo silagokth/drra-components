@@ -222,18 +222,17 @@ void DRRAResource::activatePortsForSlot(uint32_t slot_id, uint32_t ports) {
 void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
   // if second subcycle of the cycle -> gather events for the cycle
   if (currentSSTCycle % 10 == 1) {
-    for (auto &port : active_ports) { // for each port
-      if (isPortActive(port.first)) { // if port is active
-        auto events =
-            getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
+    for (uint32_t port = 0; port < active_ports.size(); port++) {
+      if (isPortActive(port)) { // if port is active
+        auto events = getPortEventsForCycle(port, getPortActiveCycle(port));
         out.output(
             "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
-            port.first, events.size(), currentSSTCycle / 10,
-            getPortActiveCycle(port.first));
+            port, events.size(), currentSSTCycle / 10,
+            getPortActiveCycle(port));
         // add events to the list
         for (const auto &event : events) {
           events_for_cycle.push_back(event);
-          corresponding_ports.push_back(port.first);
+          corresponding_ports.push_back(port);
         }
       }
     }
@@ -271,11 +270,11 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
 
   if (currentSSTCycle % 10 == 9) {
     checkAGULifetime(currentSSTCycle);
-    for (auto &port : active_ports) {
-      if (isPortActive(port.first)) {
+    for (uint32_t port = 0; port < active_ports.size(); port++) {
+      if (isPortActive(port)) {
         // out.output("incrementing port %d active cycle (old: %lu)\n",
-        //            port.first, getPortActiveCycle(port.first));
-        incrementPortActiveCycle(port.first);
+        //            port, getPortActiveCycle(port));
+        incrementPortActiveCycle(port);
       }
     }
     events_for_cycle.clear();

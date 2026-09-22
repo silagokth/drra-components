@@ -12,6 +12,22 @@
 
 using namespace SST;
 
+// Dense per-port storage, replacing std::map on the per-subcycle path.
+// operator[] grows on demand so an unseen port reads as a default entry, like
+// the map it replaces.
+template <typename T> class PortVector {
+public:
+  T &operator[](size_t port) {
+    if (port >= items.size())
+      items.resize(port + 1);
+    return items[port];
+  }
+  size_t size() const { return items.size(); }
+
+private:
+  std::vector<T> items;
+};
+
 class DRRAResource : public DRRAComponent {
 public:
   DRRAResource(ComponentId_t id, Params &params);
@@ -60,7 +76,7 @@ protected:
     return stats;
   }
 
-  bool isPortActive(uint32_t port) { return active_ports[port]; }
+  bool isPortActive(uint32_t port) { return active_ports[port] != 0; }
 
   void activatePort(uint32_t port);
 
@@ -92,8 +108,8 @@ protected:
   // alive while portsToActivate is non-empty ensures a deferred activation is
   // applied on the same cycle it would be without pausing. (DPU opts out.)
   bool isIdle() override {
-    for (const auto &p : active_ports) {
-      if (p.second)
+    for (size_t p = 0; p < active_ports.size(); p++) {
+      if (active_ports[p])
         return false;
     }
     return portsToActivate.empty();
@@ -115,8 +131,8 @@ protected:
   Link *io_output_link = nullptr;
 
   // Activation
-  std::map<uint32_t, bool> active_ports;
-  std::map<uint32_t, uint32_t> active_ports_cycles;
+  PortVector<uint8_t> active_ports; // bool; uint8_t avoids vector<bool>
+  PortVector<uint32_t> active_ports_cycles;
   // Loop counters from the most recent activation, depth-indexed. Each port
   // holds (stride, loop_level) offset terms that activatePort resolves against
   // them; empty = no offset.
@@ -146,7 +162,7 @@ protected:
 
   // AGUs
   uint8_t num_agus;
-  std::map<uint32_t, DRRA_AGU> agus;
+  PortVector<DRRA_AGU> agus;
   std::map<uint32_t, DRRA_AGU> next_agus;
 
   // std::map<std::string, std::function<void()>> events_handlers_map;
