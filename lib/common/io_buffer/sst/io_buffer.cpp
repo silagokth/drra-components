@@ -21,8 +21,8 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   read_only = params.find<bool>("read_only", false);
 
   // Clock
-  SST::TimeConverter *tc = registerClock(
-      clock, new SST::Clock::Handler2<IOBuffer, &IOBuffer::clockTick>(this));
+  SST::TimeConverter tc = registerClock(
+      clock, new SST::Clock::Handler<IOBuffer, &IOBuffer::clockTick>(this));
 
   // Backing store
   bool found = false;
@@ -77,8 +77,8 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   for (uint32_t i = 0; i < num_columns; i++) {
     SST::Link *link = configureLink(
         "col_port" + std::to_string(i), access_time,
-        new SST::Event::Handler2<IOBuffer, &IOBuffer::handleEventFromColumn,
-                                 uint32_t>(this, i));
+        new SST::Event::Handler<IOBuffer, &IOBuffer::handleEventFromColumn,
+                                uint32_t>(this, i));
     sst_assert(link, CALL_INFO, -1, "Failed to configure column link %d\n", i);
 
     column_links[i] = link;

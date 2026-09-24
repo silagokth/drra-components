@@ -31,7 +31,7 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
 
       Link *link = configureLink(
           linkName, "0ns",
-          new Event::Handler2<Swb, &Swb::handleSlotEventWithID, uint32_t>(
+          new Event::Handler<Swb, &Swb::handleSlotEventWithID, uint32_t>(
               this, swb_slot_conn_id));
       sst_assert(link, CALL_INFO, -1, "Failed to configure link %s\n",
                  linkName.c_str());
@@ -56,8 +56,8 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
     if (isPortConnected(linkName)) {
       Link *link = configureLink(
           linkName, "0ns",
-          new Event::Handler2<Swb, &Swb::handleCellEventWithID, uint32_t>(this,
-                                                                          dir));
+          new Event::Handler<Swb, &Swb::handleCellEventWithID, uint32_t>(this,
+                                                                         dir));
 
       sst_assert(link, CALL_INFO, -1, "Failed to configure link %s\n",
                  linkName.c_str());

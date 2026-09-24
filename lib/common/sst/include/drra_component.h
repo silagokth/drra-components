@@ -61,7 +61,7 @@ public:
     }
 
     clockHandler =
-        new Clock::Handler2<DRRAComponent, &DRRAComponent::clockTickBase>(this);
+        new Clock::Handler<DRRAComponent, &DRRAComponent::clockTickBase>(this);
     tc = registerClock(clock, clockHandler);
 
     // Parent cell variables
@@ -186,7 +186,7 @@ protected:
   }
 
   // Simulation global variables
-  TimeConverter *tc;
+  TimeConverter tc;
   Clock::HandlerBase *clockHandler;
   DRRAOutput out;
   std::string clock;

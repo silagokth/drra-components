@@ -59,7 +59,7 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
     if (isPortConnected("controller_port" + std::to_string(i))) {
       controller_links.push_back(configureLink(
           "controller_port" + std::to_string(i),
-          new Event::Handler2<DRRAResource, &DRRAResource::handleEventBase>(
+          new Event::Handler<DRRAResource, &DRRAResource::handleEventBase>(
               this)));
     } else {
       controller_links.push_back(nullptr);
