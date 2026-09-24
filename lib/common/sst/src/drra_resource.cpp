@@ -122,6 +122,11 @@ void DRRAResource::handleEventBase(Event *event) {
   // Controller events are handler-delivered (clock-independent); wake the clock
   // if the idle-skip paused it.
   ensureClockRunning();
+  // Trace timestamps come from _currentSSTCycle, which a resource only
+  // refreshes on its own tick. Resources that tick once per cycle would
+  // otherwise stamp handler-delivered events with the previous tick's time.
+  if (debug_enabled)
+    _currentSSTCycle = getCurrentSimTime(tc);
   if (event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
@@ -219,15 +224,14 @@ void DRRAResource::activatePortsForSlot(uint32_t slot_id, uint32_t ports) {
   }
 }
 
-void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
-  // if second subcycle of the cycle -> gather events for the cycle
-  if (currentSSTCycle % 10 == 1) {
+void DRRAResource::gatherEventsForCycle() {
+  {
     for (uint32_t port = 0; port < active_ports.size(); port++) {
       if (isPortActive(port)) { // if port is active
         auto events = getPortEventsForCycle(port, getPortActiveCycle(port));
         out.output(
             "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
-            port, events.size(), currentSSTCycle / 10,
+            port, events.size(), _currentSSTCycle / 10,
             getPortActiveCycle(port));
         // add events to the list
         for (const auto &event : events) {
@@ -253,32 +257,54 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
     // }
   }
 
-  // execute events with priority equal to the current subcycle
-  for (size_t i = 0; i < events_for_cycle.size(); i++) {
-    auto event = events_for_cycle[i];
-    auto port = corresponding_ports[i];
-    if (event->getPriority() == currentSSTCycle % 10) {
+}
+
+// Executes in priority order, and in insertion order within one priority,
+// which is the order the subcycle ticks produced.
+void DRRAResource::executeEventsInPriorityRange(uint32_t lowest,
+                                                uint32_t highest) {
+  // Trace stamps stay on the subcycle an event belongs to, so a resource
+  // running a whole cycle in one tick traces like the ten-tick path.
+  const Cycle_t cycle_base = (_currentSSTCycle / 10) * 10;
+  const Cycle_t saved_cycle = _currentSSTCycle;
+  for (uint32_t priority = lowest; priority <= highest; priority++) {
+    for (size_t i = 0; i < events_for_cycle.size(); i++) {
+      auto event = events_for_cycle[i];
+      auto port = corresponding_ports[i];
+      if (event->getPriority() != priority)
+        continue;
       out.output("Executing event port %d prio %d\n", port,
                  event->getPriority());
       event->execute();
+      _currentSSTCycle = cycle_base + priority;
       logTraceEvent(event->getName(), slot_id, true, 'X',
                     {{"port", (int)port}, {"event", event->getName()}});
-      // current_timing_states[port].incrementLevels();
-      // out.output("port %d incremented levels\n", port);
+      _currentSSTCycle = saved_cycle;
     }
   }
+}
+
+void DRRAResource::finishCycle(Cycle_t currentSSTCycle) {
+  checkAGULifetime(currentSSTCycle);
+  for (uint32_t port = 0; port < active_ports.size(); port++) {
+    if (isPortActive(port)) {
+      incrementPortActiveCycle(port);
+    }
+  }
+  events_for_cycle.clear();
+  corresponding_ports.clear();
+}
+
+void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
+  // if second subcycle of the cycle -> gather events for the cycle
+  if (currentSSTCycle % 10 == 1) {
+    gatherEventsForCycle();
+  }
+
+  executeEventsInPriorityRange(currentSSTCycle % 10, currentSSTCycle % 10);
 
   if (currentSSTCycle % 10 == 9) {
-    checkAGULifetime(currentSSTCycle);
-    for (uint32_t port = 0; port < active_ports.size(); port++) {
-      if (isPortActive(port)) {
-        // out.output("incrementing port %d active cycle (old: %lu)\n",
-        //            port, getPortActiveCycle(port));
-        incrementPortActiveCycle(port);
-      }
-    }
-    events_for_cycle.clear();
-    corresponding_ports.clear();
+    finishCycle(currentSSTCycle);
   }
 }
 

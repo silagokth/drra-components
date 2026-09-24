@@ -104,6 +104,13 @@ protected:
 
   void executeScheduledEventsForCycle(Cycle_t currentSSTCycle);
 
+  // Single-tick path: the same work executeScheduledEventsForCycle spreads
+  // over ten subcycle ticks, exposed so a resource can run a whole cycle from
+  // one tick. Priorities are the subcycle numbers they stand in for.
+  void gatherEventsForCycle();
+  void executeEventsInPriorityRange(uint32_t lowest, uint32_t highest);
+  void finishCycle(Cycle_t currentSSTCycle);
+
   // Idle when no port is active and no activation is pending. Keeping the clock
   // alive while portsToActivate is non-empty ensures a deferred activation is
   // applied on the same cycle it would be without pausing. (DPU opts out.)
