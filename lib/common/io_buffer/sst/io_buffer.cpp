@@ -20,9 +20,12 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   num_columns = params.find<uint32_t>("num_columns", 1);
   read_only = params.find<bool>("read_only", false);
 
-  // Clock
+  // Clock. One tick per cycle: the handler only prints the cycle header, and
+  // everything else here is driven by link handlers.
+  UnitAlgebra clock_freq(clock);
+  clock_freq /= 10;
   SST::TimeConverter *tc = registerClock(
-      clock, new SST::Clock::Handler2<IOBuffer, &IOBuffer::clockTick>(this));
+      clock_freq, new SST::Clock::Handler2<IOBuffer, &IOBuffer::clockTick>(this));
 
   // Backing store
   bool found = false;
@@ -102,10 +105,7 @@ void IOBuffer::complete(unsigned int phase) {}
 void IOBuffer::finish() { out.verbose(CALL_INFO, 1, 0, "Finishing\n"); }
 
 bool IOBuffer::clockTick(SST::Cycle_t currentCycle) {
-  if (currentCycle % 10 == 0) {
-    out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle / 10);
-  }
-
+  out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle);
   return false;
 }
 

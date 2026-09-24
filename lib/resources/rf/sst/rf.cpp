@@ -26,19 +26,8 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
   }
 }
 
-bool Rf::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-    }
-    portsToActivate.clear();
-  }
-  return result;
-}
-
 void Rf::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
+  deferActivation(slot_id, ports);
 }
 
 void Rf::handleCONF(const RF_PKG::CONFInstruction &instr) {

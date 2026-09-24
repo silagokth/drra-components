@@ -12,6 +12,27 @@
 
 using namespace SST;
 
+// Wakes a resource on its self-link. Carries nothing: the delivery time is the
+// whole message.
+class ResourceTickEvent : public SST::Event {
+public:
+  // Clock priority, not the default event priority: the tick stands in for a
+  // clock handler, so it has to keep running before the events delivered at
+  // the same timestamp, which is what the ten-tick clock did.
+  ResourceTickEvent(bool apply_only = false) : apply_only(apply_only) {
+    setPriority(CLOCKPRIORITY);
+  }
+  // Applies pending activations and nothing else. Activations land at subcycle
+  // 0 whatever phases the resource ticks at, because two arriving in one cycle
+  // would otherwise coalesce in portsToActivate and the first would be lost.
+  bool apply_only = false;
+  ResourceTickEvent *clone() override { return new ResourceTickEvent(*this); }
+  void serialize_order(SST::Core::Serialization::serializer &ser) override {
+    Event::serialize_order(ser);
+  }
+  ImplementSerializable(ResourceTickEvent);
+};
+
 // Dense per-port storage, replacing std::map on the per-subcycle path.
 // operator[] grows on demand so an unseen port reads as a default entry, like
 // the map it replaces.
@@ -35,6 +56,8 @@ public:
   virtual ~DRRAResource() {}
 
   virtual bool clockTick(Cycle_t currentCycle) override;
+
+  void setup() override;
 
   virtual void decodeInstr(uint32_t instr);
 
@@ -111,6 +134,36 @@ protected:
   void executeEventsInPriorityRange(uint32_t lowest, uint32_t highest);
   void finishCycle(Cycle_t currentSSTCycle);
 
+  // The subcycles this resource actually works at, ascending. Returning a
+  // non-empty list drops the base ten-times-per-cycle clock: the resource then
+  // wakes on a self-link at exactly these subcycles, which is where all the
+  // speedup comes from. An event whose priority is not a listed phase runs at
+  // the next phase after it, so list a phase for any priority whose exact
+  // subcycle another component can observe; a priority later than the last
+  // phase is an error, caught when the event is gathered. Empty keeps the
+  // ten-tick clock.
+  virtual std::vector<uint8_t> tickPhases() const { return {}; }
+  // Resource work for a phase. Which side of the phase's events it belongs on
+  // mirrors where it sat relative to DRRAResource::clockTick in the ten-tick
+  // version.
+  virtual void onPhaseBeforeEvents(uint8_t phase) {}
+  virtual void onPhaseAfterEvents(uint8_t phase) {}
+  // Called for each activation a tick applies, and once afterwards if it
+  // applied any.
+  virtual void onActivationApplied(uint32_t slot_id) {}
+  virtual void onActivationsApplied() {}
+
+  // Records the arrival cycle alongside the request: an activation takes
+  // effect the cycle after it arrives, which the ten-tick path got from
+  // applying it at subcycle 0.
+  void deferActivation(uint32_t slot_id, uint32_t ports);
+
+  void onPhaseTick(SST::Event *event);
+  void applyPendingActivations();
+  // Phase ticks idle-skip like the clock does: the tick stops being re-armed
+  // at the end of a cycle with nothing to do, and an incoming event re-arms it.
+  void ensureClockRunning() override;
+
   // Idle when no port is active and no activation is pending. Keeping the clock
   // alive while portsToActivate is non-empty ensures a deferred activation is
   // applied on the same cycle it would be without pausing. (DPU opts out.)
@@ -125,6 +178,14 @@ protected:
   // Activations arrive mid-cycle and are applied by clockTick at the next
   // %10==0 boundary; common to every resource, owned by the base.
   std::unordered_map<uint32_t, uint32_t> portsToActivate;
+  std::unordered_map<uint32_t, uint64_t> activation_arrival_cycle;
+
+  // Phase-tick state; unused while tick_phases is empty.
+  std::vector<uint8_t> tick_phases;
+  size_t next_phase_index = 0;
+  bool tick_armed = false;
+  bool apply_wake_pending = false;
+  SST::Link *tick_link = nullptr;
 
   uint64_t vectorToUint64(std::vector<uint8_t> data);
   int64_t vectorToInt64(std::vector<uint8_t> data);

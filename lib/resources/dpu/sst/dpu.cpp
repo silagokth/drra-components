@@ -23,46 +23,11 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
     fsmHandlers[i] = dpuHandlers.at(DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
   }
 
-  // One tick per cycle instead of ten. The DPU only ever works at subcycle 9,
-  // so drop the base 10x clock and wake on a self-link at that subcycle. A
-  // clock cannot do this: SST aligns every clock to multiples of its period
-  // (Clock::schedule), so a one-cycle period can only fire at subcycle 0.
-  unregisterClock(tc, clockHandler);
-  tick_link = configureSelfLink(
-      "dpu_tick", tc, new Event::Handler2<Dpu, &Dpu::onCycleTick>(this));
 }
 
-// Links cannot be sent on before setup, so the first tick is primed here.
-void Dpu::setup() { tick_link->send(9, new DpuTickEvent()); }
-
-void Dpu::onCycleTick(SST::Event *event) {
-  delete event;
-  _currentSSTCycle = getCurrentSimTime(tc);
-  const uint64_t current_cycle = _currentSSTCycle / 10;
-
-  // Activations apply from the cycle after they arrive.
-  if (!portsToActivate.empty()) {
-    bool applied = false;
-    for (auto it = portsToActivate.begin(); it != portsToActivate.end();) {
-      if (activation_arrival_cycle[it->first] >= current_cycle) {
-        ++it;
-        continue;
-      }
-      activatePortsForSlot(it->first, it->second);
-      current_config_option[it->first] = 0;
-      activation_arrival_cycle.erase(it->first);
-      it = portsToActivate.erase(it);
-      applied = true;
-    }
-    if (applied) {
-      last_config_level = -1;
-      last_config_trans = -1;
-    }
-  }
-
-  gatherEventsForCycle();
-  executeEventsInPriorityRange(0, 8);
-
+// Inputs, operation and FSM update, in the order the ten-tick version ran
+// them before the base executed its priority-9 events.
+void Dpu::onPhaseBeforeEvents(uint8_t phase) {
   // Data events queued anywhere in this cycle; the last one on a link wins,
   // as it did when every subcycle polled.
   for (int i = 0; i < resource_size; i++) {
@@ -84,70 +49,28 @@ void Dpu::onCycleTick(SST::Event *event) {
       out.output(" FSM switched to FSM #%u\n", current_fsm);
     }
   }
+}
 
-  executeEventsInPriorityRange(9, 9);
-  finishCycle(_currentSSTCycle);
-
-  // Buffers were cleared at subcycle 0; clearing them after the operation is
-  // the same thing, since nothing reads them until the next tick.
+// Buffers were cleared at subcycle 0; clearing them once the operation has
+// consumed them is the same thing, since nothing reads them until the next
+// tick.
+void Dpu::onPhaseAfterEvents(uint8_t phase) {
   for (int i = 0; i < resource_size; i++) {
     std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
   }
-
-  tick_link->send(10, new DpuTickEvent());
 }
 
-bool Dpu::clockTick(SST::Cycle_t currentCycle) {
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-      current_config_option[port.first] = 0;
-    }
-    portsToActivate.clear();
-    last_config_level = -1;
-    last_config_trans = -1;
-  }
+void Dpu::onActivationApplied(uint32_t slot_id) {
+  current_config_option[slot_id] = 0;
+}
 
-  if (currentCycle % 10 == 0) {
-    for (int i = 0; i < resource_size; i++) {
-      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
-    }
-  }
-
-  // Deal with data events
-  for (int i = 0; i < resource_size; i++) {
-    Event *event = data_links[i]->recv();
-    if (event) {
-      handleEventWithSlotID(event, i);
-      delete event;
-    }
-  }
-
-  // Execute DPU operation at sub 9 BEFORE the base clockTick runs the
-  // lifetime check (which would otherwise deactivate port 0 on its last
-  // active cycle, causing the final MULT to be skipped).
-  if (currentCycle % 10 == 9) {
-    out.output(" Current FSM: %u\n", current_fsm);
-    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-    fsmHandlers[current_fsm]();
-
-    // Update FSM for next execution based on AGU output (one cycle delayed).
-    if (isPortActive(0)) {
-      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
-      if (agu_address >= 0 && agu_address != current_fsm) {
-        current_fsm = agu_address;
-        out.output(" FSM switched to FSM #%u\n", current_fsm);
-      }
-    }
-  }
-
-  bool result = DRRAResource::clockTick(currentCycle);
-  return result;
+void Dpu::onActivationsApplied() {
+  last_config_level = -1;
+  last_config_trans = -1;
 }
 
 void Dpu::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
-  activation_arrival_cycle[slot_id] = getCurrentSimTime(tc) / 10;
+  deferActivation(slot_id, ports);
 }
 
 void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {

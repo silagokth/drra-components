@@ -10,39 +10,28 @@ Io::Io(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
   instructionHandlers = IO_PKG::createInstructionHandlers(this);
 }
 
-bool Io::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
-
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-    }
-    portsToActivate.clear();
-  }
-
-  // Gate bulkOutput / bulkInput on the DSU port AGU actually having an event
-  // scheduled at the current active cycle, not just the port being "active".
-  // isPortActive stays true throughout the port's whole lifetime (until the
-  // AGU is exhausted), including gaps between outer rep iterations; firing
-  // bulkOutput / bulkInput in those gap cycles would try to recv() data that
-  // was never requested/sent and was the source of spurious fatal errors.
-  if (currentCycle % 10 == 2)
+// Gate bulkOutput / bulkInput on the DSU port AGU actually having an event
+// scheduled at the current active cycle, not just the port being "active".
+// isPortActive stays true throughout the port's whole lifetime (until the
+// AGU is exhausted), including gaps between outer rep iterations; firing
+// bulkOutput / bulkInput in those gap cycles would try to recv() data that
+// was never requested/sent and was the source of spurious fatal errors.
+void Io::onPhaseAfterEvents(uint8_t phase) {
+  if (phase == 2)
     if (isPortActive(IO_PKG::EVT_PORT_INPUT_BUFFER) &&
         agus[IO_PKG::EVT_PORT_INPUT_BUFFER].getAddressForCycle(
             getPortActiveCycle(IO_PKG::EVT_PORT_INPUT_BUFFER)) != -1)
       bulkOutput();
 
-  if (currentCycle % 10 == 7)
+  if (phase == 7)
     if (isPortActive(IO_PKG::EVT_PORT_OUTPUT_BUFFER) &&
         agus[IO_PKG::EVT_PORT_OUTPUT_BUFFER].getAddressForCycle(
             getPortActiveCycle(IO_PKG::EVT_PORT_OUTPUT_BUFFER)) != -1)
       bulkInput();
-
-  return result;
 }
 
 void Io::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
+  deferActivation(slot_id, ports);
 }
 
 void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {

@@ -23,59 +23,59 @@ Vpu::Vpu(SST::ComponentId_t id, SST::Params &params)
   }
 }
 
-bool Vpu::clockTick(SST::Cycle_t currentCycle) {
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-      current_config_option[port.first] = 0;
-    }
-    portsToActivate.clear();
-    last_config_level = -1;
-    last_config_trans = -1;
-  }
-
-  // Clear input buffers at the start of each logical cycle so that gap cycles
-  // (where the RF AGU enable is 0 and its output is 0) are modelled correctly.
-  if (currentCycle % 10 == 0) {
-    for (int i = 0; i < resource_size; i++) {
-      std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
-    }
-  }
-
-  // Deal with data events
+// Inputs, operation and FSM update, in the order the ten-tick version ran
+// them before the base executed its priority-9 events. The lifetime check in
+// finishCycle still runs after this, so the last result of a burst is not
+// dropped.
+void Vpu::onPhaseBeforeEvents(uint8_t phase) {
+  // Data events queued so far this cycle; the last one on a link wins, as it
+  // did when every subcycle polled. Drained at both phases: the priority-5
+  // latch events read these buffers, and so does the operation at 9.
   for (int i = 0; i < resource_size; i++) {
-    Event *event = data_links[i]->recv();
-    if (event) {
+    while (Event *event = data_links[i]->recv()) {
       handleEventWithSlotID(event, i);
       delete event;
     }
   }
+  if (phase != 9)
+    return;
 
-  // Execute VPU operation (priotity 9)
-  if (currentCycle % 10 == 9) {
-    out.output(" Current FSM: %u\n", current_fsm);
-    out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-    fsmHandlers[current_fsm]();
+  out.output(" Current FSM: %u\n", current_fsm);
+  out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
+  fsmHandlers[current_fsm]();
 
-    // Update FSM for next execution based on AGU output (one cycle delayed).
-    if (isPortActive(0)) {
-      int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
-      if (agu_address >= 0 && agu_address != current_fsm) {
-        current_fsm = agu_address;
-        out.output(" FSM switched to FSM #%u\n", current_fsm);
-      }
+  // Update FSM for next execution based on AGU output (one cycle delayed).
+  if (isPortActive(0)) {
+    int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
+    if (agu_address >= 0 && agu_address != current_fsm) {
+      current_fsm = agu_address;
+      out.output(" FSM switched to FSM #%u\n", current_fsm);
     }
   }
+}
 
-  // The base clockTick runs the AGU lifetime check, which deactivates a port
-  // on its last active cycle. Running it BEFORE the sub-9 operation above
-  // would drop the final result of every burst (the same bug the dpu fixed).
-  bool result = DRRAResource::clockTick(currentCycle);
-  return result;
+// Input buffers were cleared at subcycle 0 so that gap cycles (where the RF
+// AGU enable is 0 and its output is 0) are modelled correctly; clearing them
+// once the operation has consumed them is the same thing.
+void Vpu::onPhaseAfterEvents(uint8_t phase) {
+  if (phase != 9)
+    return;
+  for (int i = 0; i < resource_size; i++) {
+    std::fill(data_buffers[i].begin(), data_buffers[i].end(), 0);
+  }
+}
+
+void Vpu::onActivationApplied(uint32_t slot_id) {
+  current_config_option[slot_id] = 0;
+}
+
+void Vpu::onActivationsApplied() {
+  last_config_level = -1;
+  last_config_trans = -1;
 }
 
 void Vpu::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
+  deferActivation(slot_id, ports);
 }
 
 void Vpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {

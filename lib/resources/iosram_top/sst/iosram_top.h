@@ -56,7 +56,9 @@ public:
     logTraceEvent("memory", slot_id, true, 'E', {});
   }
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
+  // Its AGU events carry priorities 1, 2, 7 and 8; nothing else here is
+  // subcycle-dependent.
+  std::vector<uint8_t> tickPhases() const override { return {1, 2, 7, 8}; }
   void handleActivation(uint32_t slot_id, uint32_t ports) override;
 
   // Instruction format

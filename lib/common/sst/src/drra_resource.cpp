@@ -90,6 +90,13 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
     }
   }
 
+  // Self-link for the phase ticks. Configured for every resource because
+  // links can only be set up during construction; setup() decides whether it
+  // is used (see tickPhases).
+  tick_link = configureSelfLink(
+      "resource_tick", tc,
+      new Event::Handler2<DRRAResource, &DRRAResource::onPhaseTick>(this));
+
   // Write to trace file (only when debug/monitoring is enabled)
   if (debug_enabled) {
     trace_file.open(trace_name, std::ios::app);
@@ -103,7 +110,115 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
   }
 }
 
+void DRRAResource::setup() {
+  tick_phases = tickPhases();
+  if (tick_phases.empty())
+    return; // keep the ten-tick clock
+  // Links cannot be sent on before setup, so the first tick is primed here.
+  unregisterClock(tc, clockHandler);
+  tick_link->send(tick_phases[0], new ResourceTickEvent());
+  tick_armed = true;
+}
+
+void DRRAResource::ensureClockRunning() {
+  if (tick_phases.empty()) {
+    DRRAComponent::ensureClockRunning();
+    return;
+  }
+  if (tick_armed)
+    return;
+  // Resume at the next occurrence of the first phase.
+  const uint64_t subcycle = getCurrentSimTime(tc) % 10;
+  uint64_t delay = (tick_phases[0] + 10 - subcycle) % 10;
+  if (delay == 0)
+    delay = 10;
+  next_phase_index = 0;
+  tick_link->send(delay, new ResourceTickEvent());
+  tick_armed = true;
+}
+
+void DRRAResource::deferActivation(uint32_t slot_id, uint32_t ports) {
+  const uint64_t now = getCurrentSimTime(tc);
+  portsToActivate[slot_id] = ports;
+  activation_arrival_cycle[slot_id] = now / 10;
+  // Wake at the next subcycle 0 to apply it, as the ten-tick clock did.
+  if (!tick_phases.empty() && !apply_wake_pending) {
+    tick_link->send(10 - (now % 10), new ResourceTickEvent(true));
+    apply_wake_pending = true;
+  }
+}
+
+void DRRAResource::applyPendingActivations() {
+  if (portsToActivate.empty())
+    return;
+  const uint64_t current_cycle = _currentSSTCycle / 10;
+  bool applied = false;
+  for (auto it = portsToActivate.begin(); it != portsToActivate.end();) {
+    if (activation_arrival_cycle[it->first] >= current_cycle) {
+      ++it; // arrived this cycle: takes effect in the next one
+      continue;
+    }
+    activatePortsForSlot(it->first, it->second);
+    onActivationApplied(it->first);
+    activation_arrival_cycle.erase(it->first);
+    it = portsToActivate.erase(it);
+    applied = true;
+  }
+  if (applied)
+    onActivationsApplied();
+}
+
+// One wake per subcycle the resource works at, in place of ten clock ticks.
+void DRRAResource::onPhaseTick(Event *event) {
+  const bool apply_only = static_cast<ResourceTickEvent *>(event)->apply_only;
+  delete event;
+  _currentSSTCycle = getCurrentSimTime(tc);
+  if (apply_only) {
+    apply_wake_pending = false;
+    applyPendingActivations();
+    return;
+  }
+  // The ten-tick clock paused at the first subcycle where the resource was
+  // idle, so it never reached a later phase of that cycle. Stop here too,
+  // rather than at the end of the cycle, or a dpu/vpu would run one more
+  // operation than it used to.
+  if (isIdle()) {
+    next_phase_index = 0;
+    tick_armed = false;
+    return;
+  }
+
+  const uint8_t phase = tick_phases[next_phase_index];
+  const size_t index = next_phase_index;
+
+  if (index == 0) {
+    applyPendingActivations(); // no-op unless a phase 0 tick preceded us
+    gatherEventsForCycle();
+  }
+  // Events of a priority between two phases run at the next phase. Those from
+  // earlier subcycles run before this phase's own work, and the events of this
+  // very subcycle after it, which is where the ten-tick path ran them.
+  const uint32_t lowest = (index == 0) ? 0 : tick_phases[index - 1] + 1;
+  if (phase > 0)
+    executeEventsInPriorityRange(lowest, phase - 1);
+  onPhaseBeforeEvents(phase);
+  executeEventsInPriorityRange(phase, phase);
+  onPhaseAfterEvents(phase);
+
+  const bool last = (index + 1 == tick_phases.size());
+  if (last)
+    finishCycle(_currentSSTCycle);
+
+  next_phase_index = last ? 0 : index + 1;
+  const uint8_t next_phase = tick_phases[next_phase_index];
+  const uint64_t delay =
+      last ? (10 - phase + next_phase) : (next_phase - phase);
+  tick_link->send(delay, new ResourceTickEvent());
+}
+
 bool DRRAResource::clockTick(Cycle_t currentCycle) {
+  if (currentCycle % 10 == 0)
+    applyPendingActivations();
   executeScheduledEventsForCycle(currentCycle);
   return false;
 }
@@ -235,6 +350,14 @@ void DRRAResource::gatherEventsForCycle() {
             getPortActiveCycle(port));
         // add events to the list
         for (const auto &event : events) {
+          if (!tick_phases.empty() &&
+              event->getPriority() > tick_phases.back()) {
+            out.fatal(CALL_INFO, -1,
+                      "Event '%s' has priority %d, later than this resource's "
+                      "last tick phase (%d)\n",
+                      event->getName().c_str(), event->getPriority(),
+                      tick_phases.back());
+          }
           events_for_cycle.push_back(event);
           corresponding_ports.push_back(port);
         }

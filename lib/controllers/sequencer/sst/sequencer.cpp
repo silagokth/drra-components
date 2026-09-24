@@ -47,6 +47,9 @@ void Sequencer::init(unsigned int phase) {
   }
   out.output("Initialized %u scalar registers\n", numRegisters);
 
+  // Everything the sequencer does happens at subcycle 0.
+  useCycleClock();
+
   // End of initialization
   out.verbose(CALL_INFO, 1, 0, "Initialized\n");
 }

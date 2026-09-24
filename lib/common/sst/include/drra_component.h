@@ -111,6 +111,10 @@ public:
 
   // SST clock handler
   bool clockTickBase(Cycle_t currentCycle) {
+    // The cycle clock counts whole cycles; clockTick() is written against
+    // subcycle numbering either way.
+    if (cycle_clock)
+      currentCycle *= 10;
     _currentSSTCycle = currentCycle;
     if (currentCycle % 10 == 0) {
       out.output("--- CYCLE %" PRIu64 " ---\n", currentCycle / 10);
@@ -125,8 +129,19 @@ public:
     return result;
   }
 
+  // Tick once per cycle instead of ten times, for a component whose work all
+  // sits at subcycle 0. A clock can express this because SST aligns clocks to
+  // multiples of their period, and that multiple is subcycle 0.
+  void useCycleClock() {
+    unregisterClock(tc, clockHandler);
+    UnitAlgebra freq(clock);
+    freq /= 10;
+    tc = registerClock(freq, clockHandler);
+    cycle_clock = true;
+  }
+
   // Re-arm the clock if the idle-skip paused it.
-  void ensureClockRunning() {
+  virtual void ensureClockRunning() {
     if (!clock_running) {
       reregisterClock(tc, clockHandler);
       clock_running = true;
@@ -165,6 +180,7 @@ protected:
   // Can this component pause its clock? Default false (drivers keep ticking).
   virtual bool isIdle() { return false; }
   bool clock_running = true;
+  bool cycle_clock = false;
   // Document params
   static std::vector<SST::ElementInfoParam> getBaseParams() {
     std::vector<SST::ElementInfoParam> params;

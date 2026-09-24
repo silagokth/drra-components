@@ -73,47 +73,36 @@ Swb::Swb(SST::ComponentId_t id, SST::Params &params)
   out.print(")\n");
 }
 
-bool Swb::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
-
-  if (currentCycle % 10 == 0 && !portsToActivate.empty()) {
-    for (const auto &[sid, ports] : portsToActivate) {
-      activatePortsForSlot(sid, ports);
-    }
-    portsToActivate.clear();
-  }
-
-  if (currentCycle % 10 == 5) {
-    if (isPortActive(SWB_PKG::REP_PORT_INTRACELL)) {
-      int64_t agu_address =
-          agus[SWB_PKG::REP_PORT_INTRACELL].getAddressForCycle(
-              getPortActiveCycle(SWB_PKG::REP_PORT_INTRACELL));
-      if (agu_address >= 0 && agu_address != currentFsmOption_swb) {
-        currentFsmOption_swb = agu_address;
-        out.output("SWB switched to SWB configuration #%u\n",
-                   currentFsmOption_swb);
-      }
-    }
-    if (isPortActive(SWB_PKG::REP_PORT_INTERCELL)) {
-      out.output("Checking AGU for intercell port at cycle %lu\n",
-                 currentCycle / 10);
-      int64_t agu_address =
-          agus[SWB_PKG::REP_PORT_INTERCELL].getAddressForCycle(
-              getPortActiveCycle(SWB_PKG::REP_PORT_INTERCELL));
-      out.output("AGU address for intercell port: %ld\n", agu_address);
-      // print agu expression
-      out.output("AGU expression: %s\n", agus[SWB_PKG::REP_PORT_INTERCELL]
-                                             .getTimingExpressionString()
-                                             .c_str());
-      if (agu_address >= 0 && agu_address != currentFsmOption_route) {
-        currentFsmOption_route = agu_address;
-        out.output("SWB switched to ROUTE configuration #%u\n",
-                   currentFsmOption_route);
-      }
+// The option updates ran after the base clockTick in the ten-tick path, so
+// they stay after this phase's events.
+void Swb::onPhaseAfterEvents(uint8_t phase) {
+  if (phase != 5)
+    return;
+  if (isPortActive(SWB_PKG::REP_PORT_INTRACELL)) {
+    int64_t agu_address = agus[SWB_PKG::REP_PORT_INTRACELL].getAddressForCycle(
+        getPortActiveCycle(SWB_PKG::REP_PORT_INTRACELL));
+    if (agu_address >= 0 && agu_address != currentFsmOption_swb) {
+      currentFsmOption_swb = agu_address;
+      out.output("SWB switched to SWB configuration #%u\n",
+                 currentFsmOption_swb);
     }
   }
-
-  return result;
+  if (isPortActive(SWB_PKG::REP_PORT_INTERCELL)) {
+    out.output("Checking AGU for intercell port at cycle %lu\n",
+               _currentSSTCycle / 10);
+    int64_t agu_address = agus[SWB_PKG::REP_PORT_INTERCELL].getAddressForCycle(
+        getPortActiveCycle(SWB_PKG::REP_PORT_INTERCELL));
+    out.output("AGU address for intercell port: %ld\n", agu_address);
+    // print agu expression
+    out.output("AGU expression: %s\n",
+               agus[SWB_PKG::REP_PORT_INTERCELL].getTimingExpressionString()
+                   .c_str());
+    if (agu_address >= 0 && agu_address != currentFsmOption_route) {
+      currentFsmOption_route = agu_address;
+      out.output("SWB switched to ROUTE configuration #%u\n",
+                 currentFsmOption_route);
+    }
+  }
 }
 
 void Swb::handleCONF(const SWB_PKG::CONFInstruction &instr) {
@@ -404,5 +393,5 @@ void Swb::forwardCellEvent(Event *event, uint32_t id) {
 }
 
 void Swb::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
+  deferActivation(slot_id, ports);
 }

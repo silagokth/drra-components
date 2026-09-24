@@ -47,7 +47,10 @@ public:
   /* Destructor */
   ~Swb() {};
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
+  // Events at priority 1, the two crossbar/route option updates at 5, and 9
+  // to close the cycle where the ten-tick path did.
+  std::vector<uint8_t> tickPhases() const override { return {1, 5, 9}; }
+  void onPhaseAfterEvents(uint8_t phase) override;
 
   // Instruction format
   using DRRAResource::format;

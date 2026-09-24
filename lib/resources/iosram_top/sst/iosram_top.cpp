@@ -60,19 +60,8 @@ Iosram_top::Iosram_top(SST::ComponentId_t id, SST::Params &params)
   out.output("Created backing store (type: %s)\n", backingType.c_str());
 }
 
-bool Iosram_top::clockTick(SST::Cycle_t currentCycle) {
-  bool result = DRRAResource::clockTick(currentCycle);
-  if (portsToActivate.size() > 0 && currentCycle % 10 == 0) {
-    for (const auto &port : portsToActivate) {
-      activatePortsForSlot(port.first, port.second);
-    }
-    portsToActivate.clear();
-  }
-  return result;
-}
-
 void Iosram_top::handleActivation(uint32_t slot_id, uint32_t ports) {
-  portsToActivate[slot_id] = ports;
+  deferActivation(slot_id, ports);
 }
 
 void Iosram_top::handleEVT(const IOSRAM_TOP_PKG::EVTInstruction &instr) {

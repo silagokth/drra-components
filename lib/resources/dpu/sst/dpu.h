@@ -4,18 +4,6 @@
 #include "dpu_pkg.h"
 #include "drra_resource.h"
 
-// Wakes the DPU once per cycle over its self-link. Carries nothing: the
-// delivery time is the whole message.
-class DpuTickEvent : public SST::Event {
-public:
-  DpuTickEvent() {}
-  DpuTickEvent *clone() override { return new DpuTickEvent(*this); }
-  void serialize_order(SST::Core::Serialization::serializer &ser) override {
-    Event::serialize_order(ser);
-  }
-  ImplementSerializable(DpuTickEvent);
-};
-
 class Dpu : public DRRAResource {
 public:
   /* Element Library Info */
@@ -53,10 +41,14 @@ public:
   /* Destructor */
   ~Dpu() {};
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-  // One tick per cycle, at subcycle 9, in place of the base 10x clock.
-  void onCycleTick(SST::Event *event);
-  void setup() override;
+  // The DPU only works at subcycle 9: it reads its inputs, runs the operation
+  // and updates the FSM there, and its AGU events all carry priority 9 or
+  // less.
+  std::vector<uint8_t> tickPhases() const override { return {9}; }
+  void onPhaseBeforeEvents(uint8_t phase) override;
+  void onPhaseAfterEvents(uint8_t phase) override;
+  void onActivationApplied(uint32_t slot_id) override;
+  void onActivationsApplied() override;
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 
   void handleOperation(std::string name,
@@ -85,13 +77,6 @@ public:
   uint32_t fractional_bitwidth;
 
 private:
-  // Self-link that carries the once-per-cycle tick.
-  SST::Link *tick_link = nullptr;
-  // Cycle each pending activation arrived in: an activation takes effect in
-  // the cycle after it arrives, which the base gets from applying it at
-  // subcycle 0 and this path has to track explicitly.
-  std::unordered_map<uint32_t, uint64_t> activation_arrival_cycle;
-
   std::vector<uint8_t> accumulate_register;
 
   std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>> dpuHandlers;

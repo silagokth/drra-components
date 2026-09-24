@@ -47,7 +47,9 @@ public:
     logTraceEvent("registers", slot_id, true, 'E', {});
   }
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
+  // Reads fire at subcycle 1 and writes at 8; nothing else in the rf is
+  // subcycle-dependent.
+  std::vector<uint8_t> tickPhases() const override { return {1, 8}; }
 
   // Instruction format
   using DRRAResource::format;

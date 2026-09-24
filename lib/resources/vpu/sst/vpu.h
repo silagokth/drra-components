@@ -40,7 +40,13 @@ public:
   /* Destructor */
   ~Vpu() {};
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
+  // Subcycle 9 is where the operation runs, and 5 is where the IN0/IN1 latch
+  // events capture the input buffers, so the data has to be drained by then.
+  std::vector<uint8_t> tickPhases() const override { return {5, 9}; }
+  void onPhaseBeforeEvents(uint8_t phase) override;
+  void onPhaseAfterEvents(uint8_t phase) override;
+  void onActivationApplied(uint32_t slot_id) override;
+  void onActivationsApplied() override;
 
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 
