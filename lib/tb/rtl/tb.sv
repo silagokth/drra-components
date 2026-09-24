@@ -29,6 +29,14 @@ module fabric_tb;
   logic ret_all;
   assign ret_all = &ret;
 
+  // Dump a VCD to debug/trace.vcd when run with +trace (Verilator debug mode).
+  initial begin
+    if ($test$plusargs("trace")) begin
+      $dumpfile("debug/trace.vcd");
+      $dumpvars(0, fabric_tb);
+    end
+  end
+
   // `cycle_count` is the only variable an always_ff process writes here;
   // dropped the `= 0` declaration initializer that triggered Questa's
   // vlog-7061 (always_ff variable driven by another process — the
