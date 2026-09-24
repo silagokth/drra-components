@@ -74,7 +74,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
         route_out_conf_valid = 1;
         option_index         = route_instr._option;
       end else begin  // receive
-        route_in_configs[route_instr._option].receive_links[route_instr._source] = route_instr._target;
+        for (int d = 0; d < NUM_DIRS; d++)
+          if (route_instr._source == d)
+            route_in_configs[route_instr._option].receive_links[d] = route_instr._target;
         route_in_conf_valid = 1;
         option_index        = route_instr._option;
       end

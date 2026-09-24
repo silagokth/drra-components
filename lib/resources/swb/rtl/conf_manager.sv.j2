@@ -79,8 +79,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       // Register route in configurations if valid else hold previous value
       if (route_in_conf_valid)
-        route_in_config_reg[option_index].receive_links[route_in_conf_link] <=
-          route_in_configs[option_index].receive_links[route_in_conf_link];
+        for (int d = 0; d < NUM_DIRS; d++)
+          if (route_in_conf_link == d)
+            route_in_config_reg[option_index].receive_links[d] <=
+              route_in_configs[option_index].receive_links[d];
 
       // Register route out configurations if valid else hold previous value
       if (route_out_conf_valid)
