@@ -51,24 +51,63 @@
           ]
         },
         {
-          "name": "init_addr_sd",
-          "comment": "Is initial address static or dynamic?",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "s"
-            },
-            {
-              "key": 1,
-              "val": "d"
-            }
-          ]
-        },
-        {
           "name": "init_addr",
           "comment": "Initial address",
-          "bitwidth": 16
+          "bitwidth": 10
+        },
+        {
+          "name": "stride",
+          "comment": "Offset term 0: the address is offset by stride * the loop counter named by loop_level. 0 disables it. Use evts for extra terms or for a stride too wide for this field.",
+          "bitwidth": 8,
+          "default_val": 0
+        },
+        {
+          "name": "loop_level",
+          "comment": "Which loop level's counter drives the stride offset; 0 = outermost. The default 3 is an 'auto' sentinel the compiler resolves to the innermost enclosing loop; an explicit 0/1/2 is kept.",
+          "bitwidth": 2,
+          "default_val": 3
+        }
+      ]
+    },
+    {
+      "name": "evtx",
+      "opcode": 4,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "The port number (must match the evt this extends).",
+          "bitwidth": 2
+        },
+        {
+          "name": "init_addr_high",
+          "comment": "High bits above the evt init_addr field: the effective address is {init_addr_high, evt.init_addr}. Issue after the matching evt on the same port.",
+          "bitwidth": 10,
+          "default_val": 0
+        }
+      ]
+    },
+    {
+      "name": "evts",
+      "opcode": 5,
+      "instr_type": 1,
+      "segments": [
+        {
+          "name": "port",
+          "comment": "The port number (must match the evt this extends).",
+          "bitwidth": 2
+        },
+        {
+          "name": "stride",
+          "comment": "Stride for one loop dimension. Wider than evt.stride, so the compiler also routes oversized evt strides here. Port offset = sum over evt + evts terms of stride * loop counter.",
+          "bitwidth": 16,
+          "default_val": 0
+        },
+        {
+          "name": "loop_level",
+          "comment": "Which loop-nesting level's counter this stride term multiplies. 0 = outermost.",
+          "bitwidth": 2,
+          "default_val": 0
         }
       ]
     },

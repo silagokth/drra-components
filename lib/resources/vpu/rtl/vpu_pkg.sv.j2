@@ -1,0 +1,47 @@
+// vesyla_template_start package_head
+package {{name}}_{{fingerprint}}_pkg;
+// vesyla_template_end package_head
+
+  // vesyla_template_start package_macro
+  {% include "package.j2" %}
+  // vesyla_template_end package_macro
+
+  import agu_rtr_pkg::*;
+
+  parameter int FSM_MAX_STATES = 4;
+  parameter int FSM_DELAY_WIDTH = 3;
+  parameter int VPU_MODE_WIDTH = 6;
+  parameter int VPU_IMMEDIATE_WIDTH = 16;
+  // OPCODE_WIDTH / OPCODE_L / OPCODE_H / INSTRUCTION_PAYLOAD_WIDTH are now
+  // emitted from isa.json by package.j2 above; redeclaring them here is a
+  // duplicate-declaration error.
+  parameter int BITWIDTH = WORD_BITWIDTH;
+
+  parameter int VECTOR_SIZE = BULK_BITWIDTH / WORD_BITWIDTH;
+
+  // AGU RTR params
+  parameter int NUM_AGUS = 4;
+  parameter int AGU_VPU_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_RST_ADDR_WIDTH = 1;
+  parameter int AGU_IN_ADDR_WIDTH  = 1;
+  parameter int ADDRESS_WIDTH = (AGU_VPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH)
+    ? ((AGU_VPU_ADDR_WIDTH > AGU_IN_ADDR_WIDTH) ? AGU_VPU_ADDR_WIDTH : AGU_IN_ADDR_WIDTH)
+    : ((AGU_RST_ADDR_WIDTH > AGU_IN_ADDR_WIDTH) ? AGU_RST_ADDR_WIDTH : AGU_IN_ADDR_WIDTH);
+  parameter int REP_LEVEL_WIDTH = 3;
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX each have 7 bits
+  parameter int REP_ITER_WIDTH  = 8 * 2; // REP + REPX each have 8 bits
+  parameter int REP_STEP_WIDTH  = 7 * 2; // REP + REPX each have 7 bits
+  parameter int TRANS_OPTION_WIDTH = 2;
+  parameter int TRANS_DELAY_WIDTH = 22;
+  parameter int NUMBER_OR = 4;
+  parameter int NUMBER_MT = 3;
+  parameter int NUMBER_IR = 4;
+
+  // NOTE: the AGU configuration type used to be declared here as
+  // `agu_config_class#(...)::agu_config_t`. That parameterized class typedef
+  // no longer exists: the AGU configuration now travels over the
+  // `agu_cfg_if` SystemVerilog interface (lib/common/agu_RTR/rtl/src/
+  // agu_cfg_if.sv) and is produced by the shared `agu_controller`
+  // (lib/common/agu_controller). Nothing in the vpu needs a local struct.
+
+endpackage

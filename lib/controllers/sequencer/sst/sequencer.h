@@ -65,6 +65,14 @@ public:
 private:
   bool readyToFinish = false;
 
+  // Set by a branch handler when it computes the next PC itself, so the fetch
+  // loop skips its default PC increment for that instruction.
+  bool branchTaken = false;
+
+  // Loop counters broadcast with every activation, sampled from registers
+  // r15..r13 when an act executes. Depth-indexed (level d = r15-d).
+  uint32_t currentLoopVars[3] = {0, 0, 0};
+
   // uint32_t cell_coordinates[2] = {0, 0};
   uint32_t cyclesToWait = 0;
 

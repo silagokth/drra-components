@@ -16,6 +16,18 @@
     {
       "name": "BULK_ADDR_WIDTH",
       "value": 2
+    },
+    {
+      "name": "NUMBER_IR",
+      "value": 4
+    },
+    {
+      "name": "NUMBER_MT",
+      "value": 3
+    },
+    {
+      "name": "NUMBER_OR",
+      "value": 4
     }
   ],
   "required_parameters": [

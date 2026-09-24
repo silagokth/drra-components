@@ -31,13 +31,15 @@ package {{name}}_{{fingerprint}}_pkg;
   // AGU RTR params
   parameter int ADDRESS_WIDTH = $clog2(NUM_OPTIONS);
   parameter int REP_OPTION_WIDTH = $clog2(NUM_OPTIONS);
-  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
-  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
-  parameter int TRANS_DELAY_WIDTH = 23;
-  parameter int NUMBER_OR = 4;
-  parameter int NUMBER_MT = 3;
-  parameter int NUMBER_IR = 4;
+  // Full REP fields assemble from a base REP (low half) plus a REPX (high
+  // half), so the widths are twice the isa.json field widths. The *_BITWIDTH
+  // params are emitted from isa.json by package.j2 above.
+  parameter int REP_ITER_WIDTH = REP_ITER_BITWIDTH * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = REP_STEP_BITWIDTH * 2; // REP + REPX
+  parameter int REP_DELAY_WIDTH = REP_DELAY_BITWIDTH * 2; // REP + REPX
+  parameter int TRANS_DELAY_WIDTH = TRANS_DELAY_BITWIDTH;
+  // NUMBER_OR / NUMBER_MT / NUMBER_IR come from this resource's arch.json
+  // custom_properties (emitted by package.j2 above); defaults live there.
   parameter int NUM_LEVELS = NUMBER_IR + NUMBER_OR;
   parameter int INCLUDE_IR_STATES = 1;
   parameter int INCLUDE_MT_STATES = 1;
@@ -46,7 +48,13 @@ package {{name}}_{{fingerprint}}_pkg;
   {% include "agu_config.j2" %}
 
   typedef struct {
+    // Indexed by TARGET channel, holds the driving SOURCE slot. Target-keyed so a
+    // later conf for a channel REPLACES its driver (last-write-wins, matching the
+    // `channel == target` pasm contract). Source-keying let a stale entry from an
+    // earlier epoch keep driving a channel, and the mux then resolved the clash by
+    // source index rather than by which conf was written last.
     logic [$clog2(NUM_SLOTS)-1:0] slot_link [NUM_SLOTS];
+    logic [NUM_SLOTS-1:0]         link_valid;  // per-target: channel has a driver
   } swb_config_t;
 
   typedef struct {

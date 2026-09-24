@@ -64,6 +64,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     if (!rst_n) begin
       // Reset all configurations
       for (int i = 0; i < NUM_OPTIONS; i++) begin
+        swb_config_reg[i].link_valid <= '0;
         for (int j = 0; j < NUM_SLOTS; j++)
           swb_config_reg[i].slot_link[j] <= '{default: 0};
         for (int d = 0; d < NUM_DIRS; d++)
@@ -73,9 +74,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     end else begin
       // Register configurations if valid else hold previous value
-      if (swb_conf_valid)
+      if (swb_conf_valid) begin
         swb_config_reg[option_index].slot_link[swb_conf_link] <=
           swb_configs[option_index].slot_link[swb_conf_link];
+        swb_config_reg[option_index].link_valid[swb_conf_link] <= 1'b1;
+      end
 
       // Register route in configurations if valid else hold previous value
       if (route_in_conf_valid)

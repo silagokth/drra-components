@@ -198,10 +198,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
       end
     endgenerate
 
-    // SWB word channel routing logic
+    // SWB word channel routing logic. Driven per TARGET channel: each channel takes
+    // its configured source, or 0 when unconfigured (also gives every channel a
+    // default assignment, so no latches are inferred).
     always_comb
       for (int i=0; i < NUM_SLOTS; i++)
-        word_channels_out[curr_swb_configs.slot_link[i]] = word_channels_in[i];
+        word_channels_out[i] = curr_swb_configs.link_valid[i]
+                             ? word_channels_in[curr_swb_configs.slot_link[i]]
+                             : '0;
 
     logic [BULK_BITWIDTH-1:0] bulk_local_channel;
 

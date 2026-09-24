@@ -126,9 +126,14 @@ void DRRAResource::handleEventBase(Event *event) {
     // Check if the event is an ActEvent
     ActEvent *actEvent = dynamic_cast<ActEvent *>(event);
     if (actEvent) {
+      for (uint32_t d = 0; d < ActEvent::NUM_LOOP_LEVELS; d++) {
+        currentLoopVars[d] = actEvent->loop_vars[d];
+      }
       handleActivation(actEvent->slot_id, actEvent->ports);
       logTraceEvent("activation", slot_id, true, 'X',
-                    {{"ports", std::to_string(actEvent->ports)}});
+                    {{"ports", std::to_string(actEvent->ports)},
+                     {"loop_var", std::to_string(actEvent->loop_vars[0])}});
+      delete event;
       return;
     }
 
@@ -142,8 +147,11 @@ void DRRAResource::handleEventBase(Event *event) {
                     {{"instruction", instruction.toString()},
                      {"instruction_bin", instruction.toBinaryString()},
                      {"instruction_hex", instruction.toHexString()}});
+      delete event;
       return;
     }
+    // A handler-delivered event is owned by the receiver.
+    delete event;
   }
 }
 
@@ -158,6 +166,18 @@ void DRRAResource::activatePort(uint32_t port) {
     agus[port].addEvent("default_act_" + std::to_string(port), [] {}, 1);
   }
   agus[port].build();
+  // Resolve each offset term's loop level to its broadcast counter.
+  agus[port].clearOffsetTerms();
+  auto terms_it = portOffsetTerms.find(port);
+  if (terms_it != portOffsetTerms.end()) {
+    for (const auto &term : terms_it->second) {
+      uint32_t level = term.second;
+      if (level >= ActEvent::NUM_LOOP_LEVELS) {
+        level = 0;
+      }
+      agus[port].addOffsetTerm(term.first, currentLoopVars[level]);
+    }
+  }
   port_last_rep_level[port] = -1;
   active_ports_cycles[port] = 0;
 }
@@ -202,19 +222,17 @@ void DRRAResource::activatePortsForSlot(uint32_t slot_id, uint32_t ports) {
 void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
   // if second subcycle of the cycle -> gather events for the cycle
   if (currentSSTCycle % 10 == 1) {
-    for (auto &port : active_ports) { // for each port
-      if (isPortActive(port.first)) { // if port is active
-        auto events =
-            getPortEventsForCycle(port.first, getPortActiveCycle(port.first));
-        if (std::getenv("VESYLA_DEBUG"))
-          out.output(
-              "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
-              port.first, events.size(), currentSSTCycle / 10,
-              getPortActiveCycle(port.first));
+    for (uint32_t port = 0; port < active_ports.size(); port++) {
+      if (isPortActive(port)) { // if port is active
+        auto events = getPortEventsForCycle(port, getPortActiveCycle(port));
+        out.output(
+            "Port %d has %lu events for cycle %lu (port active cycle %lu)\n",
+            port, events.size(), currentSSTCycle / 10,
+            getPortActiveCycle(port));
         // add events to the list
-        for (auto event : events) {
+        for (const auto &event : events) {
           events_for_cycle.push_back(event);
-          corresponding_ports.push_back(port.first);
+          corresponding_ports.push_back(port);
         }
       }
     }
@@ -243,10 +261,8 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
       out.output("Executing event port %d prio %d\n", port,
                  event->getPriority());
       event->execute();
-      if (trace_name != "") {
-        logTraceEvent(event->getName(), slot_id, true, 'X',
-                      {{"port", (int)port}, {"event", event->getName()}});
-      }
+      logTraceEvent(event->getName(), slot_id, true, 'X',
+                    {{"port", (int)port}, {"event", event->getName()}});
       // current_timing_states[port].incrementLevels();
       // out.output("port %d incremented levels\n", port);
     }
@@ -254,11 +270,11 @@ void DRRAResource::executeScheduledEventsForCycle(Cycle_t currentSSTCycle) {
 
   if (currentSSTCycle % 10 == 9) {
     checkAGULifetime(currentSSTCycle);
-    for (auto &port : active_ports) {
-      if (isPortActive(port.first)) {
+    for (uint32_t port = 0; port < active_ports.size(); port++) {
+      if (isPortActive(port)) {
         // out.output("incrementing port %d active cycle (old: %lu)\n",
-        //            port.first, getPortActiveCycle(port.first));
-        incrementPortActiveCycle(port.first);
+        //            port, getPortActiveCycle(port));
+        incrementPortActiveCycle(port);
       }
     }
     events_for_cycle.clear();

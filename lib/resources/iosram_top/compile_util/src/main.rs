@@ -56,6 +56,8 @@ fn get_timing_model(op: Op) -> String {
                 segments.push(format!("e{}", event_counter));
                 event_counter += 1;
             }
+            // evt companions (like rep's ext half): config only, no timing.
+            "evtx" | "evts" => continue,
             "rep" => {
                 if instr_segments.get_value("ext") == "1" { continue; }
                 let iter = instr_segments.get_value("iter");
@@ -167,6 +169,46 @@ fn reshape_instr(op: Op) -> Op {
                         }
                     }
                     new_body.push(rep_instr);
+                }
+            }
+            "evt" => {
+                // Split a wide init_addr into evt (low) + evtx (high), the way
+                // rep is split into base + ext above, so evtx is never hand-written.
+                let init_addr = instr
+                    .params
+                    .get_value("init_addr")
+                    .parse::<i64>()
+                    .expect("Failed to parse init_addr as i64");
+                let field = 2i64.pow(INIT_ADDR_BITWIDTH);
+                if init_addr > field - 1 {
+                    let low = init_addr % field;
+                    let high = init_addr / field;
+                    let mut base_instr = instr.clone(); // evt with low init_addr
+                    for f in base_instr.params.iter_mut() {
+                        if f.0 == "init_addr" {
+                            f.1 = low.to_string();
+                        }
+                    }
+                    new_body.push(base_instr);
+                    // Cloned so the evtx inherits slot/port, which codegen needs
+                    // to resolve the resource; its extra params are ignored.
+                    let mut evtx = instr.clone();
+                    evtx.kind = "evtx".to_string();
+                    evtx.id = format!("{}_evtx", instr.id);
+                    let high_str = high.to_string();
+                    let mut found = false;
+                    for f in evtx.params.iter_mut() {
+                        if f.0 == "init_addr_high" {
+                            f.1 = high_str.clone();
+                            found = true;
+                        }
+                    }
+                    if !found {
+                        evtx.params.push(("init_addr_high".to_string(), high_str));
+                    }
+                    new_body.push(evtx);
+                } else {
+                    new_body.push(new_instr);
                 }
             }
             _ => {

@@ -72,6 +72,7 @@ private:
   // Communication handlers
   void handleSlotEventWithID(Event *event, uint32_t id);
   void handleCellEventWithID(Event *event, uint32_t id);
+  void forwardCellEvent(Event *event, uint32_t id);
 
   // Cell directions
   enum CellDirection { NW, N, NE, W, C, E, SW, S, SE };

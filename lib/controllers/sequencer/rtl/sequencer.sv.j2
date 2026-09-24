@@ -5,66 +5,16 @@
 {% set calc_mode_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'calc') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'mode') | list | first).bitwidth %}
 {% set wait_cycle_bitwidth = (isa.instructions | selectattr('name', 'equalto', 'wait') | map(attribute='segments') | list | first | selectattr('name', 'equalto', 'cycle') | list | first).bitwidth %}
 {% set already_defined = false %}
+{# Loop-nesting levels broadcast to the resources. Fabric contract: must match
+   the compiler's loop-counter pool (r15..r13) and the cell/resource templates. #}
+{% set num_loop_levels = 3 %}
 {% if not already_defined %}
 // Package holds parameter constants and per-instruction pack/unpack helpers
 package {{name}}_{{fingerprint}}_pkg;
-    // Templated parameters
-    {% for p in parameters %}
-    parameter {{p}} = {{parameters[p]}};
-    {% endfor %}
-
-    // Generate typed payload structs and (un)pack helpers for each instruction
-    // payload_bitwidth excludes type/opcode bits
-    {% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth %}
-    {% for instr in isa.instructions %}
-    {% if instr.segments is defined and instr.segments|length > 0 %}
-    typedef struct packed {
-        {% for segment in instr.segments %}
-        {% if segment.bitwidth == 1 %}
-        logic _{{segment.name}};
-        {% else %}
-        logic [{{segment.bitwidth-1}}:0] _{{segment.name}};
-        {% endif %}
-        {% endfor %}
-    } {{instr.name}}_t;
-
-    // Unpack a payload bitvector into a typed struct
-    function static {{instr.name}}_t unpack_{{instr.name}};
-        input logic [{{payload_bitwidth - 1}}:0] instr;
-        {{instr.name}}_t _{{instr.name}};
-        {% set index=payload_bitwidth -1 %}
-        {% for segment in instr.segments %}
-        {% if segment.bitwidth==1 %}
-        _{{instr.name}}._{{segment.name}} = instr[{{index}}];
-        {% else %}
-        _{{instr.name}}._{{segment.name}}  = instr[{{index}}:{{index-segment.bitwidth+1}}];
-        {% endif %}
-        {% set index=index-segment.bitwidth %}
-        {% endfor %}
-        return _{{instr.name}};
-    endfunction
-
-    // Pack a typed struct back to a payload bitvector
-    function static logic [{{ payload_bitwidth - 1 }}:0] pack_{{instr.name}};
-        input {{instr.name}}_t _{{instr.name}};
-        logic [{{ payload_bitwidth - 1 }}:0] instr;
-
-        {% set index=payload_bitwidth -1 %}
-        {% for segment in instr.segments %}
-        {% if segment.bitwidth==1 %}
-        instr[{{index}}] = _{{instr.name}}._{{segment.name}};
-        {% else %}
-        instr[{{index}}:{{index-segment.bitwidth+1}}] = _{{instr.name}}._{{segment.name}};
-        {% endif %}
-        {% set index=index-segment.bitwidth %}
-        {% endfor %}
-        return instr;
-    endfunction
-    {% endif %}
-    {% endfor %}
-
+    {% include "package.j2" %}
 endpackage
 
+{% set payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - isa.format.instr_opcode_bitwidth %}
 // Sequencer module: fetch/decode/dispatch micro-instructions to resources
 module {{name}}_{{fingerprint}}
 import {{name}}_{{fingerprint}}_pkg::*;
@@ -84,6 +34,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic clk_{{i}},
     output logic rst_n_{{i}},
     {% endfor %}
+
+    // Loop counters by nesting depth (0 = outermost), from scalar register
+    // (NUM_SCALAR_REGS-1-d). A resource picks the level evt.loop_level names.
+    output logic [{{num_loop_levels}}*SCALAR_REG_WIDTH-1:0] loop_var_bus,
 
     // Instruction-load daisy-chain interface (for programming IRAMs across tiles)
     input  logic [INSTR_DATA_WIDTH-1:0] instr_load_data_in,
@@ -225,7 +179,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     always_comb begin
         // Defaults
         next_state        = state;
-        pc_next           = pc+1;       // Increment PC by default
+        pc_next           = pc + 1;       // Increment PC by default
         wait_counter_next = wait_counter;
 
         case (state)
@@ -245,11 +199,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
             end
             DECODE: begin
                 // Control-type instructions (instr_type==0)
-                if (instr_type == 0 && opcode == 0) begin
+                if (instr_type == 0 && opcode == OPCODE_HALT) begin
                     // RETURN: go idle and reset PC
                     pc_next    = 0;
                     next_state = IDLE;
-                end else if (instr_type == 0 && opcode == 1) begin
+                end else if (instr_type == 0 && opcode == OPCODE_WAIT) begin
                     // WAIT: stall for _cycle cycles
                     // wait_t comes from the generated ISA types
                     wait_t _wait;
@@ -260,7 +214,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
                         wait_counter_next = _wait._cycle;
                     end
                     // If _cycle==0, just fall through and continue (pc_next default pc+1)
-                end
+                  end else if (instr_type == 0 && opcode == OPCODE_BRN) begin
+                    // BRN: branch to target PC
+                    brn_t _brn;
+                    _brn = unpack_brn(instr_reg);
+                    if (regs[_brn._reg] == 0) begin
+                      pc_next = $unsigned($signed(pc) + $signed(_brn._target_false));
+                    end else begin
+                      pc_next = $unsigned($signed(pc) + $signed(_brn._target_true));
+                    end
+                  end
                 // Resource-type instructions (instr_type==1) fall through; see output block
             end
             WAIT: begin
@@ -297,30 +260,30 @@ import {{name}}_{{fingerprint}}_pkg::*;
             DECODE: begin
                 if (instr_type == 0) begin
                     // Control flow/actuation opcodes
-                    if (opcode == 2) begin
+                    if (opcode == OPCODE_ACT) begin
                         // ACT: build activation mask and broadcast to all slots
                         activate_flat = 0;
                         _act          = unpack_act(instr_reg);
-                        if (_act._mode == 0) begin
+                        if (_act._mode == ACT_MODE_CONTIGUOUS) begin
                           // Shift port mask by (_param * FSM_PER_SLOT) to select target FSM group
                           activate_flat = _act._ports << (_act._param * FSM_PER_SLOT);
                           // Slice into per-slot vectors
                           for (int i=0; i<NUM_SLOTS; i++) begin
                               resource_activate[i] = activate_flat[FSM_PER_SLOT*i +: FSM_PER_SLOT];
                           end
-                        end else if (_act._mode == 1) begin
+                        end else if (_act._mode == ACT_MODE_PORT_INDEX) begin
                           for (int i = 0; i < NUM_SLOTS; i++) begin
                             if (_act._ports[i])
                               resource_activate[i] = _act._param;
                           end
-                        end else if (_act._mode == 2) begin
+                        end else if (_act._mode == ACT_MODE_MAP) begin
                           logic [(NUM_SLOTS*FSM_PER_SLOT)-1:0] activation_vector;
                           activation_vector = {regs[_act._param+3], regs[_act._param+2], regs[_act._param+1], regs[_act._param]};
                           for (int i = 0; i < NUM_SLOTS; i++) begin
                             resource_activate[i] = activation_vector[FSM_PER_SLOT*i +: FSM_PER_SLOT];
                           end
                         end
-                    end else if (opcode == 0) begin
+                    end else if (opcode == OPCODE_HALT) begin
                         // RETURN: signal completion to caller
                         ret = 1;
                     end
@@ -331,6 +294,17 @@ import {{name}}_{{fingerprint}}_pkg::*;
                 end
             end
         endcase
+    end
+
+    // Branching and control flow logic
+    brn_t _brn; // brn_t is generated from ISA
+    always_comb begin
+      // defaults
+      _brn = '0;
+
+      if (state == DECODE && instr_type == 0 && opcode == OPCODE_BRN) begin
+          _brn = unpack_brn(instr_reg);
+      end
     end
 
     // Calculation logic
@@ -352,13 +326,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
         DECODE: begin
           if (instr_type == 0) begin
-            if (opcode == 3) begin
+            if (opcode == OPCODE_CALC) begin
               _calc = unpack_calc(instr_reg);
               // set the calculation mode
               calc_mode = _calc._mode;
               // assign operand 1
               calc_op1 = regs_next[_calc._operand1];
-              if (_calc._operand2_sd == 0) begin
+              if (_calc._operand2_sd == CALC_OPERAND2_SD_S) begin
                 // operand 2 is an immediate value
                 calc_op2 = _calc._operand2;
               end else begin
@@ -371,7 +345,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
       endcase
     end
-  
+
     always_ff @(posedge clk or negedge rst_n) begin
       if (~rst_n) begin
         for (int i = 0; i < NUM_SCALAR_REGS; i++) begin
@@ -383,6 +357,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
       end
     end
+
+    // Combinational: counters only change in a loop epilogue, so the value is
+    // stable across the body where activations fire.
+    genvar lvl;
+    generate
+      for (lvl = 0; lvl < {{num_loop_levels}}; lvl++) begin : gen_loop_var_bus
+        assign loop_var_bus[(lvl+1)*SCALAR_REG_WIDTH-1 -: SCALAR_REG_WIDTH]
+             = regs[NUM_SCALAR_REGS-1-lvl];
+      end
+    endgenerate
 
   {{name}}_{{fingerprint}}_alu alu_inst (
     .in1(calc_op1),

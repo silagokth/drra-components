@@ -16,12 +16,14 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
   }
   instructionHandlers = RF_PKG::createInstructionHandlers(this);
 
-  std::string registers_content;
-  for (auto &reg : registers) {
-    registers_content += formatRawDataToWords(reg.second) + " ";
+  if (debug_enabled) {
+    std::string registers_content;
+    for (auto &reg : registers) {
+      registers_content += formatRawDataToWords(reg.second) + " ";
+    }
+    logTraceEvent("registers", slot_id, true, 'B',
+                  {{"registers", registers_content}});
   }
-  logTraceEvent("registers", slot_id, true, 'B',
-                {{"registers", registers_content}});
 }
 
 bool Rf::clockTick(SST::Cycle_t currentCycle) {
@@ -244,13 +246,17 @@ void Rf::writeWide() {
                  {"size", (int)(data_event->size / 8)},
                  {"data", formatRawDataToWords(data_event->payload)}});
 
-  std::string registers_content;
-  for (auto &reg : registers) {
-    registers_content += formatRawDataToWords(reg.second) + " ";
+  if (debug_enabled) {
+    std::string registers_content;
+    for (auto &reg : registers) {
+      registers_content += formatRawDataToWords(reg.second) + " ";
+    }
+    logTraceEvent("registers", slot_id, true, 'E', {});
+    logTraceEvent("registers", slot_id, true, 'B',
+                  {{"registers", registers_content}});
   }
-  logTraceEvent("registers", slot_id, true, 'E', {});
-  logTraceEvent("registers", slot_id, true, 'B',
-                {{"registers", registers_content}});
+
+  delete data_event;
 }
 
 void Rf::writeNarrow() {
@@ -291,11 +297,15 @@ void Rf::writeNarrow() {
                  {"size", (int)(word_bitwidth / 8)},
                  {"data", formatRawDataToWords(data_event->payload)}});
 
-  std::string registers_content;
-  for (auto &reg : registers) {
-    registers_content += formatRawDataToWords(reg.second) + " ";
+  if (debug_enabled) {
+    std::string registers_content;
+    for (auto &reg : registers) {
+      registers_content += formatRawDataToWords(reg.second) + " ";
+    }
+    logTraceEvent("registers", slot_id, true, 'E', {});
+    logTraceEvent("registers", slot_id, true, 'B',
+                  {{"registers", registers_content}});
   }
-  logTraceEvent("registers", slot_id, true, 'E', {});
-  logTraceEvent("registers", slot_id, true, 'B',
-                {{"registers", registers_content}});
+
+  delete data_event;
 }

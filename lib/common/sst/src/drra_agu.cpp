@@ -1,4 +1,5 @@
 #include "drra_agu.h"
+#include "vesylaDebug.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -19,17 +20,17 @@ TimingState *DRRA_AGU::getLaneAtIndex(size_t index) {
 DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
                              std::function<void()> handler, uint8_t priority) {
   if (timing_state) {
-    if (std::getenv("VESYLA_DEBUG"))
+    if (vesylaDebug())
       std::cout << "Timing state exists, expression: "
                 << timing_state->getExpression()->toString() << "\n";
     throw std::runtime_error("Cannot add events after transitions");
   }
 
   // Create new lane if index is equal to size
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Adding event '" << name << "' to lane index "
               << current_lane_index << "\n";
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Current lanes size: " << lanes.size() << "\n";
   if (current_lane_index == lanes.size())
     lanes.emplace_back();
@@ -65,7 +66,7 @@ DRRA_AGU &DRRA_AGU::addRepetition(uint64_t iterations, uint64_t delay,
     // Outer repetition: wrap the entire timing state
     timing_state->addRepetition(iterations, delay, current_rep_level, step);
   } else {
-    if (std::getenv("VESYLA_DEBUG"))
+    if (vesylaDebug())
       std::cout << "Adding repetition to lane index " << current_lane_index - 1
                 << " (current_rep_level: " << current_rep_level << ")\n";
     size_t index = current_lane_index - 1;
@@ -84,11 +85,11 @@ DRRA_AGU &DRRA_AGU::addRepetition(uint64_t iterations, uint64_t delay,
 }
 
 void DRRA_AGU::printLaneExpressions() const {
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "AGU " << this << " lane expressions:\n";
   for (size_t i = 0; i < lanes.size(); ++i) {
     auto expr = lanes[i].getExpression();
-    if (std::getenv("VESYLA_DEBUG"))
+    if (vesylaDebug())
       std::cout << " - " << i << "(" << static_cast<const void *>(&lanes[i])
                 << "): " << (expr ? expr->toString() : "null") << "\n";
   }
@@ -148,37 +149,37 @@ DRRA_AGU &DRRA_AGU::addTransition(uint64_t delay) {
   auto from_expr = (current_trans_index == 0 || !timing_state)
                        ? lanes[current_trans_index].getExpression()
                        : timing_state->getExpression();
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "from_expr for transition: "
               << (from_expr ? from_expr->toString() : "null") << "\n";
 
   auto &to_state = lanes[current_trans_index + 1];
   to_state.build(); // Ensure target lane is built before using its expression
   auto to_expr = to_state.getExpression();
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "to_expr for transition: "
               << (to_expr ? to_expr->toString() : "null") << "\n";
 
   std::shared_ptr<TransitionOperator> transition =
       std::make_shared<TransitionOperator>(
           delay, to_expr->lastEventName(), [] {}, from_expr, to_expr);
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Adding transition with delay " << delay << " from lane "
               << current_trans_index << " to lane " << current_trans_index + 1
               << "\n";
 
   assert(from_expr && "from_expr is null");
   assert(to_expr && "to_expr is null");
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "transition: " << transition->toString() << "\n";
   TimingState temp_timing_state(from_state, to_state, transition);
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "temp_timing_state expression: "
               << temp_timing_state.getExpression()->toString() << "\n";
   timing_state = std::make_unique<TimingState>(temp_timing_state);
   timing_state->moveTransitionsToEnd();
 
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Timing state expression after adding transition: "
               << timing_state->getExpression()->toString() << "\n";
   current_trans_index++;
@@ -191,35 +192,35 @@ DRRA_AGU &DRRA_AGU::addTransition(uint64_t delay) {
 
 DRRA_AGU &DRRA_AGU::build() {
   if (!timing_state) {
-    if (std::getenv("VESYLA_DEBUG"))
+    if (vesylaDebug())
       std::cout << "No transitions added, building timing state from lanes\n";
     if (lanes.empty()) {
       throw std::runtime_error("No lanes to build timing state from");
     }
     // Use the first lane as the initial timing state if no transitions were
     // added
-    if (std::getenv("VESYLA_DEBUG"))
+    if (vesylaDebug())
       std::cout << "Using lane 0 as initial timing state\n";
-    if (std::getenv("VESYLA_DEBUG"))
+    if (vesylaDebug())
       std::cout << "Lane 0 expression: " << lanes[0].getExpression()->toString()
                 << "\n";
     timing_state = std::make_unique<TimingState>(lanes[0]);
   }
 
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Timing state expression: "
               << timing_state->getExpression()->toString() << "\n";
   timing_state->setEventInitialAddresses(lane_initial_addresses);
   timing_state->build();
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Timing state built successfully\n";
   return *this;
 }
 
 DRRA_AGU &DRRA_AGU::reset() {
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Resetting AGU\n";
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Timing state before reset: "
               << (timing_state ? timing_state->getExpression()->toString()
                                : "none")
@@ -230,12 +231,12 @@ DRRA_AGU &DRRA_AGU::reset() {
   current_lane_index = 0;
   current_trans_index = 0;
   current_rep_level = 0;
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "Timing state after reset: "
               << (timing_state ? timing_state->getExpression()->toString()
                                : "none")
               << "\n";
-  if (std::getenv("VESYLA_DEBUG"))
+  if (vesylaDebug())
     std::cout << "AGU reset successfully\n";
   return *this;
 }
@@ -244,7 +245,15 @@ int64_t DRRA_AGU::getAddressForCycle(uint64_t cycle) {
   if (isEmpty())
     return -1;
 
-  return timing_state->getAddressForCycle(cycle);
+  int64_t address = timing_state->getAddressForCycle(cycle);
+  if (address < 0)
+    return address; // preserve the gap sentinel (-1)
+  // One term per loop dimension; no terms is a no-op.
+  int64_t offset = 0;
+  for (size_t t = 0; t < term_strides.size(); ++t) {
+    offset += static_cast<int64_t>(term_strides[t] * term_loop_vars[t]);
+  }
+  return address + offset;
 }
 
 uint64_t DRRA_AGU::getLastScheduledCycle() {

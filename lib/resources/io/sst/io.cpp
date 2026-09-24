@@ -51,14 +51,16 @@ void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {
 
 void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
   out.output(
-      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
-      instr.slot, instr.port, instr.option, instr.init_addr_sd,
-      instr.init_addr);
+      "evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d, "
+      "loop_level=%d)\n",
+      instr.slot, instr.port, instr.option, instr.init_addr, instr.stride,
+      instr.loop_level);
 
-  // Set initial address
   agus[instr.port].setInitialAddress(instr.init_addr);
-  out.output("Set initial address for port %d to %d\n", instr.port,
-             instr.init_addr);
+  // Offset term 0; evts appends the rest.
+  portOffsetTerms[instr.port] = {{instr.stride, instr.loop_level}};
+  out.output("Set initial address for port %d to %d (stride %d, loop_level %d)\n",
+             instr.port, instr.init_addr, instr.stride, instr.loop_level);
 
   std::string event_name;
   switch (instr.port) {
@@ -91,6 +93,20 @@ void Io::handleEVT(const IO_PKG::EVTInstruction &instr) {
 
   // Add event handler
   current_event_number++;
+}
+
+void Io::handleEVTX(const IO_PKG::EVTXInstruction &instr) {
+  out.output("evtx (slot=%d, port=%d, init_addr_high=%d)\n", instr.slot,
+             instr.port, instr.init_addr_high);
+  agus[instr.port].setInitialAddressHigh(
+      instr.init_addr_high, IO_PKG::IO_INSTR_EVT_INIT_ADDR_BITWIDTH);
+}
+
+void Io::handleEVTS(const IO_PKG::EVTSInstruction &instr) {
+  out.output("evts (slot=%d, port=%d, stride=%d, loop_level=%d)\n", instr.slot,
+             instr.port, instr.stride, instr.loop_level);
+  // One more loop dimension; issue after the port's evt.
+  portOffsetTerms[instr.port].push_back({instr.stride, instr.loop_level});
 }
 
 void Io::handleREP(const IO_PKG::REPInstruction &instr) {
@@ -193,6 +209,7 @@ void Io::bulkInput() {
   out.output("Received bulk data (size=%dbits, data=%s)\n", dataEvent->size,
              formatRawDataToWords(dataEvent->payload).c_str());
   io_output_data_buffer = dataEvent->payload;
+  delete dataEvent;
 
   logTraceEvent("io_bulk_input", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_output_data_buffer)}});
@@ -216,6 +233,7 @@ void Io::bulkOutput() {
                readResp->address, readResp->data.size() * 8,
                formatRawDataToWords(readResp->data).c_str());
     io_input_data_buffer = readResp->data;
+    delete readResp;
     if (io_input_data_buffer.size() == 0) {
       out.fatal(CALL_INFO, -1, "No data received from IO\n");
     }

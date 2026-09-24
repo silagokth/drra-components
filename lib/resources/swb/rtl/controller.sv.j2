@@ -49,7 +49,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // ─────────────────────────────────────────────────────────────────────────
   // SWB and ROUTE Configuration
   // ─────────────────────────────────────────────────────────────────────────
-  assign swb_conf_link       = swb_instr._source;
+  assign swb_conf_link       = swb_instr._target;  // slot_link is target-keyed
   assign route_in_conf_link  = route_instr._source;
   assign route_out_conf_link = route_instr._source;
 
@@ -65,7 +65,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     route_out_configs = '{default: '{default: '0}};
 
     if (swb_valid) begin
-      swb_configs[swb_instr._option].slot_link[swb_instr._source] = swb_instr._target;
+      swb_configs[swb_instr._option].slot_link[swb_instr._target] = swb_instr._source;
       swb_conf_valid = 1;
       option_index   = swb_instr._option;
     end else if (route_valid) begin

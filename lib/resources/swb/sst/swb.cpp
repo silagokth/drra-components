@@ -284,7 +284,8 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
                  "data=%s)\n",
                  id, target, dataEvent->size,
                  formatRawDataToWords(dataEvent->payload).c_str());
-      slot_links[target]->send(dataEvent);
+      slot_links[target]->send(dataEvent); // ownership passes on
+      return;
     } else if (sending_routes_maps[currentFsmOption_route].count(id)) {
       for (auto target : sending_routes_maps[currentFsmOption_route][id]) {
         if (target != CellDirection::C) {
@@ -299,7 +300,7 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
           DataEvent *dataEventCopy = dataEvent->clone();
           cell_links[target]->send(dataEventCopy);
         } else {
-          handleCellEventWithID(event, CellDirection::C);
+          forwardCellEvent(event, CellDirection::C);
         }
       }
     } else {
@@ -311,7 +312,8 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
                      "data=%s)\n",
                      dataEvent->size,
                      formatRawDataToWords(dataEvent->payload).c_str());
-          handleCellEventWithID(event, CellDirection::C);
+          forwardCellEvent(event, CellDirection::C);
+          delete event;
           return;
         }
       }
@@ -337,9 +339,20 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
       }
     }
   }
+  // Handler-delivered events are owned by the receiver. Only the swb
+  // connection branch above passes the original on; every other path sends
+  // clones (or drops the data), so the original must be freed here.
+  delete event;
 }
 
 void Swb::handleCellEventWithID(Event *event, uint32_t id) {
+  forwardCellEvent(event, id);
+  delete event;
+}
+
+// Forwards clones of `event` to the slots routed from direction `id`. Does not
+// take ownership of `event`.
+void Swb::forwardCellEvent(Event *event, uint32_t id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   // Verify if the slot is mapped to another slot
   if (id != CellDirection::C) {

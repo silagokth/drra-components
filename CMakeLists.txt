@@ -4,6 +4,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Without a build type CMake passes no -O flag, and the SST models run ~7x
+# slower unoptimized.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE
+      Release
+      CACHE STRING "Build type" FORCE)
+endif()
+
 # Add RPATH settings for better portability
 set(CMAKE_INSTALL_RPATH "$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)

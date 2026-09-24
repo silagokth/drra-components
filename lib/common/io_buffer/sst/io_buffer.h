@@ -27,7 +27,7 @@ public:
     params.push_back(
         {"printFrequency", "Frequency to print tick messages", "1000"});
     params.push_back({"io_data_width", "Width of the IO data", "256"});
-    params.push_back({"io_depth", "Depth of the IO buffer", "65536"});
+    params.push_back({"io_depth", "Depth of the IO buffer", "262144"});
     params.push_back({"word_bitwidth", "Width of the word", "16"});
     params.push_back({"access_time", "Time to access the IO buffer", "0ns"});
     params.push_back(

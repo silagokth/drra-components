@@ -1,0 +1,38 @@
+// vesyla_template_start module_head
+module {{name}}_{{fingerprint}}_adder
+import {{name}}_{{fingerprint}}_pkg::*;
+// vesyla_template_end module_head
+(
+    input logic signed [BITWIDTH-1:0] in1,
+    input logic signed [BITWIDTH-1:0] in2,
+    output logic signed [BITWIDTH-1:0] out,
+    output logic overflow,
+    output logic underflow,
+    input logic saturate
+);
+
+  localparam logic signed [BITWIDTH-1:0] MaxResult = (1 << (BITWIDTH - 1)) - 1;
+  localparam logic signed [BITWIDTH-1:0] MinResult = -MaxResult - 1;
+  logic signed [BITWIDTH:0] temp_add;
+
+  always_comb begin
+    overflow = 0;
+    underflow = 0;
+    out = 0;
+    temp_add = in1 + in2;
+    // saturation logic
+    if (saturate) begin
+      if (temp_add > MaxResult) begin
+        out = MaxResult;
+        overflow = 1;
+      end else if (temp_add < MinResult) begin
+        out = MinResult;
+        underflow = 1;
+      end else begin
+        out = temp_add[BITWIDTH-1:0];
+      end
+    end else begin
+      out = temp_add[BITWIDTH-1:0];
+    end
+  end
+endmodule

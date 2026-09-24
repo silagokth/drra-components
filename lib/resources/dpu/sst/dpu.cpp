@@ -46,6 +46,7 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     Event *event = data_links[i]->recv();
     if (event) {
       handleEventWithSlotID(event, i);
+      delete event;
     }
   }
 
@@ -58,17 +59,12 @@ bool Dpu::clockTick(SST::Cycle_t currentCycle) {
     fsmHandlers[current_fsm]();
 
     // Update FSM for next execution based on AGU output (one cycle delayed).
-    for (const auto &[port_id, is_active] : active_ports) {
-      if (!is_active || port_id != 0) {
-        continue;
-      }
-
+    if (isPortActive(0)) {
       int64_t agu_address = agus[0].getAddressForCycle(getPortActiveCycle(0));
       if (agu_address >= 0 && agu_address != current_fsm) {
         current_fsm = agu_address;
         out.output(" FSM switched to FSM #%u\n", current_fsm);
       }
-      break;
     }
   }
 
@@ -83,13 +79,6 @@ void Dpu::handleActivation(uint32_t slot_id, uint32_t ports) {
 void Dpu::handleEventWithSlotID(SST::Event *event, uint32_t slot_id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   if (dataEvent) {
-    bool anyPortActive = false;
-    for (const auto &port : active_ports) {
-      if (isPortActive(port.first)) {
-        anyPortActive = true;
-        break;
-      }
-    }
     if (dataEvent->portType != DataEvent::PortType::WriteNarrow)
       out.fatal(CALL_INFO, -1, "Invalid port type\n");
 

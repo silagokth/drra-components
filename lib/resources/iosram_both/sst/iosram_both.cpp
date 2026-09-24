@@ -77,15 +77,18 @@ void Iosram_both::handleActivation(uint32_t slot_id, uint32_t ports) {
 
 void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
   out.output(
-      "evt (slot=%d, port=%d, option=%d, init_addr_sd=%d, init_addr=%d)\n",
-      instr.slot, instr.port, instr.option, instr.init_addr_sd,
-      instr.init_addr);
+      "evt (slot=%d, port=%d, option=%d, init_addr=%d, stride=%d, "
+      "loop_level=%d)\n",
+      instr.slot, instr.port, instr.option, instr.init_addr, instr.stride,
+      instr.loop_level);
 
-  // Set initial address
   uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
   agus[port_num].setInitialAddress(instr.init_addr);
-  out.output("Set initial address for port %d to %d\n", port_num,
-             instr.init_addr);
+  // Offset term 0; evts appends the rest.
+  portOffsetTerms[port_num] = {{instr.stride, instr.loop_level}};
+  out.output(
+      "Set initial address for port %d to %d (stride %d, loop_level %d)\n",
+      port_num, instr.init_addr, instr.stride, instr.loop_level);
 
   std::string event_name;
   switch (port_num) {
@@ -162,6 +165,22 @@ void Iosram_both::handleEVT(const IOSRAM_BOTH_PKG::EVTInstruction &instr) {
 
 void Iosram_both::handleCONF(const IOSRAM_BOTH_PKG::CONFInstruction &instr) {
   out.output("conf (slot=%d)\n", instr.slot);
+}
+
+void Iosram_both::handleEVTX(const IOSRAM_BOTH_PKG::EVTXInstruction &instr) {
+  out.output("evtx (slot=%d, port=%d, init_addr_high=%d)\n", instr.slot,
+             instr.port, instr.init_addr_high);
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
+  agus[port_num].setInitialAddressHigh(
+      instr.init_addr_high, IOSRAM_BOTH_PKG::IOSRAM_BOTH_INSTR_EVT_INIT_ADDR_BITWIDTH);
+}
+
+void Iosram_both::handleEVTS(const IOSRAM_BOTH_PKG::EVTSInstruction &instr) {
+  out.output("evts (slot=%d, port=%d, stride=%d, loop_level=%d)\n", instr.slot,
+             instr.port, instr.stride, instr.loop_level);
+  // Append an extra offset term (one more nested-loop dimension) to the port.
+  uint32_t port_num = getRelativePortNum(instr.slot, instr.port);
+  portOffsetTerms[port_num].push_back({instr.stride, instr.loop_level});
 }
 
 void Iosram_both::handleREP(const IOSRAM_BOTH_PKG::REPInstruction &instr) {
@@ -274,6 +293,7 @@ void Iosram_both::writeToSRAM() {
                ioReadResponse->address, ioReadResponse->data.size() * 8,
                formatRawDataToWords(ioReadResponse->data).c_str());
     from_io_data_buffer = ioReadResponse->data;
+    delete ioReadResponse;
     if (from_io_data_buffer.size() == 0) {
       out.fatal(CALL_INFO, -1, "No data from IO\n");
     }
@@ -351,7 +371,28 @@ void Iosram_both::writeBulk() {
           getPortActiveCycle(DSU_RELATIVE_PORT::DSU_PORT_WRITE_BULK));
 
   // Check if some data was received
-  DataEvent *dataEvent = dynamic_cast<DataEvent *>(data_links[1]->recv());
+  // Drain the link queue and keep the NEWEST event, the way Rf::writeWide
+  // does. A single recv() pops the OLDEST queued event, which is only correct
+  // when the producer emits exactly one event per write. A combinational
+  // resource on the drain path (e.g. a vpu applying a fused ReLU) drives its
+  // registered output every cycle, so the queue builds a backlog and a
+  // one-recv() write reads a stale bulk -- the RTL wire always carries the
+  // latest value, so the newest event is the faithful one.
+  DataEvent *dataEvent = nullptr;
+  {
+    SST::Event *temp_event = nullptr;
+    do {
+      temp_event = data_links[1]->recv();
+      if (temp_event != nullptr) {
+        DataEvent *newest = dynamic_cast<DataEvent *>(temp_event);
+        if (newest != nullptr) {
+          if (dataEvent != nullptr)
+            delete dataEvent;
+          dataEvent = newest;
+        }
+      }
+    } while (temp_event != nullptr);
+  }
   if (dataEvent == nullptr)
     out.fatal(CALL_INFO, -1, "No data received\n");
 
@@ -394,4 +435,6 @@ void Iosram_both::writeBulk() {
   logTraceEvent("memory", slot_id, true, 'E', {});
   logTraceEvent("memory", slot_id, true, 'B',
                 {{"memory", dumpBackendContent()}});
+
+  delete dataEvent;
 }
