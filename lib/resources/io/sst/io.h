@@ -51,8 +51,6 @@ public:
   using DRRAResource::format;
   void handleCONF(const IO_PKG::CONFInstruction &instr);
   void handleEVT(const IO_PKG::EVTInstruction &instr);
-  void handleEVTX(const IO_PKG::EVTXInstruction &instr);
-  void handleEVTS(const IO_PKG::EVTSInstruction &instr);
   void handleREP(const IO_PKG::REPInstruction &instr);
   void handleTRANS(const IO_PKG::TRANSInstruction &instr);
 

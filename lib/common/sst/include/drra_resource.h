@@ -1,6 +1,5 @@
 #pragma once
 
-#include "activationEvent.h"
 #include "drra_agu.h"
 #include "drra_component.h"
 #include "timingModel.h"
@@ -133,11 +132,6 @@ protected:
   // Activation
   PortVector<uint8_t> active_ports; // bool; uint8_t avoids vector<bool>
   PortVector<uint32_t> active_ports_cycles;
-  // Loop counters from the most recent activation, depth-indexed. Each port
-  // holds (stride, loop_level) offset terms that activatePort resolves against
-  // them; empty = no offset.
-  uint32_t currentLoopVars[ActEvent::NUM_LOOP_LEVELS] = {0, 0, 0};
-  std::map<uint32_t, std::vector<std::pair<uint64_t, uint32_t>>> portOffsetTerms;
 
   // Event execution
   std::vector<std::shared_ptr<const TimingEvent>> events_for_cycle;
