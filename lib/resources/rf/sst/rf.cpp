@@ -33,12 +33,14 @@ Rf::Rf(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
       RF_PKG::EVT_PORT_BULK_WRITE, 8, "rf_write_wide",
       [this](int64_t address) { writeWide(address); }, register_file_size);
 
-  std::string registers_content;
-  for (auto &reg : registers) {
-    registers_content += formatRawDataToWords(reg.second) + " ";
+  if (debug_enabled) {
+    std::string registers_content;
+    for (auto &reg : registers) {
+      registers_content += formatRawDataToWords(reg.second) + " ";
+    }
+    logTraceEvent("registers", slot_id, true, 'B',
+                  {{"registers", registers_content}});
   }
-  logTraceEvent("registers", slot_id, true, 'B',
-                {{"registers", registers_content}});
 }
 
 void Rf::handleCONF(const RF_PKG::CONFInstruction &instr) {
@@ -54,6 +56,8 @@ void Rf::handleCONF(const RF_PKG::CONFInstruction &instr) {
 }
 
 void Rf::logRegisters() {
+  if (!debug_enabled)
+    return;
   std::string registers_content;
   for (auto &reg : registers) {
     registers_content += formatRawDataToWords(reg.second) + " ";
@@ -159,6 +163,8 @@ void Rf::writeWide(int64_t address) {
                  {"data", formatRawDataToWords(data_event->payload)}});
 
   logRegisters();
+
+  delete data_event;
 }
 
 void Rf::writeNarrow(int64_t address) {
@@ -198,4 +204,6 @@ void Rf::writeNarrow(int64_t address) {
                  {"data", formatRawDataToWords(data_event->payload)}});
 
   logRegisters();
+
+  delete data_event;
 }

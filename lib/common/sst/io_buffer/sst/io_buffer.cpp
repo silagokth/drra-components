@@ -14,7 +14,7 @@ IOBuffer::IOBuffer(SST::ComponentId_t id, SST::Params &params) : Component(id) {
   clock = params.find<std::string>("clock", "100MHz");
   printFrequency = params.find<SST::Cycle_t>("printFrequency", 1000);
   io_data_width = params.find<uint32_t>("io_data_width", 256);
-  io_depth = params.find<uint32_t>("io_depth", 65536);
+  io_depth = params.find<uint32_t>("io_depth", 262144);
   word_bitwidth = params.find<uint32_t>("word_bitwidth", 16);
   access_time = params.find<std::string>("access_time", "0ns");
   num_columns = params.find<uint32_t>("num_columns", 1);
@@ -135,6 +135,7 @@ void IOBuffer::handleEventFromColumn(SST::Event *event, uint32_t column_id) {
                readReq->address, readReq->size * 8,
                formatRawDataToWords(data).c_str());
 
+    delete event; // handler-delivered events are owned by the receiver
     return;
   }
 
@@ -152,6 +153,8 @@ void IOBuffer::handleEventFromColumn(SST::Event *event, uint32_t column_id) {
       backend->set(writeReq->address, writeReq->data.size(), writeReq->data);
     }
 
+    delete event;
     return;
   }
+  delete event;
 }

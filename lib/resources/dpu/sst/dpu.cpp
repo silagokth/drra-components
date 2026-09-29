@@ -41,6 +41,7 @@ void Dpu::logic(uint32_t subcycle) {
     Event *event = data_links[i]->recv();
     if (event) {
       handleEventWithSlotID(event, i);
+      delete event;
     }
   }
 

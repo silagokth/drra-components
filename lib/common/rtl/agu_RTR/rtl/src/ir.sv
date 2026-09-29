@@ -37,8 +37,11 @@ module ir
   logic [ADDRESS_WIDTH-1:0] level_addr      [NUMBER_IR];
   logic [ADDRESS_WIDTH-1:0] level_addr_next [NUMBER_IR];
 
-  logic [$clog2(NUMBER_IR)-1:0] active_delay_level;
-  logic [$clog2(NUMBER_IR)-1:0] active_delay_level_next;
+  // $clog2 is 0 when NUMBER_IR==1, which would make an illegal [-1:0] range;
+  // clamp to a 1-bit index so IR=1 (a single level) elaborates cleanly.
+  localparam int IR_IDX_W = (NUMBER_IR > 1) ? $clog2(NUMBER_IR) : 1;
+  logic [IR_IDX_W-1:0] active_delay_level;
+  logic [IR_IDX_W-1:0] active_delay_level_next;
 
   // Check wrap conditions. An unconfigured level (iter == 0) is treated
   // as "perpetually at_last" so it never blocks the cascade or the

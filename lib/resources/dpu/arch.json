@@ -12,6 +12,18 @@
     {
       "name": "IS_SIGNED",
       "value": 1
+    },
+    {
+      "name": "NUMBER_IR",
+      "value": 4
+    },
+    {
+      "name": "NUMBER_MT",
+      "value": 3
+    },
+    {
+      "name": "NUMBER_OR",
+      "value": 4
     }
   ],
   "required_parameters": [

@@ -35,6 +35,10 @@
             {
               "key": 10,
               "val": "mac"
+            },
+            {
+              "key": 13,
+              "val": "max_min_acc"
             }
           ]
         },

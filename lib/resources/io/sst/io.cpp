@@ -72,6 +72,7 @@ void Io::bulkInput(int64_t address) {
   out.output("Received bulk data (size=%dbits, data=%s)\n", dataEvent->size,
              formatRawDataToWords(dataEvent->payload).c_str());
   io_output_data_buffer = dataEvent->payload;
+  delete dataEvent;
 
   logTraceEvent("io_bulk_input", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_output_data_buffer)}});
@@ -87,6 +88,7 @@ void Io::bulkOutput(int64_t address) {
                readResp->address, readResp->data.size() * 8,
                formatRawDataToWords(readResp->data).c_str());
     io_input_data_buffer = readResp->data;
+    delete readResp;
     if (io_input_data_buffer.size() == 0) {
       out.fatal(CALL_INFO, -1, "No data received from IO\n");
     }

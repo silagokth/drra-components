@@ -66,7 +66,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   route_receive_config_t route_in_configs  [NUM_OPTIONS];
   route_send_config_t    route_out_configs [NUM_OPTIONS];
 
-  assign swb_conf_link       = swb_instr._source;
+  assign swb_conf_link       = swb_instr._target;  // slot_link is target-keyed
   assign route_in_conf_link  = route_instr._source;
   assign route_out_conf_link = route_instr._source;
 
@@ -82,7 +82,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     route_out_configs = '{default: '{default: '0}};
 
     if (swb_valid) begin
-      swb_configs[swb_instr._option].slot_link[swb_instr._source] = swb_instr._target;
+      swb_configs[swb_instr._option].slot_link[swb_instr._target] = swb_instr._source;
       swb_conf_valid = 1;
       option_index   = swb_instr._option;
     end else if (route_valid) begin
@@ -134,9 +134,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // ─────────────────────────────────────────────────────────────────────────
   // Word channel crossbar
   // ─────────────────────────────────────────────────────────────────────────
+  // Driven per TARGET channel: each channel takes its configured source, or 0
+  // when unconfigured (also gives every channel a default assignment, so no
+  // latches are inferred).
   always_comb
     for (int i = 0; i < NUM_SLOTS; i++)
-      word_channels_out[curr_swb_configs.slot_link[i]] = word_channels_in[i];
+      word_channels_out[i] = curr_swb_configs.link_valid[i]
+                           ? word_channels_in[curr_swb_configs.slot_link[i]]
+                           : '0;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Bulk channel routing

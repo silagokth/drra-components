@@ -64,6 +64,7 @@ private:
   // Communication handlers
   void handleSlotEventWithID(Event *event, uint32_t id);
   void handleCellEventWithID(Event *event, uint32_t id);
+  void forwardCellEvent(Event *event, uint32_t id);
 
   // The SWB's own configuration store (see conf_manager.h for why it is not
   // the common one). Written by CONF, read at the option selected below.

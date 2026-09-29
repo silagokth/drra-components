@@ -210,6 +210,7 @@ void DRRAResource::handleEventBase(Event *event) {
     handleActivation(actEvent->slot_id, actEvent->ports);
     logTraceEvent("activation", slot_id, true, 'X',
                   {{"ports", std::to_string(actEvent->ports)}});
+    delete event;
     return;
   }
 
@@ -219,8 +220,11 @@ void DRRAResource::handleEventBase(Event *event) {
   InstrEvent *instrEvent = dynamic_cast<InstrEvent *>(event);
   if (instrEvent) {
     instruction_queue.push_back(instrEvent->instruction);
+    delete event;
     return;
   }
+  // A handler-delivered event is owned by the receiver.
+  delete event;
 }
 
 void DRRAResource::activatePortsForSlot(uint32_t slot_id, uint32_t ports) {

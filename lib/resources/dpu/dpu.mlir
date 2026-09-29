@@ -91,6 +91,8 @@ module @dpu {
       return %s : i16
     }
 
+    // conf.mode 13 (max_min_acc) has no pattern yet, so it is never selected.
+
     // Clears the accumulate register. It returns the cleared value as well as
     // storing it, because that value is what the program carries into the loop
     // as the iter_args initialiser -- the match roots on whatever produces it.

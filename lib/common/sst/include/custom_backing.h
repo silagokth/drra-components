@@ -13,7 +13,7 @@
 #include <unistd.h>
 
 #define MAX_WIDTH 1024
-#define MAX_DEPTH 65536
+#define MAX_DEPTH 262144
 
 namespace SST {
 namespace MemHierarchy {

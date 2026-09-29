@@ -20,6 +20,7 @@ void handleIdle(Dpu *dpu);
 void handleAdd(Dpu *dpu);
 void handleMult(Dpu *dpu);
 void handleMAC(Dpu *dpu);
+void handleMaxAcc(Dpu *dpu);
 } // namespace Impl
 
 // Utility functions for arithmetic operations

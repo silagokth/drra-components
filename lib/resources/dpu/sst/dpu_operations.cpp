@@ -23,7 +23,9 @@ createHandlers(Dpu *dpu) {
       {DPU_PKG::CONF_MODE::CONF_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
-      {DPU_PKG::CONF_MODE::CONF_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }}};
+      {DPU_PKG::CONF_MODE::CONF_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_MAX_MIN_ACC,
+       [dpu] { Impl::handleMaxAcc(dpu); }}};
 }
 
 namespace Impl {
@@ -57,6 +59,23 @@ void handleMAC(Dpu *dpu) {
     int64_t result = add_sat(
         dpu->vectorToInt64(acc_reg),
         mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
+    acc_reg = dpu->int64ToVector(result);
+    return result;
+  });
+}
+
+void handleMaxAcc(Dpu *dpu) {
+  // Accumulating max, mirroring logic.sv.j2 CONF_MODE_MAX_MIN_ACC: acc = max(acc,
+  // in0), in1 ignored. The accumulator shares the MAC register, so EVT_PORT_RST
+  // clears it and an empty register reads as 0: the reset value is 0 and a window
+  // yields max(0, x1..xn) (== max(x1..xn) for non-negative input). vectorToInt64
+  // sign-extends, so the compare is signed like the RTL's.
+  // handleOperation still requires BOTH data buffers to be non-empty, so the
+  // schedule must keep in1 driven (the max-pool emitter keeps the kernel read).
+  dpu->handleOperation("MAX_MIN_ACC", [dpu](int64_t a, int64_t /*b*/) {
+    auto &acc_reg = dpu->getAccumulateRegister();
+    int64_t acc = dpu->vectorToInt64(acc_reg);
+    int64_t result = (a > acc) ? a : acc;
     acc_reg = dpu->int64ToVector(result);
     return result;
   });

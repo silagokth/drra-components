@@ -188,7 +188,7 @@
         {
           "name": "operand2",
           "comment": "Second operand.",
-          "bitwidth": 8
+          "bitwidth": 13
         },
         {
           "name": "result",
