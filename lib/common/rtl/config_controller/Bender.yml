@@ -1,0 +1,5 @@
+package:
+  name: config_controller
+
+sources:
+  - ./rtl/src/config_controller.sv

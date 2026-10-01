@@ -38,8 +38,11 @@ function(cargo_build FOLDER)
   get_filename_component(FOLDER_NAME ${FOLDER} NAME)
   message(STATUS "Found Rust project: ${FOLDER}")
 
-  # Generate a unique hash for this package
-  string(SHA256 CRATE_HASH "${FOLDER}")
+  # Generate a unique hash for this package. Key it on the consumer, not on
+  # ${FOLDER}: several components share one crate (see drra_compile_util), and
+  # each of them needs its own temp copy, its own Cargo package name and its own
+  # isa.json below.
+  string(SHA256 CRATE_HASH "${CMAKE_CURRENT_SOURCE_DIR}")
 
   # Create temporary directory and copy the folder contents
   file(MAKE_DIRECTORY "${CMAKE_COMPONENTS_TEMP_DIR}/${CRATE_HASH}")
@@ -78,6 +81,26 @@ function(cargo_build FOLDER)
   add_dependencies(drra copy_executable_${CRATE_HASH})
 endfunction()
 
+# Build the compile_util crate for the component in the current source dir.
+#
+# Components share lib/common/compile_util. A component that needs different
+# behaviour overrides it by shipping its own compile_util/ folder, in the same
+# layout as the common one; that folder then wins.
+function(drra_compile_util)
+  set(LOCAL_COMPILE_UTIL "${CMAKE_CURRENT_SOURCE_DIR}/compile_util")
+  set(COMMON_COMPILE_UTIL "${CMAKE_SOURCE_DIR}/lib/common/compile_util")
+
+  if(EXISTS "${LOCAL_COMPILE_UTIL}/Cargo.toml")
+    message(STATUS "Using local compile_util: ${LOCAL_COMPILE_UTIL}")
+    cargo_build(${LOCAL_COMPILE_UTIL})
+  elseif(EXISTS "${COMMON_COMPILE_UTIL}/Cargo.toml")
+    cargo_build(${COMMON_COMPILE_UTIL})
+  else()
+    message(FATAL_ERROR "No compile_util found at ${LOCAL_COMPILE_UTIL} "
+                        "or ${COMMON_COMPILE_UTIL}")
+  endif()
+endfunction()
+
 function(add_drra_folder TYPE_NAME)
   # Get all subdirectories
   file(
@@ -106,6 +129,12 @@ function(add_drra_folder TYPE_NAME)
         # Copy all JSON files
         file(GLOB JSON_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/*.json")
         file(COPY ${JSON_FILES} DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
+
+        # Copy the functional description, if the component ships one. The
+        # instruction selector loads these from the installed library, so they
+        # have to travel with arch.json / isa.json rather than stay in-tree.
+        file(GLOB MLIR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/*.mlir")
+        file(COPY ${MLIR_FILES} DESTINATION ${CMAKE_COMPONENTS_LIBRARY_DIR})
       endif()
 
       # Copy RTL folder if it exists

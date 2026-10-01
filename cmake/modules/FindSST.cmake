@@ -142,9 +142,10 @@ function(sst_build)
     set(ISA_JSON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../isa.json")
     set(ARCH_JSON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../arch.json")
 
-    # Get template path
-    set(JINJA_TEMPLATE_PATH
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../../common/sst/template")
+    # Get template path. Absolute rather than relative to the caller: the
+    # depth from a component's sst/ folder up to lib/ is not the same for a
+    # resource and for a component nested under lib/common/sst.
+    set(JINJA_TEMPLATE_PATH "${CMAKE_SOURCE_DIR}/lib/common/sst/template")
 
     cmake_parse_arguments(SST_BUILD "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})

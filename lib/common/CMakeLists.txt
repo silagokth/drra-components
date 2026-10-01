@@ -1,6 +1,10 @@
 find_package(DRRAUtils REQUIRED)
 
-# Add the common library
+# Descend into the two halves of the common library: rtl/ (Bender packages,
+# copied to the output tree) and sst/ (C++ compiled into libdrra.so).
+# compile_util/ and jinja/ have no CMakeLists.txt and belong to neither --
+# compile_util is built per-resource by drra_compile_util(), and jinja is
+# copied wholesale below.
 add_drra_folder(common)
 
 # Copy jinja folder to output directory

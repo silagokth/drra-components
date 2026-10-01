@@ -1,0 +1,9 @@
+package:
+  name: agu_array
+
+dependencies:
+  agu_rtr: { path: ../agu_RTR }
+  agu_controller: { path: ../agu_controller }
+
+sources:
+  - ./rtl/src/agu_array.sv

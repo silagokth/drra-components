@@ -13,7 +13,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic rst_n_0,
     input logic instr_en_0,
     input logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
-    input logic [3:0] activate_0,
+    input logic [FSM_PER_SLOT-1:0] activate_0,
     input logic [WORD_BITWIDTH-1:0] word_data_in_0,
     output logic [WORD_BITWIDTH-1:0] word_data_out_0,
     input logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
@@ -22,7 +22,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input logic rst_n_1,
     input logic instr_en_1,
     input logic [RESOURCE_INSTR_WIDTH-1:0] instr_1,
-    input logic [3:0] activate_1,
+    input logic [FSM_PER_SLOT-1:0] activate_1,
     input logic [WORD_BITWIDTH-1:0] word_data_in_1,
     output logic [WORD_BITWIDTH-1:0] word_data_out_1,
     input logic [BULK_BITWIDTH-1:0] bulk_data_in_1,
@@ -42,68 +42,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
   assign agu_activate[0] = activate_0[0];
   assign agu_activate[1] = activate_0[1];
 
-  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction;
+  logic [INSTRUCTION_PAYLOAD_WIDTH-1:0] instruction_payload;
   logic instruction_valid;
-  assign instruction = instr_0;
+  assign instruction_payload = instr_0;
   assign instruction_valid = instr_en_0;
 
-  // Assign inputs
-  logic [WORD_BITWIDTH-1:0] in0, in1, out0;
-  assign in0 = word_data_in_0;
-  assign in1 = word_data_in_1;
-
-  logic [DPU_IMMEDIATE_WIDTH-1:0] immediate;
-  logic [     DPU_MODE_WIDTH-1:0] dpu_mode;
-
-  // Configuration signals from controller to AGU_RTR
-  agu_cfg_if #(
-      .NUMBER_IR        (NUMBER_IR),
-      .NUMBER_MT        (NUMBER_MT),
-      .NUMBER_OR        (NUMBER_OR),
-      .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
-      .REP_ITER_WIDTH   (REP_ITER_WIDTH),
-      .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-  ) agu_configs [NUM_AGUS] ();
-
-  logic [NUM_AGUS-1:0]                    agu_valid;
-  logic [NUM_AGUS-1:0]                    agu_done;
-  logic                                   reset_accumulator;
-  assign reset_accumulator = agu_valid[1];
-
-  // Per-AGU address output, hoisted out of the generate block so consumers
-  // (e.g. dpu_mode_selector below) can reference it without a hierarchical
-  // path into `gen_agu[idx].agu_address`.
-  logic [ADDRESS_WIDTH-1:0] agu_address [NUM_AGUS];
-
-  genvar idx;
-  generate
-    for (idx = 0; idx < NUM_AGUS; idx++) begin : gen_agu
-      localparam int AGU_ADDR_WIDTH = (idx == 0) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
-      logic [AGU_ADDR_WIDTH-1:0] agu_addr_inner;
-      agu_rtr #(
-          .ADDRESS_WIDTH(AGU_ADDR_WIDTH),
-          .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
-          .REP_ITER_WIDTH(REP_ITER_WIDTH),
-          .REP_STEP_WIDTH(REP_STEP_WIDTH),
-          .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
-          .NUMBER_OR(NUMBER_OR),
-          .NUMBER_MT(NUMBER_MT),
-          .NUMBER_IR(NUMBER_IR)
-      ) agu_rtr_inst (
-          .clk(clk),
-          .rst_n(rst_n),
-          .enable(1'b1),
-          .activation(agu_activate[idx]),
-          .cfg(agu_configs[idx]),
-          .addr_valid(agu_valid[idx]),
-          .addr(agu_addr_inner),
-          .done(agu_done[idx])
-      );
-      assign agu_address[idx] = ADDRESS_WIDTH'(agu_addr_inner);
-    end
-  endgenerate
-
+  // Decoded instructions
   logic conf_valid;
   conf_t conf_instr;
   logic evt_valid;
@@ -113,12 +57,17 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic trans_valid;
   trans_t trans_instr;
 
-  dpu_decoder decoder_inst (
+  // Configuration registers, and the per-AGU address and strobe
+  logic [CONF_NUM_REGISTERS-1:0][CONF_REG_WIDTH-1:0] config_regs;
+  logic [NUM_AGUS-1:0]                    agu_valid;
+  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
+
+  {{name}}_{{fingerprint}}_decoder decoder_inst (
     .clk(clk),
     .rst_n(rst_n),
 
     .instruction_valid(instruction_valid),
-    .instruction(instruction),
+    .instruction_payload(instruction_payload),
 
     .conf_valid(conf_valid),
     .conf_instr(conf_instr),
@@ -130,9 +79,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .trans_instr(trans_instr)
   );
 
-  agu_controller #(
-    .ADDRESS_WIDTH(ADDRESS_WIDTH),
+  // Shared AGU subsystem (lib/common/rtl/agu_array): controller + one agu_rtr per
+  // port. The two AGUs address different things -- AGU 0 walks the mode table,
+  // AGU 1 only strobes the accumulator reset -- so they get individual address
+  // widths. dpu has no init-address path, so evt_init_addr is tied off.
+  agu_array #(
     .NUM_AGUS(NUM_AGUS),
+    .ADDRESS_WIDTH(ADDRESS_WIDTH),
+    .AGU_ADDR_WIDTH('{AGU_DPU_ADDR_WIDTH, AGU_RST_ADDR_WIDTH}),
     .NUMBER_IR(NUMBER_IR),
     .NUMBER_MT(NUMBER_MT),
     .NUMBER_OR(NUMBER_OR),
@@ -140,12 +94,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .REP_ITER_WIDTH(REP_ITER_WIDTH),
     .REP_STEP_WIDTH(REP_STEP_WIDTH),
     .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
-  ) controller_inst (
+  ) agu_array_inst (
     .clk  (clk),
     .rst_n(rst_n),
 
-    // Single instruction slot: EVT port is used directly. dpu has no init
-    // address path, so evt_init_addr is tied off and init_address is unused.
+    // Single instruction slot: EVT port is used directly.
     .evt_valid(evt_valid),
     .evt_port(evt_instr._port),
     .evt_init_addr('0),
@@ -159,139 +112,53 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .trans_valid(trans_valid),
     .trans_delay(trans_instr._delay),
 
-    .agu_done(agu_done),
-    .agu_configs(agu_configs),
-    .init_address()
+    .activation(agu_activate),
+    .addr_valid(agu_valid),
+    .addr(agu_address),
+    .done(),
+    .is_configured()
   );
 
-  dpu_mode_selector mode_selector_inst (
-    .clk(clk),
+  // Configuration registers (lib/common/rtl/config_controller). One per FSM state,
+  // addressed by the CONF instruction's own option field. Selecting between
+  // them and interpreting their contents is the logic module's job.
+  config_controller #(
+    .NUM_REGISTERS(CONF_NUM_REGISTERS),
+    .REG_WIDTH    (CONF_REG_WIDTH)
+  ) config_inst (
+    .clk  (clk),
     .rst_n(rst_n),
 
-    .conf_valid(conf_valid),
-    .conf_instr(conf_instr),
+    .write_valid(conf_valid),
+    .write_addr (conf_instr._option),
+    // Each field is widened to its declared width so the concatenation is
+    // exactly CONF_REG_WIDTH regardless of the ISA's segment sizes.
+    .write_data ({DPU_MODE_WIDTH'(conf_instr._mode),
+                  DPU_IMMEDIATE_WIDTH'(conf_instr._immediate)}),
 
-    .dpu_agu_valid(agu_valid[0]),
-    .dpu_agu_address(agu_address[0]),
-
-    .dpu_mode(dpu_mode),
-    .immediate(immediate)
+    .registers  (config_regs)
   );
 
-  // Calculation logic
-  logic accumulator_valid;
-  logic signed [BITWIDTH-1:0] acc0, acc0_next;
-  logic signed [BITWIDTH-1:0] acc0_current;
-  logic signed [BITWIDTH-1:0] adder_in0;
-  logic signed [BITWIDTH-1:0] adder_in1;
-  logic signed [BITWIDTH-1:0] adder_out;
-  logic signed [BITWIDTH-1:0] mult_in0;
-  logic signed [BITWIDTH-1:0] mult_in1;
-  logic signed [BITWIDTH-1:0] mult_out;
-  // CONF_MODE_MAX_MIN_ACC operands. Explicitly signed: in0 is a plain (unsigned)
-  // `logic` port, and an unsigned compare would rank -1 (0xFFFF) above 100.
-  logic signed [BITWIDTH-1:0] max_in0;
-  logic signed [BITWIDTH-1:0] max_acc_prev;
+  // Datapath. Decodes the configuration registers and runs the calculation.
+  {{name}}_{{fingerprint}}_logic logic_inst (
+    .clk  (clk),
+    .rst_n(rst_n),
 
-  assign acc0_current = (reset_accumulator | agu_activate[1]) ? '0 : acc0;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      acc0 <= '0;
-      accumulator_valid <= 1'b0;
-    end else begin
-      acc0 <= acc0_next;
-      accumulator_valid <= 1'b1;
-    end
-  end
+    .config_regs(config_regs),
 
-  always_comb begin
-    out0 = 0;
-    adder_in0 = 0;
-    adder_in1 = 0;
-    mult_in0 = 0;
-    mult_in1 = 0;
-    acc0_next = 0;
-    max_in0 = 0;
-    max_acc_prev = 0;
+    .agu_valid   (agu_valid),
+    .agu_address (agu_address),
+    .agu_activate(agu_activate),
 
-    case (dpu_mode)
-      CONF_MODE_ADD: begin
-        adder_in0 = in0;
-        adder_in1 = in1;
-        out0 = adder_out;
-      end
-      CONF_MODE_MAC: begin
-        mult_in0  = in0;
-        mult_in1  = in1;
-        adder_in0 = mult_out;
-        if (accumulator_valid) begin
-          adder_in1 = acc0_current;
-        end else begin
-          adder_in1 = '0;
-        end
-        acc0_next = adder_out;
-        out0 = adder_out;
-      end
-      CONF_MODE_MAX_MIN_ACC: begin
-        // Accumulating max: acc = max(acc, in0); in1 is ignored. Shares the MAC
-        // accumulator and its reset path: evt(port=1) forces acc0_current to 0, so
-        // the reset value is 0 and a window computes max(0, x1..xn). That equals
-        // max(x1..xn) only for non-negative input (ResNet max pool: post-ReLU). With a
-        // zero-padded window it is exactly relu(maxpool(x)) for ANY signed x. An
-        // int16-min reset would need its own reset mux here and a mode-aware clear
-        // in SST, and would still not be signed-exact with a zero halo.
-        max_in0 = $signed(in0);
-        if (accumulator_valid) begin
-          max_acc_prev = acc0_current;
-        end else begin
-          max_acc_prev = '0;
-        end
-        acc0_next = (max_in0 > max_acc_prev) ? max_in0 : max_acc_prev;
-        out0 = acc0_next;
-      end
-      CONF_MODE_MULT: begin
-        mult_in0 = in0;
-        mult_in1 = in1;
-        out0 = mult_out;
-      end
-
-      default: begin
-        out0 = '0;
-      end
-    endcase
-  end
-
-  // in future we will use ChipWare blocks for pipelined and such
-  {{name}}_{{fingerprint}}_adder adder_inst (
-      .in1(adder_in0),
-      .in2(adder_in1),
-      .saturate(1'b1),
-      .out(adder_out),
-      .overflow(), // unused
-      .underflow() // unused
+    .in0 (word_data_in_0),
+    .in1 (word_data_in_1),
+    .out0(word_data_out_0)
   );
-
-  {{name}}_{{fingerprint}}_multiplier mult_inst (
-      .in1(mult_in0),
-      .in2(mult_in1),
-      .saturate(1'b1),
-      .out(mult_out),
-      .overflow(), // unused
-      .underflow() // unused
-  );
-
-  // register output
-  logic [WORD_BITWIDTH-1:0] out0_reg;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      out0_reg <= 0;
-    end else begin
-      out0_reg <= out0;
-    end
-  end
-  assign word_data_out_0 = out0_reg;
 
 endmodule
+
+// Instruction decoder, generated from isa.json (lib/common/jinja/decoder.j2)
+{% include "decoder.j2" %}
 
 // vesyla_template_start module_tail
 {% endif %}

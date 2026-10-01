@@ -16,13 +16,50 @@ jobs:
         run: |
           rm -rf ${{ github.workspace }}/bin
 
+      # Use the AppImage built by vesyla's own CI on the branch with the same
+      # name (otherwise master), not the latest release, so a branch here is
+      # tested against the matching vesyla branch.
+      - name: Find vesyla build
+        id: vesyla
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+
+          def api(path):
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/silagokth/vesyla/" + path,
+                  headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                           "Accept": "application/vnd.github+json"})
+              with urllib.request.urlopen(req) as r:
+                  return json.load(r)
+
+          # Newest successful run on the branch that still has its AppImage.
+          for branch in dict.fromkeys([os.environ["BRANCH"], "master"]):
+              runs = api(f"actions/runs?branch={branch}&status=success&per_page=20")["workflow_runs"]
+              for run in runs:
+                  for a in api(f"actions/runs/{run['id']}/artifacts")["artifacts"]:
+                      if a["name"] == "pkg-artifacts" and not a["expired"]:
+                          print(f"Using vesyla@{branch} ({run['head_sha'][:7]}) from {run['html_url']}")
+                          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                              out.write(f"artifact_url={a['archive_download_url']}\n")
+                          raise SystemExit(0)
+              print(f"No successful vesyla build with an AppImage on {branch}")
+          raise SystemExit(1)
+          PY
+
       - name: Download vesyla
-        uses: robinraju/release-downloader@v1
-        with:
-          out-file-path: bin
-          fileName: vesyla-*.AppImage
-          repository: silagokth/vesyla
-          latest: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p ${{ github.workspace }}/bin
+          cd ${{ github.workspace }}/bin
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -o pkg-artifacts.zip "${{ steps.vesyla.outputs.artifact_url }}"
+          python3 -m zipfile -e pkg-artifacts.zip .
+          rm pkg-artifacts.zip
 
       - name: Rename vesyla AppImage
         run: |
@@ -56,12 +93,14 @@ jobs:
           token: ${{ secrets.DRRA_TEST_PAT }}
 
       - name: Check if a testing branch with the same name exists
+        # The runner reuses tests/ between runs, so local branches and
+        # remote-tracking refs can be stale: ask GitHub, and reset to what it has.
         run: |
           cd "${{ github.workspace }}/tests"
-          git fetch --all
-          if git show-ref --verify --quiet refs/remotes/origin/${{ inputs.branch }}; then
-            git checkout ${{ inputs.branch }}
-            echo "Switching to drra-tests@${{ inputs.branch }}"
+          if git ls-remote --exit-code --heads origin "${{ inputs.branch }}" >/dev/null; then
+            git fetch origin "${{ inputs.branch }}"
+            git checkout --force -B "${{ inputs.branch }}" FETCH_HEAD
+            echo "Switching to drra-tests@${{ inputs.branch }} ($(git rev-parse --short HEAD))"
           else
             echo "Using the drra-tests master branch"
           fi

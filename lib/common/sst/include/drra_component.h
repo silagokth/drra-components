@@ -1,3 +1,5 @@
+#pragma once
+
 
 #include "drra_output.h"
 

@@ -11,6 +11,16 @@
       "opcode": 0,
       "instr_type": 1,
       "segments": [
+        {
+          "name": "address",
+          "comment": "Register file address to initialise",
+          "bitwidth": 6
+        },
+        {
+          "name": "value",
+          "comment": "Word written to that address",
+          "bitwidth": 16
+        }
       ]
     },
     {

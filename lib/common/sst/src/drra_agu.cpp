@@ -77,9 +77,14 @@ DRRA_AGU &DRRA_AGU::addRepetition(uint64_t iterations, uint64_t delay,
       throw std::runtime_error("Lane index " + std::to_string(index) +
                                " out of range");
 
-    current_rep_level++;
     printLaneExpressions();
   }
+
+  // Every base repetition advances the level, outer ones included, as the RTL
+  // agu_controller does: a REPX lands on the level before the current one, so
+  // an outer repetition that did not advance it leaves the REPX nothing to
+  // find.
+  current_rep_level++;
 
   return *this;
 }
@@ -245,15 +250,7 @@ int64_t DRRA_AGU::getAddressForCycle(uint64_t cycle) {
   if (isEmpty())
     return -1;
 
-  int64_t address = timing_state->getAddressForCycle(cycle);
-  if (address < 0)
-    return address; // preserve the gap sentinel (-1)
-  // One term per loop dimension; no terms is a no-op.
-  int64_t offset = 0;
-  for (size_t t = 0; t < term_strides.size(); ++t) {
-    offset += static_cast<int64_t>(term_strides[t] * term_loop_vars[t]);
-  }
-  return address + offset;
+  return timing_state->getAddressForCycle(cycle);
 }
 
 uint64_t DRRA_AGU::getLastScheduledCycle() {

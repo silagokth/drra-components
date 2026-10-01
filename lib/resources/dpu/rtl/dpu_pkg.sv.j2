@@ -10,8 +10,14 @@ package {{name}}_{{fingerprint}}_pkg;
 
   parameter int FSM_MAX_STATES = 4;
   parameter int FSM_DELAY_WIDTH = 3;
-  parameter int DPU_MODE_WIDTH = 6;
-  parameter int DPU_IMMEDIATE_WIDTH = 8;
+  parameter int DPU_MODE_WIDTH = 5; // ISA conf._mode
+  parameter int DPU_IMMEDIATE_WIDTH = 16; // ISA conf._immediate
+
+  // Configuration registers: one per FSM state, holding mode + immediate. CONF
+  // addresses one with its `option` field and carries that register's whole
+  // contents in `mode` + `immediate`; the payload's low bit is left unused.
+  parameter int CONF_NUM_REGISTERS = FSM_MAX_STATES;
+  parameter int CONF_REG_WIDTH     = DPU_MODE_WIDTH + DPU_IMMEDIATE_WIDTH;
   parameter int BITWIDTH = 16;
 
   // AGU RTR params
@@ -21,14 +27,13 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
   // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
   parameter int REP_LEVEL_WIDTH = 3;
-  // Full REP fields assemble from a base REP (low half) plus a REPX (high
-  // half), so the widths are twice the isa.json field widths. The *_BITWIDTH
-  // params are emitted from isa.json by package.j2 above.
-  parameter int REP_DELAY_WIDTH = REP_DELAY_BITWIDTH * 2; // REP + REPX
-  parameter int REP_ITER_WIDTH = REP_ITER_BITWIDTH * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = REP_STEP_BITWIDTH * 2; // REP + REPX
+  // Widths must be twice the isa.json rep field widths (base + repx half).
+  // isa_refactor sets dpu rep iter/step/delay to 7 bits each.
+  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
   parameter int TRANS_OPTION_WIDTH = 2;
-  parameter int TRANS_DELAY_WIDTH = TRANS_DELAY_BITWIDTH;
+  parameter int TRANS_DELAY_WIDTH = 23; // ISA trans._delay
   // NUMBER_OR / NUMBER_MT / NUMBER_IR come from this resource's arch.json
   // custom_properties (emitted by package.j2 above); defaults live there.
 

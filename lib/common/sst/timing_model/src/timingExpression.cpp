@@ -344,9 +344,12 @@ TimingState &TimingState::addRepetition(uint64_t iterations, uint64_t delay,
 
 TimingState &TimingState::adjustRepetition(uint64_t iterations, uint64_t delay,
                                            uint64_t level, uint64_t step) {
-  // Find repetition operator with the same level
-  for (auto &op : operator_queue) {
-    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+  // Find the most recent repetition operator with this level. Levels start
+  // over after a transition, so once lanes are joined the queue can hold an
+  // inner and an outer repetition of the same level; the one being adjusted
+  // is the one added last.
+  for (auto it = operator_queue.rbegin(); it != operator_queue.rend(); ++it) {
+    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(*it)) {
       if (repetition->getLevel() == level) {
         repetition->setIterations(iterations);
         repetition->setDelay(delay);
@@ -677,9 +680,10 @@ std::string TimingState::toString() const { return expression->toString(); }
 
 RepetitionOperator
 TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
-  // Find repetition operator with the same level in the operator queue
-  for (auto &op : operator_queue) {
-    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(op)) {
+  // Find the most recent repetition operator with this level; see
+  // adjustRepetition.
+  for (auto it = operator_queue.rbegin(); it != operator_queue.rend(); ++it) {
+    if (auto repetition = std::dynamic_pointer_cast<RepetitionOperator>(*it)) {
       printf("Checking repetition operator with level %lu\n",
              repetition->getLevel());
       if (repetition->getLevel() == level) {

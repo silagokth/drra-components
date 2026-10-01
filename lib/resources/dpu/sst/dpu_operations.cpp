@@ -22,15 +22,7 @@ createHandlers(Dpu *dpu) {
   return {
       {DPU_PKG::CONF_MODE::CONF_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
-      {DPU_PKG::CONF_MODE::CONF_MODE_ADD_CONST,
-       [dpu] { Impl::handleAddConst(dpu); }},
-      {DPU_PKG::CONF_MODE::CONF_MODE_SUBT, [dpu] { Impl::handleSubt(dpu); }},
-      {DPU_PKG::CONF_MODE::CONF_MODE_SUBT_ABS,
-       [dpu] { Impl::handleSubtAbs(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
-      {DPU_PKG::CONF_MODE::CONF_MODE_MULT_CONST,
-       [dpu] { Impl::handleMultConst(dpu); }},
-      {DPU_PKG::CONF_MODE::CONF_MODE_LD_IR, [dpu] { Impl::handleLoadIR(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MAX_MIN_ACC,
        [dpu] { Impl::handleMaxAcc(dpu); }}};
@@ -49,36 +41,9 @@ void handleAdd(Dpu *dpu) {
                        [](int64_t a, int64_t b) { return add_sat(a, b); });
 }
 
-void handleAddConst(Dpu *dpu) {
-  dpu->handleOperation("ADD_CONST",
-                       [](int64_t a, int64_t b) { return add_sat(a, b); });
-}
-
-void handleSubt(Dpu *dpu) {
-  dpu->handleOperation("SUBT",
-                       [](int64_t a, int64_t b) { return add_sat(a, -b); });
-}
-
-void handleSubtAbs(Dpu *dpu) {
-  dpu->handleOperation("SUBT_ABS",
-                       [](int64_t a, int64_t b) { return add_sat(a, -b); });
-}
-
 void handleMult(Dpu *dpu) {
   dpu->handleOperation("MULT", [dpu](int64_t a, int64_t b) {
     return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
-  });
-}
-
-void handleMultConst(Dpu *dpu) {
-  dpu->handleOperation("MULT_CONST", [dpu](int64_t a, int64_t b) {
-    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
-  });
-}
-
-void handleLoadIR(Dpu *dpu) {
-  dpu->handleOperation("LD_IR", [](int64_t a, int64_t b) {
-    return b; // Load immediate to register
   });
 }
 
@@ -100,7 +65,7 @@ void handleMAC(Dpu *dpu) {
 }
 
 void handleMaxAcc(Dpu *dpu) {
-  // Accumulating max, mirroring dpu.sv.j2 CONF_MODE_MAX_MIN_ACC: acc = max(acc,
+  // Accumulating max, mirroring logic.sv.j2 CONF_MODE_MAX_MIN_ACC: acc = max(acc,
   // in0), in1 ignored. The accumulator shares the MAC register, so EVT_PORT_RST
   // clears it and an empty register reads as 0: the reset value is 0 and a window
   // yields max(0, x1..xn) (== max(x1..xn) for non-negative input). vectorToInt64
