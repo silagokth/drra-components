@@ -93,12 +93,14 @@ jobs:
           token: ${{ secrets.DRRA_TEST_PAT }}
 
       - name: Check if a testing branch with the same name exists
+        # The runner reuses tests/ between runs, so local branches and
+        # remote-tracking refs can be stale: ask GitHub, and reset to what it has.
         run: |
           cd "${{ github.workspace }}/tests"
-          git fetch --all
-          if git show-ref --verify --quiet refs/remotes/origin/${{ inputs.branch }}; then
-            git checkout ${{ inputs.branch }}
-            echo "Switching to drra-tests@${{ inputs.branch }}"
+          if git ls-remote --exit-code --heads origin "${{ inputs.branch }}" >/dev/null; then
+            git fetch origin "${{ inputs.branch }}"
+            git checkout --force -B "${{ inputs.branch }}" FETCH_HEAD
+            echo "Switching to drra-tests@${{ inputs.branch }} ($(git rev-parse --short HEAD))"
           else
             echo "Using the drra-tests master branch"
           fi
