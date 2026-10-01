@@ -77,9 +77,14 @@ DRRA_AGU &DRRA_AGU::addRepetition(uint64_t iterations, uint64_t delay,
       throw std::runtime_error("Lane index " + std::to_string(index) +
                                " out of range");
 
-    current_rep_level++;
     printLaneExpressions();
   }
+
+  // Every base repetition advances the level, outer ones included, as the RTL
+  // agu_controller does: a REPX lands on the level before the current one, so
+  // an outer repetition that did not advance it leaves the REPX nothing to
+  // find.
+  current_rep_level++;
 
   return *this;
 }
