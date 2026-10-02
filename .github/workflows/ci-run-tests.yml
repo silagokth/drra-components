@@ -26,7 +26,10 @@ jobs:
           BRANCH: ${{ inputs.branch }}
         run: |
           python3 - <<'PY'
-          import json, os, urllib.request
+          import json, os, time, urllib.error, urllib.request
+
+          WAIT = 30 * 60  # how long to wait for a build of the head commit
+          POLL = 60
 
           def api(path):
               req = urllib.request.Request(
@@ -36,18 +39,68 @@ jobs:
               with urllib.request.urlopen(req) as r:
                   return json.load(r)
 
-          # Newest successful run on the branch that still has its AppImage.
-          for branch in dict.fromkeys([os.environ["BRANCH"], "master"]):
-              runs = api(f"actions/runs?branch={branch}&status=success&per_page=20")["workflow_runs"]
-              for run in runs:
-                  for a in api(f"actions/runs/{run['id']}/artifacts")["artifacts"]:
-                      if a["name"] == "pkg-artifacts" and not a["expired"]:
-                          print(f"Using vesyla@{branch} ({run['head_sha'][:7]}) from {run['html_url']}")
-                          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-                              out.write(f"artifact_url={a['archive_download_url']}\n")
-                          raise SystemExit(0)
-              print(f"No successful vesyla build with an AppImage on {branch}")
-          raise SystemExit(1)
+          def head(branch):
+              try:
+                  return api(f"branches/{branch}")["commit"]["sha"]
+              except urllib.error.HTTPError as e:
+                  if e.code == 404:
+                      return None
+                  raise
+
+          def appimage(run):
+              for a in api(f"actions/runs/{run['id']}/artifacts")["artifacts"]:
+                  if a["name"] == "pkg-artifacts" and not a["expired"]:
+                      return a["archive_download_url"]
+              return None
+
+          def find(branch, sha):
+              """AppImage URL of a successful build of sha, waiting for any run
+              still in progress; otherwise None and the finished runs."""
+              deadline = time.time() + WAIT
+              while True:
+                  runs = api(f"actions/runs?head_sha={sha}&exclude_pull_requests=true&per_page=50")["workflow_runs"]
+                  for run in runs:
+                      if run["status"] == "completed" and run["conclusion"] == "success":
+                          url = appimage(run)
+                          if url:
+                              print(f"Using vesyla@{branch} ({sha[:7]}) from {run['html_url']}")
+                              return url, runs
+                  pending = [r for r in runs if r["status"] != "completed"]
+                  if not pending:
+                      return None, runs
+                  if time.time() > deadline:
+                      print("Timed out waiting for: " + ", ".join(r["html_url"] for r in pending))
+                      raise SystemExit(1)
+                  print(f"Waiting for {len(pending)} running vesyla run(s) on {branch} ({sha[:7]})")
+                  time.sleep(POLL)
+
+          # Test against the build of the newest commit on the vesyla branch
+          # with the same name, otherwise master. Never fall back to an older
+          # commit: that silently tests against a stale vesyla.
+          branch = os.environ["BRANCH"]
+          sha = head(branch)
+          if sha is None:
+              print(f"No vesyla branch {branch}, using master")
+              branch, sha = "master", head("master")
+          url, runs = find(branch, sha)
+
+          if url is None:
+              failed = [r for r in runs if r["conclusion"] not in ("success", "skipped", "neutral")]
+              for r in failed:
+                  print(f"{r['name']}: {r['conclusion']} {r['html_url']}")
+              # vesyla's CI builds a branch only through a PR, so a branch head
+              # with no failed run was never built: use master. A failed build
+              # is an error, not a reason to fall back.
+              if not failed and branch != "master":
+                  print(f"vesyla@{branch} ({sha[:7]}) was never built, using master")
+                  branch, sha = "master", head("master")
+                  url, runs = find(branch, sha)
+
+          if url is None:
+              print(f"No successful vesyla build with an AppImage for vesyla@{branch} ({sha[:7]})")
+              raise SystemExit(1)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"artifact_url={url}\n")
           PY
 
       - name: Download vesyla
