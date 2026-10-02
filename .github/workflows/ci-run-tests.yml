@@ -37,9 +37,13 @@ jobs:
                   return json.load(r)
 
           # Newest successful run on the branch that still has its AppImage.
+          # Filter on conclusion here: the API's status=success filter can miss
+          # recent runs and fall back to a months-old build.
           for branch in dict.fromkeys([os.environ["BRANCH"], "master"]):
-              runs = api(f"actions/runs?branch={branch}&status=success&per_page=20")["workflow_runs"]
+              runs = api(f"actions/runs?branch={branch}&status=completed&per_page=20")["workflow_runs"]
               for run in runs:
+                  if run["conclusion"] != "success":
+                      continue
                   for a in api(f"actions/runs/{run['id']}/artifacts")["artifacts"]:
                       if a["name"] == "pkg-artifacts" and not a["expired"]:
                           print(f"Using vesyla@{branch} ({run['head_sha'][:7]}) from {run['html_url']}")
