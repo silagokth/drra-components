@@ -77,9 +77,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     route_in_conf_valid  = 0;
     route_out_conf_valid = 0;
 
-    swb_configs       = '{default: '{default: '0}};
-    route_in_configs  = '{default: '{default: '0}};
-    route_out_configs = '{default: '{default: '0}};
+    swb_configs       = '{default: '0};
+    route_in_configs  = '{default: '0};
+    route_out_configs = '{default: '0};
 
     if (swb_valid) begin
       swb_configs[swb_instr._option].slot_link[swb_instr._target] = swb_instr._source;
