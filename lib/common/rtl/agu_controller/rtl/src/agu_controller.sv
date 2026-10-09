@@ -108,8 +108,11 @@ module agu_controller #(
   assign agu_index = evt_valid ? evt_port : agu_config_index;
 
   // The lane an EVT opens: the one after the lane in use. current_lane_index
-  // resets to all-ones, so the first EVT on an AGU wraps it to lane 0.
-  logic [$clog2(NUMBER_MT+1)-1:0] evt_lane;
+  // resets to all-ones, so the first EVT on an AGU wraps it to lane 0. Sized
+  // MT_IDX_W like current_lane_index: with NUMBER_MT==0, $clog2(NUMBER_MT+1)
+  // is 0, and a [-1:0] lane index is two bits wide, so the wrap gave lane 2
+  // and every EVT wrote outside ir_configs and agu_init_address.
+  logic [MT_IDX_W-1:0] evt_lane;
   assign evt_lane = current_lane_index[agu_index] + 1'b1;
 
   // Selectors indexing the AGU currently being configured.
@@ -118,7 +121,7 @@ module agu_controller #(
   // (_ext=0) carrying the lower half, and a REPX (_ext=1) carrying the upper
   // half. Only the base advances current_rep_level (below), so the REPX must
   // point back one level to land on the same entry its base just wrote.
-  logic [$clog2(NUMBER_MT+1)-1:0] rep_opt;
+  logic [MT_IDX_W-1:0]            rep_opt;
   logic [LVL_W-1:0]               abs_lvl;   // absolute level of this REP
   logic                           rep_to_or; // this level lands in OR, not IR
   logic [IR_IDX_W-1:0]            ir_lvl;    // IR 2nd-dim index (when !rep_to_or)
