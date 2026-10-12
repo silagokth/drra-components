@@ -85,7 +85,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
       .REP_STEP_WIDTH(REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .AGU_LATENCY(AGU_LATENCY)
     ) agu_array_inst (
       .clk(clk),
       .rst_n(rst_n),

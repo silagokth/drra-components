@@ -30,6 +30,7 @@
     "RESOURCE_INSTR_WIDTH",
     "BULK_BITWIDTH",
     "WORD_BITWIDTH",
-    "FSM_PER_SLOT"
+    "FSM_PER_SLOT",
+    "AGU_LATENCY"
   ]
 }
