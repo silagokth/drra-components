@@ -124,14 +124,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Internal state and decode fields
     logic [NUM_SLOTS * FSM_PER_SLOT - 1:0] activate_flat; // Flattened activation mask
 
-    // Simple 64x32 IRAM, PC and decode fields
+    // IRAM, PC and decode fields
+    // IRAM_DEPTH is a power of two; 0 means the cell runs no program and has no IRAM.
+    localparam int PC_WIDTH = IRAM_DEPTH > 1 ? $clog2(IRAM_DEPTH) : 1;
     logic [{{payload_bitwidth}}-1:0] instr_reg;            // Payload + slot for type-0 (control) instructions
-    logic [IRAM_DEPTH-1:0][{{isa.format.instr_bitwidth}}-1:0] iram;           // Instruction memory
+    logic [{{isa.format.instr_bitwidth}}-1:0] instr_word;                   // IRAM word at pc
     logic [{{isa.format.instr_opcode_bitwidth}}-1:0] opcode;                // 4-bit opcode (bits 30:28)
     logic [{{isa.format.instr_type_bitwidth}}-1:0] instr_type;                  // Type bit (MSB bit 31): 0=control, 1=resource
     logic [{{isa.format.instr_slot_bitwidth}}-1:0] slot;                  // Target slot (bits 27:24) for resource instructions
     logic [{{payload_bitwidth - isa.format.instr_slot_bitwidth}}-1:0] payload;              // Payload (bits 23:0)
-    logic [$clog2(IRAM_DEPTH)-1:0] pc, pc_next;           // Program counter (0..63)
+    logic [PC_WIDTH-1:0] pc, pc_next;                     // Program counter
     logic [{{wait_cycle_bitwidth}}-1:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
 
     logic ret;
@@ -161,20 +163,51 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Field extraction from current IRAM word
     {% set current_msb = isa.format.instr_bitwidth - 1 %}
     {% set current_lsb = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth %}
-    assign instr_type = iram[pc][{{current_msb}}:{{current_lsb}}];
+    assign instr_type = instr_word[{{current_msb}}:{{current_lsb}}];
     {% set current_msb = current_lsb - 1 %}
     {% set current_lsb = current_lsb - isa.format.instr_opcode_bitwidth %}
-    assign opcode     = iram[pc][{{current_msb}}:{{current_lsb}}];
+    assign opcode     = instr_word[{{current_msb}}:{{current_lsb}}];
     {% set current_msb = current_lsb - 1 %}
     {% set current_lsb = current_lsb - (payload_bitwidth) %}
-    assign instr_reg  = iram[pc][{{current_msb}}:{{current_lsb}}];
+    assign instr_reg  = instr_word[{{current_msb}}:{{current_lsb}}];
     {% set current_lsb = current_msb - isa.format.instr_slot_bitwidth + 1 %}
-    assign slot       = iram[pc][{{current_msb}}:{{current_lsb}}];
+    assign slot       = instr_word[{{current_msb}}:{{current_lsb}}];
     {% set current_msb = current_lsb - 1 %}
-    assign payload    = iram[pc][{{current_msb}}:0];
+    assign payload    = instr_word[{{current_msb}}:0];
+
+    // IRAM: one read/write port, mapped onto an SRAM macro where one fits.
+    // A read returns its word one cycle later, so the fetch addresses the word
+    // pc will hold next cycle. That is always pc+1 while running: a WAIT holds
+    // pc but resumes at pc+1, and re-reading it every waiting cycle keeps it on
+    // the read port. IDLE and RESET read word 0, the first of the next call.
+    // The fetch address depends on registers only, not on the word being read.
+    // A load write takes the port for its cycle, so loading a cell and calling
+    // it must not overlap. Words past the program's HALT are never executed,
+    // so the IRAM is not reset.
+    logic iram_load;
+    logic [PC_WIDTH-1:0] fetch_addr;
+    assign iram_load  = instr_load_en_in && instr_load_hops_in == 0;
+    assign fetch_addr = (state == DECODE || state == WAIT) ? PC_WIDTH'(pc + 1) : '0;
+
+    if (IRAM_DEPTH == 0) begin : g_no_iram
+        // An all-zero word is HALT
+        assign instr_word = '0;
+    end else begin : g_iram
+        sram_1rw #(
+            .WIDTH({{isa.format.instr_bitwidth}}),
+            .DEPTH(IRAM_DEPTH)
+        ) iram_inst (
+            .clk  (clk),
+            .en   (1'b1),
+            .we   (iram_load),
+            .addr (iram_load ? PC_WIDTH'(instr_load_addr_in) : fetch_addr),
+            .wdata({{isa.format.instr_bitwidth}}'(instr_load_data_in)),
+            .rdata(instr_word)
+        );
+    end
 
     // IRAM load daisy-chain:
-    // - If hops==0 and en==1, absorb the write locally into iram[addr]
+    // - If hops==0 and en==1, absorb the write locally into the IRAM (above)
     // - Otherwise, forward unchanged but with hops decremented
     always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
@@ -182,13 +215,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
             instr_load_addr_out <= 0;
             instr_load_hops_out <= 0;
             instr_load_en_out   <= 0;
-            for (int i=0; i<IRAM_DEPTH; i++) begin
-                iram[i] <= 0;
-            end
         end else begin
             if (instr_load_en_in) begin
                 if (instr_load_hops_in == 0) begin
-                    iram[instr_load_addr_in] <= instr_load_data_in;
                     instr_load_data_out <= 0;
                     instr_load_addr_out <= 0;
                     instr_load_hops_out <= 0;

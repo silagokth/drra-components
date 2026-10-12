@@ -1,0 +1,19 @@
+package:
+  name: sram_1rw
+
+dependencies:
+
+# One read/write port memory, sram_1rw. The technology target picks the
+# implementation: freepdk45 maps it onto an OpenRAM macro where one fits, any
+# other target builds it from flip-flops. Both read with one cycle of latency.
+sources:
+  - ./rtl/sram_1rw_ff.sv
+  - target: all(freepdk45, simulation)
+    files:
+      - ./rtl/macros/freepdk45/sram_128x32.v
+  - target: freepdk45
+    files:
+      - ./rtl/sram_1rw.freepdk45.sv
+  - target: not(freepdk45)
+    files:
+      - ./rtl/sram_1rw.generic.sv
