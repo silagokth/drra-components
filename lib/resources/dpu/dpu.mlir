@@ -69,6 +69,14 @@ module @dpu {
       return %c : i16
     }
 
+    // Not commutative: %a is in0 and %b is in1, so endpoints in @replace must
+    // keep %a on slot offset 0.
+    func.func @subt(%a: i16, %b: i16) -> i16
+        attributes {benefit = 10 : i32} {
+      %c = arith.subi %a, %b : i16
+      return %c : i16
+    }
+
     // At FRACTIONAL_BITWIDTH = 0 the product needs no rescaling. For a non-zero
     // FRAC this is where multiplier.sv.j2's round-half-away-from-zero shift by
     // FRAC would sit.
@@ -116,6 +124,17 @@ module @dpu {
 
     func.func @add(%a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 1 : i32},
+                           delay = 1 : i32,
+                           endpoints = {results = [0 : i32],
+                                        operands = [0 : i32, 1 : i32]},
+                           uses = ["conf_reg:0", "input_narrow:0",
+                                   "input_narrow:1", "output_narrow:1"]}
+          : (i16, i16) -> i16
+      return %r : i16
+    }
+
+    func.func @subt(%a: i16, %b: i16) -> i16 {
+      %r = drra.rop %a, %b {conf = {mode = 4 : i32},
                            delay = 1 : i32,
                            endpoints = {results = [0 : i32],
                                         operands = [0 : i32, 1 : i32]},

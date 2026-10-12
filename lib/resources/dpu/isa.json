@@ -29,6 +29,10 @@
               "val": "add"
             },
             {
+              "key": 4,
+              "val": "subt"
+            },
+            {
               "key": 7,
               "val": "mult"
             },

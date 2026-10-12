@@ -22,6 +22,7 @@ createHandlers(Dpu *dpu) {
   return {
       {DPU_PKG::CONF_MODE::CONF_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_SUBT, [dpu] { Impl::handleSubt(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MAX_MIN_ACC,
@@ -39,6 +40,14 @@ void handleIdle(Dpu *dpu) {
 void handleAdd(Dpu *dpu) {
   dpu->handleOperation("ADD",
                        [](int64_t a, int64_t b) { return add_sat(a, b); });
+}
+
+void handleSubt(Dpu *dpu) {
+  // in0 - in1, mirroring logic.sv.j2 CONF_MODE_SUBT. The operands are
+  // word-sized, so -b cannot overflow; int64ToVector clamps the result to the
+  // word like the RTL adder's saturation.
+  dpu->handleOperation("SUBT",
+                       [](int64_t a, int64_t b) { return add_sat(a, -b); });
 }
 
 void handleMult(Dpu *dpu) {

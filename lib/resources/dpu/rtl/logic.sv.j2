@@ -65,6 +65,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] acc0_current;
   logic signed [BITWIDTH-1:0] adder_in0;
   logic signed [BITWIDTH-1:0] adder_in1;
+  logic adder_subtract;
   logic signed [BITWIDTH-1:0] adder_out;
   logic signed [BITWIDTH-1:0] mult_in0;
   logic signed [BITWIDTH-1:0] mult_in1;
@@ -89,6 +90,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     out0_next = 0;
     adder_in0 = 0;
     adder_in1 = 0;
+    adder_subtract = 1'b0;
     mult_in0 = 0;
     mult_in1 = 0;
     acc0_next = 0;
@@ -99,6 +101,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
       CONF_MODE_ADD: begin
         adder_in0 = in0;
         adder_in1 = in1;
+        out0_next = adder_out;
+      end
+      CONF_MODE_SUBT: begin
+        // out0 = in0 - in1, saturated like CONF_MODE_ADD. The adder subtracts
+        // at full width; negating in1 here instead would wrap int16 min.
+        adder_in0 = in0;
+        adder_in1 = in1;
+        adder_subtract = 1'b1;
         out0_next = adder_out;
       end
       CONF_MODE_MAC: begin
@@ -146,6 +156,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
+      .subtract(adder_subtract),
       .saturate(1'b1),
       .out(adder_out),
       .overflow(), // unused
