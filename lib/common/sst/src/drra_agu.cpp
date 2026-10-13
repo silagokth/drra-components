@@ -17,14 +17,20 @@ TimingState *DRRA_AGU::getLaneAtIndex(size_t index) {
                              " out of range");
 }
 
-DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
-                             std::function<void()> handler, uint8_t priority) {
+// The configuration is only read when the AGU is activated; changing it while
+// the built timing state runs is not modelled.
+void DRRA_AGU::checkNotBuilt(const std::string &what) const {
   if (timing_state) {
     if (vesylaDebug())
       std::cout << "Timing state exists, expression: "
                 << timing_state->getExpression()->toString() << "\n";
-    throw std::runtime_error("Cannot add events after transitions");
+    throw std::runtime_error("Cannot add " + what + " to a running AGU");
   }
+}
+
+DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
+                             std::function<void()> handler, uint8_t priority) {
+  checkNotBuilt("events");
 
   // Create new lane if index is equal to size
   if (vesylaDebug())
@@ -36,9 +42,10 @@ DRRA_AGU &DRRA_AGU::addEvent(const std::string &name,
     lanes.emplace_back();
 
   if (auto lane = getLaneAtIndex(current_lane_index)) {
-    auto expr = lane->getExpression();
     lane->addEvent(name, handler, priority);
     lane_initial_addresses.push_back(initial_address);
+    // An EVT restarts the level count but, as in agu_controller.sv, leaves
+    // use_or_reg alone: after a TRANS its REPs are still outer repetitions.
     current_rep_level = 0;
     current_lane_index++;
   } else {
@@ -57,14 +64,21 @@ DRRA_AGU::getEventsForCycle(uint64_t cycle) {
 
 DRRA_AGU &DRRA_AGU::addRepetition(uint64_t iterations, uint64_t delay,
                                   uint64_t step) {
-  if (lanes.empty() && !timing_state) {
-    throw std::runtime_error(
-        "No lanes or timing state available to add repetition to");
+  checkNotBuilt("repetitions");
+  if (lanes.empty()) {
+    throw std::runtime_error("No lanes available to add repetition to");
   }
 
-  if (timing_state) {
-    // Outer repetition: wrap the entire timing state
-    timing_state->addRepetition(iterations, delay, current_rep_level, step);
+  if (use_outer) {
+    // Outer repetition: recorded at its level and wrapped around the whole
+    // lane chain by build()
+    if (vesylaDebug())
+      std::cout << "Adding outer repetition at level " << current_rep_level
+                << "\n";
+    if (current_rep_level >= outer_reps.size())
+      outer_reps.resize(current_rep_level + 1);
+    outer_reps[current_rep_level] = {iterations, delay, step, true};
+    outer_configured = true;
   } else {
     if (vesylaDebug())
       std::cout << "Adding repetition to lane index " << current_lane_index - 1
@@ -101,19 +115,25 @@ void DRRA_AGU::printLaneExpressions() const {
 }
 
 RepetitionOperator DRRA_AGU::getLastRepetitionOperator() {
-  if (lanes.empty() && !timing_state) {
+  if (lanes.empty()) {
     throw std::runtime_error(
-        "No lanes or timing state available to get repetition operator from");
+        "No lanes available to get repetition operator from");
   }
 
-  if (timing_state) {
-    // Outer repetition: get from the entire timing state
-    return timing_state->getRepetitionOperatorFromLevel(current_rep_level - 1);
+  uint64_t level = current_rep_level == 0 ? 0 : current_rep_level - 1;
+  if (use_outer) {
+    // Outer repetition: the one recorded at the previous level
+    if (level >= outer_reps.size() || !outer_reps[level].is_configured)
+      throw std::runtime_error("No outer repetition at level " +
+                               std::to_string(level));
+    const OuterRepetition &rep = outer_reps[level];
+    return RepetitionOperator(rep.iterations, rep.delay, level, rep.step,
+                              nullptr);
   } else {
-    size_t index = lanes.size() - 1; // Default to last lane
+    size_t index = current_lane_index - 1;
     if (auto lane = getLaneAtIndex(index)) {
       // Inner repetition: get from the current lane
-      return lane->getRepetitionOperatorFromLevel(current_rep_level - 1);
+      return lane->getRepetitionOperatorFromLevel(level);
     } else
       throw std::runtime_error("Lane index " + std::to_string(index) +
                                " out of range");
@@ -122,20 +142,23 @@ RepetitionOperator DRRA_AGU::getLastRepetitionOperator() {
 
 DRRA_AGU &DRRA_AGU::adjustRepetition(uint64_t iterations, uint64_t delay,
                                      uint64_t step) {
-  if (lanes.empty() && !timing_state) {
-    throw std::runtime_error(
-        "No lanes or timing state available to adjust repetition for");
+  checkNotBuilt("repetitions");
+  if (lanes.empty()) {
+    throw std::runtime_error("No lanes available to adjust repetition for");
   }
 
-  if (timing_state) {
-    // Outer repetition: adjust the entire timing state
-    timing_state->adjustRepetition(iterations, delay, current_rep_level - 1,
-                                   step);
+  uint64_t level = current_rep_level == 0 ? 0 : current_rep_level - 1;
+  if (use_outer) {
+    // Outer repetition: adjust the one recorded at the previous level
+    if (level >= outer_reps.size())
+      outer_reps.resize(level + 1);
+    outer_reps[level] = {iterations, delay, step, true};
+    outer_configured = true;
   } else {
     size_t index = current_lane_index - 1; // Default to current lane
     if (auto lane = getLaneAtIndex(index)) {
       // Inner repetition: adjust the current lane
-      lane->adjustRepetition(iterations, delay, current_rep_level - 1, step);
+      lane->adjustRepetition(iterations, delay, level, step);
     } else
       throw std::runtime_error("Lane index " + std::to_string(index) +
                                " out of range");
@@ -145,71 +168,79 @@ DRRA_AGU &DRRA_AGU::adjustRepetition(uint64_t iterations, uint64_t delay,
 }
 
 DRRA_AGU &DRRA_AGU::addTransition(uint64_t delay) {
-  if (current_trans_index + 1 >= lanes.size())
-    throw std::runtime_error("Transition target lane out of range");
+  checkNotBuilt("transitions");
 
-  auto &from_state = (current_trans_index == 0 || !timing_state)
-                         ? lanes[current_trans_index]
-                         : *timing_state;
-  auto from_expr = (current_trans_index == 0 || !timing_state)
-                       ? lanes[current_trans_index].getExpression()
-                       : timing_state->getExpression();
-  if (vesylaDebug())
-    std::cout << "from_expr for transition: "
-              << (from_expr ? from_expr->toString() : "null") << "\n";
-
-  auto &to_state = lanes[current_trans_index + 1];
-  to_state.build(); // Ensure target lane is built before using its expression
-  auto to_expr = to_state.getExpression();
-  if (vesylaDebug())
-    std::cout << "to_expr for transition: "
-              << (to_expr ? to_expr->toString() : "null") << "\n";
-
-  std::shared_ptr<TransitionOperator> transition =
-      std::make_shared<TransitionOperator>(
-          delay, to_expr->lastEventName(), [] {}, from_expr, to_expr);
-  if (vesylaDebug())
-    std::cout << "Adding transition with delay " << delay << " from lane "
-              << current_trans_index << " to lane " << current_trans_index + 1
-              << "\n";
-
-  assert(from_expr && "from_expr is null");
-  assert(to_expr && "to_expr is null");
-  if (vesylaDebug())
-    std::cout << "transition: " << transition->toString() << "\n";
-  TimingState temp_timing_state(from_state, to_state, transition);
-  if (vesylaDebug())
-    std::cout << "temp_timing_state expression: "
-              << temp_timing_state.getExpression()->toString() << "\n";
-  timing_state = std::make_unique<TimingState>(temp_timing_state);
-  timing_state->moveTransitionsToEnd();
+  // agu_controller.sv drops a TRANS once an outer repetition is configured
+  if (outer_configured) {
+    if (vesylaDebug())
+      std::cout << "Ignoring transition after an outer repetition\n";
+    return *this;
+  }
 
   if (vesylaDebug())
-    std::cout << "Timing state expression after adding transition: "
-              << timing_state->getExpression()->toString() << "\n";
-  current_trans_index++;
+    std::cout << "Adding transition " << transition_delays.size()
+              << " with delay " << delay << "\n";
+  transition_delays.push_back(delay);
+  use_outer = true;
   current_rep_level = 0;
-
-  timing_state->printOperatorQueue();
 
   return *this;
 }
 
 DRRA_AGU &DRRA_AGU::build() {
-  if (!timing_state) {
+  if (lanes.empty()) {
+    throw std::runtime_error("No lanes to build timing state from");
+  }
+
+  if (vesylaDebug())
+    std::cout << "Using lane 0 as initial timing state\n";
+  if (vesylaDebug())
+    std::cout << "Lane 0 expression: " << lanes[0].getExpression()->toString()
+              << "\n";
+  timing_state = std::make_unique<TimingState>(lanes[0]);
+
+  // Chain lane k to lane k+1 through mt_configs[k]. Every opened lane runs,
+  // as mt_ir.sv runs up to the last configured lane: one with no TRANS follows
+  // on with delay 0, the value an unconfigured mt_config holds. A TRANS with
+  // no lane after it has nothing to step into and is dropped.
+  for (size_t k = 0; k + 1 < lanes.size(); k++) {
+    uint64_t delay = k < transition_delays.size() ? transition_delays[k] : 0;
+
+    auto from_expr = timing_state->getExpression();
     if (vesylaDebug())
-      std::cout << "No transitions added, building timing state from lanes\n";
-    if (lanes.empty()) {
-      throw std::runtime_error("No lanes to build timing state from");
-    }
-    // Use the first lane as the initial timing state if no transitions were
-    // added
+      std::cout << "from_expr for transition: "
+                << (from_expr ? from_expr->toString() : "null") << "\n";
+
+    auto &to_state = lanes[k + 1];
+    to_state.build(); // Ensure target lane is built before using its expression
+    auto to_expr = to_state.getExpression();
     if (vesylaDebug())
-      std::cout << "Using lane 0 as initial timing state\n";
+      std::cout << "to_expr for transition: "
+                << (to_expr ? to_expr->toString() : "null") << "\n";
+
+    assert(from_expr && "from_expr is null");
+    assert(to_expr && "to_expr is null");
+    std::shared_ptr<TransitionOperator> transition =
+        std::make_shared<TransitionOperator>(
+            delay, to_expr->lastEventName(), [] {}, from_expr, to_expr);
     if (vesylaDebug())
-      std::cout << "Lane 0 expression: " << lanes[0].getExpression()->toString()
+      std::cout << "Adding transition with delay " << delay << " from lane "
+                << k << " to lane " << k + 1 << ": " << transition->toString()
                 << "\n";
-    timing_state = std::make_unique<TimingState>(lanes[0]);
+
+    TimingState temp_timing_state(*timing_state, to_state, transition);
+    timing_state = std::make_unique<TimingState>(temp_timing_state);
+    timing_state->moveTransitionsToEnd();
+    timing_state->printOperatorQueue();
+  }
+
+  // Outer repetitions wrap the whole lane chain, as or_configs do in
+  // or_mt_ir.sv
+  for (size_t level = 0; level < outer_reps.size(); level++) {
+    const OuterRepetition &rep = outer_reps[level];
+    if (!rep.is_configured)
+      continue;
+    timing_state->addRepetition(rep.iterations, rep.delay, level, rep.step);
   }
 
   if (vesylaDebug())
@@ -232,9 +263,12 @@ DRRA_AGU &DRRA_AGU::reset() {
               << "\n";
   lanes.clear();
   lane_initial_addresses.clear();
+  transition_delays.clear();
+  outer_reps.clear();
+  use_outer = false;
+  outer_configured = false;
   timing_state = nullptr;
   current_lane_index = 0;
-  current_trans_index = 0;
   current_rep_level = 0;
   if (vesylaDebug())
     std::cout << "Timing state after reset: "
