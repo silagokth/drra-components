@@ -1,0 +1,8 @@
+package:
+  name: booth_multiplier
+
+dependencies:
+  kogge_stone_adder: { path: ../kogge_stone_adder }
+
+sources:
+  - ./rtl/src/booth_multiplier.sv

@@ -1,0 +1,5 @@
+package:
+  name: kogge_stone_adder
+
+sources:
+  - ./rtl/src/kogge_stone_adder.sv
