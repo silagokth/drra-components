@@ -17,6 +17,9 @@ public:
     params.push_back({"FRACTIONAL_BITWIDTH",
                       "Number of fractional bits for fixed-point operations",
                       "0"});
+    params.push_back({"SATURATE",
+                      "1: products and sums saturate to the word; 0: they wrap",
+                      "1"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
@@ -61,6 +64,7 @@ public:
 
   using DRRAResource::out;
   uint32_t fractional_bitwidth;
+  bool saturate;
 
 private:
   // The DPU's datapath is not driven by an AGU address: it runs its configured

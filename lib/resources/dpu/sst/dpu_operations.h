@@ -49,6 +49,24 @@ inline int64_t round_shift(int64_t val, int frac) {
   return (val < 0) ? -r : r;
 }
 
+// Two's-complement wrap of val to a signed bitwidth-bit word: the RTL with
+// SATURATE = 0 keeps the low bits of the sum / rounded product.
+inline int64_t wrap(int64_t val, size_t bitwidth) {
+  if (bitwidth == 0 || bitwidth >= 64)
+    return val;
+  uint64_t mask = (UINT64_C(1) << bitwidth) - 1;
+  uint64_t raw = static_cast<uint64_t>(val) & mask;
+  if (raw & (UINT64_C(1) << (bitwidth - 1)))
+    raw |= ~mask;
+  return static_cast<int64_t>(raw);
+}
+
+// Product without saturation: rounded like mul_sat, then wrapped to the word.
+// The operands are words, so a * b cannot overflow int64.
+inline int64_t mul_wrap(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
+  return wrap(round_shift(a * b, frac), bitwidth);
+}
+
 inline int64_t mul_sat(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
   const int64_t MAX_RESULT = (INT64_C(1) << (bitwidth - 1)) - 1;
   const int64_t MIN_RESULT = -(INT64_C(1) << (bitwidth - 1));

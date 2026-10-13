@@ -152,12 +152,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
     endcase
   end
 
+  // SATURATE (arch.json) = 0 drops both saturation stages: products and sums
+  // wrap to the word, and only the low product bits are built.
   // in future we will use ChipWare blocks for pipelined and such
   {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
       .subtract(adder_subtract),
-      .saturate(1'b1),
+      .saturate(SATURATE != 0),
       .out(adder_out),
       .overflow(), // unused
       .underflow() // unused
@@ -166,7 +168,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
-      .saturate(1'b1),
+      .saturate(SATURATE != 0),
       .out(mult_out),
       .overflow(), // unused
       .underflow() // unused

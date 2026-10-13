@@ -38,21 +38,25 @@ void handleIdle(Dpu *dpu) {
 }
 
 void handleAdd(Dpu *dpu) {
-  dpu->handleOperation("ADD",
-                       [](int64_t a, int64_t b) { return add_sat(a, b); });
+  dpu->handleOperation("ADD", [dpu](int64_t a, int64_t b) {
+    return dpu->saturate ? add_sat(a, b) : wrap(a + b, dpu->getWordBitwidth());
+  });
 }
 
 void handleSubt(Dpu *dpu) {
   // in0 - in1, mirroring logic.sv.j2 CONF_MODE_SUBT. The operands are
   // word-sized, so -b cannot overflow; int64ToVector clamps the result to the
   // word like the RTL adder's saturation.
-  dpu->handleOperation("SUBT",
-                       [](int64_t a, int64_t b) { return add_sat(a, -b); });
+  dpu->handleOperation("SUBT", [dpu](int64_t a, int64_t b) {
+    return dpu->saturate ? add_sat(a, -b) : wrap(a - b, dpu->getWordBitwidth());
+  });
 }
 
 void handleMult(Dpu *dpu) {
   dpu->handleOperation("MULT", [dpu](int64_t a, int64_t b) {
-    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
+    return dpu->saturate
+               ? mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth)
+               : mul_wrap(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
   });
 }
 
@@ -64,10 +68,13 @@ void handleMAC(Dpu *dpu) {
     // to the word bitwidth (= sat16 of the product, matching the RTL
     // multiplier's saturate=1); add_sat then accumulates with saturation
     // (mirroring dpu.sv.j2's adder). At fractional_bitwidth=0 this reduces to
-    // the plain integer sat16(a*b) MAC.
-    int64_t result = add_sat(
-        dpu->vectorToInt64(acc_reg),
-        mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
+    // the plain integer sat16(a*b) MAC. With SATURATE = 0 both steps wrap.
+    int64_t acc = dpu->vectorToInt64(acc_reg);
+    size_t bw = dpu->getWordBitwidth();
+    int64_t result =
+        dpu->saturate
+            ? add_sat(acc, mul_sat(a, b, bw, dpu->fractional_bitwidth))
+            : wrap(acc + mul_wrap(a, b, bw, dpu->fractional_bitwidth), bw);
     acc_reg = dpu->int64ToVector(result);
     return result;
   });
