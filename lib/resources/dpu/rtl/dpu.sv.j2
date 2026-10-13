@@ -30,7 +30,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
 );
 
   // Useless output
-  assign word_data_out_1 = 0;
   assign bulk_data_out_0 = 0;
   assign bulk_data_out_1 = 0;
 
@@ -153,7 +152,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     .in0 (word_data_in_0),
     .in1 (word_data_in_1),
-    .out0(word_data_out_0)
+    .out0(word_data_out_0),
+    .out1(word_data_out_1)
   );
 
 endmodule

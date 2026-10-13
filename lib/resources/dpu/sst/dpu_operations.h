@@ -67,6 +67,12 @@ inline int64_t mul_wrap(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
   return wrap(round_shift(a * b, frac), bitwidth);
 }
 
+// Upper word of the rounded product, mirroring the RTL multiplier's out_high:
+// the bitwidth bits above the ones mul_sat / mul_wrap return, sign-extended.
+inline int64_t mul_high(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
+  return wrap(round_shift(a * b, frac) >> bitwidth, bitwidth);
+}
+
 inline int64_t mul_sat(int64_t a, int64_t b, size_t bitwidth, uint32_t frac) {
   const int64_t MAX_RESULT = (INT64_C(1) << (bitwidth - 1)) - 1;
   const int64_t MIN_RESULT = -(INT64_C(1) << (bitwidth - 1));

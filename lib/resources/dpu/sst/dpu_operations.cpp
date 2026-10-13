@@ -54,6 +54,9 @@ void handleSubt(Dpu *dpu) {
 
 void handleMult(Dpu *dpu) {
   dpu->handleOperation("MULT", [dpu](int64_t a, int64_t b) {
+    // Second output: the product's upper word (RTL out1 / word_data_out_1)
+    dpu->sendOut1(
+        mul_high(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
     return dpu->saturate
                ? mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth)
                : mul_wrap(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);

@@ -89,6 +89,16 @@ void Dpu::handleCONF(const DPU_PKG::CONFInstruction &instr) {
       DPU_Operations::getDPUHandler(this, (DPU_PKG::CONF_MODE)instr.mode);
 }
 
+void Dpu::sendOut1(int64_t value) {
+  if (data_links.size() < 2 || data_links[1] == nullptr)
+    return;
+  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
+  dataEvent->size = word_bitwidth;
+  dataEvent->payload = int64ToVector(value);
+  data_links[1]->send(dataEvent);
+  out.output("DPU out1=%ld\n", value);
+}
+
 void Dpu::handleOperation(std::string name,
                           std::function<int64_t(int64_t, int64_t)> operation) {
   // Ensure both buffers exist

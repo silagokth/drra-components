@@ -49,6 +49,9 @@ public:
   void handleOperation(std::string name,
                        std::function<int64_t(int64_t, int64_t)> operation);
 
+  // Sends a word on the second slot's output (the RTL's word_data_out_1).
+  void sendOut1(int64_t value);
+
   std::vector<uint8_t> &getAccumulateRegister() { return accumulate_register; }
 
   using DRRAResource::int64ToVector;

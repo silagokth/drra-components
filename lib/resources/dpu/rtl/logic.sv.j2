@@ -24,7 +24,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     input  logic [WORD_BITWIDTH-1:0] in0,
     input  logic [WORD_BITWIDTH-1:0] in1,
-    output logic [WORD_BITWIDTH-1:0] out0
+    output logic [WORD_BITWIDTH-1:0] out0,
+    // MULT: the product's upper word (multiplier out_high); 0 in other modes
+    output logic [WORD_BITWIDTH-1:0] out1
 );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   assign reset_accumulator = agu_valid[1];
 
   logic [WORD_BITWIDTH-1:0] out0_next;
+  logic [WORD_BITWIDTH-1:0] out1_next;
   logic accumulator_valid;
   logic signed [BITWIDTH-1:0] acc0, acc0_next;
   logic signed [BITWIDTH-1:0] acc0_current;
@@ -70,6 +73,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH-1:0] mult_in0;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
+  logic signed [BITWIDTH-1:0] mult_out_high;
   // CONF_MODE_MAX_MIN_ACC operands. Explicitly signed: in0 is a plain (unsigned)
   // `logic` port, and an unsigned compare would rank -1 (0xFFFF) above 100.
   logic signed [BITWIDTH-1:0] max_in0;
@@ -88,6 +92,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
   always_comb begin
     out0_next = 0;
+    out1_next = 0;
     adder_in0 = 0;
     adder_in1 = 0;
     adder_subtract = 1'b0;
@@ -144,6 +149,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         mult_in0 = in0;
         mult_in1 = in1;
         out0_next = mult_out;
+        out1_next = mult_out_high;
       end
 
       default: begin
@@ -170,6 +176,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .in2(mult_in1),
       .saturate(SATURATE != 0),
       .out(mult_out),
+      .out_high(mult_out_high),
       .overflow(), // unused
       .underflow() // unused
   );
@@ -178,8 +185,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       out0 <= 0;
+      out1 <= 0;
     end else begin
       out0 <= out0_next;
+      out1 <= out1_next;
     end
   end
 

@@ -9,6 +9,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic signed [BITWIDTH-1:0] in2,
     //! Output product (truncated to BITWIDTH bits)
     output logic signed [BITWIDTH-1:0] out,
+    //! Upper word of the product: the BITWIDTH bits above `out`, sign-extended
+    //! (with saturation off, {out_high, out} is the whole rounded product)
+    output logic signed [BITWIDTH-1:0] out_high,
     //! Overflow flag
     output logic                       overflow,
     //! Underflow flag
@@ -62,6 +65,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     end
   endgenerate
+
+  // Never saturated: it carries the bits the saturation (or wrap) of `out` drops
+  assign out_high = BITWIDTH'(temp_rounded >>> (BITWIDTH + FRAC));
 
   // Saturation + output
   always_comb begin : comb_saturation
