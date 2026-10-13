@@ -4,6 +4,7 @@ package:
 dependencies:
   agu_array: { path: ../../common/agu_array }
   config_controller: { path: ../../common/config_controller }
+  booth_multiplier: { path: ../../common/booth_multiplier }
 
 sources:
   - ./rtl/dpu_pkg.sv

@@ -26,6 +26,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
   logic signed [BITWIDTH*2-1:0] temp_mult;
   logic signed [BITWIDTH*2-1:0] temp_rounded;
 
+  // Full-width signed product: radix-4 Booth, carry-save tree and a
+  // Kogge-Stone final add (lib/common/rtl/booth_multiplier).
+  booth_multiplier #(
+      .WIDTH(BITWIDTH)
+  ) booth_inst (
+      .a      (in1),
+      .b      (in2),
+      .product(temp_mult)
+  );
+
   // Rounding
   generate
     if (FRAC > 0) begin : gen_round_half_away_from_zero
@@ -58,7 +68,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     out       = '0;
     overflow  = 1'b0;
     underflow = 1'b0;
-    temp_mult = in1 * in2;
 
     if (saturate) begin
       if (temp_rounded > MaxResult) begin
