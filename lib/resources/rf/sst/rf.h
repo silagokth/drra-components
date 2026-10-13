@@ -1,13 +1,13 @@
 #ifndef _RF_H
 #define _RF_H
 
-#include "drra_resource.h"
+#include "register_file.h"
 #include "rf_pkg.h"
-#include <cstdint>
-#include <map>
 #include <vector>
 
-class Rf : public DRRAResource {
+// The 64-word, four-row register file. The model itself is RegisterFile
+// (lib/common/sst), shared with rf_row.
+class Rf : public RegisterFile {
 public:
   /* Element Library Info */
   SST_ELI_REGISTER_COMPONENT(Rf, "drra", "rf", SST_ELI_ELEMENT_VERSION(1, 0, 0),
@@ -15,11 +15,7 @@ public:
 
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
-    auto params = DRRAResource::getBaseParams();
-    params.push_back({"RF_DEPTH", "", "64"});
-    params.push_back({"WORD_ADDR_WIDTH", "", "6"});
-    params.push_back({"BULK_ADDR_WIDTH", "", "2"});
-    return params;
+    return RegisterFile::getRegisterFileParams("64", "6", "2");
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
 
@@ -43,30 +39,11 @@ public:
   /* Destructor */
   ~Rf() {};
 
-  void complete(unsigned int phase) override {
-    logTraceEvent("registers", slot_id, true, 'E', {});
-  }
-
   // Instruction format
   using DRRAResource::format;
   void handleCONF(const RF_PKG::CONFInstruction &instr);
 
   using DRRAResource::out;
-
-private:
-  // Define private members here
-  // Register File
-  uint32_t register_file_size;
-  std::string access_time;
-  std::map<uint32_t, std::vector<uint8_t>> registers;
-
-  // Datapath. Each takes the address its AGU generated for this cycle.
-  void readWide(int64_t address);
-  void readNarrow(int64_t address);
-  void writeWide(int64_t address);
-  void writeNarrow(int64_t address);
-
-  void logRegisters();
 };
 
 #endif // _RF_H
