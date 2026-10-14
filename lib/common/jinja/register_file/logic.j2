@@ -85,6 +85,13 @@ import {{name}}_{{fingerprint}}_pkg::*;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             memory <= '{default: 0};
+{% if static_config %}
+            // No reconfiguration: the words the program's CONFs write, from
+            // reset.
+  {% for entry in static_config.conf %}
+            memory[{{ entry.address }}] <= WORD_BITWIDTH'({{ entry.value }});
+  {% endfor %}
+{% endif %}
         end
         else begin
             memory <= memory_next;

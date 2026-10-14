@@ -53,6 +53,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic trans_valid;
     trans_t trans_instr;
 
+{% if static_config %}
+    {% from "static_agu.j2" import static_agu_array %}
+    // No reconfiguration: nothing is decoded, and the AGUs run the
+    // configurations in their ROM.
+    assign evt_valid   = 1'b0;
+    assign evt_instr   = '0;
+    assign rep_valid   = 1'b0;
+    assign rep_instr   = '0;
+    assign trans_valid = 1'b0;
+    assign trans_instr = '0;
+
+{{ static_agu_array(static_config.agus, slot, "agu_activate", "agu_valid", "agu_final_address") }}
+{% else %}
     {{name}}_{{fingerprint}}_decoder decoder_inst (
       .clk(clk),
       .rst_n(rst_n),
@@ -107,6 +120,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .done(),
       .is_configured()
     );
+{% endif %}
 
     // Datapath. Drives the IO ports from the AGU addresses and forwards data
     // between them and the bulk port.

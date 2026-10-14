@@ -71,6 +71,19 @@ import {{name}}_{{fingerprint}}_pkg::*;
         for (int s = 0; s < NUM_SLOTS; s++)
           route_out_config_reg[i].send_links[s] <= '{default: 0};
       end
+{% if static_config %}
+      // No reconfiguration: every option holds the program's CONFs from reset.
+  {% for entry in static_config.conf %}
+    {% if entry.variant == "swb" %}
+      swb_config_reg[{{ entry.option }}].slot_link[{{ entry.target }}] <= {{ entry.source }};
+      swb_config_reg[{{ entry.option }}].link_valid[{{ entry.target }}] <= 1'b1;
+    {% elif entry.variant == "route" and entry.sr == 0 %}
+      route_out_config_reg[{{ entry.option }}].send_links[{{ entry.source }}] <= NUM_DIRS'({{ entry.target }});
+    {% elif entry.variant == "route" %}
+      route_in_config_reg[{{ entry.option }}].receive_links[{{ entry.source }}] <= NUM_SLOTS'({{ entry.target }});
+    {% endif %}
+  {% endfor %}
+{% endif %}
     end else begin
       // Register configurations if valid else hold previous value
       if (swb_conf_valid) begin

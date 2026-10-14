@@ -56,6 +56,25 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [NUM_AGUS-1:0] agu_enable;
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address;
 
+{% if static_config %}
+    {% from "static_agu.j2" import static_agu_array %}
+    // No reconfiguration: nothing is decoded. The AGUs run the configurations
+    // in their ROM, starting each run at the option the compiler gave it, and
+    // the configuration store holds the program's CONFs from reset
+    // ({{name}}_{{fingerprint}}_conf_manager).
+    assign swb_valid   = 1'b0;
+    assign swb_instr   = '0;
+    assign route_valid = 1'b0;
+    assign route_instr = '0;
+    assign evt_valid   = 1'b0;
+    assign evt_instr   = '0;
+    assign rep_valid   = 1'b0;
+    assign rep_instr   = '0;
+    assign trans_valid = 1'b0;
+    assign trans_instr = '0;
+
+{{ static_agu_array(static_config.agus, slot, "activate_0[NUM_AGUS-1:0]", "agu_enable", "agu_address") }}
+{% else %}
     {{name}}_{{fingerprint}}_decoder decoder_inst (
       .clk(clk),
       .rst_n(rst_n),
@@ -111,6 +130,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .done(),
       .is_configured()
     );
+{% endif %}
 
     // Datapath. Owns the configuration store and both switching networks.
     {{name}}_{{fingerprint}}_logic logic_inst (
