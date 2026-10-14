@@ -84,6 +84,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // widths. dpu has no init-address path, so evt_init_addr is tied off.
   agu_array #(
     .NUM_AGUS(NUM_AGUS),
+    .AGU_USED(NUM_AGUS'(AGU_USED)),
     .ADDRESS_WIDTH(ADDRESS_WIDTH),
     .AGU_ADDR_WIDTH('{AGU_DPU_ADDR_WIDTH, AGU_RST_ADDR_WIDTH}),
     .NUMBER_IR(NUMBER_IR),

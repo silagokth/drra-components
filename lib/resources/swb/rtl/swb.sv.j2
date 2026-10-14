@@ -78,6 +78,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // no init-address path, so evt_init_addr is tied off.
     agu_array #(
       .NUM_AGUS(NUM_AGUS),
+      .AGU_USED(NUM_AGUS'(AGU_USED)),
       .ADDRESS_WIDTH(ADDRESS_WIDTH),
       .NUMBER_IR(NUMBER_IR),
       .NUMBER_MT(NUMBER_MT),
