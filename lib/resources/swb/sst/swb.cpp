@@ -143,15 +143,27 @@ void Swb::handleROUTE(const SWB_PKG::ROUTEInstruction &instr) {
 void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
   DataEvent *dataEvent = dynamic_cast<DataEvent *>(event);
   if (dataEvent) {
-    // Verify if the slot is mapped to another slot
-    if (conf.hasCrossbar(currentFsmOption_swb, id)) {
-      uint32_t target = conf.crossbarTarget(currentFsmOption_swb, id);
-      out.output("Forwarding data from slot %u to slot %u (size=%dbits, "
-                 "data=%s)\n",
-                 id, target, dataEvent->size,
-                 formatRawDataToWords(dataEvent->payload).c_str());
-      slot_links[target]->send(dataEvent); // ownership passes on
-      return;
+    // Words and bulks travel on separate networks, as in logic.sv.j2: a word
+    // only through the crossbar, a bulk only through the routes. A bulk read
+    // from a slot that also feeds a crossbar channel must not reach it.
+    bool is_bulk = dataEvent->portType == DataEvent::PortType::WriteWide ||
+                   dataEvent->portType == DataEvent::PortType::ReadWide;
+    if (!is_bulk) {
+      std::vector<uint32_t> targets =
+          conf.crossbarTargets(currentFsmOption_swb, id);
+      if (targets.empty()) {
+        out.output("Slot %u drives no crossbar channel. Ignoring sent "
+                   "word.\n",
+                   id);
+        out.output("Current SWB FSM option: %u\n", currentFsmOption_swb);
+      }
+      for (auto target : targets) {
+        out.output("Forwarding data from slot %u to slot %u (size=%dbits, "
+                   "data=%s)\n",
+                   id, target, dataEvent->size,
+                   formatRawDataToWords(dataEvent->payload).c_str());
+        slot_links[target]->send(dataEvent->clone());
+      }
     } else if (conf.hasSendRoute(currentFsmOption_route, id)) {
       for (auto target : conf.sendTargets(currentFsmOption_route, id)) {
         if (target != CellDirection::C) {
@@ -188,8 +200,7 @@ void Swb::handleSlotEventWithID(Event *event, uint32_t id) {
       conf.dumpSendRoutes(currentFsmOption_route);
     }
   }
-  // Handler-delivered events are owned by the receiver. Only the swb
-  // connection branch above passes the original on; every other path sends
+  // Handler-delivered events are owned by the receiver. Every path above sends
   // clones (or drops the data), so the original must be freed here.
   delete event;
 }

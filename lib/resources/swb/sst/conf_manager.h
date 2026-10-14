@@ -25,8 +25,11 @@ extern const std::string cell_directions_str[9];
 // the RTL conversion was reverted and swb keeps its own module. The SST model
 // follows the same split.
 //
-// Holds `options` banks of three tables:
-//   * crossbar    source slot           -> one target slot
+// Holds `options` banks of three tables, laid out as conf_manager.sv.j2's
+// registers are and, like them, overwritten rather than added to by a CONF:
+//   * crossbar    target slot           -> source slot (slot_link, keyed by
+//                                          target, so one source may feed
+//                                          several targets)
 //   * send route  source slot           -> set of cell directions
 //   * recv route  source cell direction -> set of target slots
 //
@@ -45,8 +48,8 @@ public:
                   uint32_t target_onehot);
 
   // --- read path, at the option the resource selected -----------------
-  bool hasCrossbar(uint32_t option, uint32_t source) const;
-  uint32_t crossbarTarget(uint32_t option, uint32_t source) const;
+  // Every target slot whose crossbar link currently reads from `source`.
+  std::vector<uint32_t> crossbarTargets(uint32_t option, uint32_t source) const;
 
   bool hasSendRoute(uint32_t option, uint32_t source) const;
   const std::set<uint32_t> &sendTargets(uint32_t option, uint32_t source) const;

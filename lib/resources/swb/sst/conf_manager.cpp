@@ -25,7 +25,9 @@ void SwbConfManager::checkOption(uint32_t option, const char *what) const {
 void SwbConfManager::writeCrossbar(uint32_t option, uint32_t source,
                                    uint32_t target) {
   checkOption(option, "crossbar write");
-  crossbar[option][source] = target;
+  // slot_link is keyed by target: the CONF replaces whatever source the
+  // target channel read from before
+  crossbar[option][target] = source;
 
   out->output("Adding connection from slot %u to slot %u "
               "in FSM %u\n",
@@ -40,6 +42,9 @@ void SwbConfManager::writeRoute(uint32_t option, bool receive, uint32_t source,
   // Send:    source is a slot, the one-hot targets are cell directions.
   auto &targets_set =
       receive ? recv_routes[option][source] : send_routes[option][source];
+  // The RTL writes the whole one-hot mask, so a route replaces the previous
+  // one rather than adding to it
+  targets_set.clear();
 
   std::vector<uint32_t> targets;
   for (uint32_t i = 0; i < 16; i++) {
@@ -65,20 +70,21 @@ void SwbConfManager::writeRoute(uint32_t option, bool receive, uint32_t source,
   out->print("] in configuration slot %u\n", option);
 }
 
-bool SwbConfManager::hasCrossbar(uint32_t option, uint32_t source) const {
+std::vector<uint32_t> SwbConfManager::crossbarTargets(uint32_t option,
+                                                      uint32_t source) const {
   checkOption(option, "crossbar read");
-  return crossbar[option].count(source) > 0;
-}
-
-uint32_t SwbConfManager::crossbarTarget(uint32_t option,
-                                        uint32_t source) const {
-  checkOption(option, "crossbar read");
-  return crossbar[option].at(source);
+  std::vector<uint32_t> targets;
+  for (auto const &[target, link_source] : crossbar[option]) {
+    if (link_source == source)
+      targets.push_back(target);
+  }
+  return targets;
 }
 
 bool SwbConfManager::hasSendRoute(uint32_t option, uint32_t source) const {
   checkOption(option, "send route read");
-  return send_routes[option].count(source) > 0;
+  auto it = send_routes[option].find(source);
+  return it != send_routes[option].end() && !it->second.empty();
 }
 
 const std::set<uint32_t> &SwbConfManager::sendTargets(uint32_t option,
@@ -90,7 +96,8 @@ const std::set<uint32_t> &SwbConfManager::sendTargets(uint32_t option,
 
 bool SwbConfManager::hasRecvRoute(uint32_t option, uint32_t source) const {
   checkOption(option, "receive route read");
-  return recv_routes[option].count(source) > 0;
+  auto it = recv_routes[option].find(source);
+  return it != recv_routes[option].end() && !it->second.empty();
 }
 
 const std::set<uint32_t> &SwbConfManager::recvTargets(uint32_t option,
