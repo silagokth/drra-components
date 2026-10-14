@@ -5,6 +5,7 @@ dependencies:
   agu_array: { path: ../../common/agu_array }
   config_controller: { path: ../../common/config_controller }
   booth_multiplier: { path: ../../common/booth_multiplier }
+  kogge_stone_adder: { path: ../../common/kogge_stone_adder }
 
 sources:
   - ./rtl/dpu_pkg.sv
