@@ -35,8 +35,16 @@ std::unordered_map<uint32_t, std::function<void(uint32_t)>>
         {{ kind | lower }}_obj->handleEVT(
             decoded_instr.slot, decoded_instr.port, evt_option, evt_init_addr);
         {% elif instruction.name == 'rep' %}
+        // A resource whose ISA keeps REPX as its own opcode (vpu) has no ext
+        // segment; its REP is always the base half.
+        bool rep_ext = false;
+        {% for segment in instruction.segments %}
+        {% if segment.name | lower == 'ext' %}
+        rep_ext = decoded_instr.ext;
+        {% endif %}
+        {% endfor %}
         {{ kind | lower }}_obj->handleREP(
-            decoded_instr.slot, decoded_instr.port, decoded_instr.ext,
+            decoded_instr.slot, decoded_instr.port, rep_ext,
             decoded_instr.iter, decoded_instr.step, decoded_instr.delay,
             {{ kind | upper }}_INSTR_REP_ITER_BITWIDTH,
             {{ kind | upper }}_INSTR_REP_STEP_BITWIDTH,

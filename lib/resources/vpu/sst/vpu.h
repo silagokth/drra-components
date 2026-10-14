@@ -40,8 +40,6 @@ public:
   /* Destructor */
   ~Vpu() {};
 
-  bool clockTick(SST::Cycle_t currentCycle) override;
-
   void handleEventWithSlotID(SST::Event *event, uint32_t slot_id);
 
   void handleOperation(std::string name,
@@ -68,19 +66,14 @@ public:
   // Instruction format
   using DRRAResource::format;
   void handleVPU(const VPU_PKG::VPUInstruction &instr);
-  void handleEVT(const VPU_PKG::EVTInstruction &instr);
-  void handleREP(const VPU_PKG::REPInstruction &instr);
-  void handleREPX(const VPU_PKG::REPXInstruction &instr);
-  void handleTRANS(const VPU_PKG::TRANSInstruction &instr);
 
-  // NOTE: portsToActivate lives in DRRAResource. The vpu used to redeclare it
-  // here, which SHADOWED the base member: handleActivation() filled the
-  // derived map while DRRAResource::isIdle() read the (always empty) base one,
-  // so the vpu looked permanently idle and clockTickBase()'s idle-skip
-  // unregistered its clock before it ever activated a port. The resource then
-  // decoded instructions (handler-delivered, clock-independent) but never
-  // ticked, so it never produced any data.
-  void handleActivation(uint32_t slot_id, uint32_t ports) override;
+  // The vpu ISA keeps REPX as its own opcode instead of an `ext` bit on REP;
+  // it is the ext = 1 half of the base REP.
+  void handleREPX(const VPU_PKG::REPXInstruction &instr);
+
+  // VPU drives its FSM/output every cycle, like the dpu, so it never
+  // idle-skips.
+  bool isIdle() override { return false; }
 
   using DRRAResource::out;
   DRRAOutput &getOutput() { return out; }
@@ -88,6 +81,10 @@ public:
   uint32_t fractional_bitwidth;
 
 private:
+  // The datapath is not driven by an AGU address: it runs the configured
+  // operation every cycle and only *selects* which one from the AGU.
+  void logic(uint32_t subcycle) override;
+
   std::vector<int64_t> accumulate_register;
   std::vector<int64_t>
   byteVectorToInt64Vector(const std::vector<uint8_t> &byte_vector);
@@ -97,18 +94,12 @@ private:
 
   std::unordered_map<VPU_PKG::VPU_MODE, std::function<void()>> vpuHandlers;
 
-  std::vector<std::function<void()>> eventsHandlers;
-
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
   std::vector<std::vector<uint8_t>> imm_buffers;
 
   std::vector<uint8_t> input_latch_0;
   std::vector<uint8_t> input_latch_1;
-
-  std::map<uint32_t, size_t> current_config_option;
-  int32_t last_config_level = -1;
-  int32_t last_config_trans = -1;
 };
 
 #endif // _VPU_H
