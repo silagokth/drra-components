@@ -14,12 +14,32 @@ import {{name}}_{{fingerprint}}_pkg::*;
   localparam logic signed [SCALAR_REG_WIDTH-1:0] MIN_RESULT = -MAX_RESULT - 1;
   logic signed [SCALAR_REG_WIDTH:0] temp_result;
 
+  // One Kogge-Stone prefix adder at SCALAR_REG_WIDTH+1 bits serves add (mode 1),
+  // subtract (2) and the signed compares (17-22): `+`, `-` and `<` would each
+  // become a ripple carry chain. in1 - in2 at this width cannot overflow, so
+  // its top bit is exactly in1 < in2.
+  logic sub_op;
+  logic signed [SCALAR_REG_WIDTH:0] add_sum;
+  logic lt, eq;
+  assign sub_op = (mode != 1);
+  kogge_stone_adder #(
+      .WIDTH(SCALAR_REG_WIDTH + 1)
+  ) add_inst (
+      .a   ({in1[SCALAR_REG_WIDTH-1], in1}),
+      .b   ({in2[SCALAR_REG_WIDTH-1], in2} ^ {(SCALAR_REG_WIDTH + 1){sub_op}}),
+      .cin (sub_op),
+      .sum (add_sum),
+      .cout()
+  );
+  assign lt = add_sum[SCALAR_REG_WIDTH];
+  assign eq = (in1 == in2);
+
   always_comb begin
     temp_result = 0;
     if (mode == 1)
-      temp_result = in1 + in2;
+      temp_result = add_sum;
     else if (mode == 2)
-      temp_result = in1 - in2;
+      temp_result = add_sum;
     else if (mode == 3)
       temp_result = in1 <<< in2;
     else if (mode == 4)
@@ -33,17 +53,17 @@ import {{name}}_{{fingerprint}}_pkg::*;
     else if (mode == 11)
       temp_result = in1 ^ in2;
     else if (mode == 17)
-      temp_result = in1 == in2;
+      temp_result = eq;
     else if (mode == 18)
-      temp_result = in1 != in2;
+      temp_result = !eq;
     else if (mode == 19)
-      temp_result = in1 > in2;
+      temp_result = !lt && !eq;
     else if (mode == 20)
-      temp_result = in1 >= in2;
+      temp_result = !lt;
     else if (mode == 21)
-      temp_result = in1 < in2;
+      temp_result = lt;
     else if (mode == 22)
-      temp_result = in1 <= in2;
+      temp_result = lt || eq;
     else if (mode == 23) begin // addh
       logic [SCALAR_REG_WIDTH/2-1:0] in1_msb, in2_lsb, sum;
       in1_msb = in1[SCALAR_REG_WIDTH-1:SCALAR_REG_WIDTH/2];
@@ -59,10 +79,12 @@ import {{name}}_{{fingerprint}}_pkg::*;
     else
       temp_result = 0; // default case, should not happen
 
-    // saturate the result
-    if (temp_result > MAX_RESULT) begin
+    // saturate the result: temp_result is outside the SCALAR_REG_WIDTH-bit range
+    // exactly when its top two bits differ (01 above MAX_RESULT, 10 below
+    // MIN_RESULT); a compare against the bounds would be another carry chain.
+    if (!temp_result[SCALAR_REG_WIDTH] && temp_result[SCALAR_REG_WIDTH-1]) begin
       out = MAX_RESULT;
-    end else if (temp_result < MIN_RESULT) begin
+    end else if (temp_result[SCALAR_REG_WIDTH] && !temp_result[SCALAR_REG_WIDTH-1]) begin
       out = MIN_RESULT;
     end else begin
       out = temp_result[SCALAR_REG_WIDTH-1:0];
