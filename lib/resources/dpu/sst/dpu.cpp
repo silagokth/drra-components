@@ -12,6 +12,7 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
   saturate = params.find<uint32_t>("SATURATE", 1) != 0;
 
   fsmHandlers.resize(num_fsms);
+  fsmModes.assign(num_fsms, DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
   dpuHandlers = DPU_Operations::createHandlers(this);
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
   for (uint32_t i = 0; i < num_fsms; i++) {
@@ -19,12 +20,11 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
   }
 
   // The DPU port only selects the FSM, which logic() reads straight off the
-  // AGU, so it registers no action. The reset port does have one.
+  // AGU, so it registers no action. The reset port does have one. It only
+  // records the clear: logic() applies it now for a single-cycle mode, or a
+  // cycle later for a MAC product, which reaches the accumulator then.
   registerPortAction(DPU_PKG::EVT_PORT::EVT_PORT_RST, 5, "dpu_reset",
-                     [this](int64_t) {
-                       out.output(" DPU accumulate register cleared\n");
-                       accumulate_register.clear();
-                     });
+                     [this](int64_t) { reset_requested = true; });
 }
 
 void Dpu::logic(uint32_t subcycle) {
@@ -51,7 +51,38 @@ void Dpu::logic(uint32_t subcycle) {
 
   out.output(" Current FSM: %u\n", current_fsm);
   out.output(" fsmHandlers size: %lu\n", fsmHandlers.size());
-  fsmHandlers[current_fsm]();
+
+  // Mirrors logic.sv.j2: stage 2 of last cycle's MAC goes first and uses the
+  // clear delayed with its product. It holds the adder, the accumulator and
+  // out0, so a non-MAC mode issued in the same cycle is dropped; a further
+  // MAC's stage 1 still runs.
+  bool reset_now = reset_requested;
+  reset_requested = false;
+  bool stage2 = mac_pending;
+  mac_pending = false;
+  if (stage2) {
+    if (mac_reset_pending) {
+      out.output(" DPU accumulate register cleared\n");
+      accumulate_register.clear();
+    }
+    finishMAC();
+  }
+  mac_reset_pending = reset_now;
+
+  if (fsmModes[current_fsm] == DPU_PKG::CONF_MODE::CONF_MODE_MAC) {
+    // Stage 1. A clear now is for this product and is applied in stage 2.
+    fsmHandlers[current_fsm]();
+  } else if (stage2) {
+    if (fsmModes[current_fsm] != DPU_PKG::CONF_MODE::CONF_MODE_IDLE)
+      out.output(" DPU mode %d dropped: the cycle belongs to MAC stage 2\n",
+                 static_cast<int>(fsmModes[current_fsm]));
+  } else {
+    if (reset_now) {
+      out.output(" DPU accumulate register cleared\n");
+      accumulate_register.clear();
+    }
+    fsmHandlers[current_fsm]();
+  }
 
   // Update the FSM for the next execution from the AGU output (one cycle
   // delayed). Port 0 is still active here even on its last scheduled cycle:
@@ -87,6 +118,7 @@ void Dpu::handleCONF(const DPU_PKG::CONFInstruction &instr) {
   // Add the event handler to the config index
   fsmHandlers[instr.option] =
       DPU_Operations::getDPUHandler(this, (DPU_PKG::CONF_MODE)instr.mode);
+  fsmModes[instr.option] = (DPU_PKG::CONF_MODE)instr.mode;
 }
 
 void Dpu::sendOut1(int64_t value) {
@@ -99,16 +131,47 @@ void Dpu::sendOut1(int64_t value) {
   out.output("DPU out1=%ld\n", value);
 }
 
-void Dpu::handleOperation(std::string name,
-                          std::function<int64_t(int64_t, int64_t)> operation) {
+void Dpu::readOperands(int64_t &data0, int64_t &data1) {
   // Ensure both buffers exist
   if (data_buffers[0].size() == 0 || data_buffers[1].size() == 0) {
     out.fatal(CALL_INFO, -1, "Data buffers not found (data0=%lu, data1=%lu)\n",
               data_buffers[0].size(), data_buffers[1].size());
   }
 
-  int64_t data0 = vectorToInt64(data_buffers[0]);
-  int64_t data1 = vectorToInt64(data_buffers[1]);
+  data0 = vectorToInt64(data_buffers[0]);
+  data1 = vectorToInt64(data_buffers[1]);
+}
+
+void Dpu::issueMACProduct(int64_t product) {
+  mac_pending = true;
+  mac_product = product;
+}
+
+void Dpu::finishMAC() {
+  int64_t acc = accumulate_register.size() > 0
+                    ? vectorToInt64(accumulate_register)
+                    : 0;
+  int64_t result = saturate
+                       ? DPU_Operations::add_sat(acc, mac_product)
+                       : DPU_Operations::wrap(acc + mac_product, word_bitwidth);
+  accumulate_register = int64ToVector(result);
+
+  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
+  dataEvent->size = word_bitwidth;
+  dataEvent->payload = int64ToVector(result);
+  data_links[0]->send(dataEvent);
+
+  out.output("DPU MAC stage 2 (product=%ld, out=%ld)\n", mac_product, result);
+  logTraceEvent("operation", slot_id, true, 'X',
+                {{"product", static_cast<int>(mac_product)},
+                 {"result", static_cast<int>(result)},
+                 {"accumulator", static_cast<int>(result)}});
+}
+
+void Dpu::handleOperation(std::string name,
+                          std::function<int64_t(int64_t, int64_t)> operation) {
+  int64_t data0, data1;
+  readOperands(data0, data1);
   int64_t result = operation(data0, data1);
 
   DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);

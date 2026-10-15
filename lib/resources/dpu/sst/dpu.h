@@ -49,6 +49,13 @@ public:
   void handleOperation(std::string name,
                        std::function<int64_t(int64_t, int64_t)> operation);
 
+  // This cycle's operands, from the two slots' buffers.
+  void readOperands(int64_t &data0, int64_t &data1);
+
+  // Stage 1 of MAC: the product is added to the accumulator next cycle, in
+  // stage 2 (finishMAC), mirroring the RTL's registered product.
+  void issueMACProduct(int64_t product);
+
   // Sends a word on the second slot's output (the RTL's word_data_out_1).
   void sendOut1(int64_t value);
 
@@ -74,12 +81,26 @@ private:
   // operation on every cycle and only *selects* which one from the AGU.
   void logic(uint32_t subcycle) override;
 
+  // Stage 2 of MAC: adds last cycle's product to the accumulator and drives
+  // the sum out.
+  void finishMAC();
+
   std::vector<uint8_t> accumulate_register;
 
   std::unordered_map<DPU_PKG::CONF_MODE, std::function<void()>> dpuHandlers;
 
   uint32_t current_fsm = 0;
   std::vector<std::function<void()>> fsmHandlers;
+  // The mode each FSM's handler runs, to tell MAC's two stages apart.
+  std::vector<DPU_PKG::CONF_MODE> fsmModes;
+
+  // The RTL's MAC pipeline register (logic.sv.j2: mac_q, mult_out_q,
+  // reset_accumulator_q).
+  bool mac_pending = false;
+  int64_t mac_product = 0;
+  bool mac_reset_pending = false;
+  // Set by the rst port this cycle; logic() decides which stage it clears for.
+  bool reset_requested = false;
 };
 
 #endif // _DPU_H

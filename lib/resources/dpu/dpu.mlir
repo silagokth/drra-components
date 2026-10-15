@@ -35,14 +35,20 @@
 // result and operand order. A single-slot resource says nothing and gets the
 // one slot it has.
 //
-// Each arithmetic replacement also carries a `delay`: the cycles from the event
-// that starts one pass through the operation to that pass's result being there
-// to be taken. Per pass, not per loop -- the compiler multiplies it by the trip
-// count where a value is carried out of a loop, so an accumulation of three
-// taps at one cycle each is timed at three. Without a delay every step of a
-// chain reads as simultaneous, and the register file write is activated in the
-// same cycle as the reads feeding the DPU, sampling the output before there is
-// one.
+// Each arithmetic replacement also carries its timing, per pass rather than per
+// loop:
+//   - `latency`: the cycles from the event that starts one pass through the
+//     operation to that pass's result being there to be taken;
+//   - `ii` (initiation interval): the cycles between the starts of two
+//     successive passes.
+// Where a value is carried out of a loop of N passes, the compiler times it at
+// latency + (N - 1) * ii: a pipelined operation starts a pass every ii cycles
+// and only the last one's latency is left over. So an accumulation of three
+// taps with latency 2 and ii 1 is timed at four. Without a latency every step
+// of a chain reads as simultaneous, and the register file write is activated
+// in the same cycle as the reads feeding the DPU, sampling the output before
+// there is one. A rop with no `ii` is taken to have ii = latency; `delay` is
+// the older name for `latency`.
 //
 // These describe the arithmetic only. The hardware clamps every result to the
 // word rather than wrapping (rtl/adder.sv.j2 and rtl/multiplier.sv.j2 with
@@ -124,7 +130,8 @@ module @dpu {
 
     func.func @add(%a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 1 : i32},
-                           delay = 1 : i32,
+                           latency = 1 : i32,
+                           ii = 1 : i32,
                            endpoints = {results = [0 : i32],
                                         operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
@@ -135,7 +142,8 @@ module @dpu {
 
     func.func @subt(%a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 4 : i32},
-                           delay = 1 : i32,
+                           latency = 1 : i32,
+                           ii = 1 : i32,
                            endpoints = {results = [0 : i32],
                                         operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
@@ -146,7 +154,8 @@ module @dpu {
 
     func.func @mult(%a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 7 : i32},
-                           delay = 1 : i32,
+                           latency = 1 : i32,
+                           ii = 1 : i32,
                            endpoints = {results = [0 : i32],
                                         operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
@@ -156,9 +165,21 @@ module @dpu {
     }
 
     // %acc is unused: the accumulate register is not an instruction operand.
+    // Latency 2, ii 1: the RTL registers the product before the accumulate add
+    // (rtl/logic.sv.j2), so a pass's sum is in out0 a cycle later than the
+    // single-cycle modes', while a new pass still starts every cycle.
+    //
+    // TODO: occupancy. Stage 2 of a window's last pass holds the adder, the
+    // accumulator and out0 for latency - ii cycles after that pass, so the DPU
+    // is busy for (N - 1) * ii + latency cycles, not N * ii, and a different
+    // mode issued in the cycle right after a MAC window is dropped by the
+    // hardware. The compiler's sharing check (`uses`, vesyla ConflictGraph)
+    // knows nothing of that tail. It is unreachable today only because every
+    // arithmetic mode claims conf_reg:0, so no two of them share a DPU.
     func.func @mac(%acc: memref<i16>, %a: i16, %b: i16) -> i16 {
       %r = drra.rop %a, %b {conf = {mode = 10 : i32},
-                           delay = 1 : i32,
+                           latency = 2 : i32,
+                           ii = 1 : i32,
                            endpoints = {results = [0 : i32],
                                         operands = [0 : i32, 1 : i32]},
                            uses = ["conf_reg:0", "input_narrow:0",
