@@ -30,14 +30,21 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign instruction_valid = instr_en_0;
     assign instruction_payload = instr_0[INSTR_PAYLOAD_BITWIDTH-1:0];
 
+    // A bulk row holds BULK_BITWIDTH / WORD_BITWIDTH words, as in SST (rf.cpp),
+    // so the row address width follows from the word size. The BULK_ADDR_WIDTH
+    // property only matches it for 16-bit words.
+    localparam int WORD_PER_BULK = BULK_BITWIDTH / WORD_BITWIDTH;
+    localparam int BULK_OFFSET_WIDTH = $clog2(WORD_PER_BULK);
+    localparam int BULK_ROW_ADDR_WIDTH = WORD_ADDR_WIDTH - BULK_OFFSET_WIDTH;
+
     logic [RF_DEPTH-1:0][WORD_BITWIDTH-1:0] memory, memory_next;
     logic bulk_w_en, bulk_r_en, word_w_en, word_r_en;
-    logic [BULK_ADDR_WIDTH-1:0] bulk_w_addr, bulk_r_addr;
+    logic [BULK_ROW_ADDR_WIDTH-1:0] bulk_w_addr, bulk_r_addr;
     logic [WORD_ADDR_WIDTH-1:0] word_w_addr, word_r_addr;
     logic [ADDRESS_WIDTH-1:0] bulk_w_agu, bulk_r_agu, word_w_agu, word_r_agu;
 
-    assign bulk_w_addr = bulk_w_agu[BULK_ADDR_WIDTH-1:0];
-    assign bulk_r_addr = bulk_r_agu[BULK_ADDR_WIDTH-1:0];
+    assign bulk_w_addr = bulk_w_agu[BULK_ROW_ADDR_WIDTH-1:0];
+    assign bulk_r_addr = bulk_r_agu[BULK_ROW_ADDR_WIDTH-1:0];
     assign word_w_addr = word_w_agu[WORD_ADDR_WIDTH-1:0];
     assign word_r_addr = word_r_agu[WORD_ADDR_WIDTH-1:0];
 
@@ -63,8 +70,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         end
       end
 
-    parameter WORD_PER_BULK = 2**(WORD_ADDR_WIDTH-BULK_ADDR_WIDTH);
-    logic [WORD_ADDR_WIDTH-BULK_ADDR_WIDTH-1:0] offset_w_addr, offset_r_addr;
+    logic [BULK_OFFSET_WIDTH-1:0] offset_w_addr, offset_r_addr;
     always_comb begin
         memory_next = memory;
         bulk_data_out_0 = '0;
@@ -74,18 +80,18 @@ import {{name}}_{{fingerprint}}_pkg::*;
         if (bulk_w_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_w_addr = i;
-                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_PER_BULK +:WORD_PER_BULK];
+                memory_next[{bulk_w_addr, offset_w_addr}] = bulk_data_in_0[i*WORD_BITWIDTH +:WORD_BITWIDTH];
             end
         end
         if (word_w_en) begin
-            if ((!bulk_w_en) || (bulk_w_addr != word_w_addr[WORD_ADDR_WIDTH-1:WORD_ADDR_WIDTH-1-BULK_ADDR_WIDTH])) begin
+            if ((!bulk_w_en) || (bulk_w_addr != word_w_addr[WORD_ADDR_WIDTH-1:BULK_OFFSET_WIDTH])) begin
                 memory_next[word_w_addr] = word_data_in_0;
             end
         end
         if (bulk_r_en) begin
             for (int i=0; i<WORD_PER_BULK; i++) begin
                 offset_r_addr = i;
-                bulk_data_out_0[i*WORD_PER_BULK +:WORD_PER_BULK] = memory[{bulk_r_addr, offset_r_addr}];
+                bulk_data_out_0[i*WORD_BITWIDTH +:WORD_BITWIDTH] = memory[{bulk_r_addr, offset_r_addr}];
             end
         end
         if (word_r_en) begin
