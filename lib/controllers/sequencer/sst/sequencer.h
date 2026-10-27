@@ -87,6 +87,7 @@ private:
   uint32_t instrHopsWidth;
   uint32_t registerSize;
   uint32_t numRegisters;
+  uint32_t iramDepth; // IRAM_DEPTH: instructions the RTL can hold (0 = unchecked)
 
   // Add scalar and bool registers
   std::vector<uint32_t> scalarRegisters;

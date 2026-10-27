@@ -28,6 +28,7 @@ Sequencer::Sequencer(SST::ComponentId_t id, SST::Params &params)
   // Register params
   registerSize = params.find<int>("register_size", 16);
   numRegisters = params.find<int>("num_registers", 16);
+  iramDepth = params.find<uint32_t>("IRAM_DEPTH", 0);
 
   // Instruction handlers
   instructionHandlers = SEQUENCER_PKG::createInstructionHandlers(this);
@@ -117,6 +118,14 @@ void Sequencer::load_assembly_program(std::string assemblyProgramPath) {
   }
   assemblyProgram.shrink_to_fit(); // Ensure proper alignment and size
   out.output("Loaded %lu instructions\n", assemblyProgram.size());
+  // The RTL sequencer only holds IRAM_DEPTH instructions; a longer program
+  // loses its tail (and its halt) there, so refuse it here too.
+  if (iramDepth > 0 && assemblyProgram.size() > iramDepth) {
+    out.fatal(CALL_INFO, -1,
+              "Program has %lu instructions, but the sequencer's IRAM_DEPTH "
+              "is %u\n",
+              assemblyProgram.size(), iramDepth);
+  }
 }
 
 void Sequencer::handleHALT(const SEQUENCER_PKG::HALTInstruction &instr) {
@@ -355,11 +364,13 @@ void Sequencer::handle_continuous_port_mode(uint32_t ports, uint32_t param) {
 void Sequencer::handle_all_port_X_mode(uint32_t ports, uint32_t param) {
   uint32_t target_ports_for_slot = 0;
   uint32_t ports_segment_length = 16;
-  if (param >= PORTS_PER_SLOT) {
+  // param is the mask of ports to activate in each selected slot (one bit
+  // per port), as in the RTL (resource_activate[i] = _act._param).
+  if (param == 0 || param >= (1u << PORTS_PER_SLOT)) {
     out.fatal(CALL_INFO, -1,
-              "Invalid port number, activation mode 1 requires a value "
-              "between 0 and %d.\n",
-              PORTS_PER_SLOT - 1);
+              "Invalid port mask, activation mode 1 requires a value "
+              "between 1 and %d.\n",
+              (1 << PORTS_PER_SLOT) - 1);
   }
   target_ports_for_slot = param;
   for (uint32_t i = 0; i < ports_segment_length; i++) {
