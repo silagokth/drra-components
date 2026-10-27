@@ -48,7 +48,6 @@ module agu_controller #(
 
     input  logic [NUM_AGUS-1:0]                    agu_done,
     agu_cfg_if.producer                            agu_configs  [NUM_AGUS],
-    output logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] init_address,
 
     // High per AGU once any of its mt/ir configs has been written. Optional —
     // consumers that don't need it (io/iosram/rf/dpu) leave it unconnected.
@@ -103,10 +102,20 @@ module agu_controller #(
   logic [LVL_W-1:0]               current_rep_level   [NUM_AGUS];
   logic [MT_IDX_W-1:0] current_trans_index [NUM_AGUS];
 
+  // Init address of each lane, written by the evt that opens it. Driven onto
+  // agu_cfg_if.lane_init, so each lane offsets its own addresses (the events
+  // joined by a transition can start at different addresses).
+  logic [NUMBER_MT:0][ADDRESS_WIDTH-1:0] lane_init_reg [NUM_AGUS];
+
   // Active target AGU: the EVT's own port while an EVT is dispatched, otherwise
   // the index latched at the last EVT.
   logic [$clog2(NUM_AGUS)-1:0] agu_index;
   assign agu_index = evt_valid ? evt_port : agu_config_index;
+
+  // The lane an evt opens: lanes count up from 0 (current_lane_index starts
+  // at all-ones, so the first evt lands on lane 0).
+  logic [MT_IDX_W-1:0] evt_lane;
+  assign evt_lane = current_lane_index[agu_index] + 1;
 
   // Selectors indexing the AGU currently being configured.
   //
@@ -145,6 +154,7 @@ module agu_controller #(
       current_lane_index  <= '{default: '1};
       current_rep_level   <= '{default: '0};
       current_trans_index <= '{default: '0};
+      lane_init_reg       <= '{default: '0};
     end else begin
       // Reset state for any AGU that just finished. Run unconditionally in
       // parallel with evt/rep dispatch — gating evt/rep on `!|agu_done` would
@@ -158,6 +168,7 @@ module agu_controller #(
           current_lane_index[i]  <= '1;
           current_rep_level[i]   <= '0;
           current_trans_index[i] <= '0;
+          lane_init_reg[i]       <= '0;
         end
       end
 
@@ -166,9 +177,12 @@ module agu_controller #(
         current_lane_index[agu_index] <= current_lane_index[agu_index] + 1;
         current_rep_level[agu_index]  <= '0;
 
-        // NOTE: Default configuration of the AGU is return init_addr only
-        agu_configs_reg[agu_index].ir_configs[0][0].iter          <= 1;
-        agu_configs_reg[agu_index].ir_configs[0][0].is_configured <= 1'b1;
+        // NOTE: Default configuration of the lane is return init_addr only.
+        // It goes to the lane this evt opens: writing lane 0 would overwrite
+        // the innermost rep of the first event when a later one follows it.
+        agu_configs_reg[agu_index].ir_configs[evt_lane][0].iter          <= 1;
+        agu_configs_reg[agu_index].ir_configs[evt_lane][0].is_configured <= 1'b1;
+        lane_init_reg[agu_index][evt_lane] <= ADDRESS_WIDTH'(evt_init_addr);
 
       end else if (rep_valid) begin
 
@@ -220,23 +234,16 @@ module agu_controller #(
       assign agu_configs[gi].or_configs = agu_configs_reg[gi].or_configs;
       assign agu_configs[gi].mt_configs = agu_configs_reg[gi].mt_configs;
       assign agu_configs[gi].ir_configs = agu_configs_reg[gi].ir_configs;
+      for (genvar gl = 0; gl <= NUMBER_MT; gl++) begin : gen_lane_init
+        assign agu_configs[gi].lane_init[gl] = lane_init_reg[gi][gl];
+      end
     end
   endgenerate
-
-  logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      agu_init_address <= '0;
-    end else if (evt_valid) begin
-      agu_init_address[agu_index] <= ADDRESS_WIDTH'(evt_init_addr);
-    end
-  end
 
   if (EVT_INIT_ADDR_WIDTH > ADDRESS_WIDTH) begin : gen_evt_init_addr_width_check
     $error("EVT_INIT_ADDR_WIDTH (%0d) wider than ADDRESS_WIDTH (%0d): init address would truncate",
            EVT_INIT_ADDR_WIDTH, ADDRESS_WIDTH);
   end
-  assign init_address = agu_init_address;
 
   // ───────────────────────────────────────────────────────────────────────────
   // AGU configured check

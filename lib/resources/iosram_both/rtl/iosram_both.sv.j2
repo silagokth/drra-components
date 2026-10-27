@@ -92,7 +92,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign agu_activate[5] = activate_1[3]; // slot 1 port 3
 
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address, agu_final_address;
-    logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_init_address;
     logic [NUM_AGUS-1:0] agu_done;
 
     // Offset terms per port, one per nested loop: evt sets term 0, evts
@@ -122,7 +121,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     genvar idx;
     generate
       for (idx = 0; idx < NUM_AGUS; idx++)
-        assign agu_final_address[idx] = agu_address[idx] + agu_init_address[idx]
+        assign agu_final_address[idx] = agu_address[idx]
              + (ADDRESS_WIDTH'(agu_init_high[idx]) << EVT_INIT_ADDR_BITWIDTH)
              + agu_offset[idx];
     endgenerate
@@ -273,8 +272,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .trans_delay(trans_instr._delay),
 
       .agu_done(agu_done),
-      .agu_configs(agu_configs),
-      .init_address(agu_init_address)
+      .agu_configs(agu_configs)
     );
 
     genvar i;

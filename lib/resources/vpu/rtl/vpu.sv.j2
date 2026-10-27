@@ -166,8 +166,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .clk  (clk),
     .rst_n(rst_n),
 
-    // vpu has no init address path, so evt_init_addr is tied off and
-    // init_address is left unconnected.
+    // vpu has no init address path, so evt_init_addr is tied off.
     .evt_valid(evt_valid),
     .evt_port(agu_evt_port),
     .evt_init_addr('0),
@@ -183,7 +182,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     .agu_done(agu_done),
     .agu_configs(agu_configs),
-    .init_address(),
     .agu_is_configured()
   );
 

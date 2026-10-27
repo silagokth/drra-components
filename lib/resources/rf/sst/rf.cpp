@@ -53,7 +53,9 @@ void Rf::handleEVT(const RF_PKG::EVTInstruction &instr) {
 
   auto evt = instr;
 
-  port_agus_init[evt.port] = evt.init_addr;
+  // The AGU keeps one init address per lane (DRRA_AGU snapshots it in
+  // addEvent), so the events joined by a transition keep their own.
+  agus[evt.port].setInitialAddress(evt.init_addr);
   current_option_config[instr.port] = evt.option;
 
   // Add the event handler

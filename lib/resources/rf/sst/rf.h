@@ -74,13 +74,11 @@ private:
 
   uint32_t current_event_number = 0;
   std::map<uint32_t, size_t> current_option_config;
-  std::map<uint32_t, uint32_t> port_agus_init;
   std::map<uint32_t, uint32_t> port_agus;
 
 
   void updatePortAGUs(uint32_t port) {
-    port_agus[port] = port_agus_init[port] +
-                      agus[port].getAddressForCycle(getPortActiveCycle(port));
+    port_agus[port] = agus[port].getAddressForCycle(getPortActiveCycle(port));
     if (port_agus[port] >= register_file_size) {
       out.fatal(CALL_INFO, -1, "Invalid AGU address (greater than RF size)\n");
     }

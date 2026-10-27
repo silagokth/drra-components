@@ -18,7 +18,10 @@ interface agu_cfg_if #(
     parameter int REP_DELAY_WIDTH   = 6,
     parameter int REP_ITER_WIDTH    = 6,
     parameter int REP_STEP_WIDTH    = 6,
-    parameter int TRANS_DELAY_WIDTH = 12
+    parameter int TRANS_DELAY_WIDTH = 12,
+    // Width of the per-lane init address. Wide enough for every resource's
+    // address bus; each lane narrows it to the AGU's own ADDRESS_WIDTH.
+    parameter int INIT_ADDR_WIDTH   = 32
 );
   // OR_DIM / MT_DIM: clamp to >=1 so packed dims never collapse to 0
   // when NUMBER_OR or NUMBER_MT is 0. Real entry count still tracks
@@ -64,6 +67,13 @@ interface agu_cfg_if #(
   //            Innermost loop = idx 0.
   rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
 
-  modport producer(output or_configs, mt_configs, ir_configs);
-  modport consumer(input or_configs, mt_configs, ir_configs);
+  // lane_init[NUMBER_MT+1]
+  //   Init address of each IR lane, set by the evt that opened the lane.
+  //   Every address the lane produces is offset by it, so the events joined
+  //   by a transition can each start at their own address (as in SST, where
+  //   DRRA_AGU keeps one initial address per lane).
+  logic [NUMBER_MT:0][INIT_ADDR_WIDTH-1:0] lane_init;
+
+  modport producer(output or_configs, mt_configs, ir_configs, lane_init);
+  modport consumer(input or_configs, mt_configs, ir_configs, lane_init);
 endinterface

@@ -199,11 +199,11 @@ module ir
   end
 
   // Outputs.
-  // Sum the per-level address accumulators rather than recomputing
-  // `iter_count[i] * step[i]` combinationally. Removes NUMBER_IR
-  // multipliers from the addr critical path.
+  // The lane's init address plus the per-level address accumulators, summed
+  // rather than recomputing `iter_count[i] * step[i]` combinationally.
+  // Removes NUMBER_IR multipliers from the addr critical path.
   always_comb begin
-    ir_addr = '0;
+    ir_addr = ADDRESS_WIDTH'(cfg.lane_init[LANE]);
     for (int i = 0; i < NUMBER_IR; i++) begin
       if (cfg.ir_configs[LANE][i].iter > 0)
         ir_addr = ir_addr + level_addr[i];
