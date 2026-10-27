@@ -29,6 +29,7 @@
     "NUM_SLOTS",
     "FSM_PER_SLOT",
     "INSTR_PAYLOAD_BITWIDTH",
-    "AGU_LATENCY"
+    "AGU_LATENCY",
+    "NUM_OPTIONS"
   ]
 }

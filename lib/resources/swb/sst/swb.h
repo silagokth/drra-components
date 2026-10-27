@@ -19,6 +19,9 @@ public:
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
     auto params = DRRAResource::getBaseParams();
+    params.push_back({"NUM_OPTIONS",
+                      "Options in the configuration table (fabric parameter)",
+                      "4"});
     return params;
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())

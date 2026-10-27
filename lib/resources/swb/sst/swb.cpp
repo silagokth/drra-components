@@ -8,7 +8,8 @@ using namespace SST;
 Swb::Swb(SST::ComponentId_t id, SST::Params &params)
     : DRRAResource(id, params) {
   instructionHandlers = SWB_PKG::createInstructionHandlers(this);
-  conf.init(num_fsms, &out);
+  // The NUM_OPTIONS fabric parameter, shared with the RTL configuration table
+  conf.init(params.find<uint32_t>("NUM_OPTIONS", 4), &out);
 
   // Slot ports
   for (uint32_t i = 0; i < num_slots; i++) {
