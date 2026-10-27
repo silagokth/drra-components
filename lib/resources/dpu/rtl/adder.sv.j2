@@ -5,6 +5,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 (
     input logic signed [BITWIDTH-1:0] in1,
     input logic signed [BITWIDTH-1:0] in2,
+    input logic subtract, // out = in1 - in2 instead of in1 + in2
     output logic signed [BITWIDTH-1:0] out,
     output logic overflow,
     output logic underflow,
@@ -15,24 +16,34 @@ import {{name}}_{{fingerprint}}_pkg::*;
   localparam logic signed [BITWIDTH-1:0] MinResult = -MaxResult - 1;
   logic signed [BITWIDTH:0] temp_add;
 
+  // Computed at BITWIDTH+1 so that neither the sum nor the difference of two
+  // BITWIDTH-bit values can wrap before saturation. A Kogge-Stone prefix adder
+  // rather than `+`, which synthesis builds as a ripple carry chain; subtraction
+  // is in1 + ~in2 + 1 on the same adder.
+  kogge_stone_adder #(
+      .WIDTH(BITWIDTH + 1)
+  ) add_inst (
+      .a   ({in1[BITWIDTH-1], in1}),
+      .b   ({in2[BITWIDTH-1], in2} ^ {(BITWIDTH + 1){subtract}}),
+      .cin (subtract),
+      .sum (temp_add),
+      .cout()
+  );
+
   always_comb begin
     overflow = 0;
     underflow = 0;
-    out = 0;
-    temp_add = in1 + in2;
-    // saturation logic
+    out = temp_add[BITWIDTH-1:0];
+    // temp_add is outside the BITWIDTH-bit range exactly when its top two bits
+    // differ: 01 is above MaxResult, 10 below MinResult.
     if (saturate) begin
-      if (temp_add > MaxResult) begin
+      if (!temp_add[BITWIDTH] && temp_add[BITWIDTH-1]) begin
         out = MaxResult;
         overflow = 1;
-      end else if (temp_add < MinResult) begin
+      end else if (temp_add[BITWIDTH] && !temp_add[BITWIDTH-1]) begin
         out = MinResult;
         underflow = 1;
-      end else begin
-        out = temp_add[BITWIDTH-1:0];
       end
-    end else begin
-      out = temp_add[BITWIDTH-1:0];
     end
   end
 endmodule

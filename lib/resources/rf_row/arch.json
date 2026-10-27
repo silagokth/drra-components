@@ -1,0 +1,45 @@
+{
+  "kind": "rf_row",
+  "type": "resource",
+  "size": 1,
+  "io_input": false,
+  "io_output": false,
+  "custom_properties": [
+    {
+      "name": "RF_DEPTH",
+      "value": 16
+    },
+    {
+      "name": "WORD_ADDR_WIDTH",
+      "value": 4
+    },
+    {
+      "name": "BULK_ADDR_WIDTH",
+      "value": 0
+    },
+    {
+      "name": "NUMBER_IR",
+      "value": 4
+    },
+    {
+      "name": "NUMBER_MT",
+      "value": 3
+    },
+    {
+      "name": "NUMBER_OR",
+      "value": 4
+    },
+    {
+      "name": "AGU_USED",
+      "value": 15
+    }
+  ],
+  "required_parameters": [
+    "RESOURCE_INSTR_WIDTH",
+    "BULK_BITWIDTH",
+    "WORD_BITWIDTH",
+    "FSM_PER_SLOT",
+    "INSTR_PAYLOAD_BITWIDTH",
+    "AGU_LATENCY"
+  ]
+}

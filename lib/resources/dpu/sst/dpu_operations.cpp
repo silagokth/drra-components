@@ -22,6 +22,7 @@ createHandlers(Dpu *dpu) {
   return {
       {DPU_PKG::CONF_MODE::CONF_MODE_IDLE, [dpu] { Impl::handleIdle(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_ADD, [dpu] { Impl::handleAdd(dpu); }},
+      {DPU_PKG::CONF_MODE::CONF_MODE_SUBT, [dpu] { Impl::handleSubt(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MULT, [dpu] { Impl::handleMult(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MAC, [dpu] { Impl::handleMAC(dpu); }},
       {DPU_PKG::CONF_MODE::CONF_MODE_MAX_MIN_ACC,
@@ -37,31 +38,47 @@ void handleIdle(Dpu *dpu) {
 }
 
 void handleAdd(Dpu *dpu) {
-  dpu->handleOperation("ADD",
-                       [](int64_t a, int64_t b) { return add_sat(a, b); });
+  dpu->handleOperation("ADD", [dpu](int64_t a, int64_t b) {
+    return dpu->saturate ? add_sat(a, b) : wrap(a + b, dpu->getWordBitwidth());
+  });
+}
+
+void handleSubt(Dpu *dpu) {
+  // in0 - in1, mirroring logic.sv.j2 CONF_MODE_SUBT. The operands are
+  // word-sized, so -b cannot overflow; int64ToVector clamps the result to the
+  // word like the RTL adder's saturation.
+  dpu->handleOperation("SUBT", [dpu](int64_t a, int64_t b) {
+    return dpu->saturate ? add_sat(a, -b) : wrap(a - b, dpu->getWordBitwidth());
+  });
 }
 
 void handleMult(Dpu *dpu) {
   dpu->handleOperation("MULT", [dpu](int64_t a, int64_t b) {
-    return mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
+    // Second output: the product's upper word (RTL out1 / word_data_out_1)
+    dpu->sendOut1(
+        mul_high(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
+    return dpu->saturate
+               ? mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth)
+               : mul_wrap(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth);
   });
 }
 
 void handleMAC(Dpu *dpu) {
-  dpu->handleOperation("MAC", [dpu](int64_t a, int64_t b) {
-    auto &acc_reg = dpu->getAccumulateRegister();
-
-    // Fixed-point MAC. mul_sat rounds (a*b) >> fractional_bitwidth and clamps
-    // to the word bitwidth (= sat16 of the product, matching the RTL
-    // multiplier's saturate=1); add_sat then accumulates with saturation
-    // (mirroring dpu.sv.j2's adder). At fractional_bitwidth=0 this reduces to
-    // the plain integer sat16(a*b) MAC.
-    int64_t result = add_sat(
-        dpu->vectorToInt64(acc_reg),
-        mul_sat(a, b, dpu->getWordBitwidth(), dpu->fractional_bitwidth));
-    acc_reg = dpu->int64ToVector(result);
-    return result;
-  });
+  // Stage 1 of a two-cycle MAC (logic.sv.j2). mul_sat rounds (a*b) >>
+  // fractional_bitwidth and clamps to the word bitwidth (= sat16 of the
+  // product, matching the RTL multiplier's saturate=1); Dpu::finishMAC adds it
+  // to the accumulator with saturation next cycle (mirroring the RTL adder).
+  // At fractional_bitwidth=0 this reduces to the plain integer sat16(a*b) MAC.
+  // With SATURATE = 0 both steps wrap.
+  int64_t a, b;
+  dpu->readOperands(a, b);
+  size_t bw = dpu->getWordBitwidth();
+  int64_t product = dpu->saturate
+                        ? mul_sat(a, b, bw, dpu->fractional_bitwidth)
+                        : mul_wrap(a, b, bw, dpu->fractional_bitwidth);
+  dpu->out.output("DPU MAC stage 1 (in0=%ld, in1=%ld, product=%ld)\n", a, b,
+                  product);
+  dpu->issueMACProduct(product);
 }
 
 void handleMaxAcc(Dpu *dpu) {

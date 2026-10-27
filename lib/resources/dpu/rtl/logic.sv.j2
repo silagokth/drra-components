@@ -24,7 +24,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
     input  logic [WORD_BITWIDTH-1:0] in0,
     input  logic [WORD_BITWIDTH-1:0] in1,
-    output logic [WORD_BITWIDTH-1:0] out0
+    output logic [WORD_BITWIDTH-1:0] out0,
+    // MULT: the product's upper word (multiplier out_high); 0 in other modes
+    output logic [WORD_BITWIDTH-1:0] out1
 );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -56,25 +58,54 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // ─────────────────────────────────────────────────────────────────────────
   // Calculation logic
   // ─────────────────────────────────────────────────────────────────────────
+  // Every mode but MAC completes in one cycle, into the output register. MAC is
+  // split in two so the multiplier and the accumulate adder are not on one
+  // path: stage 1 multiplies and registers the product, stage 2 adds it to the
+  // accumulator a cycle later. A MAC result is therefore in out0 two cycles
+  // after its operands (dpu.mlir: delay = 2). The cycle after a MAC window's
+  // last operands belongs to its stage 2: another mode issued in that cycle is
+  // dropped.
   logic reset_accumulator;
-  assign reset_accumulator = agu_valid[1];
+  assign reset_accumulator = agu_valid[1] | agu_activate[1];
 
   logic [WORD_BITWIDTH-1:0] out0_next;
+  logic [WORD_BITWIDTH-1:0] out1_next;
   logic accumulator_valid;
   logic signed [BITWIDTH-1:0] acc0, acc0_next;
   logic signed [BITWIDTH-1:0] acc0_current;
   logic signed [BITWIDTH-1:0] adder_in0;
   logic signed [BITWIDTH-1:0] adder_in1;
+  logic adder_subtract;
   logic signed [BITWIDTH-1:0] adder_out;
   logic signed [BITWIDTH-1:0] mult_in0;
   logic signed [BITWIDTH-1:0] mult_in1;
   logic signed [BITWIDTH-1:0] mult_out;
+  logic signed [BITWIDTH-1:0] mult_out_high;
   // CONF_MODE_MAX_MIN_ACC operands. Explicitly signed: in0 is a plain (unsigned)
   // `logic` port, and an unsigned compare would rank -1 (0xFFFF) above 100.
   logic signed [BITWIDTH-1:0] max_in0;
   logic signed [BITWIDTH-1:0] max_acc_prev;
 
-  assign acc0_current = (reset_accumulator | agu_activate[1]) ? '0 : acc0;
+  // MAC pipeline register. The accumulator clear is delayed with the product,
+  // so it still lands on the first product of a window.
+  logic                       mac_q;
+  logic                       reset_accumulator_q;
+  logic signed [BITWIDTH-1:0] mult_out_q;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      mac_q               <= 1'b0;
+      reset_accumulator_q <= 1'b0;
+      mult_out_q          <= '0;
+    end else begin
+      mac_q               <= (dpu_mode == CONF_MODE_MAC);
+      reset_accumulator_q <= reset_accumulator;
+      mult_out_q          <= mult_out;
+    end
+  end
+
+  // The clear belongs to whichever operation reads the accumulator this cycle:
+  // the delayed one for a MAC product in stage 2, the current one for MAX.
+  assign acc0_current = (mac_q ? reset_accumulator_q : reset_accumulator) ? '0 : acc0;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       acc0 <= '0;
@@ -87,66 +118,88 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
   always_comb begin
     out0_next = 0;
+    out1_next = 0;
     adder_in0 = 0;
     adder_in1 = 0;
+    adder_subtract = 1'b0;
     mult_in0 = 0;
     mult_in1 = 0;
     acc0_next = 0;
     max_in0 = 0;
     max_acc_prev = 0;
 
-    case (dpu_mode)
-      CONF_MODE_ADD: begin
-        adder_in0 = in0;
-        adder_in1 = in1;
-        out0_next = adder_out;
-      end
-      CONF_MODE_MAC: begin
-        mult_in0  = in0;
-        mult_in1  = in1;
-        adder_in0 = mult_out;
-        if (accumulator_valid) begin
-          adder_in1 = acc0_current;
-        end else begin
-          adder_in1 = '0;
-        end
-        acc0_next = adder_out;
-        out0_next = adder_out;
-      end
-      CONF_MODE_MAX_MIN_ACC: begin
-        // Accumulating max: acc = max(acc, in0); in1 is ignored. Shares the MAC
-        // accumulator and its reset path: evt(port=1) forces acc0_current to 0, so
-        // the reset value is 0 and a window computes max(0, x1..xn). That equals
-        // max(x1..xn) only for non-negative input (ResNet max pool: post-ReLU). With a
-        // zero-padded window it is exactly relu(maxpool(x)) for ANY signed x. An
-        // int16-min reset would need its own reset mux here and a mode-aware clear
-        // in SST, and would still not be signed-exact with a zero halo.
-        max_in0 = $signed(in0);
-        if (accumulator_valid) begin
-          max_acc_prev = acc0_current;
-        end else begin
-          max_acc_prev = '0;
-        end
-        acc0_next = (max_in0 > max_acc_prev) ? max_in0 : max_acc_prev;
-        out0_next = acc0_next;
-      end
-      CONF_MODE_MULT: begin
-        mult_in0 = in0;
-        mult_in1 = in1;
-        out0_next = mult_out;
-      end
+    // The multiplier is stage 1 of MAC, or all of MULT. It runs on the
+    // current mode even while a MAC product is in stage 2.
+    if (dpu_mode == CONF_MODE_MAC || dpu_mode == CONF_MODE_MULT) begin
+      mult_in0 = in0;
+      mult_in1 = in1;
+    end
 
-      default: begin
-        out0_next = '0;
-      end
-    endcase
+    if (mac_q) begin
+      // Stage 2 of the previous cycle's MAC. It holds the adder, the
+      // accumulator and out0, so any other mode issued this cycle is dropped.
+      adder_in0 = mult_out_q;
+      adder_in1 = acc0_current;
+      acc0_next = adder_out;
+      out0_next = adder_out;
+    end else begin
+      case (dpu_mode)
+        CONF_MODE_ADD: begin
+          adder_in0 = in0;
+          adder_in1 = in1;
+          out0_next = adder_out;
+        end
+        CONF_MODE_SUBT: begin
+          // out0 = in0 - in1, saturated like CONF_MODE_ADD. The adder subtracts
+          // at full width; negating in1 here instead would wrap int16 min.
+          adder_in0 = in0;
+          adder_in1 = in1;
+          adder_subtract = 1'b1;
+          out0_next = adder_out;
+        end
+        CONF_MODE_MAC: begin
+          // Stage 1 alone, on the first operands of a window: hold the
+          // accumulator. A clear in this cycle reaches stage 2 through
+          // reset_accumulator_q.
+          acc0_next = acc0;
+        end
+        CONF_MODE_MAX_MIN_ACC: begin
+          // Accumulating max: acc = max(acc, in0); in1 is ignored. Shares the MAC
+          // accumulator and its reset path: evt(port=1) forces acc0_current to 0, so
+          // the reset value is 0 and a window computes max(0, x1..xn). That equals
+          // max(x1..xn) only for non-negative input (ResNet max pool: post-ReLU). With a
+          // zero-padded window it is exactly relu(maxpool(x)) for ANY signed x. An
+          // int16-min reset would need its own reset mux here and a mode-aware clear
+          // in SST, and would still not be signed-exact with a zero halo.
+          max_in0 = $signed(in0);
+          if (accumulator_valid) begin
+            max_acc_prev = acc0_current;
+          end else begin
+            max_acc_prev = '0;
+          end
+          acc0_next = (max_in0 > max_acc_prev) ? max_in0 : max_acc_prev;
+          out0_next = acc0_next;
+        end
+        CONF_MODE_MULT: begin
+          out0_next = mult_out;
+          out1_next = mult_out_high;
+        end
+
+        default: begin
+          out0_next = '0;
+        end
+      endcase
+    end
   end
 
+  // SATURATE (arch.json) = 0 drops both saturation stages: products and sums
+  // wrap to the word, and only the low product bits are built.
   // in future we will use ChipWare blocks for pipelined and such
   {{name}}_{{fingerprint}}_adder adder_inst (
       .in1(adder_in0),
       .in2(adder_in1),
-      .saturate(1'b1),
+      .subtract(adder_subtract),
+      .saturate(SATURATE != 0),
       .out(adder_out),
       .overflow(), // unused
       .underflow() // unused
@@ -155,8 +208,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
   {{name}}_{{fingerprint}}_multiplier mult_inst (
       .in1(mult_in0),
       .in2(mult_in1),
-      .saturate(1'b1),
+      .saturate(SATURATE != 0),
       .out(mult_out),
+      .out_high(mult_out_high),
       .overflow(), // unused
       .underflow() // unused
   );
@@ -165,8 +219,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       out0 <= 0;
+      out1 <= 0;
     end else begin
       out0 <= out0_next;
+      out1 <= out1_next;
     end
   end
 

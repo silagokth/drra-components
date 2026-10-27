@@ -1,0 +1,166 @@
+// Auto-generated defines to give the module and package stable names
+`define {{name}} {{name}}_{{fingerprint}}
+`define {{name}}_pkg {{name}}_{{fingerprint}}_pkg
+
+// The controller of a cell in a fabric without reconfiguration.
+//
+// It stands in for the sequencer of a cell whose resources hardcode the
+// program's configuration (their static_config), so the only thing left to
+// issue is the activations. vs-compile --no-reconfiguration lists them with
+// the cycle each is issued in, counted the way the sequencer counts its
+// program: cycle 0 is the cycle it would decode the first instruction in, one
+// cycle after it sees `call`. In each listed cycle the FSM raises the listed
+// activate ports for that cycle, and in cycle `length`, the one the sequencer
+// decodes the HALT in, it returns. Its ports, the call / ret chain and the
+// clock and reset forwarding are the sequencer's, so a cell instantiates
+// either the same way; it issues no instructions and loads no program.
+{% if not already_defined %}
+package {{name}}_{{fingerprint}}_pkg;
+    {% for p in parameters %}
+    parameter {{p}} = {{parameters[p]}};
+    {% endfor %}
+endpackage
+
+module {{name}}_{{fingerprint}}
+import {{name}}_{{fingerprint}}_pkg::*;
+(
+    // Clock and reset
+    input  logic clk,
+    input  logic rst_n,
+
+    // Call/return handshake with caller
+    input  logic call,
+
+    // Per-slot resource interface
+    {% for i in range(size) %}
+    output logic instr_valid_{{i}},
+    output logic [RESOURCE_INSTR_WIDTH-1:0] instr_{{i}},
+    output logic [FSM_PER_SLOT-1:0] activate_{{i}},
+    output logic clk_{{i}},
+    output logic rst_n_{{i}},
+    {% endfor %}
+
+    // Instruction-load daisy-chain interface, unused: there is no program
+    input  logic [INSTR_DATA_WIDTH-1:0] instr_load_data_in,
+    input  logic [INSTR_ADDR_WIDTH-1:0] instr_load_addr_in,
+    input  logic [INSTR_HOPS_WIDTH-1:0] instr_load_hops_in,
+    input  logic instr_load_en_in,
+    output logic [INSTR_DATA_WIDTH-1:0] instr_load_data_out,
+    output logic [INSTR_ADDR_WIDTH-1:0] instr_load_addr_out,
+    output logic [INSTR_HOPS_WIDTH-1:0] instr_load_hops_out,
+    output logic instr_load_en_out,
+
+    output logic ret_out,
+    input  logic ret_in,
+    output logic call_out
+);
+
+    // The activations, from the cell's controller entry in arch_noreconf.json.
+    localparam int NUM_EVENTS = {{ activations | length }};
+    localparam int LENGTH     = {{ length }};
+    localparam int CNT_WIDTH  = $clog2(LENGTH + 1) > 0 ? $clog2(LENGTH + 1) : 1;
+    localparam int IDX_WIDTH  = $clog2(NUM_EVENTS + 1) > 0 ? $clog2(NUM_EVENTS + 1) : 1;
+
+    logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] activate;
+
+    {% for i in range(size) %}
+    assign clk_{{i}} = clk;
+    assign rst_n_{{i}} = rst_n;
+    assign instr_valid_{{i}} = 1'b0;
+    assign instr_{{i}} = '0;
+    assign activate_{{i}} = activate[{{i}}];
+    {% endfor %}
+
+    assign instr_load_data_out = '0;
+    assign instr_load_addr_out = '0;
+    assign instr_load_hops_out = '0;
+    assign instr_load_en_out   = 1'b0;
+
+    // The sequencer's return chain: this cell's return, held until reset,
+    // and the return of the cells after it in the row.
+    logic ret;
+    logic controller_ret_reg, ret_in_reg;
+    assign ret_out = controller_ret_reg & ret_in_reg;
+    always_ff @(negedge rst_n or posedge clk) begin
+        if (~rst_n) begin
+            call_out <= 0;
+            controller_ret_reg <= 0;
+            ret_in_reg <= 0;
+        end else begin
+            if (ret) begin
+                controller_ret_reg <= 1;
+            end else if (ret_in) begin
+                ret_in_reg <= 1;
+            end
+            call_out <= call;
+        end
+    end
+
+    // Event ROM: the cycle of activation `idx` and the ports it raises.
+    logic [IDX_WIDTH-1:0] idx;
+    logic                 event_valid;
+    logic [CNT_WIDTH-1:0] event_cycle;
+    logic [NUM_SLOTS-1:0][FSM_PER_SLOT-1:0] event_mask;
+    always_comb begin
+        event_valid = 1'b0;
+        event_cycle = '0;
+        event_mask  = '0;
+        case (idx)
+        {% for event in activations %}
+            IDX_WIDTH'({{ loop.index0 }}): begin
+                event_valid = 1'b1;
+                event_cycle = CNT_WIDTH'({{ event.cycle }});
+            {% for port in event.activate %}
+                event_mask[{{ port.slot }}] = FSM_PER_SLOT'({{ port.mask }});
+            {% endfor %}
+            end
+        {% endfor %}
+            default: ;
+        endcase
+    end
+
+    // RESET for one cycle after reset and IDLE until `call`, as the
+    // sequencer. RUN counts the program's cycles from 0: `cnt` is the cycle
+    // the sequencer would be decoding.
+    typedef enum logic [1:0] { RESET, IDLE, RUN } state_t;
+    state_t state;
+    logic [CNT_WIDTH-1:0] cnt;
+
+    logic fire;
+    assign fire = (state == RUN) && event_valid && (cnt == event_cycle);
+    assign activate = fire ? event_mask : '0;
+    assign ret = (state == RUN) && (cnt == CNT_WIDTH'(LENGTH));
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            state <= RESET;
+            cnt   <= '0;
+            idx   <= '0;
+        end else begin
+            case (state)
+                RESET: begin
+                    state <= IDLE;
+                end
+                IDLE: begin
+                    cnt <= '0;
+                    idx <= '0;
+                    if (call) begin
+                        state <= RUN;
+                    end
+                end
+                RUN: begin
+                    if (ret) begin
+                        state <= IDLE;
+                    end
+                    cnt <= cnt + 1'b1;
+                    if (fire) begin
+                        idx <= idx + 1'b1;
+                    end
+                end
+                default: state <= IDLE;
+            endcase
+        end
+    end
+
+endmodule
+{% endif %}

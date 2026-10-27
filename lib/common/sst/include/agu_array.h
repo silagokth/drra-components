@@ -36,7 +36,10 @@ public:
   AGUArray(const AGUArray &) = delete;
   AGUArray &operator=(const AGUArray &) = delete;
 
-  void init(uint32_t num_agus, DRRAOutput *output);
+  // `latency` is cycles from an ACT to the first address, as AGU_LATENCY in
+  // agu_array.sv: 1 is the registered activation alone, and each cycle above
+  // that is an output register stage.
+  void init(uint32_t num_agus, uint32_t latency, DRRAOutput *output);
 
   // --- configuration, subcycle 1 --------------------------------------
   // `agu` is the relative port index, i.e. slot_pos * PORTS_PER_SLOT + port.
@@ -79,8 +82,10 @@ private:
     bool addr_valid = false;
     bool done = false;
     int64_t addr = -1;
-    // Cycles since activation. -1 until this port's first update(), so that
-    // the first update of a freshly activated AGU lands on cycle 0.
+    // Cycles since the first address. activate() sets it to -latency, so the
+    // first update() of a freshly activated AGU lands on cycle 0 when latency
+    // is 1, and each extra cycle of latency spends one more update() with the
+    // port active but no address valid.
     int64_t cycle = -1;
     // Lanes opened since the last reset. Only used to keep event names unique
     // within one AGU, which TimingState requires.
@@ -88,5 +93,6 @@ private:
   };
 
   std::vector<Port> ports;
+  uint32_t latency = 1;
   DRRAOutput *out = nullptr;
 };

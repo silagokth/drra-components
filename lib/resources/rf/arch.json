@@ -28,6 +28,10 @@
     {
       "name": "NUMBER_OR",
       "value": 4
+    },
+    {
+      "name": "AGU_USED",
+      "value": 15
     }
   ],
   "required_parameters": [
@@ -35,6 +39,7 @@
     "BULK_BITWIDTH",
     "WORD_BITWIDTH",
     "FSM_PER_SLOT",
-    "INSTR_PAYLOAD_BITWIDTH"
+    "INSTR_PAYLOAD_BITWIDTH",
+    "AGU_LATENCY"
   ]
 }

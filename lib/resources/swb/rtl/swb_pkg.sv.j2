@@ -8,7 +8,10 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
-  parameter int NUM_OPTIONS = 4;
+  // NUM_OPTIONS, the options in the configuration table, is a fabric
+  // parameter (emitted by package.j2 above; vesyla defaults it to 4). A CONF
+  // can only name the first 4, its option field being 2 bits; more are for a
+  // fabric without reconfiguration, whose options are hardcoded.
   parameter int FSM_MAX_STATES = 4;
   parameter int FSM_DELAY_WIDTH = 3;
   parameter int NUM_AGUS = 2;

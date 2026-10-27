@@ -2,8 +2,10 @@
 
 #include <string>
 
-void AGUArray::init(uint32_t num_agus, DRRAOutput *output) {
+void AGUArray::init(uint32_t num_agus, uint32_t agu_latency,
+                    DRRAOutput *output) {
   out = output;
+  latency = agu_latency;
   ports.clear();
   ports.resize(num_agus);
 }
@@ -56,7 +58,7 @@ void AGUArray::activate(uint32_t agu) {
   p.done = false;
   p.addr_valid = false;
   p.addr = -1;
-  p.cycle = -1;
+  p.cycle = -static_cast<int64_t>(latency);
 
   if (out)
     out->output("AGU %u activated\n", agu);
@@ -74,6 +76,12 @@ void AGUArray::update() {
     }
 
     p.cycle++;
+    if (p.cycle < 0) {
+      // Still in the AGU's output stages: active, nothing to present yet.
+      p.addr_valid = false;
+      p.addr = -1;
+      continue;
+    }
     const uint64_t last_cycle = p.agu.getLastScheduledCycle();
 
     if (static_cast<uint64_t>(p.cycle) > last_cycle) {

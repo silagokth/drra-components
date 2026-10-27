@@ -1,0 +1,8 @@
+package:
+  name: agu_array_static
+
+dependencies:
+  agu_rtr: { path: ../agu_RTR }
+
+sources:
+  - ./rtl/src/agu_array_static.sv

@@ -28,7 +28,13 @@ DRRAResource::DRRAResource(ComponentId_t id, Params &params)
   // One AGU per port. The AGU index is the relative port number, so
   // getRelativePortNum() is the only place (slot, port) is mapped to an AGU.
   num_agus = resource_size * params.find<uint32_t>("fsm_per_slot", 4);
-  agu_array.init(num_agus, &out);
+  // Cycles from an ACT to the first address -- the AGU_LATENCY fabric
+  // parameter, shared with the RTL agu_array and the compiler.
+  const uint32_t agu_latency = params.find<uint32_t>("AGU_LATENCY", 1);
+  if (agu_latency < 1)
+    out.fatal(CALL_INFO, -1, "AGU_LATENCY must be at least 1, got %u\n",
+              agu_latency);
+  agu_array.init(num_agus, agu_latency, &out);
 
   // Initialize data buffers to zero
   for (int i = 0; i < resource_size; i++) {

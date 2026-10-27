@@ -4,16 +4,33 @@
 #include "timingModel.h"
 #include "timingOperators.h"
 
+// Configuration is recorded the way agu_controller.sv registers it and only
+// assembled into a timing state by build(), so EVT and TRANS may arrive in any
+// order: each EVT opens the next lane (ir_configs[lane]), each TRANS fills the
+// next transition (mt_configs[k], lane k -> lane k+1) and switches every later
+// REP to an outer repetition (or_configs[level]). As in mt_ir.sv every opened
+// lane runs, a lane without a TRANS of its own following on with no delay.
 class DRRA_AGU {
 private:
+  struct OuterRepetition {
+    uint64_t iterations = 0;
+    uint64_t delay = 0;
+    uint64_t step = 0;
+    bool is_configured = false;
+  };
+
   std::unique_ptr<TimingState> timing_state = nullptr;
 
   std::vector<TimingState> lanes;
   std::vector<uint64_t> lane_initial_addresses;
+  std::vector<uint64_t> transition_delays;     // mt_configs
+  std::vector<OuterRepetition> outer_reps;     // or_configs, by level
+  bool use_outer = false;                      // use_or_reg
+  bool outer_configured = false;               // or_configured_reg
   size_t current_lane_index = 0;
-  size_t current_trans_index = 0;
   uint64_t current_rep_level = 0;
   uint64_t initial_address = 0;
+  void checkNotBuilt(const std::string &what) const;
   TimingState *getCurrentLane();
   TimingState *getLaneAtIndex(size_t index);
   void printLaneExpressions() const;
@@ -38,12 +55,7 @@ public:
 
   DRRA_AGU &addTransition(uint64_t delay = 0);
 
-  bool isEmpty() {
-    if (!timing_state)
-      if (lanes.empty())
-        return true;
-    return false;
-  }
+  bool isEmpty() { return !timing_state && lanes.empty(); }
 
   DRRA_AGU &build();
 

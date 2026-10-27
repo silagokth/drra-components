@@ -2,6 +2,8 @@ package:
   name: sequencer
 
 dependencies:
+  sram_1rw: { path: ../../common/sram_1rw }
+  kogge_stone_adder: { path: ../../common/kogge_stone_adder }
 
 sources:
   - ./rtl/sequencer.sv

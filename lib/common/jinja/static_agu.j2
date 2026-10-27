@@ -1,0 +1,138 @@
+{#
+  The AGU subsystem of a resource in a fabric without reconfiguration: the
+  resource's configuration ROM, generated from its static_config, and the
+  agu_array_static that runs it (lib/common/rtl/agu_array_static).
+
+  static_config.agus lists, per AGU (slot, port), the configurations it runs,
+  one per activation, in order. Each configuration has the agu_cfg_if layout:
+  lanes (an initial address and IR levels each), MT transition delays, and OR
+  levels. The AGUs of a resource are those of its first slot, which is where
+  its activation strobes arrive.
+
+  Arguments:
+    agus            static_config.agus
+    slot            the resource's first slot
+    activation      the [NUM_AGUS-1:0] activation strobes
+    addr_valid      the [NUM_AGUS-1:0] address strobes it drives
+    addr            the [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] addresses it drives
+    agu_addr_width  the AGU_ADDR_WIDTH of agu_array_static, if not uniform
+
+  Uses the resource package's NUM_AGUS, AGU_USED, ADDRESS_WIDTH, NUMBER_IR,
+  NUMBER_MT, NUMBER_OR, REP_*_WIDTH, TRANS_DELAY_WIDTH and AGU_LATENCY.
+#}
+{% macro static_agu_array(agus, slot, activation, addr_valid, addr, agu_addr_width=none) %}
+  {% set ns = namespace(max_configs=0) %}
+  {% for agu in agus if agu.slot == slot %}
+  {% if agu.configs | length > ns.max_configs %}
+  {% set ns.max_configs = agu.configs | length %}
+  {% endif %}
+  {% endfor %}
+  // ─────────────────────────────────────────────────────────────────────────
+  // AGU configuration ROM (no reconfiguration)
+  // ─────────────────────────────────────────────────────────────────────────
+  // One configuration per activation of each AGU, in order. An index past an
+  // AGU's last configuration reads the cleared one.
+  localparam int STATIC_MAX_CONFIGS = {{ ns.max_configs }};
+  localparam int STATIC_CONFIG_INDEX_WIDTH =
+      (STATIC_MAX_CONFIGS > 0) ? $clog2(STATIC_MAX_CONFIGS + 1) : 1;
+
+  agu_cfg_if #(
+    .NUMBER_IR(NUMBER_IR),
+    .NUMBER_MT(NUMBER_MT),
+    .NUMBER_OR(NUMBER_OR),
+    .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH(REP_ITER_WIDTH),
+    .REP_STEP_WIDTH(REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+  ) static_agu_configs [NUM_AGUS] ();
+
+  logic [NUM_AGUS-1:0][STATIC_CONFIG_INDEX_WIDTH-1:0] static_config_index;
+  logic [NUM_AGUS-1:0][NUMBER_MT:0][ADDRESS_WIDTH-1:0] static_init_address;
+
+  // The AGUs with a ROM; every other one only ever runs the cleared
+  // configuration.
+  localparam logic [NUM_AGUS-1:0] STATIC_AGUS = '0
+  {% for agu in agus if agu.slot == slot %}
+      | (NUM_AGUS'(1) << {{ agu.port }})
+  {% endfor %}
+      ;
+
+  genvar static_i;
+  generate
+    for (static_i = 0; static_i < NUM_AGUS; static_i++) begin : gen_static_cleared
+      if (!STATIC_AGUS[static_i]) begin : gen_cleared
+        assign static_agu_configs[static_i].ir_configs = '0;
+        assign static_agu_configs[static_i].mt_configs = '0;
+        assign static_agu_configs[static_i].or_configs = '0;
+        assign static_init_address[static_i] = '0;
+      end
+    end
+  endgenerate
+
+  {% for agu in agus if agu.slot == slot %}
+  // AGU {{ agu.port }}: {{ agu.configs | length }} configuration(s)
+  always_comb begin
+    static_agu_configs[{{ agu.port }}].ir_configs = '0;
+    static_agu_configs[{{ agu.port }}].mt_configs = '0;
+    static_agu_configs[{{ agu.port }}].or_configs = '0;
+    static_init_address[{{ agu.port }}] = '0;
+    case (static_config_index[{{ agu.port }}])
+    {% for config in agu.configs %}
+      STATIC_CONFIG_INDEX_WIDTH'({{ loop.index0 }}): begin
+      {% for lane in config.lanes %}
+        {% set lane_index = loop.index0 %}
+        static_init_address[{{ agu.port }}][{{ lane_index }}] = ADDRESS_WIDTH'({{ lane.init_addr }});
+        {% for level in lane.ir %}
+        static_agu_configs[{{ agu.port }}].ir_configs[{{ lane_index }}][{{ loop.index0 }}].iter = REP_ITER_WIDTH'({{ level.iter }});
+        static_agu_configs[{{ agu.port }}].ir_configs[{{ lane_index }}][{{ loop.index0 }}].step = REP_STEP_WIDTH'({{ level.step }});
+        static_agu_configs[{{ agu.port }}].ir_configs[{{ lane_index }}][{{ loop.index0 }}].delay = REP_DELAY_WIDTH'({{ level.delay }});
+        static_agu_configs[{{ agu.port }}].ir_configs[{{ lane_index }}][{{ loop.index0 }}].is_configured = 1'b1;
+        {% endfor %}
+      {% endfor %}
+      {% for transition in config.mt %}
+        static_agu_configs[{{ agu.port }}].mt_configs[{{ loop.index0 }}].delay = TRANS_DELAY_WIDTH'({{ transition.delay }});
+        static_agu_configs[{{ agu.port }}].mt_configs[{{ loop.index0 }}].is_configured = 1'b1;
+      {% endfor %}
+      {% for level in config.or %}
+        static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].iter = REP_ITER_WIDTH'({{ level.iter }});
+        static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].step = REP_STEP_WIDTH'({{ level.step }});
+        static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].delay = REP_DELAY_WIDTH'({{ level.delay }});
+        static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].is_configured = 1'b1;
+      {% endfor %}
+      end
+    {% endfor %}
+      default: ;
+    endcase
+  end
+
+  {% endfor %}
+  agu_array_static #(
+    .NUM_AGUS(NUM_AGUS),
+    .AGU_USED(NUM_AGUS'(AGU_USED)),
+    .ADDRESS_WIDTH(ADDRESS_WIDTH),
+  {% if agu_addr_width %}
+    .AGU_ADDR_WIDTH({{ agu_addr_width }}),
+  {% endif %}
+    .NUMBER_IR(NUMBER_IR),
+    .NUMBER_MT(NUMBER_MT),
+    .NUMBER_OR(NUMBER_OR),
+    .REP_DELAY_WIDTH(REP_DELAY_WIDTH),
+    .REP_ITER_WIDTH(REP_ITER_WIDTH),
+    .REP_STEP_WIDTH(REP_STEP_WIDTH),
+    .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+    .CONFIG_INDEX_WIDTH(STATIC_CONFIG_INDEX_WIDTH),
+    .AGU_LATENCY(AGU_LATENCY)
+  ) agu_array_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+
+    .config_index(static_config_index),
+    .agu_configs(static_agu_configs),
+    .init_address(static_init_address),
+
+    .activation({{ activation }}),
+    .addr_valid({{ addr_valid }}),
+    .addr({{ addr }}),
+    .done()
+  );
+{% endmacro %}
