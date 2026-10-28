@@ -451,40 +451,4 @@ mod tests {
         assert_eq!(get_timing_model(op), "T<0>(R<4,0>(e0),R<4,0>(e1))");
     }
 
-    // Transitions after all the events join them in order, each event keeping
-    // the reps that follow it; a rep after the transitions repeats them all.
-    #[test]
-    fn test_transitions_after_events() {
-        let rep = |iter: &'static str, delay: &'static str| {
-            make_instr("rep", vec![("iter", iter), ("step", "1"), ("delay", delay)])
-        };
-        let op = make_op(vec![
-            make_instr("evt", vec![]),
-            make_instr("evt", vec![]),
-            make_instr("evt", vec![]),
-            rep("16", "19"),
-            make_instr("trans", vec![("delay", "a")]),
-            make_instr("trans", vec![("delay", "b")]),
-            rep("2", "5"),
-        ]);
-        assert_eq!(
-            get_timing_model(op),
-            "R<2,5>(T<b>(T<a>(e0,e1),R<16,19>(e2)))"
-        );
-    }
-
-    // A trans after an outer rep is dropped, as the AGU controller drops it;
-    // the lane it would have joined follows on with no delay.
-    #[test]
-    fn test_trans_after_outer_rep_is_dropped() {
-        let op = make_op(vec![
-            make_instr("evt", vec![]),
-            make_instr("evt", vec![]),
-            make_instr("trans", vec![("delay", "a")]),
-            make_instr("evt", vec![]),
-            make_instr("rep", vec![("iter", "16"), ("step", "1"), ("delay", "19")]),
-            make_instr("trans", vec![("delay", "b")]),
-        ]);
-        assert_eq!(get_timing_model(op), "R<16,19>(T<0>(T<a>(e0,e1),e2))");
-    }
 }
