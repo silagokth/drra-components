@@ -42,8 +42,16 @@ include!("isa_config.rs");
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
 
+// Reads the instruction list the way the AGU controller does
+// (agu_controller.sv, DRRA_AGU in the SST model): every evt opens a lane, the
+// reps that follow it before any trans are that lane's own, the k-th trans
+// joins lane k to lane k + 1, and a rep after a trans repeats all the lanes.
+// Once such an outer rep is there a trans is dropped, and a lane with no trans
+// of its own follows on with no delay.
 fn get_timing_model(op: Op) -> String {
-    let mut segments: Vec<String> = Vec::new();
+    let mut lanes: Vec<String> = Vec::new();
+    let mut trans_delays: Vec<String> = Vec::new();
+    let mut outer: Vec<(String, String)> = Vec::new();
     let mut event_counter = 0;
 
     for instr in op.body {
@@ -53,23 +61,22 @@ fn get_timing_model(op: Op) -> String {
                 // NOTE: configuration does not affect the timing model
             }
             "evt" => {
-                segments.push(format!("e{}", event_counter));
+                lanes.push(format!("e{}", event_counter));
                 event_counter += 1;
             }
             "rep" => {
                 if instr_segments.get_value("ext") == "1" { continue; }
                 let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
-                if let Some(last) = segments.last_mut() {
+                if !trans_delays.is_empty() {
+                    outer.push((iter, delay));
+                } else if let Some(last) = lanes.last_mut() {
                     *last = format!("R<{},{}>({})", iter, delay, last);
                 }
             }
             "trans" => {
-                let delay = instr_segments.get_value("delay");
-                if segments.len() >= 2 {
-                    let right = segments.pop().unwrap();
-                    let left = segments.pop().unwrap();
-                    segments.push(format!("T<{}>({},{})", delay, left, right));
+                if outer.is_empty() {
+                    trans_delays.push(instr_segments.get_value("delay"));
                 }
             }
             _ => {
@@ -78,7 +85,19 @@ fn get_timing_model(op: Op) -> String {
         }
     }
 
-    segments.pop().unwrap_or_else(|| "e0".to_string())
+    let mut lanes = lanes.into_iter();
+    let mut expr = match lanes.next() {
+        Some(first) => first,
+        None => return "e0".to_string(),
+    };
+    for (k, lane) in lanes.enumerate() {
+        let delay = trans_delays.get(k).cloned().unwrap_or_else(|| "0".to_string());
+        expr = format!("T<{}>({},{})", delay, expr, lane);
+    }
+    for (iter, delay) in outer {
+        expr = format!("R<{},{}>({})", iter, delay, expr);
+    }
+    expr
 }
 
 fn reshape_instr(op: Op) -> Op {
@@ -430,5 +449,42 @@ mod tests {
             make_instr("trans", vec![("delay", "0")]),
         ]);
         assert_eq!(get_timing_model(op), "T<0>(R<4,0>(e0),R<4,0>(e1))");
+    }
+
+    // Transitions after all the events join them in order, each event keeping
+    // the reps that follow it; a rep after the transitions repeats them all.
+    #[test]
+    fn test_transitions_after_events() {
+        let rep = |iter: &'static str, delay: &'static str| {
+            make_instr("rep", vec![("iter", iter), ("step", "1"), ("delay", delay)])
+        };
+        let op = make_op(vec![
+            make_instr("evt", vec![]),
+            make_instr("evt", vec![]),
+            make_instr("evt", vec![]),
+            rep("16", "19"),
+            make_instr("trans", vec![("delay", "a")]),
+            make_instr("trans", vec![("delay", "b")]),
+            rep("2", "5"),
+        ]);
+        assert_eq!(
+            get_timing_model(op),
+            "R<2,5>(T<b>(T<a>(e0,e1),R<16,19>(e2)))"
+        );
+    }
+
+    // A trans after an outer rep is dropped, as the AGU controller drops it;
+    // the lane it would have joined follows on with no delay.
+    #[test]
+    fn test_trans_after_outer_rep_is_dropped() {
+        let op = make_op(vec![
+            make_instr("evt", vec![]),
+            make_instr("evt", vec![]),
+            make_instr("trans", vec![("delay", "a")]),
+            make_instr("evt", vec![]),
+            make_instr("rep", vec![("iter", "16"), ("step", "1"), ("delay", "19")]),
+            make_instr("trans", vec![("delay", "b")]),
+        ]);
+        assert_eq!(get_timing_model(op), "R<16,19>(T<0>(T<a>(e0,e1),e2))");
     }
 }
