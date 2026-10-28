@@ -95,6 +95,11 @@
               "val": "intercell"
             }
           ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Configuration option the event starts at, as wide as the conf option field. A route or swb that runs several events (one after the other through trans) starts each at its own option.",
+          "bitwidth": 2
         }
       ]
     },
