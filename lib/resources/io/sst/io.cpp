@@ -27,7 +27,8 @@ Io::Io(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
 }
 
 void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {
-  out.output("conf (slot=%d)\n", instr.slot);
+  out.output("conf (slot=%d, wr_mask=0x%x)\n", instr.slot, instr.wr_mask);
+  wr_mask = instr.wr_mask;
 }
 
 void Io::readFromIO(int64_t address) {
@@ -49,6 +50,7 @@ void Io::writeToIO(int64_t address) {
   IOWriteRequest *writeReq = new IOWriteRequest();
   writeReq->address = address;
   writeReq->data = io_output_data_buffer;
+  writeReq->wr_mask = wr_mask;
   io_output_link->send(writeReq);
 
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",

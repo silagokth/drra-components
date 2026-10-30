@@ -63,6 +63,9 @@ private:
   std::vector<uint8_t> io_input_data_buffer;
   std::vector<uint8_t> io_output_data_buffer;
 
+  // Words of a row an output buffer write stores; bit n = word n.
+  uint16_t wr_mask = 0xFFFF;
+
   // Datapath. Each takes the address its AGU generated for this cycle.
   //
   // bulkOutput and bulkInput are the second half of each port's transfer, so

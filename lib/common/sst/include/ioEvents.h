@@ -54,6 +54,7 @@ public:
   // Data members
   uint32_t address;
   std::vector<uint8_t> data;
+  uint16_t wr_mask = 0xFFFF; // bit n = word n
 
   IOWriteRequest *clone() override { return new IOWriteRequest(*this); }
 

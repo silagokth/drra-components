@@ -13,6 +13,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // One AGU per access port: input buffer, output buffer.
     input logic [NUM_AGUS-1:0]                    agu_valid,
     input logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address,
+    input logic [IO_DATA_WIDTH/16-1:0]            wr_mask,
 
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out,
@@ -22,7 +23,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic [IO_DATA_WIDTH-1:0] io_data_in,
     output logic                     io_en_out,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
-    output logic [IO_DATA_WIDTH-1:0] io_data_out
+    output logic [IO_DATA_WIDTH-1:0] io_data_out,
+    output logic [IO_DATA_WIDTH/16-1:0] io_wr_mask_out
 );
 
     // Input and output paths drive independent ports, so allow them to run
@@ -37,6 +39,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
         io_en_out     = 1'b0;
         io_addr_out   = '0;
         io_data_out   = '0;
+        io_wr_mask_out = '0;
 
         // Input path (slot 0 port 0 -> input buffer): forward IO read data to
         // the bulk output port.
@@ -52,6 +55,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
             io_en_out   = 1'b1;
             io_addr_out = agu_address[1];
             io_data_out = bulk_data_in;
+            io_wr_mask_out = wr_mask;
         end
     end
 

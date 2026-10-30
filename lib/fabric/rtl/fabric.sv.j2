@@ -24,6 +24,7 @@ import fabric_pkg::*;
     output logic [COLS-1:0] io_en_out,
     output logic [COLS-1:0][IO_ADDR_WIDTH-1:0] io_addr_out,
     output logic [COLS-1:0][IO_DATA_WIDTH-1:0] io_data_out,
+    output logic [COLS-1:0][IO_DATA_WIDTH/16-1:0] io_wr_mask_out,
     // Instruction input
     input  logic [ROWS-1:0][INSTR_DATA_WIDTH-1:0] instr_data_in,
     input  logic [ROWS-1:0][INSTR_ADDR_WIDTH-1:0] instr_addr_in,
@@ -89,10 +90,12 @@ import fabric_pkg::*;
         .io_en_out(io_en_out[{{c}}]),
         .io_addr_out(io_addr_out[{{c}}]),
         .io_data_out(io_data_out[{{c}}]),
+        .io_wr_mask_out(io_wr_mask_out[{{c}}]),
         {% else %}
         .io_en_out(),
         .io_addr_out(),
         .io_data_out(),
+        .io_wr_mask_out(),
         {% endif %}
         .instr_data_in(instr_data_net[{{r}}][{{c}}]),
         .instr_addr_in(instr_addr_net[{{r}}][{{c}}]),

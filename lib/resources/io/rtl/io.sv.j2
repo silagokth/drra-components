@@ -23,7 +23,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic [IO_DATA_WIDTH-1:0] io_data_in,
     output logic io_en_out,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
-    output logic [IO_DATA_WIDTH-1:0] io_data_out
+    output logic [IO_DATA_WIDTH-1:0] io_data_out,
+    output logic [IO_DATA_WIDTH/16-1:0] io_wr_mask_out
 );
 
     // Useless outputs:
@@ -46,6 +47,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign instruction_valid = instr_en_0;
 
     // Decoded instructions
+    logic conf_valid;
+    conf_t conf_instr;
     logic evt_valid;
     evt_t evt_instr;
     logic rep_valid;
@@ -57,6 +60,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     {% from "static_agu.j2" import static_agu_array %}
     // No reconfiguration: nothing is decoded, and the AGUs run the
     // configurations in their ROM.
+    assign conf_valid  = 1'b0;
+    assign conf_instr  = '0;
     assign evt_valid   = 1'b0;
     assign evt_instr   = '0;
     assign rep_valid   = 1'b0;
@@ -71,6 +76,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
+      .conf_valid(conf_valid),
+      .conf_instr(conf_instr),
       .evt_valid(evt_valid),
       .evt_instr(evt_instr),
       .rep_valid(rep_valid),
@@ -122,11 +129,26 @@ import {{name}}_{{fingerprint}}_pkg::*;
     );
 {% endif %}
 
+    // Words an output buffer write stores.
+    logic [IO_DATA_WIDTH/16-1:0] wr_mask;
+{% if static_config and static_config.conf %}
+    assign wr_mask = {{ static_config.conf[0].wr_mask }};
+{% else %}
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        wr_mask <= '1;
+      end else if (conf_valid) begin
+        wr_mask <= conf_instr._wr_mask;
+      end
+    end
+{% endif %}
+
     // Datapath. Drives the IO ports from the AGU addresses and forwards data
     // between them and the bulk port.
     {{name}}_{{fingerprint}}_logic logic_inst (
       .agu_valid  (agu_valid),
       .agu_address(agu_final_address),
+      .wr_mask    (wr_mask),
 
       .bulk_data_in (bulk_data_in_0),
       .bulk_data_out(bulk_data_out_0),
@@ -136,7 +158,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .io_data_in (io_data_in),
       .io_en_out  (io_en_out),
       .io_addr_out(io_addr_out),
-      .io_data_out(io_data_out)
+      .io_data_out(io_data_out),
+      .io_wr_mask_out(io_wr_mask_out)
     );
 
 endmodule

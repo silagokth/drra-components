@@ -11,7 +11,12 @@
       "opcode": 0,
       "instr_type": 1,
       "segments": [
-
+        {
+          "name": "wr_mask",
+          "comment": "Words of a row an output buffer write stores; bit n is word n. Holds until the next conf; all ones after reset.",
+          "bitwidth": 16,
+          "default_val": 65535
+        }
       ]
     },
     {
