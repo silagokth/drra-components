@@ -1,4 +1,6 @@
-// Functional description of the rf resource.
+// Functional description of the rf_4row resource: a 64-word, four-row
+// register file. rf_1row and rf_2row have the same patterns at a higher
+// benefit (see rf_1row.mlir).
 //
 // The rf has no conf.mode. What selects behaviour is the evt/rep/trans port
 // field, so @match holds one func.func per port in isa.json's verbo_map, named
@@ -18,13 +20,13 @@
 // The register array itself is deliberately not listed. Every access touches
 // it, so listing it would make every pair of accesses conflict and say nothing
 // more than "same resource" does. Two arrays sharing one RF is a question of
-// addresses and RF_DEPTH, not of parts; what keeps distinct arrays apart is the
-// storage identity the compiler lifts off the accessed memref.
+// addresses and RF_DEPTH, not of parts: design-space exploration gives each
+// array (the storage the compiler lifts off the accessed memref) its own rows.
 //
 // Widths are fixed to the reference configuration: WORD_BITWIDTH = 16,
 // RF_DEPTH = 64, IO_DATA_WIDTH = 256, so a bulk access is 16 words.
 
-module @rf {
+module @rf_4row {
 
   module @match {
 
@@ -32,13 +34,13 @@ module @rf {
     // resource produces this cycle is written back on the next one.
 
     func.func @word_read(%registers: memref<64xi16>, %addr: index) -> i16
-        attributes {benefit = 10 : i32} {
+        attributes {benefit = 8 : i32} {
       %v = memref.load %registers[%addr] : memref<64xi16>
       return %v : i16
     }
 
     func.func @word_write(%registers: memref<64xi16>, %addr: index, %v: i16)
-        attributes {benefit = 10 : i32} {
+        attributes {benefit = 8 : i32} {
       memref.store %v, %registers[%addr] : memref<64xi16>
       return
     }
@@ -48,7 +50,7 @@ module @rf {
     // BULK_ADDR_WIDTH is 2 against a 64-deep file. It is descriptive: the
     // matcher never walks into a pattern's own address arithmetic.
     func.func @bulk_read(%registers: memref<64xi16>, %addr: index) -> vector<16xi16>
-        attributes {benefit = 10 : i32} {
+        attributes {benefit = 8 : i32} {
       %words = arith.constant 16 : index
       %base = arith.muli %addr, %words : index
       %v = vector.load %registers[%base] : memref<64xi16>, vector<16xi16>
@@ -56,7 +58,7 @@ module @rf {
     }
 
     func.func @bulk_write(%registers: memref<64xi16>, %addr: index, %v: vector<16xi16>)
-        attributes {benefit = 10 : i32} {
+        attributes {benefit = 8 : i32} {
       %words = arith.constant 16 : index
       %base = arith.muli %addr, %words : index
       vector.store %v, %registers[%base] : memref<64xi16>, vector<16xi16>
@@ -69,7 +71,7 @@ module @rf {
     // the match rather than from a fixed value. No replacement expresses that
     // yet.
     func.func @conf(%registers: memref<64xi16>, %addr: index, %value: i16)
-        attributes {benefit = 10 : i32} {
+        attributes {benefit = 8 : i32} {
       memref.store %value, %registers[%addr] : memref<64xi16>
       return
     }

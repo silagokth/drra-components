@@ -1,21 +1,22 @@
 {
-  "kind": "rf_row",
+  "kind": "rf_2row",
   "type": "resource",
+  "category": "memory",
   "size": 1,
   "io_input": false,
   "io_output": false,
   "custom_properties": [
     {
       "name": "RF_DEPTH",
-      "value": 16
+      "value": 32
     },
     {
       "name": "WORD_ADDR_WIDTH",
-      "value": 4
+      "value": 5
     },
     {
       "name": "BULK_ADDR_WIDTH",
-      "value": 0
+      "value": 1
     },
     {
       "name": "NUMBER_IR",

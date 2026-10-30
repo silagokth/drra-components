@@ -1,6 +1,7 @@
 {
-  "kind": "rf",
+  "kind": "rf_4row",
   "type": "resource",
+  "category": "memory",
   "size": 1,
   "io_input": false,
   "io_output": false,

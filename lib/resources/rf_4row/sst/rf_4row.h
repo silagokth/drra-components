@@ -1,17 +1,17 @@
-#ifndef _RF_H
-#define _RF_H
+#ifndef _RF_4ROW_H
+#define _RF_4ROW_H
 
 #include "register_file.h"
-#include "rf_pkg.h"
+#include "rf_4row_pkg.h"
 #include <vector>
 
 // The 64-word, four-row register file. The model itself is RegisterFile
-// (lib/common/sst), shared with rf_row.
-class Rf : public RegisterFile {
+// (lib/common/sst), shared with rf_1row and rf_2row.
+class Rf_4row : public RegisterFile {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(Rf, "drra", "rf", SST_ELI_ELEMENT_VERSION(1, 0, 0),
-                             "Rf component", COMPONENT_CATEGORY_MEMORY)
+  SST_ELI_REGISTER_COMPONENT(Rf_4row, "drra", "rf_4row", SST_ELI_ELEMENT_VERSION(1, 0, 0),
+                             "Rf_4row component", COMPONENT_CATEGORY_MEMORY)
 
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
@@ -34,16 +34,16 @@ public:
   SST_ELI_DOCUMENT_STATISTICS(getComponentStatistics())
 
   /* Constructor */
-  Rf(SST::ComponentId_t id, SST::Params &params);
+  Rf_4row(SST::ComponentId_t id, SST::Params &params);
 
   /* Destructor */
-  ~Rf() {};
+  ~Rf_4row() {};
 
   // Instruction format
   using DRRAResource::format;
-  void handleCONF(const RF_PKG::CONFInstruction &instr);
+  void handleCONF(const RF_4ROW_PKG::CONFInstruction &instr);
 
   using DRRAResource::out;
 };
 
-#endif // _RF_H
+#endif // _RF_4ROW_H
