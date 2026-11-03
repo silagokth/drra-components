@@ -137,7 +137,33 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Words an output buffer write stores.
     logic [IO_DATA_WIDTH/16-1:0] wr_mask;
 {% if static_config and static_config.conf %}
-    assign wr_mask = {{ static_config.conf[0].wr_mask }};
+  {% set masks = static_config.conf %}
+  {% if masks | length == 1 and masks[0].cycle == 0 %}
+    assign wr_mask = {{ masks[0].wr_mask }};
+  {% else %}
+    // No reconfiguration: each mask from the cycle its conf takes effect,
+    // counted from the first activation of this io (cycle 0).
+    localparam int MASK_LAST = {{ (masks | last).cycle }};
+    logic [$clog2(MASK_LAST + 1)-1:0] mask_cycle;
+    logic mask_started;
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        mask_cycle   <= '0;
+        mask_started <= 1'b0;
+      end else if ((mask_started || |agu_activate) && mask_cycle != MASK_LAST) begin
+        mask_cycle   <= mask_cycle + 1'b1;
+        mask_started <= 1'b1;
+      end
+    end
+    always_comb begin
+      wr_mask = {% if masks[0].cycle == 0 %}{{ masks[0].wr_mask }}{% else %}'1{% endif %};
+    {% for mask in masks %}
+    {% if mask.cycle > 0 %}
+      if (mask_cycle >= {{ mask.cycle }}) wr_mask = {{ mask.wr_mask }};
+    {% endif %}
+    {% endfor %}
+    end
+  {% endif %}
 {% else %}
     always_ff @(posedge clk or negedge rst_n) begin
       if (!rst_n) begin
