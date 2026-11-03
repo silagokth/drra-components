@@ -32,14 +32,11 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int DIR_SOUTH_EAST = 8; // NOTE: not supported
 
   // AGU RTR params
-  parameter int ADDRESS_WIDTH = $clog2(NUM_OPTIONS);
+  parameter int ADDRESS_WIDTH = (NUM_OPTIONS > 1) ? $clog2(NUM_OPTIONS) : 1;
   parameter int REP_OPTION_WIDTH = $clog2(NUM_OPTIONS);
-  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
-  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
-  parameter int TRANS_DELAY_WIDTH = 23;
-  // NUMBER_OR / NUMBER_MT / NUMBER_IR come from this resource's arch.json
-  // custom_properties (emitted by package.j2 above); defaults live there.
+  parameter int REP_STEP_WIDTH = ADDRESS_WIDTH;
+  // NUMBER_IR/MT/OR, REP_ITER_WIDTH, REP_DELAY_WIDTH and TRANS_DELAY_WIDTH come
+  // from this resource's arch.json custom_properties (emitted by package.j2).
   parameter int NUM_LEVELS = NUMBER_IR + NUMBER_OR;
   parameter int INCLUDE_IR_STATES = 1;
   parameter int INCLUDE_MT_STATES = 1;

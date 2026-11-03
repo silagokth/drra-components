@@ -86,6 +86,7 @@
       "name": "rep",
       "opcode": 2,
       "instr_type": 1,
+      "ext": true,
       "segments": [
         {
           "name": "ext",

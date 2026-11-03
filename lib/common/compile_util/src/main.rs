@@ -100,6 +100,34 @@ fn get_timing_model(op: Op) -> String {
     expr
 }
 
+// Splits an unsigned rep field into its base and ext parts; true if it needs
+// the ext part.
+fn split_unsigned(name: &str, value: i64, bits: u32) -> (i64, i64, bool) {
+    let limit = 1i64 << bits;
+    if value < 0 || value >= limit * limit {
+        panic!("rep {}={} does not fit two {}-bit fields", name, value, bits);
+    }
+    if value < limit {
+        (value, 0, false)
+    } else {
+        (value & (limit - 1), value >> bits, true)
+    }
+}
+
+// Splits the signed step into its base and ext parts; true if it needs the ext
+// part.
+fn split_signed(value: i64, bits: u32) -> (i64, i64, bool) {
+    let half = 1i64 << (bits - 1);
+    if (-half..half).contains(&value) {
+        return (value, 0, false);
+    }
+    let high = value >> bits;
+    if !(-half..half).contains(&high) {
+        panic!("rep step={} does not fit two {}-bit fields", value, bits);
+    }
+    (value & ((1i64 << bits) - 1), high, true)
+}
+
 fn reshape_instr(op: Op) -> Op {
     let mut new_op = op.clone();
     let mut new_body = Vec::new();
@@ -117,39 +145,36 @@ fn reshape_instr(op: Op) -> Op {
                     .get_value("level")
                     .parse::<i64>()
                     .expect("Failed to parse level as i64");
-                let mut iter = instr
+                let iter = instr
                     .params
                     .get_value("iter")
                     .parse::<i64>()
                     .expect("Failed to parse iter as i64");
-                let mut step = instr
+                let step = instr
                     .params
                     .get_value("step")
                     .parse::<i64>()
                     .expect("Failed to parse step as i64");
-                let mut delay = instr
+                let delay = instr
                     .params
                     .get_value("delay")
                     .parse::<i64>()
                     .expect("Failed to parse delay as i64");
-                let mut needs_ext = false;
-                let mut iterx = 0;
-                let mut delayx = 0;
-                let mut stepx = 0;
-                if iter > 2i64.pow(ITER_BITWIDTH) - 1 {
-                    needs_ext = true;
-                    iterx = iter / 2i64.pow(ITER_BITWIDTH);
-                    iter %= 2i64.pow(ITER_BITWIDTH);
-                }
-                if step > 2i64.pow(STEP_BITWIDTH) - 1 {
-                    needs_ext = true;
-                    stepx = step / 2i64.pow(STEP_BITWIDTH);
-                    step %= 2i64.pow(STEP_BITWIDTH);
-                }
-                if delay > 2i64.pow(DELAY_BITWIDTH) - 1 {
-                    needs_ext = true;
-                    delayx = delay / 2i64.pow(DELAY_BITWIDTH);
-                    delay %= 2i64.pow(DELAY_BITWIDTH);
+                // A base rep carries the low bits of each field, an ext rep the
+                // bits from the field width up. step is signed: the hardware
+                // sign-extends the base field, so a step outside the field's
+                // signed range needs an ext rep even when its high bits are 0.
+                let (iter, iterx, iter_ext) = split_unsigned("iter", iter, ITER_BITWIDTH);
+                let (delay, delayx, delay_ext) = split_unsigned("delay", delay, DELAY_BITWIDTH);
+                let (step, stepx, step_ext) = split_signed(step, STEP_BITWIDTH);
+                let needs_ext = iter_ext || delay_ext || step_ext;
+                if needs_ext && !REP_EXT {
+                    panic!(
+                        "rep (iter={}, step={}, delay={}) does not fit its fields and the ISA has no ext rep",
+                        iter + (iterx << ITER_BITWIDTH),
+                        step + (stepx << STEP_BITWIDTH),
+                        delay + (delayx << DELAY_BITWIDTH)
+                    );
                 }
 
                 if needs_ext {

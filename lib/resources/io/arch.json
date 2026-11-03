@@ -18,6 +18,18 @@
       "value": 4
     },
     {
+      "name": "REP_ITER_WIDTH",
+      "value": 14
+    },
+    {
+      "name": "REP_DELAY_WIDTH",
+      "value": 14
+    },
+    {
+      "name": "TRANS_DELAY_WIDTH",
+      "value": 23
+    },
+    {
       "name": "AGU_USED",
       "value": 3
     }

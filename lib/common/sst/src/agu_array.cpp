@@ -26,15 +26,23 @@ void AGUArray::rep(uint32_t agu, bool ext, uint32_t iter, uint32_t step,
                    uint32_t delay, uint32_t iter_bits, uint32_t step_bits,
                    uint32_t delay_bits) {
   Port &p = ports.at(agu);
+  // step is signed: sign-extend it from its field width, as agu_controller.
+  auto sext = [](uint64_t v, uint32_t bits) {
+    uint64_t sign = 1ULL << (bits - 1);
+    v &= (1ULL << bits) - 1;
+    return (v ^ sign) - sign;
+  };
   if (!ext) {
-    // Base REP: a new repetition carrying the low half of each field.
-    p.agu.addRepetition(iter, delay, step);
+    // Base REP: a new repetition carrying the low bits of each field.
+    p.agu.addRepetition(iter, delay, sext(step, step_bits));
   } else {
-    // REPX: fold the high bits into the repetition this one follows.
+    // Ext REP: the bits from the field width up of the repetition it follows.
     RepetitionOperator repetition_op = p.agu.getLastRepetitionOperator();
-    p.agu.adjustRepetition((iter << iter_bits) | repetition_op.getIterations(),
-                           (delay << delay_bits) | repetition_op.getDelay(),
-                           (step << step_bits) | repetition_op.getStep());
+    auto low = [](uint64_t v, uint32_t bits) { return v & ((1ULL << bits) - 1); };
+    p.agu.adjustRepetition(
+        (uint64_t(iter) << iter_bits) | low(repetition_op.getIterations(), iter_bits),
+        (uint64_t(delay) << delay_bits) | low(repetition_op.getDelay(), delay_bits),
+        (sext(step, step_bits) << step_bits) | low(repetition_op.getStep(), step_bits));
   }
 }
 

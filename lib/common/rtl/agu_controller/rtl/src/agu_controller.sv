@@ -19,7 +19,15 @@ module agu_controller #(
     parameter int REP_DELAY_WIDTH   = 6,
     parameter int REP_ITER_WIDTH    = 6,
     parameter int REP_STEP_WIDTH    = 6,
-    parameter int TRANS_DELAY_WIDTH = 12
+    parameter int TRANS_DELAY_WIDTH = 12,
+    // Widths of the rep / trans instruction fields (isa.json) and whether rep
+    // has an ext form. The registers above are independent of them: a base rep
+    // writes the low bits, an ext rep the bits from the field width up.
+    parameter int REP_DELAY_FIELD_WIDTH   = REP_DELAY_WIDTH / 2,
+    parameter int REP_ITER_FIELD_WIDTH    = REP_ITER_WIDTH / 2,
+    parameter int REP_STEP_FIELD_WIDTH    = REP_STEP_WIDTH / 2,
+    parameter int TRANS_DELAY_FIELD_WIDTH = TRANS_DELAY_WIDTH,
+    parameter bit REP_EXT                 = 1'b1
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -30,16 +38,16 @@ module agu_controller #(
     input  logic [$clog2(NUM_AGUS)-1:0]   evt_port,
     input  logic [ADDRESS_WIDTH-1:0]      evt_init_addr,
 
-    // REP — half-width fields; base/ext halves selected by rep_ext.
-    input  logic                          rep_valid,
-    input  logic                          rep_ext,
-    input  logic [REP_DELAY_WIDTH/2-1:0]  rep_delay,
-    input  logic [REP_ITER_WIDTH/2-1:0]   rep_iter,
-    input  logic [REP_STEP_WIDTH/2-1:0]   rep_step,
+    // REP — instruction fields; rep_ext selects base (low bits) or ext.
+    input  logic                               rep_valid,
+    input  logic                               rep_ext,
+    input  logic [REP_DELAY_FIELD_WIDTH-1:0]   rep_delay,
+    input  logic [REP_ITER_FIELD_WIDTH-1:0]    rep_iter,
+    input  logic [REP_STEP_FIELD_WIDTH-1:0]    rep_step,
 
     // TRANS
-    input  logic                          trans_valid,
-    input  logic [TRANS_DELAY_WIDTH-1:0]  trans_delay,
+    input  logic                               trans_valid,
+    input  logic [TRANS_DELAY_FIELD_WIDTH-1:0] trans_delay,
 
     input  logic [NUM_AGUS-1:0]                    agu_done,
     agu_cfg_if.producer                            agu_configs  [NUM_AGUS],
@@ -78,9 +86,40 @@ module agu_controller #(
     rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0]            ir_configs;
   } agu_config_t;
 
-  localparam int DELAY_HI = REP_DELAY_WIDTH/2;
-  localparam int ITER_HI  = REP_ITER_WIDTH/2;
-  localparam int STEP_HI  = REP_STEP_WIDTH/2;
+  // Base rep: the field zero-extended (step: sign-extended, it is signed) to
+  // the register. Ext rep: the field into the bits from the field width up;
+  // nothing when the register is no wider than the field.
+  localparam logic [REP_DELAY_WIDTH-1:0] DELAY_LO = REP_DELAY_WIDTH'({REP_DELAY_FIELD_WIDTH{1'b1}});
+  localparam logic [REP_ITER_WIDTH-1:0]  ITER_LO  = REP_ITER_WIDTH'({REP_ITER_FIELD_WIDTH{1'b1}});
+  localparam logic [REP_STEP_WIDTH-1:0]  STEP_LO  = REP_STEP_WIDTH'({REP_STEP_FIELD_WIDTH{1'b1}});
+
+  initial begin
+    if (REP_ITER_WIDTH > (REP_EXT ? 2 : 1) * REP_ITER_FIELD_WIDTH)
+      $error("agu_controller: REP_ITER_WIDTH exceeds what rep can load");
+    if (REP_DELAY_WIDTH > (REP_EXT ? 2 : 1) * REP_DELAY_FIELD_WIDTH)
+      $error("agu_controller: REP_DELAY_WIDTH exceeds what rep can load");
+  end
+
+  function automatic logic [REP_DELAY_WIDTH-1:0] load_delay(
+      input logic [REP_DELAY_WIDTH-1:0] old, input logic [REP_DELAY_FIELD_WIDTH-1:0] field, input logic ext);
+    return !ext ? REP_DELAY_WIDTH'(field)
+                : (old & DELAY_LO) | (REP_DELAY_WIDTH'(field) << REP_DELAY_FIELD_WIDTH);
+  endfunction
+
+  function automatic logic [REP_ITER_WIDTH-1:0] load_iter(
+      input logic [REP_ITER_WIDTH-1:0] old, input logic [REP_ITER_FIELD_WIDTH-1:0] field, input logic ext);
+    return !ext ? REP_ITER_WIDTH'(field)
+                : (old & ITER_LO) | (REP_ITER_WIDTH'(field) << REP_ITER_FIELD_WIDTH);
+  endfunction
+
+  function automatic logic [REP_STEP_WIDTH-1:0] load_step(
+      input logic [REP_STEP_WIDTH-1:0] old, input logic [REP_STEP_FIELD_WIDTH-1:0] field, input logic ext);
+    return !ext ? REP_STEP_WIDTH'($signed(field))
+                : (old & STEP_LO) | (REP_STEP_WIDTH'($signed(field)) << REP_STEP_FIELD_WIDTH);
+  endfunction
+
+  logic ext_rep;
+  assign ext_rep = REP_EXT && rep_ext;
 
   // A REP nest deeper than NUMBER_IR spills its outer levels into the OR levels.
   // The level counter must therefore span IR *and* OR (else it wraps modulo
@@ -128,7 +167,7 @@ module agu_controller #(
   logic [OR_IDX_W-1:0]            or_lvl;    // OR index      (when  rep_to_or)
   always_comb begin
     rep_opt = current_lane_index[agu_index];
-    abs_lvl = !rep_ext ? current_rep_level[agu_index]
+    abs_lvl = !ext_rep ? current_rep_level[agu_index]
                        : (current_rep_level[agu_index] == '0
                             ? '0
                             : current_rep_level[agu_index] - 1);
@@ -187,38 +226,26 @@ module agu_controller #(
       end else if (rep_valid) begin
 
         if (rep_to_or) begin
-          if (!rep_ext) begin
-            agu_configs_reg[agu_index].or_configs[or_lvl].delay[DELAY_HI-1:0] <= rep_delay;
-            agu_configs_reg[agu_index].or_configs[or_lvl].iter[ITER_HI-1:0]   <= rep_iter;
-            agu_configs_reg[agu_index].or_configs[or_lvl].step[STEP_HI-1:0]   <= rep_step;
-          end else begin
-            agu_configs_reg[agu_index].or_configs[or_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_delay;
-            agu_configs_reg[agu_index].or_configs[or_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_iter;
-            agu_configs_reg[agu_index].or_configs[or_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_step;
-          end
+          agu_configs_reg[agu_index].or_configs[or_lvl].delay <= load_delay(agu_configs_reg[agu_index].or_configs[or_lvl].delay, rep_delay, ext_rep);
+          agu_configs_reg[agu_index].or_configs[or_lvl].iter  <= load_iter(agu_configs_reg[agu_index].or_configs[or_lvl].iter, rep_iter, ext_rep);
+          agu_configs_reg[agu_index].or_configs[or_lvl].step  <= load_step(agu_configs_reg[agu_index].or_configs[or_lvl].step, rep_step, ext_rep);
           agu_configs_reg[agu_index].or_configs[or_lvl].is_configured <= 1'b1;
           or_configured_reg[agu_index] <= 1'b1;
 
         end else begin
-          if (!rep_ext) begin
-            agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].delay[DELAY_HI-1:0] <= rep_delay;
-            agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].iter[ITER_HI-1:0]   <= rep_iter;
-            agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].step[STEP_HI-1:0]   <= rep_step;
-          end else begin
-            agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].delay[REP_DELAY_WIDTH-1:DELAY_HI] <= rep_delay;
-            agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].iter[REP_ITER_WIDTH-1:ITER_HI]    <= rep_iter;
-            agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].step[REP_STEP_WIDTH-1:STEP_HI]    <= rep_step;
-          end
+          agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].delay <= load_delay(agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].delay, rep_delay, ext_rep);
+          agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].iter  <= load_iter(agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].iter, rep_iter, ext_rep);
+          agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].step  <= load_step(agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].step, rep_step, ext_rep);
           agu_configs_reg[agu_index].ir_configs[rep_opt][ir_lvl].is_configured <= 1'b1;
         end
 
         // Only the base REP advances the level; the REPX writes the upper half
         // of the same entry (see abs_lvl above).
-        if (!rep_ext)
+        if (!ext_rep)
           current_rep_level[agu_index] <= current_rep_level[agu_index] + 1;
 
       end else if (trans_valid && !or_configured_reg[agu_index]) begin
-        agu_configs_reg[agu_index].mt_configs[current_trans_index[agu_index]].delay         <= trans_delay;
+        agu_configs_reg[agu_index].mt_configs[current_trans_index[agu_index]].delay         <= TRANS_DELAY_WIDTH'(trans_delay);
         agu_configs_reg[agu_index].mt_configs[current_trans_index[agu_index]].is_configured <= 1'b1;
         use_or_reg[agu_index] <= 1'b1;
 

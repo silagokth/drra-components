@@ -53,10 +53,13 @@ fn main() {
         .as_u64()
         .unwrap();
 
+    // Whether rep has an ext form carrying the bits above the field widths.
+    let rep_ext = rep_instr["ext"].as_bool().unwrap_or(false);
+
     let out = format!(
         "pub const ITER_BITWIDTH: u32 = {};\npub const STEP_BITWIDTH: u32 = {};\n\
-     pub const DELAY_BITWIDTH: u32 = {};",
-        iter_bw, step_bw, delay_bw
+     pub const DELAY_BITWIDTH: u32 = {};\npub const REP_EXT: bool = {};",
+        iter_bw, step_bw, delay_bw, rep_ext
     );
 
     fs::write("src/isa_config.rs", out).unwrap_or_else(|e| {
