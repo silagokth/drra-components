@@ -79,8 +79,8 @@ void Swb::logic(uint32_t subcycle) {
   if (subcycle != 5)
     return;
 
-  if (isPortAddressValid(SWB_PKG::REP_PORT_INTRACELL)) {
-    int64_t agu_address = getPortAddress(SWB_PKG::REP_PORT_INTRACELL);
+  if (isPortAddressValid(SWB_PKG::EVT_PORT_INTRACELL)) {
+    int64_t agu_address = getPortAddress(SWB_PKG::EVT_PORT_INTRACELL);
     if (agu_address != currentFsmOption_swb) {
       currentFsmOption_swb = agu_address;
       out.output("SWB switched to SWB configuration #%u\n",
@@ -88,8 +88,8 @@ void Swb::logic(uint32_t subcycle) {
     }
   }
 
-  if (isPortAddressValid(SWB_PKG::REP_PORT_INTERCELL)) {
-    int64_t agu_address = getPortAddress(SWB_PKG::REP_PORT_INTERCELL);
+  if (isPortAddressValid(SWB_PKG::EVT_PORT_INTERCELL)) {
+    int64_t agu_address = getPortAddress(SWB_PKG::EVT_PORT_INTERCELL);
     if (agu_address != currentFsmOption_route) {
       currentFsmOption_route = agu_address;
       out.output("SWB switched to ROUTE configuration #%u\n",

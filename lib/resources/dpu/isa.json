@@ -87,21 +87,6 @@
           "bitwidth": 1
         },
         {
-          "name": "port",
-          "comment": "Configure the repetition operator to target either the DPU operation (0) or the RST operation (1).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "dpu"
-            },
-            {
-              "key": 1,
-              "val": "rst"
-            }
-          ]
-        },
-        {
           "name": "iter",
           "comment": "Number of iterations.",
           "bitwidth": 7
@@ -125,21 +110,6 @@
       "opcode": 3,
       "instr_type": 1,
       "segments": [
-        {
-          "name": "port",
-          "comment": "Configure the transition operator to target either the DPU operation (0) or the RST operation (1).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "dpu"
-            },
-            {
-              "key": 1,
-              "val": "rst"
-            }
-          ]
-        },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",

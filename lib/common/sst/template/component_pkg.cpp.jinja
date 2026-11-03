@@ -36,14 +36,14 @@ std::unordered_map<uint32_t, std::function<void(uint32_t)>>
             decoded_instr.slot, decoded_instr.port, evt_option, evt_init_addr);
         {% elif instruction.name == 'rep' %}
         {{ kind | lower }}_obj->handleREP(
-            decoded_instr.slot, decoded_instr.port, {% if instruction.ext %}static_cast<bool>(decoded_instr.ext){% else %}false{% endif %},
+            decoded_instr.slot, {% if instruction.ext %}static_cast<bool>(decoded_instr.ext){% else %}false{% endif %},
             decoded_instr.iter, decoded_instr.step, decoded_instr.delay,
             {{ kind | upper }}_INSTR_REP_ITER_BITWIDTH,
             {{ kind | upper }}_INSTR_REP_STEP_BITWIDTH,
             {{ kind | upper }}_INSTR_REP_DELAY_BITWIDTH);
         {% elif instruction.name == 'trans' %}
         {{ kind | lower }}_obj->handleTRANS(
-            decoded_instr.slot, decoded_instr.port, decoded_instr.delay);
+            decoded_instr.slot, decoded_instr.delay);
         {% else %}
         {{ kind | lower }}_obj->handle{{ instruction.name | upper }}(decoded_instr);
         {% endif %}

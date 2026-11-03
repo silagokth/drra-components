@@ -94,33 +94,6 @@
           "bitwidth": 1
         },
         {
-          "name": "port",
-          "comment": "Select which port the repetition applies to.",
-          "bitwidth": 2,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "word_write",
-              "comment": "Write to RF (WORD)"
-            },
-            {
-              "key": 1,
-              "val": "word_read",
-              "comment": "Read from RF (WORD)"
-            },
-            {
-              "key": 2,
-              "val": "bulk_write",
-              "comment": "Write to RF (BULK)"
-            },
-            {
-              "key": 3,
-              "val": "bulk_read",
-              "comment": "Read from RF (BULK)"
-            }
-          ]
-        },
-        {
           "name": "iter",
           "comment": "Number of iterations.",
           "bitwidth": 7
@@ -144,33 +117,6 @@
       "opcode": 3,
       "instr_type": 1,
       "segments": [
-        {
-          "name": "port",
-          "comment": "select which port the transition applies to.",
-          "bitwidth": 2,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "word_write",
-              "comment": "Write to RF (WORD)"
-            },
-            {
-              "key": 1,
-              "val": "word_read",
-              "comment": "Read from RF (WORD)"
-            },
-            {
-              "key": 2,
-              "val": "bulk_write",
-              "comment": "Write to RF (BULK)"
-            },
-            {
-              "key": 3,
-              "val": "bulk_read",
-              "comment": "Read from RF (BULK)"
-            }
-          ]
-        },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",

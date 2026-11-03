@@ -115,21 +115,6 @@
           "bitwidth": 1
         },
         {
-          "name": "port",
-          "comment": "Selects whether the repetition is applied intracell (0) or intercell (1).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "intracell"
-            },
-            {
-              "key": 1,
-              "val": "intercell"
-            }
-          ]
-        },
-        {
           "name": "iter",
           "comment": "Number of iterations.",
           "bitwidth": 7
@@ -153,21 +138,6 @@
       "opcode": 3,
       "instr_type": 1,
       "segments": [
-        {
-          "name": "port",
-          "comment": "Selects whether the transition is applied intracell (0) or intercell (2).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "intracell"
-            },
-            {
-              "key": 1,
-              "val": "intercell"
-            }
-          ]
-        },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",

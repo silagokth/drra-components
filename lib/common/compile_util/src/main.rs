@@ -135,11 +135,6 @@ fn reshape_instr(op: Op) -> Op {
         let new_instr = instr.clone();
         match instr.kind.as_str() {
             "rep" => {
-                let _port = instr
-                    .params
-                    .get_value("port")
-                    .parse::<i64>()
-                    .expect("Failed to parse port as i64");
                 let _level = instr
                     .params
                     .get_value("level")
