@@ -104,7 +104,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Shared AGU subsystem (lib/common/rtl/agu_array): controller + one agu_rtr per
   // port. The two AGUs address different things -- AGU 0 walks the mode table,
   // AGU 1 only strobes the accumulator reset -- so they get individual address
-  // widths. dpu has no init-address path, so evt_init_addr is tied off.
+  // widths. An evt's init_addr is the configuration register AGU 0 starts at.
   agu_array #(
     .NUM_AGUS(NUM_AGUS),
     .AGU_USED(NUM_AGUS'(AGU_USED)),
@@ -122,6 +122,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     .REP_STEP_FIELD_WIDTH(REP_STEP_FIELD_WIDTH),
     .TRANS_DELAY_FIELD_WIDTH(TRANS_DELAY_FIELD_WIDTH),
     .REP_EXT(REP_EXT),
+    .USE_INIT_ADDR(1'b1),
     .AGU_LATENCY(AGU_LATENCY)
   ) agu_array_inst (
     .clk  (clk),
@@ -130,7 +131,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // Single instruction slot: EVT port is used directly.
     .evt_valid(evt_valid),
     .evt_port(evt_instr._port),
-    .evt_init_addr('0),
+    .evt_init_addr(evt_instr._init_addr),
 
     .rep_valid(rep_valid),
     .rep_ext(rep_ext_bit(rep_instr)),

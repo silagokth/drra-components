@@ -41,8 +41,8 @@ module agu_array #(
     parameter int AGU_ADDR_WIDTH [NUM_AGUS] = '{default: ADDRESS_WIDTH},
 
     // Add the EVT initial address to every generated address. Resources with
-    // no init-address path (dpu) leave this 0 and tie evt_init_addr
-    // off, which drops the adders.
+    // no init-address path leave this 0 and tie evt_init_addr off, which
+    // drops the adders.
     parameter bit USE_INIT_ADDR = 1'b0,
 
     // Which AGUs (bit i = EVT port i) the program configures, from the resource's

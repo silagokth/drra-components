@@ -72,6 +72,11 @@
               "val": "rst"
             }
           ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Configuration register the event starts at, as wide as the conf option field. Selects the DPU mode for the operations that follow.",
+          "bitwidth": 2
         }
       ]
     },
