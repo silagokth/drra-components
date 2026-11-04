@@ -1,6 +1,7 @@
 #ifndef _REGISTER_FILE_H
 #define _REGISTER_FILE_H
 
+#include "dataEvent.h"
 #include "drra_resource.h"
 #include <cstdint>
 #include <map>
@@ -49,6 +50,9 @@ protected:
   void conf(uint32_t slot, uint64_t address, uint64_t value);
 
 private:
+  DataEvent *takeData(DataEvent::PortType type);
+  std::map<DataEvent::PortType, DataEvent *> pending_data;
+
   // Register File
   uint32_t register_file_size;
   std::string access_time;

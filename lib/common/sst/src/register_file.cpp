@@ -119,25 +119,29 @@ void RegisterFile::readNarrow(int64_t address) {
                  {"data", formatRawDataToWords(data)}});
 }
 
-void RegisterFile::writeWide(int64_t address) {
-  Event *temp_event = nullptr;
-  DataEvent *data_event = nullptr;
-  do {
-    temp_event = data_links[0]->recv();
-    if (temp_event != nullptr) {
-      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
-      if (new_data_event != nullptr) {
-        if (data_event != nullptr)
-          delete data_event;
-        data_event = new_data_event;
-      }
+// The latest data of `type` that arrived. Word and bulk data share the link
+// but are separate wires in the RTL: data of the other type is kept for that
+// path, as an RF without an active write there ignores it.
+DataEvent *RegisterFile::takeData(DataEvent::PortType type) {
+  while (Event *event = data_links[0]->recv()) {
+    DataEvent *data_event = dynamic_cast<DataEvent *>(event);
+    if (data_event == nullptr) {
+      delete event;
+      continue;
     }
-  } while (temp_event != nullptr);
+    DataEvent *&slot = pending_data[data_event->portType];
+    delete slot;
+    slot = data_event;
+  }
+  DataEvent *data_event = pending_data[type];
+  pending_data.erase(type);
+  return data_event;
+}
 
+void RegisterFile::writeWide(int64_t address) {
+  DataEvent *data_event = takeData(DataEvent::PortType::WriteWide);
   if (data_event == nullptr)
     out.fatal(CALL_INFO, -1, "Failed to receive data event (writeWide)\n");
-  if (data_event->portType != DataEvent::PortType::WriteWide)
-    out.fatal(CALL_INFO, -1, "Invalid port type: %d\n", data_event->portType);
 
   // Calculate starting address
   uint32_t addr = address * io_data_width / word_bitwidth;
@@ -169,24 +173,9 @@ void RegisterFile::writeWide(int64_t address) {
 }
 
 void RegisterFile::writeNarrow(int64_t address) {
-  Event *temp_event = nullptr;
-  DataEvent *data_event = nullptr;
-  do {
-    temp_event = data_links[0]->recv();
-    if (temp_event != nullptr) {
-      DataEvent *new_data_event = dynamic_cast<DataEvent *>(temp_event);
-      if (new_data_event != nullptr) {
-        if (data_event != nullptr)
-          delete data_event;
-        data_event = new_data_event;
-      }
-    }
-  } while (temp_event != nullptr);
-
+  DataEvent *data_event = takeData(DataEvent::PortType::WriteNarrow);
   if (data_event == nullptr)
     out.fatal(CALL_INFO, -1, "Failed to receive data event (writeNarrow)\n");
-  if (data_event->portType != DataEvent::PortType::WriteNarrow)
-    out.fatal(CALL_INFO, -1, "Invalid port type\n");
 
   std::vector<uint8_t> data;
   data.resize(word_bitwidth / 8);
