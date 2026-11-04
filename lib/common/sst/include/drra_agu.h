@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "timingExpression.h"
 #include "timingModel.h"
 #include "timingOperators.h"
@@ -17,6 +19,7 @@ private:
     uint64_t delay = 0;
     uint64_t step = 0;
     bool is_configured = false;
+    std::map<size_t, uint64_t> lane_steps; // overrides of step, by lane
   };
 
   std::unique_ptr<TimingState> timing_state = nullptr;
@@ -54,6 +57,11 @@ public:
                              uint64_t step = 1);
 
   DRRA_AGU &addTransition(uint64_t delay = 0);
+
+  // A REP with a lane field: lane's step at the last outer level. ext folds
+  // the step's high bits from step_bits up into it.
+  DRRA_AGU &setLaneStep(size_t lane, bool ext, uint64_t step,
+                        uint32_t step_bits);
 
   bool isEmpty() { return !timing_state && lanes.empty(); }
 

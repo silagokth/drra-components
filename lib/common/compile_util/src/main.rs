@@ -66,6 +66,8 @@ fn get_timing_model(op: Op) -> String {
             }
             "rep" => {
                 if instr_segments.get_value("ext") == "1" { continue; }
+                // A lane rep only sets one lane's step.
+                if instr_segments.get_value("lane") != "0" { continue; }
                 let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
                 if !trans_delays.is_empty() {

@@ -33,6 +33,7 @@ module agu_array #(
     parameter int REP_STEP_FIELD_WIDTH    = REP_STEP_WIDTH / 2,
     parameter int TRANS_DELAY_FIELD_WIDTH = TRANS_DELAY_WIDTH,
     parameter bit REP_EXT                 = 1'b1,
+    parameter int REP_LANE_FIELD_WIDTH    = 2,
 
     // Per-AGU address width. Resources whose AGUs address different things
     // (dpu: mode table vs accumulator reset) size the
@@ -76,6 +77,7 @@ module agu_array #(
     input logic [REP_DELAY_FIELD_WIDTH-1:0]   rep_delay,
     input logic [REP_ITER_FIELD_WIDTH-1:0]    rep_iter,
     input logic [REP_STEP_FIELD_WIDTH-1:0]    rep_step,
+    input logic [REP_LANE_FIELD_WIDTH-1:0]    rep_lane,
 
     // TRANS
     input logic                               trans_valid,
@@ -128,7 +130,8 @@ module agu_array #(
       .REP_ITER_FIELD_WIDTH   (REP_ITER_FIELD_WIDTH),
       .REP_STEP_FIELD_WIDTH   (REP_STEP_FIELD_WIDTH),
       .TRANS_DELAY_FIELD_WIDTH(TRANS_DELAY_FIELD_WIDTH),
-      .REP_EXT                (REP_EXT)
+      .REP_EXT                (REP_EXT),
+      .REP_LANE_FIELD_WIDTH   (REP_LANE_FIELD_WIDTH)
   ) controller_inst (
       .clk  (clk),
       .rst_n(rst_n),
@@ -142,6 +145,7 @@ module agu_array #(
       .rep_delay(rep_delay),
       .rep_iter (rep_iter),
       .rep_step (rep_step),
+      .rep_lane (rep_lane),
 
       .trans_valid(trans_valid),
       .trans_delay(trans_delay),

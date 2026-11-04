@@ -109,6 +109,11 @@
           "name": "delay",
           "comment": "Delay between iterations.",
           "bitwidth": 7
+        },
+        {
+          "name": "lane",
+          "comment": "0: an outer rep opening a level, its step for every lane. k > 0: the step of lane k at the last outer level opened, which opens no level.",
+          "bitwidth": 2
         }
       ]
     },

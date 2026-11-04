@@ -704,29 +704,42 @@ TimingState::getRepetitionOperatorFromLevel(uint64_t level) const {
 
 int64_t TimingState::getAddressForCycle(uint64_t cycle) {
   uint64_t off = cycle;
-  uint64_t outer_addr = 0;
+  std::vector<uint64_t> outer_idx(addr_outerDims.size());
   // Decompose the outer repetition dimensions (outermost first).
   for (size_t k = addr_outerDims.size(); k-- > 0;) {
     const Dim &d = addr_outerDims[k];
     uint64_t idx = off / d.period;
     if (idx >= d.iter)
       return -1; // beyond the outermost repetition -> gap
-    outer_addr += idx * d.step;
+    outer_idx[k] = idx;
     off -= idx * d.period;
   }
   // Locate the segment whose inner lattice contains the remaining offset.
-  for (const auto &s : addr_segs) {
+  for (size_t si = 0; si < addr_segs.size(); si++) {
+    const auto &s = addr_segs[si];
     if (off < s.base_cycle)
       break; // gap before this segment
     if (off <= s.base_cycle + s.inner_span) {
       int64_t inner = decomposeDims(off - s.base_cycle, s.innerDims);
       if (inner < 0)
         return -1; // gap inside the segment's inner lattice
+      uint64_t outer_addr = 0;
+      for (size_t k = 0; k < addr_outerDims.size(); k++) {
+        const Dim &d = addr_outerDims[k];
+        outer_addr += outer_idx[k] *
+                      (si < d.lane_steps.size() ? d.lane_steps[si] : d.step);
+      }
       return static_cast<int64_t>(s.base_addr + static_cast<uint64_t>(inner) +
                                   outer_addr);
     }
   }
   return -1;
+}
+
+void TimingState::setOuterLaneSteps(size_t dim,
+                                    const std::vector<uint64_t> &steps) {
+  if (dim < addr_outerDims.size())
+    addr_outerDims[dim].lane_steps = steps;
 }
 
 void TimingState::setEventInitialAddresses(

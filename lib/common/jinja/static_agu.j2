@@ -6,8 +6,9 @@
   static_config.agus lists, per AGU (slot, port), the configurations it runs,
   one per activation, in order. Each configuration has the agu_cfg_if layout:
   lanes (an initial address and IR levels each), MT transition delays, and OR
-  levels. The AGUs of a resource are those of its first slot, which is where
-  its activation strobes arrive.
+  levels (`lane_steps`: optional per-lane steps of an OR level). The AGUs
+  of a resource are those of its first slot, where its activation strobes
+  arrive.
 
   Arguments:
     agus            static_config.agus
@@ -64,6 +65,7 @@
         assign static_agu_configs[static_i].ir_configs = '0;
         assign static_agu_configs[static_i].mt_configs = '0;
         assign static_agu_configs[static_i].or_configs = '0;
+        assign static_agu_configs[static_i].or_lane_steps = '0;
         assign static_init_address[static_i] = '0;
       end
     end
@@ -75,6 +77,7 @@
     static_agu_configs[{{ agu.port }}].ir_configs = '0;
     static_agu_configs[{{ agu.port }}].mt_configs = '0;
     static_agu_configs[{{ agu.port }}].or_configs = '0;
+    static_agu_configs[{{ agu.port }}].or_lane_steps = '0;
     static_init_address[{{ agu.port }}] = '0;
     case (static_config_index[{{ agu.port }}])
     {% for config in agu.configs %}
@@ -98,6 +101,15 @@
         static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].step = REP_STEP_WIDTH'({{ level.step }});
         static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].delay = REP_DELAY_WIDTH'({{ level.delay }});
         static_agu_configs[{{ agu.port }}].or_configs[{{ loop.index0 }}].is_configured = 1'b1;
+        {% set or_index = loop.index0 %}
+        {% if level.lane_steps is defined %}
+        {% for lane_step in level.lane_steps %}
+        static_agu_configs[{{ agu.port }}].or_lane_steps[{{ or_index }}][{{ loop.index0 }}] = REP_STEP_WIDTH'({{ lane_step }});
+        {% endfor %}
+        {% else %}
+        for (int l = 0; l <= NUMBER_MT; l++)
+          static_agu_configs[{{ agu.port }}].or_lane_steps[{{ or_index }}][l] = REP_STEP_WIDTH'({{ level.step }});
+        {% endif %}
       {% endfor %}
       end
     {% endfor %}

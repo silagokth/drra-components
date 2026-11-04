@@ -64,6 +64,11 @@ interface agu_cfg_if #(
   //            Innermost loop = idx 0.
   rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
 
-  modport producer(output or_configs, mt_configs, ir_configs);
-  modport consumer(input or_configs, mt_configs, ir_configs);
+  // or_lane_steps[NUMBER_OR][NUMBER_MT+1]
+  //   Step of each lane at each OR level: or_configs[o].step unless a rep
+  //   with a lane field overrode it.
+  logic [OR_DIM-1:0][NUMBER_MT:0][REP_STEP_WIDTH-1:0] or_lane_steps;
+
+  modport producer(output or_configs, mt_configs, ir_configs, or_lane_steps);
+  modport consumer(input or_configs, mt_configs, ir_configs, or_lane_steps);
 endinterface

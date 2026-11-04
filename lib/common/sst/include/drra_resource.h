@@ -71,7 +71,7 @@ public:
   // REP and TRANS configure the AGU of the last EVT, as agu_controller does.
   virtual void handleREP(uint32_t slot, bool ext, uint32_t iter, uint32_t step,
                          uint32_t delay, uint32_t iter_bits, uint32_t step_bits,
-                         uint32_t delay_bits);
+                         uint32_t delay_bits, uint32_t lane = 0);
 
   virtual void handleTRANS(uint32_t slot, uint32_t delay);
 

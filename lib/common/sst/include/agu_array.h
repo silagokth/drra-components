@@ -52,8 +52,10 @@ public:
   // A base REP (ext = 0) carries the low half of iter / step / delay and a
   // REPX (ext = 1) folds the high half into the repetition it follows, so the
   // shift widths are the resource's own ISA segment widths.
+  // lane > 0 sets that lane's step at the last outer level (agu_controller).
   void rep(uint32_t agu, bool ext, uint32_t iter, uint32_t step, uint32_t delay,
-           uint32_t iter_bits, uint32_t step_bits, uint32_t delay_bits);
+           uint32_t iter_bits, uint32_t step_bits, uint32_t delay_bits,
+           uint32_t lane = 0);
 
   void trans(uint32_t agu, uint32_t delay);
 

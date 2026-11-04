@@ -24,7 +24,7 @@ void AGUArray::evt(uint32_t agu, uint64_t init_addr) {
 
 void AGUArray::rep(uint32_t agu, bool ext, uint32_t iter, uint32_t step,
                    uint32_t delay, uint32_t iter_bits, uint32_t step_bits,
-                   uint32_t delay_bits) {
+                   uint32_t delay_bits, uint32_t lane) {
   Port &p = ports.at(agu);
   // step is signed: sign-extend it from its field width, as agu_controller.
   auto sext = [](uint64_t v, uint32_t bits) {
@@ -32,7 +32,9 @@ void AGUArray::rep(uint32_t agu, bool ext, uint32_t iter, uint32_t step,
     v &= (1ULL << bits) - 1;
     return (v ^ sign) - sign;
   };
-  if (!ext) {
+  if (lane != 0) {
+    p.agu.setLaneStep(lane, ext, sext(step, step_bits), step_bits);
+  } else if (!ext) {
     // Base REP: a new repetition carrying the low bits of each field.
     p.agu.addRepetition(iter, delay, sext(step, step_bits));
   } else {

@@ -266,17 +266,19 @@ void DRRAResource::handleEVT(uint32_t slot, uint32_t port, uint32_t option,
 
 void DRRAResource::handleREP(uint32_t slot, bool ext, uint32_t iter,
                              uint32_t step, uint32_t delay, uint32_t iter_bits,
-                             uint32_t step_bits, uint32_t delay_bits) {
+                             uint32_t step_bits, uint32_t delay_bits,
+                             uint32_t lane) {
   if (!current_agu) {
     out.fatal(CALL_INFO, -1, "REP before any EVT (slot=%u)\n", slot);
   }
   uint32_t port_num = *current_agu;
-  out.output("rep (slot=%d, ext=%d, agu=%d, iter=%d, step=%d, delay=%d)\n",
-             slot, ext, port_num, iter, step, delay);
+  out.output(
+      "rep (slot=%d, ext=%d, agu=%d, iter=%d, step=%d, delay=%d, lane=%d)\n",
+      slot, ext, port_num, iter, step, delay, lane);
 
   try {
     agu_array.rep(port_num, ext, iter, step, delay, iter_bits, step_bits,
-                  delay_bits);
+                  delay_bits, lane);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }

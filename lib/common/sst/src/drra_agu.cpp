@@ -167,6 +167,23 @@ DRRA_AGU &DRRA_AGU::adjustRepetition(uint64_t iterations, uint64_t delay,
   return *this;
 }
 
+DRRA_AGU &DRRA_AGU::setLaneStep(size_t lane, bool ext, uint64_t step,
+                                uint32_t step_bits) {
+  checkNotBuilt("repetitions");
+  uint64_t level = current_rep_level == 0 ? 0 : current_rep_level - 1;
+  if (!use_outer || level >= outer_reps.size() ||
+      !outer_reps[level].is_configured)
+    throw std::runtime_error("Lane step without an outer repetition");
+  auto &steps = outer_reps[level].lane_steps;
+  if (!ext) {
+    steps[lane] = step;
+  } else {
+    uint64_t low = steps.count(lane) ? steps[lane] : outer_reps[level].step;
+    steps[lane] = (step << step_bits) | (low & ((1ULL << step_bits) - 1));
+  }
+  return *this;
+}
+
 DRRA_AGU &DRRA_AGU::addTransition(uint64_t delay) {
   checkNotBuilt("transitions");
 
@@ -248,6 +265,20 @@ DRRA_AGU &DRRA_AGU::build() {
               << timing_state->getExpression()->toString() << "\n";
   timing_state->setEventInitialAddresses(lane_initial_addresses);
   timing_state->build();
+  // Per-lane steps of the outer levels, in the order they were added above.
+  size_t dim = 0;
+  for (const OuterRepetition &rep : outer_reps) {
+    if (!rep.is_configured)
+      continue;
+    if (!rep.lane_steps.empty()) {
+      std::vector<uint64_t> steps(lanes.size(), rep.step);
+      for (auto [lane, step] : rep.lane_steps)
+        if (lane < steps.size())
+          steps[lane] = step;
+      timing_state->setOuterLaneSteps(dim, steps);
+    }
+    dim++;
+  }
   if (vesylaDebug())
     std::cout << "Timing state built successfully\n";
   return *this;

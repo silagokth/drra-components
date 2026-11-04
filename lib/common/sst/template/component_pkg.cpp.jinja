@@ -40,7 +40,7 @@ std::unordered_map<uint32_t, std::function<void(uint32_t)>>
             decoded_instr.iter, decoded_instr.step, decoded_instr.delay,
             {{ kind | upper }}_INSTR_REP_ITER_BITWIDTH,
             {{ kind | upper }}_INSTR_REP_STEP_BITWIDTH,
-            {{ kind | upper }}_INSTR_REP_DELAY_BITWIDTH);
+            {{ kind | upper }}_INSTR_REP_DELAY_BITWIDTH{% for segment in instruction.segments if segment.name | lower == 'lane' %}, decoded_instr.lane{% endfor %});
         {% elif instruction.name == 'trans' %}
         {{ kind | lower }}_obj->handleTRANS(
             decoded_instr.slot, decoded_instr.delay);

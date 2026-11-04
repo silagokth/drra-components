@@ -47,6 +47,7 @@ private:
     uint64_t period; // cycle stride between successive iterations
     uint64_t iter;   // number of iterations
     uint64_t step;   // address increment per iteration
+    std::vector<uint64_t> lane_steps; // outer dims: step per segment, if set
   };
   struct EventSeg {
     uint64_t base_cycle = 0; // start cycle within one outer-repetition instance
@@ -134,6 +135,8 @@ public:
   RepetitionOperator getRepetitionOperatorFromLevel(uint64_t level) const;
   int64_t getAddressForCycle(uint64_t cycle);
   void setEventInitialAddresses(const std::vector<uint64_t> &addresses);
+  // After build(): per-segment (lane) steps of outer dimension `dim`.
+  void setOuterLaneSteps(size_t dim, const std::vector<uint64_t> &steps);
   void copyLevelData(const TimingState &other);
   const std::vector<uint64_t> &getLevelsStep() const;
   const std::vector<uint64_t> &getLevelsTotalIterations() const;

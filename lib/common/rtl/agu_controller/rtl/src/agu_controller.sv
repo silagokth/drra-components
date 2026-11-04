@@ -27,7 +27,8 @@ module agu_controller #(
     parameter int REP_ITER_FIELD_WIDTH    = REP_ITER_WIDTH / 2,
     parameter int REP_STEP_FIELD_WIDTH    = REP_STEP_WIDTH / 2,
     parameter int TRANS_DELAY_FIELD_WIDTH = TRANS_DELAY_WIDTH,
-    parameter bit REP_EXT                 = 1'b1
+    parameter bit REP_EXT                 = 1'b1,
+    parameter int REP_LANE_FIELD_WIDTH    = 2
 ) (
     input  logic clk,
     input  logic rst_n,
@@ -44,6 +45,8 @@ module agu_controller #(
     input  logic [REP_DELAY_FIELD_WIDTH-1:0]   rep_delay,
     input  logic [REP_ITER_FIELD_WIDTH-1:0]    rep_iter,
     input  logic [REP_STEP_FIELD_WIDTH-1:0]    rep_step,
+    // 0: opens a level. k > 0: lane k's step at the last OR level opened.
+    input  logic [REP_LANE_FIELD_WIDTH-1:0]    rep_lane,
 
     // TRANS
     input  logic                               trans_valid,
@@ -133,6 +136,7 @@ module agu_controller #(
   localparam int MT_IDX_W = (MT_CNT > 1) ? $clog2(MT_CNT + 1) : 1;  
 
   agu_config_t agu_configs_reg     [NUM_AGUS];
+  logic [OR_CNT-1:0][NUMBER_MT:0][REP_STEP_WIDTH-1:0] or_lane_steps_reg [NUM_AGUS];
   logic        use_or_reg          [NUM_AGUS];
   logic        or_configured_reg   [NUM_AGUS];
 
@@ -182,9 +186,26 @@ module agu_controller #(
                               : '0;
   end
 
+  // A lane rep writes one lane's step at the level the last base rep opened.
+  logic                lane_rep;
+  logic [LVL_W-1:0]    lane_abs_lvl;
+  logic                lane_to_or;
+  logic [OR_IDX_W-1:0] lane_or_lvl;
+  always_comb begin
+    lane_rep     = (rep_lane != '0);
+    lane_abs_lvl = (current_rep_level[agu_index] == '0) ? '0
+                                                        : current_rep_level[agu_index] - 1;
+    lane_to_or   = use_or_reg[agu_index]
+                   || ((NUMBER_OR > 0) && (lane_abs_lvl >= NUMBER_IR));
+    lane_or_lvl  = (NUMBER_OR > 0) ? (use_or_reg[agu_index] ? lane_abs_lvl[OR_IDX_W-1:0]
+                                                    : OR_IDX_W'(lane_abs_lvl - LVL_W'(NUMBER_IR)))
+                               : '0;
+  end
+
   always_ff @(posedge clk or negedge rst_n) begin : ff_agu_config_process
     if (!rst_n) begin
       agu_configs_reg     <= '{default: '0};
+      or_lane_steps_reg   <= '{default: '0};
       use_or_reg          <= '{default: 1'b0};
       or_configured_reg   <= '{default: 1'b0};
       agu_config_index    <= '0;
@@ -199,6 +220,7 @@ module agu_controller #(
       for (int i = 0; i < NUM_AGUS; i++) begin
         if (agu_done[i]) begin
           agu_configs_reg[i]     <= '0;
+          or_lane_steps_reg[i]   <= '0;
           use_or_reg[i]          <= 1'b0;
           or_configured_reg[i]   <= 1'b0;
           current_lane_index[i]  <= '1;
@@ -223,9 +245,15 @@ module agu_controller #(
         agu_configs_reg[agu_index].ir_configs[evt_lane][0].iter          <= 1;
         agu_configs_reg[agu_index].ir_configs[evt_lane][0].is_configured <= 1'b1;
 
+      end else if (rep_valid && lane_rep) begin
+        if (lane_to_or && rep_lane <= NUMBER_MT)
+          or_lane_steps_reg[agu_index][lane_or_lvl][rep_lane] <= load_step(or_lane_steps_reg[agu_index][lane_or_lvl][rep_lane], rep_step, ext_rep);
+
       end else if (rep_valid) begin
 
         if (rep_to_or) begin
+          for (int l = 0; l <= NUMBER_MT; l++)
+            or_lane_steps_reg[agu_index][or_lvl][l] <= load_step(or_lane_steps_reg[agu_index][or_lvl][l], rep_step, ext_rep);
           agu_configs_reg[agu_index].or_configs[or_lvl].delay <= load_delay(agu_configs_reg[agu_index].or_configs[or_lvl].delay, rep_delay, ext_rep);
           agu_configs_reg[agu_index].or_configs[or_lvl].iter  <= load_iter(agu_configs_reg[agu_index].or_configs[or_lvl].iter, rep_iter, ext_rep);
           agu_configs_reg[agu_index].or_configs[or_lvl].step  <= load_step(agu_configs_reg[agu_index].or_configs[or_lvl].step, rep_step, ext_rep);
@@ -261,6 +289,7 @@ module agu_controller #(
       assign agu_configs[gi].or_configs = agu_configs_reg[gi].or_configs;
       assign agu_configs[gi].mt_configs = agu_configs_reg[gi].mt_configs;
       assign agu_configs[gi].ir_configs = agu_configs_reg[gi].ir_configs;
+      assign agu_configs[gi].or_lane_steps = or_lane_steps_reg[gi];
     end
   endgenerate
 
