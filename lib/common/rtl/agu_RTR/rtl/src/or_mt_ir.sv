@@ -70,6 +70,7 @@ module or_mt_ir
       .ADDRESS_WIDTH    (ADDRESS_WIDTH),
       .NUMBER_IR        (NUMBER_IR),
       .NUMBER_MT        (NUMBER_MT),
+      .NUMBER_OR        (NUMBER_OR),
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
       .REP_STEP_WIDTH   (REP_STEP_WIDTH),

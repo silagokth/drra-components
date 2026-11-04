@@ -49,9 +49,14 @@ include!("isa_config.rs");
 // Once such an outer rep is there a trans is dropped, and a lane with no trans
 // of its own follows on with no delay.
 fn get_timing_model(op: Op) -> String {
-    let mut lanes: Vec<String> = Vec::new();
+    // Read postfix, as the AGU controller does: an evt pushes a one-lane
+    // group, a trans joins the top two, a rep repeats the top group (a lane's
+    // own repetition, or one over a joined group's lanes). A trans with no
+    // second group sends the later reps around the whole chain (OR).
+    let mut stack: Vec<(String, bool)> = Vec::new(); // (expression, joined)
     let mut trans_delays: Vec<String> = Vec::new();
     let mut outer: Vec<(String, String)> = Vec::new();
+    let mut use_outer = false;
     let mut event_counter = 0;
 
     for instr in op.body {
@@ -61,7 +66,7 @@ fn get_timing_model(op: Op) -> String {
                 // NOTE: configuration does not affect the timing model
             }
             "evt" => {
-                lanes.push(format!("e{}", event_counter));
+                stack.push((format!("e{}", event_counter), false));
                 event_counter += 1;
             }
             "rep" => {
@@ -70,15 +75,26 @@ fn get_timing_model(op: Op) -> String {
                 if instr_segments.get_value("lane") != "0" { continue; }
                 let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
-                if !trans_delays.is_empty() {
-                    outer.push((iter, delay));
-                } else if let Some(last) = lanes.last_mut() {
-                    *last = format!("R<{},{}>({})", iter, delay, last);
+                match stack.last_mut() {
+                    Some((expr, joined)) if *joined || !use_outer => {
+                        *expr = format!("R<{},{}>({})", iter, delay, expr);
+                    }
+                    Some(_) => outer.push((iter, delay)),
+                    None => {}
                 }
             }
             "trans" => {
-                if outer.is_empty() {
-                    trans_delays.push(instr_segments.get_value("delay"));
+                if !outer.is_empty() {
+                    continue;
+                }
+                let delay = instr_segments.get_value("delay");
+                if stack.len() >= 2 {
+                    let (b, _) = stack.pop().unwrap();
+                    let (a, _) = stack.pop().unwrap();
+                    stack.push((format!("T<{}>({},{})", delay, a, b), true));
+                } else {
+                    trans_delays.push(delay);
+                    use_outer = true;
                 }
             }
             _ => {
@@ -87,14 +103,15 @@ fn get_timing_model(op: Op) -> String {
         }
     }
 
-    let mut lanes = lanes.into_iter();
-    let mut expr = match lanes.next() {
-        Some(first) => first,
+    // Groups never joined run one after the other, as every opened lane does.
+    let mut groups = stack.into_iter();
+    let mut expr = match groups.next() {
+        Some((first, _)) => first,
         None => return "e0".to_string(),
     };
-    for (k, lane) in lanes.enumerate() {
+    for (k, (group, _)) in groups.enumerate() {
         let delay = trans_delays.get(k).cloned().unwrap_or_else(|| "0".to_string());
-        expr = format!("T<{}>({},{})", delay, expr, lane);
+        expr = format!("T<{}>({},{})", delay, expr, group);
     }
     for (iter, delay) in outer {
         expr = format!("R<{},{}>({})", iter, delay, expr);

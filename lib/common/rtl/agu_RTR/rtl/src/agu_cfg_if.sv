@@ -64,11 +64,28 @@ interface agu_cfg_if #(
   //            Innermost loop = idx 0.
   rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0] ir_configs;
 
+  // rl_configs[NUMBER_OR]
+  //   Range levels: a repetition over lanes lo..hi only (a group of lanes
+  //   inside the chain), innermost first. At the end of lane hi, the
+  //   innermost unfinished range level with that hi jumps back to its lo.
+  localparam int LANE_W = (NUMBER_MT > 0) ? $clog2(NUMBER_MT + 1) : 1;
+  typedef struct packed {
+    logic [REP_DELAY_WIDTH-1:0] delay;
+    logic [REP_ITER_WIDTH-1:0]  iter;
+    logic [LANE_W-1:0]          lo;
+    logic [LANE_W-1:0]          hi;
+    logic                       is_configured;
+  } rl_config_t;
+  rl_config_t [OR_DIM-1:0] rl_configs;
+  // rl_lane_steps[NUMBER_OR][NUMBER_MT+1]: step of each lane at each range
+  // level (0 outside lo..hi).
+  logic [OR_DIM-1:0][NUMBER_MT:0][REP_STEP_WIDTH-1:0] rl_lane_steps;
+
   // or_lane_steps[NUMBER_OR][NUMBER_MT+1]
   //   Step of each lane at each OR level: or_configs[o].step unless a rep
   //   with a lane field overrode it.
   logic [OR_DIM-1:0][NUMBER_MT:0][REP_STEP_WIDTH-1:0] or_lane_steps;
 
-  modport producer(output or_configs, mt_configs, ir_configs, or_lane_steps);
-  modport consumer(input or_configs, mt_configs, ir_configs, or_lane_steps);
+  modport producer(output or_configs, mt_configs, ir_configs, or_lane_steps, rl_configs, rl_lane_steps);
+  modport consumer(input or_configs, mt_configs, ir_configs, or_lane_steps, rl_configs, rl_lane_steps);
 endinterface

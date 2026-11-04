@@ -101,6 +101,8 @@ module agu_tb
     // Reset DUT config
     cfg_if.or_configs = '0;
     cfg_if.or_lane_steps = '0;
+    cfg_if.rl_configs = '0;
+    cfg_if.rl_lane_steps = '0;
     cfg_if.mt_configs = '0;
     cfg_if.ir_configs = '0;
     agu_act = 0;
