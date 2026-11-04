@@ -11,11 +11,13 @@ Dpu::Dpu(SST::ComponentId_t id, SST::Params &params)
   fractional_bitwidth = params.find<uint32_t>("FRACTIONAL_BITWIDTH", 0);
   saturate = params.find<uint32_t>("SATURATE", 1) != 0;
 
-  fsmHandlers.resize(num_fsms);
-  fsmModes.assign(num_fsms, DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
+  // One configuration register per option (NUM_OPTIONS, arch.json).
+  uint32_t num_options = params.find<uint32_t>("NUM_OPTIONS", 4);
+  fsmHandlers.resize(num_options);
+  fsmModes.assign(num_options, DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
   dpuHandlers = DPU_Operations::createHandlers(this);
   instructionHandlers = DPU_PKG::createInstructionHandlers(this);
-  for (uint32_t i = 0; i < num_fsms; i++) {
+  for (uint32_t i = 0; i < num_options; i++) {
     fsmHandlers[i] = dpuHandlers.at(DPU_PKG::CONF_MODE::CONF_MODE_IDLE);
   }
 

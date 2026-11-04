@@ -6,6 +6,10 @@
   "io_output": true,
   "custom_properties": [
     {
+      "name": "NUM_OPTIONS",
+      "value": 0
+    },
+    {
       "name": "NUMBER_IR",
       "value": 4
     },
