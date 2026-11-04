@@ -247,8 +247,10 @@ void Sequencer::handleCALC(const SEQUENCER_PKG::CALCInstruction &instr) {
     break;
   case 23:
     operationStr = "addh";
+    // As the RTL ALU: the high byte of operand 1 plus the low byte of operand
+    // 2, above the low byte of operand 1; a bit pattern, not saturated.
     scalarRegisters[instr.result] =
-        (operand1_tmp & 0xFF) + ((operand2_tmp & 0xFF) << 8);
+        ((((operand1_tmp >> 8) + operand2_tmp) & 0xFF) << 8) | (operand1_tmp & 0xFF);
     break;
   case 32:
     operationStr = "and";

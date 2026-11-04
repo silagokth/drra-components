@@ -69,7 +69,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
       in1_msb = in1[SCALAR_REG_WIDTH-1:SCALAR_REG_WIDTH/2];
       in2_lsb = in2[SCALAR_REG_WIDTH/2-1:0];
       sum = in1_msb + in2_lsb;
-      temp_result = {sum, in1[SCALAR_REG_WIDTH/2-1:0]};
+      // A bit pattern (e.g. an ACT mode-2 mask), not a number: sign-extended
+      // so the saturation below leaves it alone.
+      temp_result = {sum[SCALAR_REG_WIDTH/2-1], sum, in1[SCALAR_REG_WIDTH/2-1:0]};
     end else if (mode == 32)
       temp_result = in1 && in2;
     else if (mode == 33)
