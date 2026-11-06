@@ -20,10 +20,15 @@ Instruction::Instruction(uint32_t raw_instr) {
   segments.push_back(Segment{"slot", slot});
 }
 
-Instruction::Instruction(uint32_t raw_instr, Format fmt)
-    : Instruction(raw_instr) {
-  _raw = raw_instr;
+Instruction::Instruction(uint32_t raw_instr, Format fmt) {
   format = fmt;
+  _raw = raw_instr;
+  type = getType(raw_instr);
+  opcode = getOpcode(raw_instr);
+  slot = getSlot(raw_instr);
+  segments.push_back(Segment{"type", type});
+  segments.push_back(Segment{"opcode", opcode});
+  segments.push_back(Segment{"slot", slot});
 }
 
 Instruction::Instruction(uint32_t raw_instr, Format fmt,

@@ -97,6 +97,8 @@ public:
     instrTypeBitwidth = format.type_bitwidth;
     instrOpcodeWidth = format.opcode_bitwidth;
     instrSlotWidth = format.slot_bitwidth;
+    resourceInstrOpcodeWidth = params.find<uint64_t>(
+        "resource_instr_opcode_width", format.opcode_bitwidth);
   }
 
   virtual ~DRRAComponent() {}
@@ -178,6 +180,9 @@ protected:
     params.push_back({"instr_bitwidth", "Instruction bitwidth", "32"});
     params.push_back({"instr_type_bitwidth", "Instruction type", "1"});
     params.push_back({"instr_opcode_width", "Instruction opcode width", "3"});
+    params.push_back({"resource_instr_opcode_width",
+                      "Opcode width of the resource instructions a controller "
+                      "dispatches", "2"});
     params.push_back({"instr_slot_width", "Instruction slot width", "4"});
     params.push_back({"cell_coordinates", "Cell coordinates", "[0,0]"});
     params.push_back({"num_slots", "Number of slots in the parent cell", "16"});
@@ -223,6 +228,7 @@ protected:
   uint32_t instrBitwidth;
   uint32_t instrTypeBitwidth;
   uint32_t instrOpcodeWidth;
+  uint32_t resourceInstrOpcodeWidth;
   uint32_t instrSlotWidth;
 
   // Instruction handlers
