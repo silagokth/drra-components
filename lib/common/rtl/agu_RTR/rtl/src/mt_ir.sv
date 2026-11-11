@@ -40,8 +40,11 @@ module mt_ir
 
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr_next;
-  logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt;
-  logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt_next;
+  // Also counts range-level delays (REP_DELAY_WIDTH), so as wide as both.
+  localparam int TRANS_CNT_WIDTH =
+      (TRANS_DELAY_WIDTH > REP_DELAY_WIDTH) ? TRANS_DELAY_WIDTH : REP_DELAY_WIDTH;
+  logic [    TRANS_CNT_WIDTH-1:0] transition_cnt;
+  logic [    TRANS_CNT_WIDTH-1:0] transition_cnt_next;
   logic [$clog2(NUMBER_MT+1)-1:0] current_mux_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] max_lane_index;
 
@@ -216,7 +219,7 @@ module mt_ir
                 + ADDRESS_WIDTH'(cfg.rl_lane_steps[rl_loop_level][l]);
           if (cfg.rl_configs[rl_loop_level].delay > 0) begin
             state_next = TRANSITION_DELAY;
-            transition_cnt_next = TRANS_DELAY_WIDTH'(cfg.rl_configs[rl_loop_level].delay);
+            transition_cnt_next = TRANS_CNT_WIDTH'(cfg.rl_configs[rl_loop_level].delay);
             trans_target_next = cfg.rl_configs[rl_loop_level].lo;
           end else begin
             active_lane_ptr_next = cfg.rl_configs[rl_loop_level].lo;
