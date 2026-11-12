@@ -15,7 +15,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
     input  logic [FSM_PER_SLOT-1:0] activate_0,
     input  logic [WORD_BITWIDTH-1:0] word_data_in_0, // unused
-    output logic [WORD_BITWIDTH-1:0] word_data_out_0, // unused
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
     output logic io_en_in,
@@ -27,9 +27,6 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic [IO_DATA_WIDTH/16-1:0] io_wr_mask_out
 );
 
-    // Useless outputs:
-    assign word_data_out_0 = 0;
-
     logic clk, rst_n;
     assign clk = clk_0;
     assign rst_n = rst_n_0;
@@ -38,6 +35,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [NUM_AGUS-1:0] agu_activate;
     assign agu_activate[0] = activate_0[0]; // slot 0 port 0
     assign agu_activate[1] = activate_0[1]; // slot 0 port 1
+    assign agu_activate[2] = activate_0[2]; // slot 0 port 2
 
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_final_address;
 
@@ -184,6 +182,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
 
       .bulk_data_in (bulk_data_in_0),
       .bulk_data_out(bulk_data_out_0),
+      .word_data_out(word_data_out_0),
 
       .io_en_in   (io_en_in),
       .io_addr_in (io_addr_in),

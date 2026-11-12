@@ -32,7 +32,7 @@
         {
           "name": "port",
           "comment": "The port number",
-          "bitwidth": 1,
+          "bitwidth": 2,
           "verbo_map": [
             {
               "key": 0,
@@ -43,6 +43,11 @@
               "key": 1,
               "val": "output_buffer",
               "comment": "address generation for output buffer (cannot be active simultaneously with the input buffer)"
+            },
+            {
+              "key": 2,
+              "val": "input_word",
+              "comment": "word read: the address is row * words per row + word; reads the whole row and outputs that word on the word port (not simultaneously with input_buffer)"
             }
           ]
         },

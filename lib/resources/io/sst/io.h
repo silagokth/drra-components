@@ -77,6 +77,9 @@ private:
   void writeToIO(int64_t address);
   void bulkOutput(int64_t address);
   void bulkInput(int64_t address);
+  // Word path: the address is row * words per row + word.
+  void wordOutput(int64_t address);
+  int64_t wordsPerRow() const { return io_data_width / word_bitwidth; }
 };
 
 #endif // _IO_H
