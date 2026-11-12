@@ -51,6 +51,13 @@ void SwbConfManager::writeRoute(uint32_t option, bool receive, uint32_t source,
     if (target_onehot & (1 << i)) {
       targets.push_back(i);
       targets_set.insert(i);
+      // A direction has one sender, as in the RTL: this slot replaces it.
+      if (!receive) {
+        for (auto &[slot, dirs] : send_routes[option]) {
+          if (slot != source)
+            dirs.erase(i);
+        }
+      }
     }
   }
 

@@ -57,9 +57,19 @@ package {{name}}_{{fingerprint}}_pkg;
     logic [NUM_SLOTS-1:0] receive_links [NUM_DIRS];
   } route_receive_config_t;
 
+  // A send conf as decoded: the directions a slot sends to.
   typedef struct {
     logic [NUM_DIRS-1:0] send_links [NUM_SLOTS];
   } route_send_config_t;
+
+  // Stored send routes. Indexed by DIRECTION, holds the sending SOURCE slot, so
+  // a later send conf for a direction replaces its sender (like swb_config_t).
+  // Source-keying let a stale sender from an earlier epoch keep driving a
+  // direction, and the mux then picked the highest slot.
+  typedef struct {
+    logic [$clog2(NUM_SLOTS)-1:0] send_source [NUM_DIRS];
+    logic [NUM_DIRS-1:0]          send_valid;
+  } route_send_reg_t;
 
 endpackage
 
