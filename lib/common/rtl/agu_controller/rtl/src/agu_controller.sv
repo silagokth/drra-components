@@ -115,10 +115,18 @@ module agu_controller #(
                 : (old & ITER_LO) | (REP_ITER_WIDTH'(field) << REP_ITER_FIELD_WIDTH);
   endfunction
 
+  // Explicit sign extension: REP_STEP_WIDTH'($signed(field)) loses the step on Questa 2022.4 (CI).
+  function automatic logic [REP_STEP_WIDTH-1:0] sext_step(input logic [REP_STEP_FIELD_WIDTH-1:0] field);
+    logic [REP_STEP_WIDTH-1:0] r;
+    for (int i = 0; i < REP_STEP_WIDTH; i++)
+      r[i] = field[(i < REP_STEP_FIELD_WIDTH) ? i : REP_STEP_FIELD_WIDTH-1];
+    return r;
+  endfunction
+
   function automatic logic [REP_STEP_WIDTH-1:0] load_step(
       input logic [REP_STEP_WIDTH-1:0] old, input logic [REP_STEP_FIELD_WIDTH-1:0] field, input logic ext);
-    return !ext ? REP_STEP_WIDTH'($signed(field))
-                : (old & STEP_LO) | (REP_STEP_WIDTH'($signed(field)) << REP_STEP_FIELD_WIDTH);
+    return !ext ? sext_step(field)
+                : (old & STEP_LO) | (sext_step(field) << REP_STEP_FIELD_WIDTH);
   endfunction
 
   logic ext_rep;
