@@ -10,11 +10,16 @@ on:
 
 jobs:
   run-tests:
+    name: run-tests (${{ matrix.frontend }})
     runs-on: [modelsim, vesyla, bender, sst]
+    strategy:
+      fail-fast: false
+      matrix:
+        frontend: [pasm, mlir, c]
     steps:
       - name: Clean bin folder
         run: |
-          rm -rf ${{ github.workspace }}/bin
+          rm -rf ${{ github.workspace }}/bin ${{ github.workspace }}/polygeist
 
       # Use the AppImage built by vesyla's own CI on the branch with the same
       # name (otherwise master), not the latest release, so a branch here is
@@ -24,6 +29,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ inputs.branch }}
+          FRONTEND: ${{ matrix.frontend }}
         run: |
           python3 - <<'PY'
           import json, os, time, urllib.error, urllib.request
@@ -47,11 +53,14 @@ jobs:
                       return None
                   raise
 
+          # The c frontend also needs the Polygeist build of the same run.
+          NEEDED = ["pkg-artifacts"] + (["polygeist"] if os.environ["FRONTEND"] == "c" else [])
+
           def appimage(run):
-              for a in api(f"actions/runs/{run['id']}/artifacts")["artifacts"]:
-                  if a["name"] == "pkg-artifacts" and not a["expired"]:
-                      return a["archive_download_url"]
-              return None
+              urls = {a["name"]: a["archive_download_url"]
+                      for a in api(f"actions/runs/{run['id']}/artifacts")["artifacts"]
+                      if not a["expired"]}
+              return urls if all(n in urls for n in NEEDED) else None
 
           def find(branch, sha):
               """AppImage URL of a successful build of sha, waiting for any run
@@ -100,7 +109,8 @@ jobs:
               print(f"No successful vesyla build with an AppImage for vesyla@{branch} ({sha[:7]})")
               raise SystemExit(1)
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-              out.write(f"artifact_url={url}\n")
+              out.write(f"artifact_url={url['pkg-artifacts']}\n")
+              out.write(f"polygeist_url={url.get('polygeist', '')}\n")
           PY
 
       - name: Download vesyla
@@ -123,6 +133,22 @@ jobs:
             exit 1
           fi
           cp "${file[0]}" ${{ github.workspace }}/bin/vesyla
+          chmod +x ${{ github.workspace }}/bin/vesyla
+
+      - name: Download Polygeist
+        if: matrix.frontend == 'c'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p ${{ github.workspace }}/polygeist
+          cd ${{ github.workspace }}/polygeist
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -o polygeist.zip "${{ steps.vesyla.outputs.polygeist_url }}"
+          python3 -m zipfile -e polygeist.zip .
+          rm polygeist.zip
+          chmod a+x bin/*
+          bin/cgeist --version
+          bin/polygeist-opt --version
 
       - name: Download library
         uses: actions/download-artifact@v5
@@ -158,30 +184,127 @@ jobs:
             echo "Using the drra-tests master branch"
           fi
 
-      - name: Run tests
+      - name: Run tests (${{ matrix.frontend }})
+        id: run_tests
+        continue-on-error: true
         run: |
           cd "${{ github.workspace }}/tests"
           . /usr/share/modules/init/sh
           module use /opt/modules
-          module add questasim 
+          module add questasim
           module add vesyla
           module add bender
           module add sst
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r requirements.txt
-          chmod +x ${{ github.workspace }}/bin/vesyla
           export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
-          export PATH=${{ github.workspace }}/bin:$PATH
+          export PATH=${{ github.workspace }}/bin:${{ github.workspace }}/polygeist/bin:$PATH
           vesyla --version
           vesyla testcase generate -d ./testcases
-          ./run.sh
+          ./run.sh --frontend=${{ matrix.frontend }}
+
+      - name: Collect failed-test debug logs
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          cd tests
+          . /usr/share/modules/init/sh
+          module use /opt/modules
+          module add questasim
+          module add bender
+          module add sst
+          source .venv/bin/activate
+          export PATH=${{ github.workspace }}/bin:${{ github.workspace }}/polygeist/bin:$PATH
+          export VESYLA_SUITE_PATH_COMPONENTS=$(readlink -e ../library)
+          rm -rf failed_logs && mkdir failed_logs   # tests/ is reused between runs
+          python3 - <<'PY'
+          import os, re, subprocess, pathlib
+          from xml.etree import ElementTree as ET
+
+          # Map test name -> (testcase path, frontend) from autotest_config.robot
+          name2path = {}
+          row = re.compile(r'^([\w:.\-]+)\s{2,}(/\S+)(?:\s{2,}(\w+))?$')
+          in_cases = False
+          for line in open('autotest_config.robot'):
+              if line.startswith('*** Test Cases'):
+                  in_cases = True
+                  continue
+              if line.startswith('***'):
+                  in_cases = False
+              if in_cases:
+                  m = row.match(line.rstrip())
+                  if m:
+                      name2path[m.group(1)] = (m.group(2), m.group(3) or 'pasm')
+
+          # Collect FAIL test names from robot output.xml
+          tree = ET.parse('output/output.xml')
+          failed = []
+          for test in tree.iter('test'):
+              st = test.find('status')
+              if st is not None and st.get('status') == 'FAIL':
+                  failed.append(test.get('name'))
+          print(f'Found {len(failed)} failed test(s): {failed}')
+
+          summary = open('failed_logs/SUMMARY.txt', 'w')
+          for name in failed:
+              path, frontend = name2path.get(name, (None, None))
+              slug = re.sub(r'[^A-Za-z0-9_-]', '_', name)
+              out = pathlib.Path('failed_logs') / slug
+              out.mkdir(parents=True, exist_ok=True)
+              log_path = out / 'debug.log'
+              summary.write(f'{name}\t{path}\t{log_path}\n')
+              if not path:
+                  log_path.write_text(f'No testcase path found for {name}\n')
+                  continue
+              with open(log_path, 'w') as log:
+                  log.write(f'===== Test: {name} =====\n')
+                  log.write(f'===== Path: {path} =====\n')
+                  log.write(f'===== Frontend: {frontend} =====\n\n')
+                  log.write('===== vesyla testcase run -d <path> -o <out>/run -f <frontend> =====\n')
+                  log.flush()
+                  run_dir = out / 'run'
+                  subprocess.run(
+                      ['vesyla', 'testcase', 'run', '-d', path, '-o', str(run_dir),
+                       '--frontend', frontend],
+                      stdout=log, stderr=subprocess.STDOUT,
+                  )
+                  # Disabled: the debug rerun takes too long on the big testcases.
+                  # script = run_dir / 'run.sh'
+                  # if script.exists():
+                  #     log.write('\n===== bash run.sh -d (debug) =====\n')
+                  #     log.flush()
+                  #     subprocess.run(
+                  #         ['bash', 'run.sh', '-d'],
+                  #         cwd=str(run_dir),
+                  #         stdout=log, stderr=subprocess.STDOUT,
+                  #     )
+                  # else:
+                  #     log.write(f'\nNo run.sh generated at {script}\n')
+          summary.close()
+          PY
+          tar czf ../failed-test-logs.tar.gz failed_logs
+
+      - name: Upload failed-test debug logs
+        if: steps.run_tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-test-logs-${{ matrix.frontend }}
+          path: failed-test-logs.tar.gz
+          if-no-files-found: ignore
 
       - name: Tar the tests outputs
+        if: always()
         run: tar czf output.tar.gz tests/output
 
       - name: Upload test outputs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-outputs
+          name: test-outputs-${{ matrix.frontend }}
           path: output.tar.gz
+
+      - name: Fail job if tests failed
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          echo "DRRA ${{ matrix.frontend }} tests failed; see failed-test-logs-${{ matrix.frontend }} artifact for per-test debug output."
+          exit 1
