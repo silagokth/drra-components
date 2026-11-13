@@ -113,7 +113,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
       // Single instruction slot: EVT port is used directly.
       .evt_valid(evt_valid),
       .evt_port(evt_instr._port),
-      .evt_init_addr(evt_instr._init_addr),
+      .evt_init_addr(ADDRESS_WIDTH'(evt_instr._init_addr)),
 
       .rep_valid(rep_valid),
       .rep_ext(rep_ext_bit(rep_instr)),
