@@ -10,19 +10,22 @@ module {{name}}_{{fingerprint}}_logic
 import {{name}}_{{fingerprint}}_pkg::*;
 // vesyla_template_end module_head
 (
-    // One AGU per access port: input buffer, output buffer.
+    // One AGU per access port: input buffer, output buffer, input word.
     input logic [NUM_AGUS-1:0]                    agu_valid,
     input logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_address,
+    input logic [IO_DATA_WIDTH/16-1:0]            wr_mask,
 
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out,
+    output logic [WORD_BITWIDTH-1:0] word_data_out,
 
     output logic                     io_en_in,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_in,
     input  logic [IO_DATA_WIDTH-1:0] io_data_in,
     output logic                     io_en_out,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
-    output logic [IO_DATA_WIDTH-1:0] io_data_out
+    output logic [IO_DATA_WIDTH-1:0] io_data_out,
+    output logic [IO_DATA_WIDTH/16-1:0] io_wr_mask_out
 );
 
     // Input and output paths drive independent ports, so allow them to run
@@ -34,24 +37,35 @@ import {{name}}_{{fingerprint}}_pkg::*;
         io_en_in      = 1'b0;
         io_addr_in    = '0;
         bulk_data_out = '0;
+        word_data_out = '0;
         io_en_out     = 1'b0;
         io_addr_out   = '0;
         io_data_out   = '0;
+        io_wr_mask_out = '0;
 
         // Input path (slot 0 port 0 -> input buffer): forward IO read data to
         // the bulk output port.
         if (agu_valid[0]) begin
             io_en_in      = 1'b1;
-            io_addr_in    = agu_address[0];
+            io_addr_in    = IO_ADDR_WIDTH'(agu_address[0]);
             bulk_data_out = io_data_in;
+        end
+
+        // Word path (slot 0 port 2 -> input word): read the row, pass one word.
+        // The address is row * WORDS + word.
+        if (agu_valid[2]) begin
+            io_en_in      = 1'b1;
+            io_addr_in    = IO_ADDR_WIDTH'(agu_address[2] >> WORD_SEL_WIDTH);
+            word_data_out = io_data_in[agu_address[2][WORD_SEL_WIDTH-1:0]*WORD_BITWIDTH +: WORD_BITWIDTH];
         end
 
         // Output path (slot 0 port 1 -> output buffer): forward bulk input
         // data to the IO write port.
         if (agu_valid[1]) begin
             io_en_out   = 1'b1;
-            io_addr_out = agu_address[1];
+            io_addr_out = IO_ADDR_WIDTH'(agu_address[1]);
             io_data_out = bulk_data_in;
+            io_wr_mask_out = wr_mask;
         end
     end
 

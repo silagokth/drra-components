@@ -50,8 +50,9 @@ module or_mt_ir
   // ASSUMPTION: cfg.or_configs[o].step is held constant by the controller
   // for the duration of an AGU run. If runtime step changes are ever
   // introduced, this approach must be revisited.
-  logic [ADDRESS_WIDTH-1:0] or_level_addr      [NUMBER_OR];
-  logic [ADDRESS_WIDTH-1:0] or_level_addr_next [NUMBER_OR];
+  // One per lane: lanes may step differently (cfg.or_lane_steps).
+  logic [ADDRESS_WIDTH-1:0] or_level_addr      [NUMBER_OR][NUMBER_MT+1];
+  logic [ADDRESS_WIDTH-1:0] or_level_addr_next [NUMBER_OR][NUMBER_MT+1];
 
   // Logic to track active delay level for OR
   logic [$clog2(NUMBER_OR+1)-1:0] active_or_delay_level;
@@ -69,6 +70,7 @@ module or_mt_ir
       .ADDRESS_WIDTH    (ADDRESS_WIDTH),
       .NUMBER_IR        (NUMBER_IR),
       .NUMBER_MT        (NUMBER_MT),
+      .NUMBER_OR        (NUMBER_OR),
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
       .REP_STEP_WIDTH   (REP_STEP_WIDTH),
@@ -93,7 +95,7 @@ module or_mt_ir
     ir_addr = child_addr;
     for (int o = 0; o < NUMBER_OR; o++) begin
       if (cfg.or_configs[o].iter > 0) begin
-        ir_addr = ir_addr + or_level_addr[o];
+        ir_addr = ir_addr + or_level_addr[o][active_lane];
       end
     end
   end
@@ -155,14 +157,14 @@ module or_mt_ir
 
     for (int i = 0; i < NUMBER_OR; i++) begin
       or_iter_count_next[i] = or_iter_count[i];
-      or_level_addr_next[i] = or_level_addr[i];
+      for (int l = 0; l <= NUMBER_MT; l++) or_level_addr_next[i][l] = or_level_addr[i][l];
     end
 
     // Reset counters while waiting in IDLE
     if (state == IDLE && !enable) begin
       for (int i = 0; i < NUMBER_OR; i++) begin
         or_iter_count_next[i] = '0;
-        or_level_addr_next[i] = '0;
+        for (int l = 0; l <= NUMBER_MT; l++) or_level_addr_next[i][l] = '0;
       end
     end
 
@@ -217,11 +219,12 @@ module or_mt_ir
             if (level_increments[i]) begin
               if (or_level_at_last[i]) begin
                 or_iter_count_next[i] = '0;
-                or_level_addr_next[i] = '0;
+                for (int l = 0; l <= NUMBER_MT; l++) or_level_addr_next[i][l] = '0;
               end else begin
                 or_iter_count_next[i] = or_iter_count[i] + 1'b1;
-                or_level_addr_next[i] = or_level_addr[i]
-                                        + ADDRESS_WIDTH'(cfg.or_configs[i].step);
+                for (int l = 0; l <= NUMBER_MT; l++)
+                  or_level_addr_next[i][l] = or_level_addr[i][l]
+                                             + ADDRESS_WIDTH'(cfg.or_lane_steps[i][l]);
               end
             end
           end
@@ -279,7 +282,7 @@ module or_mt_ir
       active_or_delay_level <= '0;
       for (int i = 0; i < NUMBER_OR; i++) begin
         or_iter_count[i] <= '0;
-        or_level_addr[i] <= '0;
+        for (int l = 0; l <= NUMBER_MT; l++) or_level_addr[i][l] <= '0;
       end
     end else begin
       state <= state_next;
@@ -287,7 +290,7 @@ module or_mt_ir
       active_or_delay_level <= active_or_delay_level_next;
       for (int i = 0; i < NUMBER_OR; i++) begin
         or_iter_count[i] <= or_iter_count_next[i];
-        or_level_addr[i] <= or_level_addr_next[i];
+        for (int l = 0; l <= NUMBER_MT; l++) or_level_addr[i][l] <= or_level_addr_next[i][l];
       end
     end
   end

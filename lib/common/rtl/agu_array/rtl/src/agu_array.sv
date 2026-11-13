@@ -26,6 +26,15 @@ module agu_array #(
     parameter int REP_STEP_WIDTH    = 6,
     parameter int TRANS_DELAY_WIDTH = 12,
 
+    // rep / trans instruction field widths and the rep ext flag (isa.json);
+    // see agu_controller.
+    parameter int REP_DELAY_FIELD_WIDTH   = REP_DELAY_WIDTH / 2,
+    parameter int REP_ITER_FIELD_WIDTH    = REP_ITER_WIDTH / 2,
+    parameter int REP_STEP_FIELD_WIDTH    = REP_STEP_WIDTH / 2,
+    parameter int TRANS_DELAY_FIELD_WIDTH = TRANS_DELAY_WIDTH,
+    parameter bit REP_EXT                 = 1'b1,
+    parameter int REP_LANE_FIELD_WIDTH    = 2,
+
     // Per-AGU address width. Resources whose AGUs address different things
     // (dpu: mode table vs accumulator reset) size the
     // individual counters here. `addr` is always ADDRESS_WIDTH wide and each
@@ -33,8 +42,8 @@ module agu_array #(
     parameter int AGU_ADDR_WIDTH [NUM_AGUS] = '{default: ADDRESS_WIDTH},
 
     // Add the EVT initial address to every generated address. Resources with
-    // no init-address path (dpu, swb) leave this 0 and tie evt_init_addr
-    // off, which drops the adders.
+    // no init-address path leave this 0 and tie evt_init_addr off, which
+    // drops the adders.
     parameter bit USE_INIT_ADDR = 1'b0,
 
     // Which AGUs (bit i = EVT port i) the program configures, from the resource's
@@ -61,17 +70,18 @@ module agu_array #(
     input logic [$clog2(NUM_AGUS)-1:0] evt_port,
     input logic [ADDRESS_WIDTH-1:0]    evt_init_addr,
 
-    // REP — half-width fields; a base REP (ext=0) carries the lower half and a
-    // REPX (ext=1) the upper half of the same entry.
-    input logic                         rep_valid,
-    input logic                         rep_ext,
-    input logic [REP_DELAY_WIDTH/2-1:0] rep_delay,
-    input logic [REP_ITER_WIDTH/2-1:0]  rep_iter,
-    input logic [REP_STEP_WIDTH/2-1:0]  rep_step,
+    // REP — a base REP (ext=0) carries the low bits of each field, an ext REP
+    // (ext=1) the bits from the field width up, of the same entry.
+    input logic                               rep_valid,
+    input logic                               rep_ext,
+    input logic [REP_DELAY_FIELD_WIDTH-1:0]   rep_delay,
+    input logic [REP_ITER_FIELD_WIDTH-1:0]    rep_iter,
+    input logic [REP_STEP_FIELD_WIDTH-1:0]    rep_step,
+    input logic [REP_LANE_FIELD_WIDTH-1:0]    rep_lane,
 
     // TRANS
-    input logic                         trans_valid,
-    input logic [TRANS_DELAY_WIDTH-1:0] trans_delay,
+    input logic                               trans_valid,
+    input logic [TRANS_DELAY_FIELD_WIDTH-1:0] trans_delay,
 
     input  logic [NUM_AGUS-1:0]                    activation,
     output logic [NUM_AGUS-1:0]                    addr_valid,
@@ -115,7 +125,13 @@ module agu_array #(
       .REP_DELAY_WIDTH  (REP_DELAY_WIDTH),
       .REP_ITER_WIDTH   (REP_ITER_WIDTH),
       .REP_STEP_WIDTH   (REP_STEP_WIDTH),
-      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH)
+      .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .REP_DELAY_FIELD_WIDTH  (REP_DELAY_FIELD_WIDTH),
+      .REP_ITER_FIELD_WIDTH   (REP_ITER_FIELD_WIDTH),
+      .REP_STEP_FIELD_WIDTH   (REP_STEP_FIELD_WIDTH),
+      .TRANS_DELAY_FIELD_WIDTH(TRANS_DELAY_FIELD_WIDTH),
+      .REP_EXT                (REP_EXT),
+      .REP_LANE_FIELD_WIDTH   (REP_LANE_FIELD_WIDTH)
   ) controller_inst (
       .clk  (clk),
       .rst_n(rst_n),
@@ -129,6 +145,7 @@ module agu_array #(
       .rep_delay(rep_delay),
       .rep_iter (rep_iter),
       .rep_step (rep_step),
+      .rep_lane (rep_lane),
 
       .trans_valid(trans_valid),
       .trans_delay(trans_delay),

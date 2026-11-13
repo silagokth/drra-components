@@ -1,25 +1,24 @@
-#ifndef _RF_ROW_H
-#define _RF_ROW_H
+#ifndef _RF_2ROW_H
+#define _RF_2ROW_H
 
 #include "register_file.h"
-#include "rf_row_pkg.h"
+#include "rf_2row_pkg.h"
 #include <vector>
 
-// The 16-word register file: a single row, so every bulk access covers all of
-// it. Same ISA and ports as rf; the model itself is RegisterFile
-// (lib/common/sst), shared with rf. The class name is fixed by the generated
-// package, which capitalizes the kind.
-class Rf_row : public RegisterFile {
+// The 32-word, two-row register file. The model itself is RegisterFile
+// (lib/common/sst), shared with rf_1row and rf_4row. The class name is fixed
+// by the generated package, which capitalizes the kind.
+class Rf_2row : public RegisterFile {
 public:
   /* Element Library Info */
-  SST_ELI_REGISTER_COMPONENT(Rf_row, "drra", "rf_row",
+  SST_ELI_REGISTER_COMPONENT(Rf_2row, "drra", "rf_2row",
                              SST_ELI_ELEMENT_VERSION(1, 0, 0),
-                             "Single-row register file component",
+                             "Two-row register file component",
                              COMPONENT_CATEGORY_MEMORY)
 
   /* Element Library Params */
   static std::vector<SST::ElementInfoParam> getComponentParams() {
-    return RegisterFile::getRegisterFileParams("16", "4", "0");
+    return RegisterFile::getRegisterFileParams("32", "5", "1");
   }
   SST_ELI_DOCUMENT_PARAMS(getComponentParams())
 
@@ -38,16 +37,16 @@ public:
   SST_ELI_DOCUMENT_STATISTICS(getComponentStatistics())
 
   /* Constructor */
-  Rf_row(SST::ComponentId_t id, SST::Params &params);
+  Rf_2row(SST::ComponentId_t id, SST::Params &params);
 
   /* Destructor */
-  ~Rf_row() {};
+  ~Rf_2row() {};
 
   // Instruction format
   using DRRAResource::format;
-  void handleCONF(const RF_ROW_PKG::CONFInstruction &instr);
+  void handleCONF(const RF_2ROW_PKG::CONFInstruction &instr);
 
   using DRRAResource::out;
 };
 
-#endif // _RF_ROW_H
+#endif // _RF_2ROW_H

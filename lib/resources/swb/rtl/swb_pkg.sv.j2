@@ -8,11 +8,10 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
-  // NUM_OPTIONS, the options in the configuration table, is a fabric
-  // parameter (emitted by package.j2 above; vesyla defaults it to 4). A CONF
-  // can only name the first 4, its option field being 2 bits; more are for a
-  // fabric without reconfiguration, whose options are hardcoded.
-  parameter int FSM_MAX_STATES = 4;
+  // NUM_OPTIONS, the options in the configuration table, comes from arch.json
+  // (emitted by package.j2 above; vesyla defaults it to 4). A CONF can name
+  // the first 8, its option field being 3 bits; more are for a fabric without
+  // reconfiguration, whose options are hardcoded.
   parameter int FSM_DELAY_WIDTH = 3;
   parameter int NUM_AGUS = 2;
   parameter int AGU_SWB_INDEX = 0;
@@ -32,14 +31,11 @@ package {{name}}_{{fingerprint}}_pkg;
   parameter int DIR_SOUTH_EAST = 8; // NOTE: not supported
 
   // AGU RTR params
-  parameter int ADDRESS_WIDTH = $clog2(NUM_OPTIONS);
+  parameter int ADDRESS_WIDTH = (NUM_OPTIONS > 1) ? $clog2(NUM_OPTIONS) : 1;
   parameter int REP_OPTION_WIDTH = $clog2(NUM_OPTIONS);
-  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 6 * 2; // REP + REPX
-  parameter int REP_DELAY_WIDTH = 8 * 2; // REP + REPX
-  parameter int TRANS_DELAY_WIDTH = 23;
-  // NUMBER_OR / NUMBER_MT / NUMBER_IR come from this resource's arch.json
-  // custom_properties (emitted by package.j2 above); defaults live there.
+  parameter int REP_STEP_WIDTH = ADDRESS_WIDTH;
+  // NUMBER_IR/MT/OR, REP_ITER_WIDTH, REP_DELAY_WIDTH and TRANS_DELAY_WIDTH come
+  // from this resource's arch.json custom_properties (emitted by package.j2).
   parameter int NUM_LEVELS = NUMBER_IR + NUMBER_OR;
   parameter int INCLUDE_IR_STATES = 1;
   parameter int INCLUDE_MT_STATES = 1;
@@ -61,9 +57,19 @@ package {{name}}_{{fingerprint}}_pkg;
     logic [NUM_SLOTS-1:0] receive_links [NUM_DIRS];
   } route_receive_config_t;
 
+  // A send conf as decoded: the directions a slot sends to.
   typedef struct {
     logic [NUM_DIRS-1:0] send_links [NUM_SLOTS];
   } route_send_config_t;
+
+  // Stored send routes. Indexed by DIRECTION, holds the sending SOURCE slot, so
+  // a later send conf for a direction replaces its sender (like swb_config_t).
+  // Source-keying let a stale sender from an earlier epoch keep driving a
+  // direction, and the mux then picked the highest slot.
+  typedef struct {
+    logic [$clog2(NUM_SLOTS)-1:0] send_source [NUM_DIRS];
+    logic [NUM_DIRS-1:0]          send_valid;
+  } route_send_reg_t;
 
 endpackage
 

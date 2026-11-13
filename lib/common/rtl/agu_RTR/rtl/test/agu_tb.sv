@@ -100,6 +100,9 @@ module agu_tb
 
     // Reset DUT config
     cfg_if.or_configs = '0;
+    cfg_if.or_lane_steps = '0;
+    cfg_if.rl_configs = '0;
+    cfg_if.rl_lane_steps = '0;
     cfg_if.mt_configs = '0;
     cfg_if.ir_configs = '0;
     agu_act = 0;
@@ -138,6 +141,7 @@ module agu_tb
       cfg_if.or_configs[current_rep_level].delay = delay;
       cfg_if.or_configs[current_rep_level].iter = iter;
       cfg_if.or_configs[current_rep_level].step = step;
+      for (int l = 0; l <= NumberMt; l++) cfg_if.or_lane_steps[current_rep_level][l] = step;
       cfg_if.or_configs[current_rep_level].is_configured = 1;
       or_configured_reg = 1;
     end else begin

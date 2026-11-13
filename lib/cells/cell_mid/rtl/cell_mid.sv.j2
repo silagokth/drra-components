@@ -28,6 +28,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     output logic io_en_out,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
     output logic [IO_DATA_WIDTH-1:0] io_data_out,
+    output logic [IO_DATA_WIDTH/16-1:0] io_wr_mask_out,
     input logic [INSTR_DATA_WIDTH-1:0] instr_data_in,
     input logic [INSTR_ADDR_WIDTH-1:0] instr_addr_in,
     input logic [INSTR_HOPS_WIDTH-1:0] instr_hops_in,

@@ -3,7 +3,8 @@
     "instr_bitwidth": 32,
     "instr_type_bitwidth": 1,
     "instr_opcode_bitwidth": 3,
-    "instr_slot_bitwidth": 4
+    "instr_slot_bitwidth": 4,
+    "instr_resource_opcode_bitwidth": 2
   },
   "instructions": [
     {

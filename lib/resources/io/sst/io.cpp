@@ -17,6 +17,14 @@ Io::Io(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
   registerPortAction(IO_PKG::EVT_PORT_INPUT_BUFFER, 4, "io_bulk_output",
                      [this](int64_t address) { bulkOutput(address); });
 
+  // Word path: request the row, then pass one word of it to the word port.
+  registerPortAction(IO_PKG::EVT_PORT_INPUT_WORD, 3, "io_evt_read_word",
+                     [this](int64_t address) {
+                       readFromIO(address / wordsPerRow());
+                     });
+  registerPortAction(IO_PKG::EVT_PORT_INPUT_WORD, 4, "io_word_output",
+                     [this](int64_t address) { wordOutput(address); });
+
   // Output path: take the bulk-port payload, then send it to the IO subsystem
   // one subcycle later.
   registerPortAction(IO_PKG::EVT_PORT_OUTPUT_BUFFER, 7, "io_bulk_input",
@@ -27,7 +35,8 @@ Io::Io(SST::ComponentId_t id, SST::Params &params) : DRRAResource(id, params) {
 }
 
 void Io::handleCONF(const IO_PKG::CONFInstruction &instr) {
-  out.output("conf (slot=%d)\n", instr.slot);
+  out.output("conf (slot=%d, wr_mask=0x%x)\n", instr.slot, instr.wr_mask);
+  wr_mask = instr.wr_mask;
 }
 
 void Io::readFromIO(int64_t address) {
@@ -49,6 +58,7 @@ void Io::writeToIO(int64_t address) {
   IOWriteRequest *writeReq = new IOWriteRequest();
   writeReq->address = address;
   writeReq->data = io_output_data_buffer;
+  writeReq->wr_mask = wr_mask;
   io_output_link->send(writeReq);
 
   out.output("Sending write request to IO (addr=%d, size=%dbits, data=%s)\n",
@@ -76,6 +86,31 @@ void Io::bulkInput(int64_t address) {
 
   logTraceEvent("io_bulk_input", slot_id, true, 'X',
                 {{"data", formatRawDataToWords(io_output_data_buffer)}});
+}
+
+void Io::wordOutput(int64_t address) {
+  IOReadResponse *readResp =
+      dynamic_cast<IOReadResponse *>(io_input_link->recv());
+  if (readResp == nullptr)
+    out.fatal(CALL_INFO, -1, "No response received from IO\n");
+  const size_t bytes = word_bitwidth / 8;
+  const size_t at = (address % wordsPerRow()) * bytes;
+  if (readResp->data.size() < at + bytes)
+    out.fatal(CALL_INFO, -1, "No data received from IO\n");
+  std::vector<uint8_t> word(readResp->data.begin() + at,
+                            readResp->data.begin() + at + bytes);
+  delete readResp;
+
+  DataEvent *dataEvent = new DataEvent(DataEvent::PortType::WriteNarrow);
+  dataEvent->size = word_bitwidth;
+  dataEvent->payload = word;
+  data_links[0]->send(dataEvent);
+
+  out.output("Word output (addr=%ld, data=%s)\n", (long)address,
+             formatRawDataToWords(word).c_str());
+  logTraceEvent("io_word_output", slot_id, true, 'X',
+                {{"address", (int)address},
+                 {"data", formatRawDataToWords(word)}});
 }
 
 void Io::bulkOutput(int64_t address) {

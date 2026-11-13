@@ -42,8 +42,21 @@ include!("isa_config.rs");
  * Modify here to implement the function. Don't change the function interface.
  ******************************************************************************/
 
+// Reads the instruction list the way the AGU controller does
+// (agu_controller.sv, DRRA_AGU in the SST model): every evt opens a lane, the
+// reps that follow it before any trans are that lane's own, the k-th trans
+// joins lane k to lane k + 1, and a rep after a trans repeats all the lanes.
+// Once such an outer rep is there a trans is dropped, and a lane with no trans
+// of its own follows on with no delay.
 fn get_timing_model(op: Op) -> String {
-    let mut segments: Vec<String> = Vec::new();
+    // Read postfix, as the AGU controller does: an evt pushes a one-lane
+    // group, a trans joins the top two, a rep repeats the top group (a lane's
+    // own repetition, or one over a joined group's lanes). A trans with no
+    // second group sends the later reps around the whole chain (OR).
+    let mut stack: Vec<(String, bool)> = Vec::new(); // (expression, joined)
+    let mut trans_delays: Vec<String> = Vec::new();
+    let mut outer: Vec<(String, String)> = Vec::new();
+    let mut use_outer = false;
     let mut event_counter = 0;
 
     for instr in op.body {
@@ -53,23 +66,35 @@ fn get_timing_model(op: Op) -> String {
                 // NOTE: configuration does not affect the timing model
             }
             "evt" => {
-                segments.push(format!("e{}", event_counter));
+                stack.push((format!("e{}", event_counter), false));
                 event_counter += 1;
             }
             "rep" => {
                 if instr_segments.get_value("ext") == "1" { continue; }
+                // A lane rep only sets one lane's step.
+                if instr_segments.get_value("lane") != "0" { continue; }
                 let iter = instr_segments.get_value("iter");
                 let delay = instr_segments.get_value("delay");
-                if let Some(last) = segments.last_mut() {
-                    *last = format!("R<{},{}>({})", iter, delay, last);
+                match stack.last_mut() {
+                    Some((expr, joined)) if *joined || !use_outer => {
+                        *expr = format!("R<{},{}>({})", iter, delay, expr);
+                    }
+                    Some(_) => outer.push((iter, delay)),
+                    None => {}
                 }
             }
             "trans" => {
+                if !outer.is_empty() {
+                    continue;
+                }
                 let delay = instr_segments.get_value("delay");
-                if segments.len() >= 2 {
-                    let right = segments.pop().unwrap();
-                    let left = segments.pop().unwrap();
-                    segments.push(format!("T<{}>({},{})", delay, left, right));
+                if stack.len() >= 2 {
+                    let (b, _) = stack.pop().unwrap();
+                    let (a, _) = stack.pop().unwrap();
+                    stack.push((format!("T<{}>({},{})", delay, a, b), true));
+                } else {
+                    trans_delays.push(delay);
+                    use_outer = true;
                 }
             }
             _ => {
@@ -78,7 +103,48 @@ fn get_timing_model(op: Op) -> String {
         }
     }
 
-    segments.pop().unwrap_or_else(|| "e0".to_string())
+    // Groups never joined run one after the other, as every opened lane does.
+    let mut groups = stack.into_iter();
+    let mut expr = match groups.next() {
+        Some((first, _)) => first,
+        None => return "e0".to_string(),
+    };
+    for (k, (group, _)) in groups.enumerate() {
+        let delay = trans_delays.get(k).cloned().unwrap_or_else(|| "0".to_string());
+        expr = format!("T<{}>({},{})", delay, expr, group);
+    }
+    for (iter, delay) in outer {
+        expr = format!("R<{},{}>({})", iter, delay, expr);
+    }
+    expr
+}
+
+// Splits an unsigned rep field into its base and ext parts; true if it needs
+// the ext part.
+fn split_unsigned(name: &str, value: i64, bits: u32) -> (i64, i64, bool) {
+    let limit = 1i64 << bits;
+    if value < 0 || value >= limit * limit {
+        panic!("rep {}={} does not fit two {}-bit fields", name, value, bits);
+    }
+    if value < limit {
+        (value, 0, false)
+    } else {
+        (value & (limit - 1), value >> bits, true)
+    }
+}
+
+// Splits the signed step into its base and ext parts; true if it needs the ext
+// part.
+fn split_signed(value: i64, bits: u32) -> (i64, i64, bool) {
+    let half = 1i64 << (bits - 1);
+    if (-half..half).contains(&value) {
+        return (value, 0, false);
+    }
+    let high = value >> bits;
+    if !(-half..half).contains(&high) {
+        panic!("rep step={} does not fit two {}-bit fields", value, bits);
+    }
+    (value & ((1i64 << bits) - 1), high, true)
 }
 
 fn reshape_instr(op: Op) -> Op {
@@ -88,49 +154,41 @@ fn reshape_instr(op: Op) -> Op {
         let new_instr = instr.clone();
         match instr.kind.as_str() {
             "rep" => {
-                let _port = instr
-                    .params
-                    .get_value("port")
-                    .parse::<i64>()
-                    .expect("Failed to parse port as i64");
                 let _level = instr
                     .params
                     .get_value("level")
                     .parse::<i64>()
                     .expect("Failed to parse level as i64");
-                let mut iter = instr
+                let iter = instr
                     .params
                     .get_value("iter")
                     .parse::<i64>()
                     .expect("Failed to parse iter as i64");
-                let mut step = instr
+                let step = instr
                     .params
                     .get_value("step")
                     .parse::<i64>()
                     .expect("Failed to parse step as i64");
-                let mut delay = instr
+                let delay = instr
                     .params
                     .get_value("delay")
                     .parse::<i64>()
                     .expect("Failed to parse delay as i64");
-                let mut needs_ext = false;
-                let mut iterx = 0;
-                let mut delayx = 0;
-                let mut stepx = 0;
-                if iter > 2i64.pow(ITER_BITWIDTH) - 1 {
-                    needs_ext = true;
-                    iterx = iter / 2i64.pow(ITER_BITWIDTH);
-                    iter %= 2i64.pow(ITER_BITWIDTH);
-                }
-                if step > 2i64.pow(STEP_BITWIDTH) - 1 {
-                    needs_ext = true;
-                    stepx = step / 2i64.pow(STEP_BITWIDTH);
-                    step %= 2i64.pow(STEP_BITWIDTH);
-                }
-                if delay > 2i64.pow(DELAY_BITWIDTH) - 1 {
-                    needs_ext = true;
-                    delayx = delay / 2i64.pow(DELAY_BITWIDTH);
-                    delay %= 2i64.pow(DELAY_BITWIDTH);
+                // A base rep carries the low bits of each field, an ext rep the
+                // bits from the field width up. step is signed: the hardware
+                // sign-extends the base field, so a step outside the field's
+                // signed range needs an ext rep even when its high bits are 0.
+                let (iter, iterx, iter_ext) = split_unsigned("iter", iter, ITER_BITWIDTH);
+                let (delay, delayx, delay_ext) = split_unsigned("delay", delay, DELAY_BITWIDTH);
+                let (step, stepx, step_ext) = split_signed(step, STEP_BITWIDTH);
+                let needs_ext = iter_ext || delay_ext || step_ext;
+                if needs_ext && !REP_EXT {
+                    panic!(
+                        "rep (iter={}, step={}, delay={}) does not fit its fields and the ISA has no ext rep",
+                        iter + (iterx << ITER_BITWIDTH),
+                        step + (stepx << STEP_BITWIDTH),
+                        delay + (delayx << DELAY_BITWIDTH)
+                    );
                 }
 
                 if needs_ext {
@@ -431,4 +489,5 @@ mod tests {
         ]);
         assert_eq!(get_timing_model(op), "T<0>(R<4,0>(e0),R<4,0>(e1))");
     }
+
 }

@@ -1,10 +1,10 @@
 package:
-  name: rf_row
+  name: rf_1row
 
 dependencies:
   agu_array: { path: ../../common/agu_array }
 
 sources:
-  - ./rtl/rf_row_pkg.sv
+  - ./rtl/rf_1row_pkg.sv
   - ./rtl/logic.sv
-  - ./rtl/rf_row.sv
+  - ./rtl/rf_1row.sv

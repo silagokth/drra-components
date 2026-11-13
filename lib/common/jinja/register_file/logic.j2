@@ -1,5 +1,6 @@
-// Register file datapath, shared by rf and rf_row (included from their
-// rtl/logic.sv.j2, so {{name}} is whichever resource is being rendered).
+// Register file datapath, shared by rf_1row, rf_2row and rf_4row (included
+// from their rtl/logic.sv.j2, so {{name}} is whichever resource is being
+// rendered).
 //
 // Owns the register file and everything that knows what the bits mean: the
 // CONF write, the per-port AGU address and enable mapping, and the word/bulk
@@ -56,7 +57,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // ─────────────────────────────────────────────────────────────────────
     // A bulk access moves one row of WORD_PER_BULK consecutive words, and the
     // bulk address is the row number: the top BULK_ADDR_WIDTH bits of a word
-    // address. With BULK_ADDR_WIDTH = 0 the file is a single row (rf_row), every
+    // address. With BULK_ADDR_WIDTH = 0 the file is a single row (rf_1row), every
     // bulk access covers all of it, and the row signals are tied to 0 -- a
     // [BULK_ADDR_WIDTH-1:0] slice would be [-1:0] there.
     localparam int OFFSET_WIDTH  = WORD_ADDR_WIDTH - BULK_ADDR_WIDTH;

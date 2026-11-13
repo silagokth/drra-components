@@ -8,34 +8,28 @@ package {{name}}_{{fingerprint}}_pkg;
 
   import agu_rtr_pkg::*;
 
-  parameter int FSM_MAX_STATES = 4;
   parameter int FSM_DELAY_WIDTH = 3;
   parameter int DPU_MODE_WIDTH = 5; // ISA conf._mode
   parameter int DPU_IMMEDIATE_WIDTH = 16; // ISA conf._immediate
 
-  // Configuration registers: one per FSM state, holding mode + immediate. CONF
-  // addresses one with its `option` field and carries that register's whole
-  // contents in `mode` + `immediate`; the payload's low bit is left unused.
-  parameter int CONF_NUM_REGISTERS = FSM_MAX_STATES;
+  // Configuration registers: NUM_OPTIONS (arch.json), each holding mode +
+  // immediate. CONF addresses one with its `option` field and carries that
+  // register's whole contents in `mode` + `immediate`; the payload's low bit
+  // is left unused.
+  parameter int CONF_NUM_REGISTERS = NUM_OPTIONS;
   parameter int CONF_REG_WIDTH     = DPU_MODE_WIDTH + DPU_IMMEDIATE_WIDTH;
   parameter int BITWIDTH = 16;
 
   // AGU RTR params
   parameter int NUM_AGUS = 2;
-  parameter int AGU_DPU_ADDR_WIDTH = $clog2(FSM_MAX_STATES);
+  parameter int AGU_DPU_ADDR_WIDTH = (NUM_OPTIONS > 1) ? $clog2(NUM_OPTIONS) : 1;
   parameter int AGU_RST_ADDR_WIDTH = 1;
   parameter int ADDRESS_WIDTH = (AGU_DPU_ADDR_WIDTH > AGU_RST_ADDR_WIDTH) ? AGU_DPU_ADDR_WIDTH : AGU_RST_ADDR_WIDTH;
-  // parameter int REP_OPTION_WIDTH = $clog2(FSM_MAX_STATES);
   parameter int REP_LEVEL_WIDTH = 3;
-  // Widths must be twice the isa.json rep field widths (base + repx half).
-  // isa_refactor sets dpu rep iter/step/delay to 7 bits each.
-  parameter int REP_DELAY_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_ITER_WIDTH = 7 * 2; // REP + REPX
-  parameter int REP_STEP_WIDTH = 7 * 2; // REP + REPX
+  parameter int REP_STEP_WIDTH = ADDRESS_WIDTH;
   parameter int TRANS_OPTION_WIDTH = 2;
-  parameter int TRANS_DELAY_WIDTH = 23; // ISA trans._delay
-  // NUMBER_OR / NUMBER_MT / NUMBER_IR come from this resource's arch.json
-  // custom_properties (emitted by package.j2 above); defaults live there.
+  // NUMBER_IR/MT/OR, REP_ITER_WIDTH, REP_DELAY_WIDTH and TRANS_DELAY_WIDTH come
+  // from this resource's arch.json custom_properties (emitted by package.j2).
 
   {% include "agu_config.j2" %}
 endpackage

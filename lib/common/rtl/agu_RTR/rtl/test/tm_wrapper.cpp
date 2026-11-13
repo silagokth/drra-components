@@ -29,6 +29,15 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
   int trans_level = 0;
   int event_count = 0;
   int num_levels = svSize(type_h, 1);
+  // The DUT configuration below uses mt_configs[k] = the k-th TRANS (lane k
+  // -> k + 1); DRRA_AGU reads TRANS postfix (the first of a run joins the
+  // last two lanes), so a run of TRANS is fed to it in reverse.
+  std::vector<int> pending_trans;
+  auto flush_trans = [&]() {
+    for (auto it = pending_trans.rbegin(); it != pending_trans.rend(); ++it)
+      agu.addTransition(*it);
+    pending_trans.clear();
+  };
   if (debug)
     std::cerr << "[DPI] Building states for " << num_levels << " levels"
               << std::endl;
@@ -53,6 +62,8 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
     if (debug)
       std::cerr << "[DPI] - LVL " << i;
 
+    if (type != 1)
+      flush_trans();
     if (type == 0) { // REP
       if (iter > 0) {
         if (debug)
@@ -63,7 +74,7 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
     } else if (type == 1) { // TRANS
       if (debug)
         std::cerr << " (transition) delay=" << delay << std::endl;
-      agu.addTransition(delay);
+      pending_trans.push_back(delay);
     } else if (type == 2) { // Event
       if (debug)
         std::cerr << " (event " << event_count << ")" << std::endl;
@@ -72,6 +83,7 @@ int cpp_build_pattern(const svOpenArrayHandle type_h,
     }
   }
 
+  flush_trans();
   agu.build();
 
   timing_expression = agu.getTimingExpressionString();

@@ -150,6 +150,18 @@ void IOBuffer::handleEventFromColumn(SST::Event *event, uint32_t column_id) {
                  writeReq->address, writeReq->data.size() * 8,
                  formatRawDataToWords(writeReq->data).c_str());
 
+      // Words outside the mask keep what the row holds.
+      if (writeReq->wr_mask != 0xFFFF) {
+        std::vector<uint8_t> row;
+        backend->get(writeReq->address, writeReq->data.size() * 8 / io_data_width,
+                     row);
+        for (size_t byte = 0; byte < writeReq->data.size(); byte++) {
+          if (!((writeReq->wr_mask >> (byte / 2)) & 1)) {
+            writeReq->data[byte] = row[byte];
+          }
+        }
+      }
+
       backend->set(writeReq->address, writeReq->data.size(), writeReq->data);
     }
 

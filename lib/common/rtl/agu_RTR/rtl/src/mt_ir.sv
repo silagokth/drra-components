@@ -4,6 +4,7 @@ module mt_ir
     parameter int ADDRESS_WIDTH,
     parameter int NUMBER_IR,
     parameter int NUMBER_MT,
+    parameter int NUMBER_OR = 1,
     parameter int REP_DELAY_WIDTH,
     parameter int REP_ITER_WIDTH,
     parameter int REP_STEP_WIDTH,
@@ -39,10 +40,38 @@ module mt_ir
 
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] active_lane_ptr_next;
-  logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt;
-  logic [  TRANS_DELAY_WIDTH-1:0] transition_cnt_next;
+  // Also counts range-level delays (REP_DELAY_WIDTH), so as wide as both.
+  localparam int TRANS_CNT_WIDTH =
+      (TRANS_DELAY_WIDTH > REP_DELAY_WIDTH) ? TRANS_DELAY_WIDTH : REP_DELAY_WIDTH;
+  logic [    TRANS_CNT_WIDTH-1:0] transition_cnt;
+  logic [    TRANS_CNT_WIDTH-1:0] transition_cnt_next;
   logic [$clog2(NUMBER_MT+1)-1:0] current_mux_ptr;
   logic [$clog2(NUMBER_MT+1)-1:0] max_lane_index;
+
+  // Range levels (cfg.rl_configs): a repetition over lanes lo..hi. The lane a
+  // transition delay ends in: the next one, or lo of a range level looping.
+  localparam int RL_N = (NUMBER_OR > 0) ? NUMBER_OR : 1;
+  logic [$clog2(NUMBER_MT+1)-1:0] trans_target, trans_target_next;
+  logic [REP_ITER_WIDTH-1:0] rl_count      [RL_N];
+  logic [REP_ITER_WIDTH-1:0] rl_count_next [RL_N];
+  logic [ADDRESS_WIDTH-1:0]  rl_addr       [RL_N][NUMBER_MT+1];
+  logic [ADDRESS_WIDTH-1:0]  rl_addr_next  [RL_N][NUMBER_MT+1];
+  logic                      rl_loop;          // a range level loops back
+  logic [$clog2(RL_N+1)-1:0] rl_loop_level;
+  logic                      rl_end [RL_N];    // ends at the active lane
+
+  always_comb begin
+    rl_loop = 1'b0;
+    rl_loop_level = '0;
+    for (int r = RL_N - 1; r >= 0; r--) begin
+      rl_end[r] = cfg.rl_configs[r].is_configured &&
+                  (cfg.rl_configs[r].hi == active_lane_ptr);
+      if (rl_end[r] && rl_count[r] < cfg.rl_configs[r].iter - 1) begin
+        rl_loop = 1'b1;
+        rl_loop_level = r;
+      end
+    end
+  end
 
   // Calculate number of transitions configured.
   // A `stop` sentinel replaces a `break` to keep the loop synthesizable
@@ -117,6 +146,9 @@ module mt_ir
   // Output muxing
   always_comb begin
     ir_addr  = ir_addr_array[current_mux_ptr];
+    for (int r = 0; r < RL_N; r++) begin
+      ir_addr = ir_addr + rl_addr[r][current_mux_ptr];
+    end
     ir_valid = ir_valid_array[current_mux_ptr];
 
     if (!((state == RUN_LANE) || (state == IDLE && enable))) begin
@@ -139,7 +171,12 @@ module mt_ir
     state_next           = state;
     active_lane_ptr_next = active_lane_ptr;
     transition_cnt_next  = transition_cnt;
+    trans_target_next    = trans_target;
     ir_done              = 1'b0;
+    for (int r = 0; r < RL_N; r++) begin
+      rl_count_next[r] = rl_count[r];
+      for (int l = 0; l <= NUMBER_MT; l++) rl_addr_next[r][l] = rl_addr[r][l];
+    end
 
     case (state)
       IDLE: begin
@@ -158,6 +195,7 @@ module mt_ir
           end else if (cfg.mt_configs[0].delay > 0) begin
             state_next = TRANSITION_DELAY;
             transition_cnt_next = cfg.mt_configs[0].delay;
+            trans_target_next = 1;
           end else begin
             active_lane_ptr_next = 1;
             state_next = RUN_LANE;
@@ -166,7 +204,35 @@ module mt_ir
       end
 
       RUN_LANE: begin
-        if (step_done) begin
+        if (step_done && rl_loop) begin
+          // A range level ending at this lane loops: its inner range levels
+          // ending here start over, it steps, and the chain goes back to lo.
+          for (int r = 0; r < RL_N; r++) begin
+            if (r < rl_loop_level && rl_end[r]) begin
+              rl_count_next[r] = '0;
+              for (int l = 0; l <= NUMBER_MT; l++) rl_addr_next[r][l] = '0;
+            end
+          end
+          rl_count_next[rl_loop_level] = rl_count[rl_loop_level] + 1'b1;
+          for (int l = 0; l <= NUMBER_MT; l++)
+            rl_addr_next[rl_loop_level][l] = rl_addr[rl_loop_level][l]
+                + ADDRESS_WIDTH'(cfg.rl_lane_steps[rl_loop_level][l]);
+          if (cfg.rl_configs[rl_loop_level].delay > 0) begin
+            state_next = TRANSITION_DELAY;
+            transition_cnt_next = TRANS_CNT_WIDTH'(cfg.rl_configs[rl_loop_level].delay);
+            trans_target_next = cfg.rl_configs[rl_loop_level].lo;
+          end else begin
+            active_lane_ptr_next = cfg.rl_configs[rl_loop_level].lo;
+            state_next = RUN_LANE;
+          end
+        end else if (step_done) begin
+          // Every range level ending here is finished: start them over.
+          for (int r = 0; r < RL_N; r++) begin
+            if (rl_end[r]) begin
+              rl_count_next[r] = '0;
+              for (int l = 0; l <= NUMBER_MT; l++) rl_addr_next[r][l] = '0;
+            end
+          end
           // If done with all lanes, go to done state
           if (active_lane_ptr >= max_lane_index) begin
             ir_done = 1'b1;
@@ -175,6 +241,7 @@ module mt_ir
           end else if (cfg.mt_configs[active_lane_ptr].delay > 0) begin
             state_next = TRANSITION_DELAY;
             transition_cnt_next = cfg.mt_configs[active_lane_ptr].delay;
+            trans_target_next = active_lane_ptr + 1;
           end else begin
             active_lane_ptr_next = active_lane_ptr + 1;
             state_next = RUN_LANE;
@@ -185,13 +252,12 @@ module mt_ir
       TRANSITION_DELAY: begin
         if (transition_cnt <= 1) begin
           state_next           = RUN_LANE;
-          active_lane_ptr_next = active_lane_ptr + 1;
+          active_lane_ptr_next = trans_target;
           transition_cnt_next  = '0;
 
-          // Check if all done. Widen the LHS by 1 bit before the +1 so
-          // an `active_lane_ptr` already at its max value does not wrap
-          // back to 0 and miss the comparison.
-          if ({1'b0, active_lane_ptr} + 1'b1 >= max_lane_index) begin
+          // Check if all done (an empty last lane). Widened by 1 bit so a
+          // target at its max value does not wrap.
+          if ({1'b0, trans_target} >= max_lane_index) begin
             if (ir_done_array[max_lane_index]) begin
               state_next = IDLE;
               ir_done    = 1'b1;
@@ -218,10 +284,20 @@ module mt_ir
       state           <= IDLE;
       active_lane_ptr <= '0;
       transition_cnt  <= '0;
+      trans_target    <= '0;
+      for (int r = 0; r < RL_N; r++) begin
+        rl_count[r] <= '0;
+        for (int l = 0; l <= NUMBER_MT; l++) rl_addr[r][l] <= '0;
+      end
     end else begin
       state           <= state_next;
       active_lane_ptr <= active_lane_ptr_next;
       transition_cnt  <= transition_cnt_next;
+      trans_target    <= trans_target_next;
+      for (int r = 0; r < RL_N; r++) begin
+        rl_count[r] <= rl_count_next[r];
+        for (int l = 0; l <= NUMBER_MT; l++) rl_addr[r][l] <= rl_addr_next[r][l];
+      end
     end
   end
 

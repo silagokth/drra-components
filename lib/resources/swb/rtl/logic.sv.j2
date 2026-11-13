@@ -104,7 +104,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
   // Holds every option and selects the current one from the live AGU address.
   swb_config_t           curr_swb_configs;
   route_receive_config_t curr_route_in_configs;
-  route_send_config_t    curr_route_out_configs;
+  route_send_reg_t       curr_route_out_configs;
 
   {{name}}_{{fingerprint}}_conf_manager conf_manager_inst (
     .clk(clk),
@@ -157,18 +157,16 @@ import {{name}}_{{fingerprint}}_pkg::*;
     bulk_intercell_e_out = '0;
     bulk_intercell_s_out = '0;
 
-    for (int i = 0; i < NUM_SLOTS; i++) begin
-      if (curr_route_out_configs.send_links[i][DIR_NORTH])
-        bulk_intercell_n_out = bulk_intracell_in[i];
-      if (curr_route_out_configs.send_links[i][DIR_WEST])
-        bulk_intercell_w_out = bulk_intracell_in[i];
-      if (curr_route_out_configs.send_links[i][DIR_LOCAL])
-        bulk_local_channel = bulk_intracell_in[i];
-      if (curr_route_out_configs.send_links[i][DIR_EAST])
-        bulk_intercell_e_out = bulk_intracell_in[i];
-      if (curr_route_out_configs.send_links[i][DIR_SOUTH])
-        bulk_intercell_s_out = bulk_intracell_in[i];
-    end
+    if (curr_route_out_configs.send_valid[DIR_NORTH])
+      bulk_intercell_n_out = bulk_intracell_in[curr_route_out_configs.send_source[DIR_NORTH]];
+    if (curr_route_out_configs.send_valid[DIR_WEST])
+      bulk_intercell_w_out = bulk_intracell_in[curr_route_out_configs.send_source[DIR_WEST]];
+    if (curr_route_out_configs.send_valid[DIR_LOCAL])
+      bulk_local_channel = bulk_intracell_in[curr_route_out_configs.send_source[DIR_LOCAL]];
+    if (curr_route_out_configs.send_valid[DIR_EAST])
+      bulk_intercell_e_out = bulk_intracell_in[curr_route_out_configs.send_source[DIR_EAST]];
+    if (curr_route_out_configs.send_valid[DIR_SOUTH])
+      bulk_intercell_s_out = bulk_intracell_in[curr_route_out_configs.send_source[DIR_SOUTH]];
   end
 
   // ROUTE receive links

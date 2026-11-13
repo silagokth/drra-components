@@ -90,6 +90,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
       .REP_STEP_WIDTH(REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .REP_DELAY_FIELD_WIDTH(REP_DELAY_FIELD_WIDTH),
+      .REP_ITER_FIELD_WIDTH(REP_ITER_FIELD_WIDTH),
+      .REP_STEP_FIELD_WIDTH(REP_STEP_FIELD_WIDTH),
+      .TRANS_DELAY_FIELD_WIDTH(TRANS_DELAY_FIELD_WIDTH),
+      .REP_EXT(REP_EXT),
       .USE_INIT_ADDR(1'b1),
       .AGU_LATENCY(AGU_LATENCY)
     ) agu_array_inst (
@@ -102,10 +107,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .evt_init_addr(ADDRESS_WIDTH'(evt_instr._init_addr)),
 
       .rep_valid(rep_valid),
-      .rep_ext(rep_instr._ext),
+      .rep_ext(rep_ext_bit(rep_instr)),
       .rep_delay(rep_instr._delay),
       .rep_iter(rep_instr._iter),
       .rep_step(rep_instr._step),
+      .rep_lane(rep_instr._lane),
 
       .trans_valid(trans_valid),
       .trans_delay(trans_instr._delay),

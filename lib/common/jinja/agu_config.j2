@@ -29,3 +29,25 @@
     trans_config_t [((NUMBER_MT > 0) ? NUMBER_MT : 1)-1:0] mt_configs;
     rep_config_t   [NUMBER_MT:0][NUMBER_IR-1:0]            ir_configs;
   } agu_config_t;
+
+  // rep / trans instruction field widths and whether rep has an ext form, from
+  // isa.json. The AGU registers above are sized independently of them.
+  {% for instr in isa.instructions %}
+  {% if instr.name == "rep" %}
+  parameter bit REP_EXT = 1'b{{ 1 if instr.ext else 0 }};
+  {% for segment in instr.segments %}
+  {% if segment.name in ["iter", "step", "delay"] %}
+  parameter int REP_{{ segment.name | upper }}_FIELD_WIDTH = {{ segment.bitwidth }};
+  {% endif %}
+  {% endfor %}
+  function automatic logic rep_ext_bit(input rep_t r);
+    return {{ "r._ext" if instr.ext else "1'b0" }};
+  endfunction
+  {% elif instr.name == "trans" %}
+  {% for segment in instr.segments %}
+  {% if segment.name == "delay" %}
+  parameter int TRANS_DELAY_FIELD_WIDTH = {{ segment.bitwidth }};
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+  {% endfor %}

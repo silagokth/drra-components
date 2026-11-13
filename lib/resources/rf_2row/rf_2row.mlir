@@ -1,0 +1,92 @@
+// Functional description of the rf_2row resource: a 32-word, two-row
+// register file with the ISA and ports of rf_1row and rf_4row.
+//
+// The patterns are rf_4row's (see rf_4row.mlir for what each part means), at
+// a benefit between rf_1row's and rf_4row's (see rf_1row.mlir).
+
+module @rf_2row {
+
+  module @match {
+
+    // Reads happen early in the cycle and writes late, so a value another
+    // resource produces this cycle is written back on the next one.
+
+    func.func @word_read(%registers: memref<32xi16>, %addr: index) -> i16
+        attributes {benefit = 9 : i32} {
+      %v = memref.load %registers[%addr] : memref<32xi16>
+      return %v : i16
+    }
+
+    func.func @word_write(%registers: memref<32xi16>, %addr: index, %v: i16)
+        attributes {benefit = 9 : i32} {
+      memref.store %v, %registers[%addr] : memref<32xi16>
+      return
+    }
+
+    // A bulk address is scaled by the number of words in a bulk transfer, so
+    // bulk address a covers registers[16*a .. 16*a+15] (BULK_ADDR_WIDTH 1).
+    func.func @bulk_read(%registers: memref<32xi16>, %addr: index) -> vector<16xi16>
+        attributes {benefit = 9 : i32} {
+      %words = arith.constant 16 : index
+      %base = arith.muli %addr, %words : index
+      %v = vector.load %registers[%base] : memref<32xi16>, vector<16xi16>
+      return %v : vector<16xi16>
+    }
+
+    func.func @bulk_write(%registers: memref<32xi16>, %addr: index, %v: vector<16xi16>)
+        attributes {benefit = 9 : i32} {
+      %words = arith.constant 16 : index
+      %base = arith.muli %addr, %words : index
+      vector.store %v, %registers[%base] : memref<32xi16>, vector<16xi16>
+      return
+    }
+
+    // Not an evt port and not selectable: conf writes one register straight
+    // from the instruction stream, with the address and value as instruction
+    // segments rather than an AGU address and a data port, so both come from
+    // the match rather than from a fixed value. No replacement expresses that
+    // yet.
+    func.func @conf(%registers: memref<32xi16>, %addr: index, %value: i16)
+        attributes {benefit = 9 : i32} {
+      memref.store %value, %registers[%addr] : memref<32xi16>
+      return
+    }
+  }
+
+  module @replace {
+
+    func.func @word_read(%registers: memref<32xi16>, %addr: index) -> i16 {
+      %v = drra.rop {evt = {port = 1 : i32},
+                    uses = ["agu:1", "output_narrow:0"]} : () -> i16
+      return %v : i16
+    }
+
+    func.func @word_write(%registers: memref<32xi16>, %addr: index, %v: i16) {
+      drra.rop %v {evt = {port = 0 : i32},
+                  uses = ["agu:0", "input_narrow:0"]} : (i16) -> ()
+      return
+    }
+
+    func.func @bulk_read(%registers: memref<32xi16>, %addr: index) -> vector<16xi16> {
+      %v = drra.rop {evt = {port = 3 : i32},
+                    uses = ["agu:3", "output_bulk:0"]} : () -> vector<16xi16>
+      return %v : vector<16xi16>
+    }
+
+    func.func @bulk_write(%registers: memref<32xi16>, %addr: index, %v: vector<16xi16>) {
+      drra.rop %v {evt = {port = 2 : i32},
+                  uses = ["agu:2", "input_bulk:0"]} : (vector<16xi16>) -> ()
+      return
+    }
+
+    // Never selected. The conf carries no segments because both of them --
+    // address and value -- come from the match rather than from a fixed value,
+    // and there is no way to say that yet. That is the one thing standing
+    // between this and being selectable.
+    func.func @conf(%registers: memref<32xi16>, %addr: index, %value: i16) {
+      drra.rop %value {conf = {},
+                      uses = ["conf_write"]} : (i16) -> ()
+      return
+    }
+  }
+}

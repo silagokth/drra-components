@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <optional>
 #include <sst/core/link.h>
 #include <sst/core/params.h>
 #include <sst/core/timeConverter.h>
@@ -67,11 +68,12 @@ public:
   // REPX (ext = 1) folds the high half into the repetition it follows, so the
   // shift widths are the resource's own ISA segment widths, passed in by the
   // generated dispatch.
-  virtual void handleREP(uint32_t slot, uint32_t port, bool ext, uint32_t iter,
-                         uint32_t step, uint32_t delay, uint32_t iter_bits,
-                         uint32_t step_bits, uint32_t delay_bits);
+  // REP and TRANS configure the AGU of the last EVT, as agu_controller does.
+  virtual void handleREP(uint32_t slot, bool ext, uint32_t iter, uint32_t step,
+                         uint32_t delay, uint32_t iter_bits, uint32_t step_bits,
+                         uint32_t delay_bits, uint32_t lane = 0);
 
-  virtual void handleTRANS(uint32_t slot, uint32_t port, uint32_t delay);
+  virtual void handleTRANS(uint32_t slot, uint32_t delay);
 
 protected:
   static inline std::vector<SST::ElementInfoParam> getBaseParams() {
@@ -192,6 +194,8 @@ protected:
   // The shared AGU subsystem (lib/common/sst agu_array), one AGU per port.
   uint8_t num_agus;
   AGUArray agu_array;
+  // The AGU the last EVT selected; REP and TRANS configure it.
+  std::optional<uint32_t> current_agu;
 
 private:
   void applyPendingActivations();

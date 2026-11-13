@@ -2,7 +2,7 @@
   "format": {
     "instr_bitwidth": 32,
     "instr_type_bitwidth": 1,
-    "instr_opcode_bitwidth": 3,
+    "instr_opcode_bitwidth": 2,
     "instr_slot_bitwidth": 4
   },
   "instructions": [
@@ -19,7 +19,7 @@
             {
               "name": "option",
               "comment": "Configuration option where the current route will be stored",
-              "bitwidth": 2
+              "bitwidth": 3
             },
             {
               "name": "channel",
@@ -45,7 +45,7 @@
             {
               "name": "option",
               "comment": "Configuration option where the current route will be stored",
-              "bitwidth": 2
+              "bitwidth": 3
             },
             {
               "name": "sr",
@@ -95,6 +95,11 @@
               "val": "intercell"
             }
           ]
+        },
+        {
+          "name": "init_addr",
+          "comment": "Configuration option the event starts at, as wide as the conf option field. A route or swb that runs several events (one after the other through trans) starts each at its own option.",
+          "bitwidth": 3
         }
       ]
     },
@@ -102,26 +107,12 @@
       "name": "rep",
       "opcode": 2,
       "instr_type": 1,
+      "ext": true,
       "segments": [
         {
           "name": "ext",
           "comment": "0 = base (low half), 1 = extension (high MSBs) of iter/step/delay",
           "bitwidth": 1
-        },
-        {
-          "name": "port",
-          "comment": "Selects whether the repetition is applied intracell (0) or intercell (1).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "intracell"
-            },
-            {
-              "key": 1,
-              "val": "intercell"
-            }
-          ]
         },
         {
           "name": "iter",
@@ -139,6 +130,11 @@
           "name": "delay",
           "comment": "Delay between iterations.",
           "bitwidth": 8
+        },
+        {
+          "name": "lane",
+          "comment": "0: a rep opening a level, its step for every lane. k > 0: the step of lane k at the last level opened (counted from the first lane of a range level), which opens no level.",
+          "bitwidth": 2
         }
       ]
     },
@@ -147,21 +143,6 @@
       "opcode": 3,
       "instr_type": 1,
       "segments": [
-        {
-          "name": "port",
-          "comment": "Selects whether the transition is applied intracell (0) or intercell (2).",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "intracell"
-            },
-            {
-              "key": 1,
-              "val": "intercell"
-            }
-          ]
-        },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",

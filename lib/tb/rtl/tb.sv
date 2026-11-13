@@ -13,6 +13,7 @@ module fabric_tb;
   logic [COLS-1:0] io_en_out;
   logic [COLS-1:0][IO_ADDR_WIDTH-1:0] io_addr_out;
   logic [COLS-1:0][IO_DATA_WIDTH-1:0] io_data_out;
+  logic [COLS-1:0][IO_DATA_WIDTH/16-1:0] io_wr_mask_out;
 
   logic [ROWS-1:0][INSTR_DATA_WIDTH-1:0] instr_data_in;
   logic [ROWS-1:0][INSTR_ADDR_WIDTH-1:0] instr_addr_in;
@@ -168,6 +169,7 @@ module fabric_tb;
       .io_en_out(io_en_out),
       .io_addr_out(io_addr_out),
       .io_data_out(io_data_out),
+      .io_wr_mask_out(io_wr_mask_out),
       .instr_data_in(instr_data_in),
       .instr_addr_in(instr_addr_in),
       .instr_hops_in(instr_hops_in),
@@ -193,7 +195,15 @@ module fabric_tb;
     end else begin
       for (int i = 0; i < COLS; i++) begin
         if (io_en_out[i]) begin
-          output_buffer[io_addr_out[i]] = io_data_out[i];
+          // A row not written before holds zeros.
+          automatic logic [255:0] row = output_buffer.exists(io_addr_out[i])
+              ? output_buffer[io_addr_out[i]] : '0;
+          for (int w = 0; w < IO_DATA_WIDTH / 16; w++) begin
+            if (io_wr_mask_out[i][w]) begin
+              row[16*w+:16] = io_data_out[i][16*w+:16];
+            end
+          end
+          output_buffer[io_addr_out[i]] = row;
         end
       end
     end

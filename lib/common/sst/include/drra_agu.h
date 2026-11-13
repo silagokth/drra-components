@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "timingExpression.h"
 #include "timingModel.h"
 #include "timingOperators.h"
@@ -17,6 +19,7 @@ private:
     uint64_t delay = 0;
     uint64_t step = 0;
     bool is_configured = false;
+    std::map<size_t, uint64_t> lane_steps; // overrides of step, by lane
   };
 
   std::unique_ptr<TimingState> timing_state = nullptr;
@@ -25,6 +28,27 @@ private:
   std::vector<uint64_t> lane_initial_addresses;
   std::vector<uint64_t> transition_delays;     // mt_configs
   std::vector<OuterRepetition> outer_reps;     // or_configs, by level
+
+  // Postfix grouping, as agu_controller.sv: an EVT pushes a one-lane group, a
+  // TRANS joins the top two, a REP on a joined group is a range level over
+  // its lanes (rl_configs), innermost first.
+  struct RangeRepetition {
+    uint64_t iterations = 0;
+    uint64_t delay = 0;
+    uint64_t step = 0;
+    size_t lo = 0;
+    size_t hi = 0;
+    std::map<size_t, uint64_t> lane_steps; // overrides of step, by lane
+  };
+  std::vector<RangeRepetition> range_reps;
+  std::vector<size_t> group_lo; // first lane of each group, bottom first
+  bool last_rep_range = false;  // the last base REP opened a range level
+  // Range levels over part of the chain: the addresses are tabulated by
+  // simulating the lane sequencer of mt_ir.sv.
+  bool table_built = false;
+  std::vector<int64_t> addr_table;
+  uint64_t table_last = 0;
+  void buildTable();
   bool use_outer = false;                      // use_or_reg
   bool outer_configured = false;               // or_configured_reg
   size_t current_lane_index = 0;
@@ -55,7 +79,12 @@ public:
 
   DRRA_AGU &addTransition(uint64_t delay = 0);
 
-  bool isEmpty() { return !timing_state && lanes.empty(); }
+  // A REP with a lane field: lane's step at the last outer level. ext folds
+  // the step's high bits from step_bits up into it.
+  DRRA_AGU &setLaneStep(size_t lane, bool ext, uint64_t step,
+                        uint32_t step_bits);
+
+  bool isEmpty() { return !timing_state && !table_built && lanes.empty(); }
 
   DRRA_AGU &build();
 

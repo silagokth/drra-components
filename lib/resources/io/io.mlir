@@ -19,9 +19,11 @@
 // while it is active. rtl/logic.sv.j2 gives it two AGUs and two independent
 // paths -- AGU 0 the inbound one, driving the external read request and the
 // bulk output into the fabric; AGU 1 the outbound one, taking the bulk input
-// and driving the external write. The RTL says in as many words that the two
-// run simultaneously, so an inbound and an outbound transfer share one io.
-// Two transfers in the same direction do not.
+// and driving the external write; AGU 2 the word read, which drives the
+// external read too and passes one word of the row to the word port. The RTL
+// says in as many words that the inbound and outbound paths run
+// simultaneously, so an inbound and an outbound transfer share one io. Two
+// reads do not: they share the external read port.
 //
 // Widths are fixed to the reference configuration: WORD_BITWIDTH = 16,
 // IO_DATA_WIDTH = 256 (16 words per transfer), IO_ADDR_WIDTH = 16.
@@ -43,6 +45,13 @@ module @io {
       memref.store %v, %io_output[%addr] : memref<?xvector<16xi16>, 1>
       return
     }
+
+    // One word, at address row * 16 + word. The io reads the whole row.
+    func.func @input_word(%io_input: memref<?xi16, 1>, %addr: index) -> i16
+        attributes {benefit = 12 : i32} {
+      %v = memref.load %io_input[%addr] : memref<?xi16, 1>
+      return %v : i16
+    }
   }
 
   module @replace {
@@ -61,6 +70,13 @@ module @io {
                   uses = ["agu:1", "external_write:0", "input_bulk:0"]}
           : (vector<16xi16>) -> ()
       return
+    }
+
+    func.func @input_word(%io_input: memref<?xi16, 1>, %addr: index) -> i16 {
+      %v = drra.rop {evt = {port = 2 : i32},
+                    uses = ["agu:2", "external_read:0", "output_narrow:0"]}
+          : () -> i16
+      return %v : i16
     }
   }
 }

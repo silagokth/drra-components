@@ -256,6 +256,7 @@ void DRRAResource::handleEVT(uint32_t slot, uint32_t port, uint32_t option,
               forbidden->second.c_str());
   }
 
+  current_agu = port_num;
   try {
     agu_array.evt(port_num, init_addr);
   } catch (const std::exception &e) {
@@ -263,25 +264,32 @@ void DRRAResource::handleEVT(uint32_t slot, uint32_t port, uint32_t option,
   }
 }
 
-void DRRAResource::handleREP(uint32_t slot, uint32_t port, bool ext,
-                             uint32_t iter, uint32_t step, uint32_t delay,
-                             uint32_t iter_bits, uint32_t step_bits,
-                             uint32_t delay_bits) {
-  uint32_t port_num = getRelativePortNum(slot, port);
-  out.output("rep (slot=%d, ext=%d, port=%d, iter=%d, step=%d, delay=%d)\n",
-             slot, ext, port_num, iter, step, delay);
+void DRRAResource::handleREP(uint32_t slot, bool ext, uint32_t iter,
+                             uint32_t step, uint32_t delay, uint32_t iter_bits,
+                             uint32_t step_bits, uint32_t delay_bits,
+                             uint32_t lane) {
+  if (!current_agu) {
+    out.fatal(CALL_INFO, -1, "REP before any EVT (slot=%u)\n", slot);
+  }
+  uint32_t port_num = *current_agu;
+  out.output(
+      "rep (slot=%d, ext=%d, agu=%d, iter=%d, step=%d, delay=%d, lane=%d)\n",
+      slot, ext, port_num, iter, step, delay, lane);
 
   try {
     agu_array.rep(port_num, ext, iter, step, delay, iter_bits, step_bits,
-                  delay_bits);
+                  delay_bits, lane);
   } catch (const std::exception &e) {
     out.fatal(CALL_INFO, -1, "REP failed: %s\n", e.what());
   }
 }
 
-void DRRAResource::handleTRANS(uint32_t slot, uint32_t port, uint32_t delay) {
-  uint32_t port_num = getRelativePortNum(slot, port);
-  out.output("trans (slot=%d, port=%d, delay=%d)\n", slot, port_num, delay);
+void DRRAResource::handleTRANS(uint32_t slot, uint32_t delay) {
+  if (!current_agu) {
+    out.fatal(CALL_INFO, -1, "TRANS before any EVT (slot=%u)\n", slot);
+  }
+  uint32_t port_num = *current_agu;
+  out.output("trans (slot=%d, agu=%d, delay=%d)\n", slot, port_num, delay);
 
   try {
     agu_array.trans(port_num, delay);

@@ -2,7 +2,7 @@
   "format": {
     "instr_bitwidth": 32,
     "instr_type_bitwidth": 1,
-    "instr_opcode_bitwidth": 3,
+    "instr_opcode_bitwidth": 2,
     "instr_slot_bitwidth": 4
   },
   "instructions": [
@@ -11,7 +11,12 @@
       "opcode": 0,
       "instr_type": 1,
       "segments": [
-
+        {
+          "name": "wr_mask",
+          "comment": "Words of a row an output buffer write stores; bit n is word n. Holds until the next conf; all ones after reset.",
+          "bitwidth": 16,
+          "default_val": 65535
+        }
       ]
     },
     {
@@ -22,12 +27,12 @@
         {
           "name": "option",
           "comment": "Configuration option where the DSU mode will be stored. There are 4 options per port.",
-          "bitwidth": 2
+          "bitwidth": 3
         },
         {
           "name": "port",
           "comment": "The port number",
-          "bitwidth": 1,
+          "bitwidth": 2,
           "verbo_map": [
             {
               "key": 0,
@@ -38,6 +43,11 @@
               "key": 1,
               "val": "output_buffer",
               "comment": "address generation for output buffer (cannot be active simultaneously with the input buffer)"
+            },
+            {
+              "key": 2,
+              "val": "input_word",
+              "comment": "word read: the address is row * words per row + word; reads the whole row and outputs that word on the word port (not simultaneously with input_buffer)"
             }
           ]
         },
@@ -67,29 +77,13 @@
       "name": "rep",
       "opcode": 2,
       "instr_type": 1,
+      "ext": true,
       "segments": [
         {
           "name": "ext",
           "comment": "0 = base (low half), 1 = extension (high MSBs) of iter/step/delay",
           "bitwidth": 1,
           "default_val": 0
-        },
-        {
-          "name": "port",
-          "comment": "Select which port the repetition applies to.",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "input_buffer",
-              "comment": "address generation for input buffer"
-            },
-            {
-              "key": 1,
-              "val": "output_buffer",
-              "comment": "address generation for output buffer"
-            }
-          ]
         },
         {
           "name": "iter",
@@ -107,6 +101,11 @@
           "name": "delay",
           "comment": "Delay between iterations.",
           "bitwidth": 7
+        },
+        {
+          "name": "lane",
+          "comment": "0: a rep opening a level, its step for every lane. k > 0: the step of lane k at the last level opened (counted from the first lane of a range level), which opens no level.",
+          "bitwidth": 2
         }
       ]
     },
@@ -115,23 +114,6 @@
       "opcode": 3,
       "instr_type": 1,
       "segments": [
-        {
-          "name": "port",
-          "comment": "select which port the transition applies to.",
-          "bitwidth": 1,
-          "verbo_map": [
-            {
-              "key": 0,
-              "val": "input_buffer",
-              "comment": "address generation for input buffer"
-            },
-            {
-              "key": 1,
-              "val": "output_buffer",
-              "comment": "address generation for output buffer"
-            }
-          ]
-        },
         {
           "name": "delay",
           "comment": "Delay before the transition occurs.",

@@ -15,7 +15,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic [RESOURCE_INSTR_WIDTH-1:0] instr_0,
     input  logic [FSM_PER_SLOT-1:0] activate_0,
     input  logic [WORD_BITWIDTH-1:0] word_data_in_0, // unused
-    output logic [WORD_BITWIDTH-1:0] word_data_out_0, // unused
+    output logic [WORD_BITWIDTH-1:0] word_data_out_0,
     input  logic [BULK_BITWIDTH-1:0] bulk_data_in_0,
     output logic [BULK_BITWIDTH-1:0] bulk_data_out_0,
     output logic io_en_in,
@@ -23,11 +23,9 @@ import {{name}}_{{fingerprint}}_pkg::*;
     input  logic [IO_DATA_WIDTH-1:0] io_data_in,
     output logic io_en_out,
     output logic [IO_ADDR_WIDTH-1:0] io_addr_out,
-    output logic [IO_DATA_WIDTH-1:0] io_data_out
+    output logic [IO_DATA_WIDTH-1:0] io_data_out,
+    output logic [IO_DATA_WIDTH/16-1:0] io_wr_mask_out
 );
-
-    // Useless outputs:
-    assign word_data_out_0 = 0;
 
     logic clk, rst_n;
     assign clk = clk_0;
@@ -37,6 +35,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
     logic [NUM_AGUS-1:0] agu_activate;
     assign agu_activate[0] = activate_0[0]; // slot 0 port 0
     assign agu_activate[1] = activate_0[1]; // slot 0 port 1
+    assign agu_activate[2] = activate_0[2]; // slot 0 port 2
 
     logic [NUM_AGUS-1:0][ADDRESS_WIDTH-1:0] agu_final_address;
 
@@ -46,6 +45,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     assign instruction_valid = instr_en_0;
 
     // Decoded instructions
+    logic conf_valid;
+    conf_t conf_instr;
     logic evt_valid;
     evt_t evt_instr;
     logic rep_valid;
@@ -57,6 +58,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
     {% from "static_agu.j2" import static_agu_array %}
     // No reconfiguration: nothing is decoded, and the AGUs run the
     // configurations in their ROM.
+    assign conf_valid  = 1'b0;
+    assign conf_instr  = '0;
     assign evt_valid   = 1'b0;
     assign evt_instr   = '0;
     assign rep_valid   = 1'b0;
@@ -71,6 +74,8 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .rst_n(rst_n),
       .instruction_valid(instruction_valid),
       .instruction_payload(instruction_payload),
+      .conf_valid(conf_valid),
+      .conf_instr(conf_instr),
       .evt_valid(evt_valid),
       .evt_instr(evt_instr),
       .rep_valid(rep_valid),
@@ -94,6 +99,11 @@ import {{name}}_{{fingerprint}}_pkg::*;
       .REP_ITER_WIDTH(REP_ITER_WIDTH),
       .REP_STEP_WIDTH(REP_STEP_WIDTH),
       .TRANS_DELAY_WIDTH(TRANS_DELAY_WIDTH),
+      .REP_DELAY_FIELD_WIDTH(REP_DELAY_FIELD_WIDTH),
+      .REP_ITER_FIELD_WIDTH(REP_ITER_FIELD_WIDTH),
+      .REP_STEP_FIELD_WIDTH(REP_STEP_FIELD_WIDTH),
+      .TRANS_DELAY_FIELD_WIDTH(TRANS_DELAY_FIELD_WIDTH),
+      .REP_EXT(REP_EXT),
       .USE_INIT_ADDR(1'b1),
       .AGU_LATENCY(AGU_LATENCY)
     ) agu_array_inst (
@@ -103,13 +113,14 @@ import {{name}}_{{fingerprint}}_pkg::*;
       // Single instruction slot: EVT port is used directly.
       .evt_valid(evt_valid),
       .evt_port(evt_instr._port),
-      .evt_init_addr(evt_instr._init_addr),
+      .evt_init_addr(ADDRESS_WIDTH'(evt_instr._init_addr)),
 
       .rep_valid(rep_valid),
-      .rep_ext(rep_instr._ext),
+      .rep_ext(rep_ext_bit(rep_instr)),
       .rep_delay(rep_instr._delay),
       .rep_iter(rep_instr._iter),
       .rep_step(rep_instr._step),
+      .rep_lane(rep_instr._lane),
 
       .trans_valid(trans_valid),
       .trans_delay(trans_instr._delay),
@@ -122,21 +133,64 @@ import {{name}}_{{fingerprint}}_pkg::*;
     );
 {% endif %}
 
+    // Words an output buffer write stores.
+    logic [IO_DATA_WIDTH/16-1:0] wr_mask;
+{% if static_config and static_config.conf %}
+  {% set masks = static_config.conf %}
+  {% if masks | length == 1 and masks[0].cycle == 0 %}
+    assign wr_mask = {{ masks[0].wr_mask }};
+  {% else %}
+    // No reconfiguration: each mask from the cycle its conf takes effect,
+    // counted from the first activation of this io (cycle 0).
+    localparam int MASK_LAST = {{ (masks | last).cycle }};
+    logic [$clog2(MASK_LAST + 1)-1:0] mask_cycle;
+    logic mask_started;
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        mask_cycle   <= '0;
+        mask_started <= 1'b0;
+      end else if ((mask_started || |agu_activate) && mask_cycle != MASK_LAST) begin
+        mask_cycle   <= mask_cycle + 1'b1;
+        mask_started <= 1'b1;
+      end
+    end
+    always_comb begin
+      wr_mask = {% if masks[0].cycle == 0 %}{{ masks[0].wr_mask }}{% else %}'1{% endif %};
+    {% for mask in masks %}
+    {% if mask.cycle > 0 %}
+      if (mask_cycle >= {{ mask.cycle }}) wr_mask = {{ mask.wr_mask }};
+    {% endif %}
+    {% endfor %}
+    end
+  {% endif %}
+{% else %}
+    always_ff @(posedge clk or negedge rst_n) begin
+      if (!rst_n) begin
+        wr_mask <= '1;
+      end else if (conf_valid) begin
+        wr_mask <= conf_instr._wr_mask;
+      end
+    end
+{% endif %}
+
     // Datapath. Drives the IO ports from the AGU addresses and forwards data
     // between them and the bulk port.
     {{name}}_{{fingerprint}}_logic logic_inst (
       .agu_valid  (agu_valid),
       .agu_address(agu_final_address),
+      .wr_mask    (wr_mask),
 
       .bulk_data_in (bulk_data_in_0),
       .bulk_data_out(bulk_data_out_0),
+      .word_data_out(word_data_out_0),
 
       .io_en_in   (io_en_in),
       .io_addr_in (io_addr_in),
       .io_data_in (io_data_in),
       .io_en_out  (io_en_out),
       .io_addr_out(io_addr_out),
-      .io_data_out(io_data_out)
+      .io_data_out(io_data_out),
+      .io_wr_mask_out(io_wr_mask_out)
     );
 
 endmodule

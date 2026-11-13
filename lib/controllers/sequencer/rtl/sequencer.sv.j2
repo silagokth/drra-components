@@ -127,12 +127,18 @@ import {{name}}_{{fingerprint}}_pkg::*;
     // IRAM, PC and decode fields
     // IRAM_DEPTH is a power of two; 0 means the cell runs no program and has no IRAM.
     localparam int PC_WIDTH = IRAM_DEPTH > 1 ? $clog2(IRAM_DEPTH) : 1;
+    // A control instruction (type 0) is type | opcode | payload + slot; a
+    // resource instruction (type 1) is type | opcode | slot | payload with the
+    // narrower resource opcode, and {opcode, payload} goes to the slot.
+    {% set res_opcode_bitwidth = isa.format.instr_resource_opcode_bitwidth %}
+    {% set res_payload_bitwidth = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - res_opcode_bitwidth - isa.format.instr_slot_bitwidth %}
     logic [{{payload_bitwidth}}-1:0] instr_reg;            // Payload + slot for type-0 (control) instructions
     logic [{{isa.format.instr_bitwidth}}-1:0] instr_word;                   // IRAM word at pc
-    logic [{{isa.format.instr_opcode_bitwidth}}-1:0] opcode;                // 4-bit opcode (bits 30:28)
-    logic [{{isa.format.instr_type_bitwidth}}-1:0] instr_type;                  // Type bit (MSB bit 31): 0=control, 1=resource
-    logic [{{isa.format.instr_slot_bitwidth}}-1:0] slot;                  // Target slot (bits 27:24) for resource instructions
-    logic [{{payload_bitwidth - isa.format.instr_slot_bitwidth}}-1:0] payload;              // Payload (bits 23:0)
+    logic [{{isa.format.instr_opcode_bitwidth}}-1:0] opcode;                // Control opcode
+    logic [{{isa.format.instr_type_bitwidth}}-1:0] instr_type;                  // Type bit (MSB): 0=control, 1=resource
+    logic [{{res_opcode_bitwidth}}-1:0] res_opcode;         // Resource opcode
+    logic [{{isa.format.instr_slot_bitwidth}}-1:0] slot;                  // Target slot of a resource instruction
+    logic [{{res_payload_bitwidth}}-1:0] payload;              // Payload of a resource instruction
     logic [PC_WIDTH-1:0] pc, pc_next;                     // Program counter
     logic [{{wait_cycle_bitwidth}}-1:0] wait_counter, wait_counter_next; // Cycles remaining in WAIT state
 
@@ -170,6 +176,10 @@ import {{name}}_{{fingerprint}}_pkg::*;
     {% set current_msb = current_lsb - 1 %}
     {% set current_lsb = current_lsb - (payload_bitwidth) %}
     assign instr_reg  = instr_word[{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = isa.format.instr_bitwidth - isa.format.instr_type_bitwidth - 1 %}
+    {% set current_lsb = current_msb - res_opcode_bitwidth + 1 %}
+    assign res_opcode = instr_word[{{current_msb}}:{{current_lsb}}];
+    {% set current_msb = current_lsb - 1 %}
     {% set current_lsb = current_msb - isa.format.instr_slot_bitwidth + 1 %}
     assign slot       = instr_word[{{current_msb}}:{{current_lsb}}];
     {% set current_msb = current_lsb - 1 %}
@@ -355,7 +365,7 @@ import {{name}}_{{fingerprint}}_pkg::*;
                     end
                 end else begin
                     // Resource instruction: send opcode+payload to target slot and assert valid
-                    instr                       = {opcode, payload};
+                    instr                       = {res_opcode, payload};
                     resource_instr_valid[slot]  = 1;
                 end
             end

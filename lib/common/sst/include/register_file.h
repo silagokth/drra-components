@@ -1,14 +1,15 @@
 #ifndef _REGISTER_FILE_H
 #define _REGISTER_FILE_H
 
+#include "dataEvent.h"
 #include "drra_resource.h"
 #include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
 
-// The register file model shared by rf and rf_row, the SST twin of
-// lib/common/jinja/register_file. The two resources differ only in geometry
+// The register file model shared by rf_1row, rf_2row and rf_4row, the SST twin
+// of lib/common/jinja/register_file. The resources differ only in geometry
 // (RF_DEPTH, WORD_ADDR_WIDTH, BULK_ADDR_WIDTH), which arrives as params, so
 // everything but the SST registration and the generated instruction package
 // lives here. Each resource registers itself under its own name, wires its
@@ -49,6 +50,9 @@ protected:
   void conf(uint32_t slot, uint64_t address, uint64_t value);
 
 private:
+  DataEvent *takeData(DataEvent::PortType type);
+  std::map<DataEvent::PortType, DataEvent *> pending_data;
+
   // Register File
   uint32_t register_file_size;
   std::string access_time;
